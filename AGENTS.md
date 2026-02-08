@@ -48,7 +48,7 @@
 - TypeScript strict mode; avoid `any`.
 - Use `cn()` from `@/lib/utils` for class merging.
 - File naming: PascalCase for components, camelCase for utilities.
-- Keep files under ~500 LOC; split when needed.
+- Aim to keep files under ~400 LOC; guideline only (not a hard guardrail). Split/refactor when it improves clarity or testability.
 - Brief comments for tricky logic.
 
 ## Commit Guidelines

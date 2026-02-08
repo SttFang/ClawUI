@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
+import { StartupGuard } from '@/components/StartupGuard'
 import { useGatewayStore, initGatewayIpcListener } from '@/store/gateway'
 import { useChatStore, initChatStreamListener } from '@/store/chat'
 import { initTheme } from '@/store/ui'
@@ -29,9 +30,11 @@ function App() {
   }, [status, connectWebSocket])
 
   return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <StartupGuard>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </StartupGuard>
   )
 }
 

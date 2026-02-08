@@ -1,14 +1,14 @@
 # Repository Guidelines
-
+- 用中文回答我的问题
 - Repo: https://github.com/SttFang/ClawUI
 - GitHub issues/comments/PR comments: use literal multiline strings or `-F - <<'EOF'` for real newlines; never embed "\n".
 
 ## Project Structure
 
 - Source code: `src/` (React renderer), `electron/` (main process).
-- Tests: colocated `*.test.ts`.
-- UI Components: `src/components/ui/` (shadcn/ui pattern).
-- Layout: `src/components/layout/` (AppShell, NavRail, TitleBar).
+- Tests: colocated `*.test.ts` or `__tests__/` folder.
+- Components: `src/components/` (PascalCase folders, each with `index.tsx`).
+- UI Primitives: `src/components/ui/` (shadcn/ui pattern, flat files).
 - State: `src/store/` (Zustand stores).
 - Routes: `src/routes/` (React Router pages).
 - Locales: `src/locales/` (i18n, zh-CN source).
@@ -53,14 +53,35 @@
 
 ## Commit & Pull Request Guidelines
 
+### Committing
+
 - Create commits with `scripts/committer "<msg>" <file...>`; avoid manual `git add`/`git commit` so staging stays scoped.
 - Follow concise, action-oriented commit messages (e.g., `TitleBar: add bottom border`).
 - Prefix with gitmoji when appropriate: `✨ feat:`, `🐛 fix:`, `♻️ refactor:`, `📝 docs:`, `💄 style:`.
 - Group related changes; avoid bundling unrelated refactors.
 - Type-check must pass before commit: `bun run type-check`.
+
+### Pull Requests
+
+- Read this when submitting a PR: `docs/help/submitting-a-pr.md`
+- Read this when submitting an issue: `docs/help/submitting-an-issue.md`
 - PRs should summarize scope, note testing performed, and mention any user-facing changes.
-- PR review flow: when given a PR link, review via `gh pr view`/`gh pr diff` and do **not** change branches.
+
+### PR Review Flow
+
+- When given a PR link, review via `gh pr view`/`gh pr diff` and do **not** change branches.
+- PR review calls: prefer a single `gh pr view --json ...` to batch metadata/comments; run `gh pr diff` only when needed.
+- Before starting a review when a GH Issue/PR is pasted: run `git pull`; if there are local changes or unpushed commits, stop and alert the user before reviewing.
+
+### PR Merge Flow
+
 - Goal: merge PRs. Prefer **rebase** when commits are clean; **squash** when history is messy.
+- PR merge flow: create a temp branch from `master`, merge the PR branch into it (prefer squash unless commit history is important; use rebase/merge when it is). If we squash, add the PR author as a co-contributor. Apply fixes, run full gate before the final commit, commit, merge back to `master`, delete the temp branch, and end on `master`.
+- If you review a PR and later do work on it, land via merge/squash (no direct-master commits) and always add the PR author as a co-contributor.
+- When merging a PR: leave a PR comment that explains exactly what we did and include the SHA hashes.
+
+### Final Notes
+
 - When working on a GitHub Issue or PR, print the full URL at the end of the task.
 
 ## i18n

@@ -32,13 +32,13 @@ export default function MCPPage() {
   const isLoading = useMCPStore(selectIsLoading)
   const error = useMCPStore(selectError)
   const expandedServerId = useMCPStore(selectExpandedServerId)
-  const {
-    loadServers,
-    addServer,
-    removeServer,
-    toggleServer,
-    setExpandedServer,
-  } = useMCPStore()
+
+  // Use stable action references to avoid infinite re-renders in React 19
+  const loadServers = useMCPStore((s) => s.loadServers)
+  const addServer = useMCPStore((s) => s.addServer)
+  const removeServer = useMCPStore((s) => s.removeServer)
+  const toggleServer = useMCPStore((s) => s.toggleServer)
+  const setExpandedServer = useMCPStore((s) => s.setExpandedServer)
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)

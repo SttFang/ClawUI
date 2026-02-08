@@ -1,10 +1,9 @@
 import { Outlet } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
 import { StartupGuard } from '@/components/StartupGuard'
-import { useGatewayStore, initGatewayIpcListener } from '@/store/gateway'
-import { useChatStore, initChatStreamListener } from '@/store/chat'
+import { initGatewayIpcListener } from '@/store/gateway'
+import { initChatStreamListener } from '@/store/chat'
 import { initTheme } from '@/store/ui'
-import { useEffect } from 'react'
 
 // Initialize IPC listeners and theme once
 initGatewayIpcListener()
@@ -12,23 +11,8 @@ initChatStreamListener()
 initTheme()
 
 function App() {
-  const { status, start } = useGatewayStore()
-  const { connectWebSocket } = useChatStore()
-
-  useEffect(() => {
-    // Auto-start gateway on app launch
-    if (status === 'stopped') {
-      start()
-    }
-  }, [])
-
-  useEffect(() => {
-    // Auto-connect WebSocket when gateway is running
-    if (status === 'running') {
-      connectWebSocket()
-    }
-  }, [status, connectWebSocket])
-
+  // Gateway startup and WebSocket connection are now handled by StartupGuard
+  // after OpenClaw installation check completes
   return (
     <StartupGuard>
       <AppShell>

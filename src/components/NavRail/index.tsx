@@ -10,7 +10,7 @@ import {
   Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useGatewayStore } from '@/store/gateway'
+import { useGatewayStore, selectGatewayStatus } from '@/store/gateway'
 
 const navItems = [
   { to: '/', icon: MessageSquare, labelKey: 'nav:chat' },
@@ -24,7 +24,8 @@ const navItems = [
 
 export function NavRail() {
   const { t } = useTranslation()
-  const status = useGatewayStore((s) => s.status)
+  // Use stable selector to avoid infinite re-renders in React 19
+  const status = useGatewayStore(selectGatewayStatus)
 
   return (
     <aside className="flex w-14 shrink-0 flex-col items-center bg-sidebar pb-3 pt-3">

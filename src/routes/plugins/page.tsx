@@ -168,16 +168,16 @@ export default function PluginsPage() {
   const isLoading = usePluginsStore(selectIsLoading)
   const searchQuery = usePluginsStore(selectSearchQuery)
   const categoryFilter = usePluginsStore(selectCategoryFilter)
-  const {
-    loadPlugins,
-    installPlugin,
-    uninstallPlugin,
-    enablePlugin,
-    disablePlugin,
-    updatePluginConfig,
-    setSearchQuery,
-    setCategoryFilter,
-  } = usePluginsStore()
+
+  // Use stable action references to avoid infinite re-renders in React 19
+  const loadPlugins = usePluginsStore((s) => s.loadPlugins)
+  const installPlugin = usePluginsStore((s) => s.installPlugin)
+  const uninstallPlugin = usePluginsStore((s) => s.uninstallPlugin)
+  const enablePlugin = usePluginsStore((s) => s.enablePlugin)
+  const disablePlugin = usePluginsStore((s) => s.disablePlugin)
+  const updatePluginConfig = usePluginsStore((s) => s.updatePluginConfig)
+  const setSearchQuery = usePluginsStore((s) => s.setSearchQuery)
+  const setCategoryFilter = usePluginsStore((s) => s.setCategoryFilter)
 
   const [configPlugin, setConfigPlugin] = useState<Plugin | null>(null)
   const [configDialogOpen, setConfigDialogOpen] = useState(false)

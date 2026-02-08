@@ -1,9 +1,11 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { Send, Plus, Trash2, MessageSquare } from 'lucide-react'
 import { useChatStore, selectMessages, selectSessions, selectIsLoading, selectInput, selectCurrentSession, selectWsConnected } from '@/store/chat'
 import { useGatewayStore, selectIsGatewayRunning } from '@/store/gateway'
 import { cn } from '@/lib/utils'
 import { Button, ScrollArea } from '@clawui/ui'
+import { ConfigBanner } from '@/components/ConfigBanner'
+import { ipc } from '@/lib/ipc'
 
 export default function ChatPage() {
   const messages = useChatStore(selectMessages)
@@ -12,10 +14,31 @@ export default function ChatPage() {
   const isLoading = useChatStore(selectIsLoading)
   const input = useChatStore(selectInput)
   const wsConnected = useChatStore(selectWsConnected)
-  const { setInput, sendMessage, createSession, selectSession, deleteSession } = useChatStore()
   const isGatewayRunning = useGatewayStore(selectIsGatewayRunning)
-  
+
+  // Use stable action references via getState() to avoid infinite re-renders
+  const setInput = useChatStore((s) => s.setInput)
+  const sendMessage = useChatStore((s) => s.sendMessage)
+  const createSession = useChatStore((s) => s.createSession)
+  const selectSession = useChatStore((s) => s.selectSession)
+  const deleteSession = useChatStore((s) => s.deleteSession)
+
+  const [configValid, setConfigValid] = useState<boolean | null>(null)
+  const [showBanner, setShowBanner] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Check config validity on mount
+  useEffect(() => {
+    async function checkConfig() {
+      try {
+        const status = await ipc.onboarding.detect()
+        setConfigValid(status?.configValid ?? false)
+      } catch {
+        setConfigValid(false)
+      }
+    }
+    checkConfig()
+  }, [])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -31,6 +54,10 @@ export default function ChatPage() {
       e.preventDefault()
       handleSend()
     }
+  }
+
+  const handleDismissBanner = () => {
+    setShowBanner(false)
   }
 
   return (
@@ -79,6 +106,13 @@ export default function ChatPage() {
 
       {/* Chat area */}
       <div className="flex-1 flex flex-col">
+        {/* Config Banner */}
+        {configValid === false && showBanner && (
+          <div className="p-4 pb-0">
+            <ConfigBanner onDismiss={handleDismissBanner} />
+          </div>
+        )}
+
         {/* Messages */}
         <ScrollArea className="flex-1 p-4">
           <div className="max-w-3xl mx-auto space-y-4">

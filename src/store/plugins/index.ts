@@ -345,23 +345,49 @@ export const selectError = (state: PluginsStore) => state.error
 export const selectSearchQuery = (state: PluginsStore) => state.searchQuery
 export const selectCategoryFilter = (state: PluginsStore) => state.categoryFilter
 
+// React 19 + useSyncExternalStore requires getSnapshot() to return a stable reference
+// for the same store state, otherwise it can trigger an infinite update loop.
+const filteredPluginsCache = new WeakMap<PluginsStore, Plugin[]>()
+const installedPluginsCache = new WeakMap<PluginsStore, Plugin[]>()
+const enabledPluginsCache = new WeakMap<PluginsStore, Plugin[]>()
+
 export const selectFilteredPlugins = (state: PluginsStore) => {
+  const cached = filteredPluginsCache.get(state)
+  if (cached) return cached
+
   const { plugins, searchQuery, categoryFilter } = state
-  return plugins.filter((plugin) => {
+  const query = searchQuery.trim().toLowerCase()
+
+  const result = plugins.filter((plugin) => {
     const matchesSearch =
-      !searchQuery ||
-      plugin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      plugin.description.toLowerCase().includes(searchQuery.toLowerCase())
+      !query ||
+      plugin.name.toLowerCase().includes(query) ||
+      plugin.description.toLowerCase().includes(query)
     const matchesCategory = categoryFilter === 'all' || plugin.category === categoryFilter
     return matchesSearch && matchesCategory
   })
+
+  filteredPluginsCache.set(state, result)
+  return result
 }
 
-export const selectInstalledPlugins = (state: PluginsStore) =>
-  state.plugins.filter((p) => p.installed)
+export const selectInstalledPlugins = (state: PluginsStore) => {
+  const cached = installedPluginsCache.get(state)
+  if (cached) return cached
 
-export const selectEnabledPlugins = (state: PluginsStore) =>
-  state.plugins.filter((p) => p.enabled)
+  const result = state.plugins.filter((p) => p.installed)
+  installedPluginsCache.set(state, result)
+  return result
+}
+
+export const selectEnabledPlugins = (state: PluginsStore) => {
+  const cached = enabledPluginsCache.get(state)
+  if (cached) return cached
+
+  const result = state.plugins.filter((p) => p.enabled)
+  enabledPluginsCache.set(state, result)
+  return result
+}
 
 export const selectPluginById = (id: string) => (state: PluginsStore) =>
   state.plugins.find((p) => p.id === id)

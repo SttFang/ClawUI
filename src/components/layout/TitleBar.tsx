@@ -1,14 +1,11 @@
 import { useTranslation } from 'react-i18next'
-import { PanelLeft, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { PanelLeft, ChevronLeft, ChevronRight } from 'lucide-react'
 import { IconActionButton } from '@/components/ui/icon-action-button'
-import { UserAvatar } from '@/components/ui/user-avatar'
-import { TrafficLights } from './TrafficLights'
 
 export interface TitleBarProps {
   onToggleSidebar?: () => void
   onBack?: () => void
   onForward?: () => void
-  onNewSession?: () => void
   canGoBack?: boolean
   canGoForward?: boolean
 }
@@ -18,17 +15,17 @@ export interface TitleBarProps {
  *
  * 布局：
  * ┌──────────────────────────────────────────────────────────────────────┐
- * │ 🔴🟡🟢  [☰] [←] [→]                        [+ 新建会话]       [👤] │
- * │ (traffic)(navigation)                      (action)          (avatar)│
+ * │ 🔴🟡🟢 (原生)  [☰] [←] [→]                                          │
+ * │ (70px 留空)    (navigation)                                          │
  * └──────────────────────────────────────────────────────────────────────┘
  *
  * 整个栏为拖动区域，按钮使用 titlebar-no-drag
+ * 左侧留 70px 空间给原生红绿灯
  */
 export function TitleBar({
   onToggleSidebar,
   onBack,
   onForward,
-  onNewSession,
   canGoBack = false,
   canGoForward = false,
 }: TitleBarProps) {
@@ -36,12 +33,13 @@ export function TitleBar({
 
   return (
     <div
-      className="titlebar flex h-11 w-full shrink-0 items-center justify-between gap-4 px-4"
+      className="titlebar flex h-11 w-full shrink-0 items-center bg-sidebar px-3"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
-      {/* Left: Traffic lights + Navigation */}
-      <div className="flex items-center gap-3">
-        <TrafficLights />
+      {/* Left: Space for native traffic lights + Navigation */}
+      <div className="flex items-center">
+        {/* 为原生红绿灯留出空间 (约 70px) */}
+        <div className="w-[70px] shrink-0" />
 
         <div className="flex items-center gap-1">
           <IconActionButton
@@ -62,20 +60,6 @@ export function TitleBar({
             title={t('navigation.goForward')}
           />
         </div>
-      </div>
-
-      {/* Right: New Session + Avatar */}
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onNewSession}
-          className="titlebar-no-drag inline-flex h-7 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <Plus size={14} />
-          {t('actions.newSession')}
-        </button>
-
-        <UserAvatar size="sm" title="User profile" />
       </div>
     </div>
   )

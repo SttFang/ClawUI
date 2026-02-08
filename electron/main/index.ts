@@ -21,10 +21,10 @@ function createWindow(): BrowserWindow {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    // 隐藏原生标题栏和红绿灯，使用自定义 TitleBar 组件
-    titleBarStyle: 'hidden',
-    // macOS: 完全隐藏原生红绿灯，使用自定义 TrafficLights 组件
-    trafficLightPosition: { x: -100, y: -100 },
+    // macOS: 隐藏标题栏但保留原生红绿灯
+    titleBarStyle: 'hiddenInset',
+    // 红绿灯位置：与 TitleBar (h-11 = 44px) 垂直居中对齐
+    trafficLightPosition: { x: 16, y: 14 },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

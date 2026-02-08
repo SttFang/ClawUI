@@ -25,18 +25,21 @@ export class RuntimeDetectorService {
   private configPath = path.join(homedir(), '.openclaw', 'openclaw.json')
 
   async detect(): Promise<RuntimeStatus> {
+    console.log('[RuntimeDetector] Starting detection...')
     const [nodeResult, openclawResult, configResult] = await Promise.all([
       this.detectNode(),
       this.detectOpenClaw(),
       this.detectConfig(),
     ])
 
-    return {
+    const result = {
       ...nodeResult,
       ...openclawResult,
       ...configResult,
       configPath: this.configPath,
     }
+    console.log('[RuntimeDetector] Detection complete:', JSON.stringify(result, null, 2))
+    return result
   }
 
   private async detectNode(): Promise<{
@@ -97,37 +100,62 @@ export class RuntimeDetectorService {
     openclawVersion: string | null
     openclawPath: string | null
   }> {
-    // Check embedded OpenClaw
+    // Check embedded OpenClaw first
     const embeddedPath = path.join(this.runtimeDir, 'node_modules', 'openclaw')
     if (existsSync(embeddedPath)) {
       try {
         const pkgPath = path.join(embeddedPath, 'package.json')
         const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'))
+        console.log('[RuntimeDetector] Found embedded OpenClaw:', pkg.version)
         return {
           openclawInstalled: true,
           openclawVersion: pkg.version,
           openclawPath: embeddedPath,
         }
-      } catch {
+      } catch (error) {
+        console.log('[RuntimeDetector] Failed to read embedded OpenClaw:', error)
         // Fall through
       }
     }
 
-    // Check global OpenClaw
+    // Check global OpenClaw via `which openclaw` or `where openclaw`
+    // This is more reliable than npx which might try to download
     try {
-      const { stdout } = await execAsync('npx openclaw --version')
-      const version = stdout.trim()
-      return {
-        openclawInstalled: true,
-        openclawVersion: version,
-        openclawPath: 'global',
+      const whichCmd = process.platform === 'win32' ? 'where openclaw' : 'which openclaw'
+      const { stdout: pathOutput } = await execAsync(whichCmd, { timeout: 5000 })
+      const openclawPath = pathOutput.trim().split('\n')[0]
+
+      if (openclawPath && existsSync(openclawPath)) {
+        // Try to get version
+        try {
+          const { stdout: versionOutput } = await execAsync('openclaw --version', { timeout: 5000 })
+          const version = versionOutput.trim()
+          console.log('[RuntimeDetector] Found global OpenClaw:', version, 'at', openclawPath)
+          return {
+            openclawInstalled: true,
+            openclawVersion: version,
+            openclawPath,
+          }
+        } catch {
+          // Has openclaw binary but can't get version
+          console.log('[RuntimeDetector] Found OpenClaw binary but failed to get version')
+          return {
+            openclawInstalled: true,
+            openclawVersion: 'unknown',
+            openclawPath,
+          }
+        }
       }
     } catch {
-      return {
-        openclawInstalled: false,
-        openclawVersion: null,
-        openclawPath: null,
-      }
+      // which/where failed - OpenClaw not in PATH
+      console.log('[RuntimeDetector] OpenClaw not found in PATH')
+    }
+
+    console.log('[RuntimeDetector] OpenClaw not installed')
+    return {
+      openclawInstalled: false,
+      openclawVersion: null,
+      openclawPath: null,
     }
   }
 

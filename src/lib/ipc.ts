@@ -1,19 +1,42 @@
 // IPC client for renderer process
 // This module provides type-safe IPC communication with the main process
 
-export interface ChatRequest {
-  sessionId: string
-  message: string
-  model?: string
+// Import types from centralized package
+import type {
+  RuntimeStatus,
+  InstallProgress,
+  BYOKConfig,
+  SubscriptionConfig,
+} from '@clawui/types/onboarding'
+import type { ChatRequest, ChatStreamEvent } from '@clawui/types/chat'
+import type { OpenClawConfig, OnboardingOpenClawConfig, ChannelConfig } from '@clawui/types/config'
+import type { GatewayStatus } from '@clawui/types/gateway'
+import type {
+  LoginCredentials,
+  LoginResult,
+  SubscriptionStatus,
+} from '@clawui/types/subscription'
+import type { UpdateInfo } from '@clawui/types/app'
+
+// Re-export types for backward compatibility
+export type {
+  RuntimeStatus,
+  InstallProgress,
+  BYOKConfig,
+  ChatRequest,
+  ChatStreamEvent,
+  OpenClawConfig,
+  OnboardingOpenClawConfig,
+  ChannelConfig,
+  GatewayStatus,
+  LoginCredentials,
+  LoginResult,
+  SubscriptionStatus,
+  UpdateInfo,
 }
 
-export interface ChatStreamEvent {
-  type: 'start' | 'delta' | 'end' | 'error'
-  sessionId: string
-  messageId: string
-  content?: string
-  error?: string
-}
+// Alias for backward compatibility
+export type OnboardingSubscriptionConfig = SubscriptionConfig
 
 export interface ElectronAPI {
   gateway: {
@@ -44,7 +67,7 @@ export interface ElectronAPI {
     detect: () => Promise<RuntimeStatus>
     install: () => Promise<void>
     uninstall: () => Promise<void>
-    configureSubscription: (config: OnboardingSubscriptionConfig) => Promise<void>
+    configureSubscription: (config: SubscriptionConfig) => Promise<void>
     configureBYOK: (keys: BYOKConfig) => Promise<void>
     validateApiKey: (
       provider: 'anthropic' | 'openai',
@@ -62,171 +85,6 @@ export interface ElectronAPI {
     onConnected: (callback: () => void) => () => void
     onDisconnected: (callback: () => void) => () => void
     onError: (callback: (error: string) => void) => () => void
-  }
-}
-
-export type GatewayStatus = 'stopped' | 'starting' | 'running' | 'error'
-
-export interface OpenClawConfig {
-  gateway: {
-    port: number
-    bind: string
-    token: string
-  }
-  agents: {
-    defaults: {
-      workspace: string
-      model: {
-        primary: string
-        fallbacks: string[]
-      }
-      sandbox: { enabled: boolean }
-    }
-  }
-  session: {
-    scope: 'per-sender' | 'per-channel-peer' | 'main'
-    store: string
-    reset: {
-      mode: 'idle' | 'daily'
-      idleMinutes: number
-    }
-  }
-  channels: {
-    telegram?: ChannelConfig
-    discord?: ChannelConfig
-    whatsapp?: ChannelConfig
-    slack?: ChannelConfig
-    [key: string]: ChannelConfig | undefined
-  }
-  tools: {
-    access: 'auto' | 'ask' | 'deny'
-    allow: string[]
-    deny: string[]
-    sandbox: { enabled: boolean }
-  }
-  providers: {
-    anthropic?: { apiKey: string }
-    openai?: { apiKey: string }
-    openrouter?: { apiKey: string; baseUrl: string }
-    [key: string]: { apiKey: string; baseUrl?: string } | undefined
-  }
-  env: Record<string, string>
-  cron: {
-    enabled: boolean
-    store: string
-  }
-  hooks: {
-    enabled: boolean
-    token: string
-    path: string
-  }
-  mcp?: {
-    servers: Record<
-      string,
-      {
-        command: string
-        args?: string[]
-        env?: Record<string, string>
-        enabled?: boolean
-      }
-    >
-  }
-}
-
-export interface ChannelConfig {
-  enabled: boolean
-  botToken?: string
-  appToken?: string
-  dmPolicy?: 'pairing' | 'allowlist' | 'open' | 'disabled'
-  groupPolicy?: 'allowlist' | 'open' | 'disabled'
-  requireMention?: boolean
-  historyLimit?: number
-  allowFrom?: string[]
-  mediaMaxMb?: number
-}
-
-export interface LoginCredentials {
-  email: string
-  password: string
-}
-
-export interface LoginResult {
-  success: boolean
-  error?: string
-  token?: string
-}
-
-export interface SubscriptionStatus {
-  isLoggedIn: boolean
-  email?: string
-  plan?: 'free' | 'pro' | 'team'
-  expiresAt?: string
-  usage?: {
-    messages: number
-    limit: number
-  }
-}
-
-export interface UpdateInfo {
-  version: string
-  releaseNotes?: string
-  releaseDate?: string
-}
-
-// Onboarding types
-export interface RuntimeStatus {
-  nodeInstalled: boolean
-  nodeVersion: string | null
-  nodePath: string | null
-  openclawInstalled: boolean
-  openclawVersion: string | null
-  openclawPath: string | null
-  configExists: boolean
-  configValid: boolean
-  configPath: string
-}
-
-export interface InstallProgress {
-  stage:
-    | 'downloading-node'
-    | 'extracting-node'
-    | 'installing-openclaw'
-    | 'verifying'
-    | 'complete'
-    | 'error'
-  progress: number
-  message: string
-  error?: string
-}
-
-export interface BYOKConfig {
-  anthropic?: string
-  openai?: string
-}
-
-export interface OnboardingSubscriptionConfig {
-  proxyUrl: string
-  proxyToken: string
-}
-
-export interface OnboardingOpenClawConfig {
-  models?: {
-    anthropic?: {
-      apiKey: string
-      models?: string[]
-    }
-    openai?: {
-      apiKey: string
-      models?: string[]
-    }
-  }
-  proxy?: {
-    url: string
-    token?: string
-  }
-  server?: {
-    port: number
-    host: string
   }
 }
 
@@ -337,7 +195,7 @@ export const ipc = {
         await api.onboarding.uninstall()
       }
     },
-    async configureSubscription(config: OnboardingSubscriptionConfig) {
+    async configureSubscription(config: SubscriptionConfig) {
       const api = getElectronAPI()
       if (api) {
         await api.onboarding.configureSubscription(config)

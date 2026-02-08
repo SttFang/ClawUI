@@ -23,8 +23,9 @@ import {
   selectAutoCheckUpdates,
   selectIsSaving,
   selectSaveSuccess,
+  selectError,
 } from '@/store/settings'
-import { Key, Server, Info, CheckCircle2, Loader2, Moon, Sun, Monitor } from 'lucide-react'
+import { Key, Server, Info, CheckCircle2, Loader2, Moon, Sun, Monitor, AlertCircle } from 'lucide-react'
 import { ipc } from '@/lib/ipc'
 import { useState } from 'react'
 import { Subscription } from '@/features/Subscription'
@@ -53,6 +54,7 @@ export default function SettingsPage() {
   const autoCheckUpdates = useSettingsStore(selectAutoCheckUpdates)
   const isSaving = useSettingsStore(selectIsSaving)
   const saveSuccess = useSettingsStore(selectSaveSuccess)
+  const settingsError = useSettingsStore(selectError)
   const loadSettings = useSettingsStore((s) => s.loadSettings)
   const setApiKey = useSettingsStore((s) => s.setApiKey)
   const saveApiKeys = useSettingsStore((s) => s.saveApiKeys)
@@ -207,6 +209,12 @@ export default function SettingsPage() {
                     <span className="flex items-center gap-1 text-sm text-green-500">
                       <CheckCircle2 className="h-4 w-4" />
                       Saved!
+                    </span>
+                  )}
+                  {settingsError && (
+                    <span className="flex items-center gap-1 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      {settingsError}
                     </span>
                   )}
                 </div>

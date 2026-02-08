@@ -33,7 +33,7 @@ export function TitleBar({
 
   return (
     <div
-      className="titlebar flex h-11 w-full shrink-0 items-center bg-sidebar px-3"
+      className="titlebar flex h-11 w-full shrink-0 items-center border-b border-border bg-sidebar px-3"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
       {/* Left: Space for native traffic lights + Navigation */}

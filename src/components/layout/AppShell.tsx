@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { NavRail } from './NavRail'
+import { TitleBar } from './TitleBar'
 
 interface AppShellProps {
   children: ReactNode
@@ -8,17 +9,17 @@ interface AppShellProps {
 /**
  * 应用顶级布局 Shell
  *
- * 布局结构（参考 CodePilot）：
- * ┌──────────────────────────────────┐
- * │ 🔴🟡🟢 │  (drag region)          │
- * │ NavRail├────────────────────────┤
- * │  56px  │                        │
- * │        │      Main Content      │
- * │        │                        │
- * └────────┴────────────────────────┘
+ * 布局结构：
+ * ┌──────────────────────────────────────────────────────┐
+ * │ 🔴🟡🟢 │ [☰] [←] [→]  [Chat][Cowork][Code]     [👤] │
+ * │ NavRail├────────────────────────────────────────────┤
+ * │  56px  │                                            │
+ * │        │              Main Content                  │
+ * │        │                                            │
+ * └────────┴────────────────────────────────────────────┘
  *
  * NavRail pt-10 (40px) 为红绿灯留空间
- * 主内容区 h-11 (44px) 为拖动区域
+ * TitleBar h-11 (44px) 包含导航、模式切换、用户头像
  */
 export function AppShell({ children }: AppShellProps) {
   return (
@@ -28,11 +29,8 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Main Content Area */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* Electron draggable title bar region - 纯拖动区域，无内容 */}
-        <div
-          className="h-11 w-full shrink-0"
-          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-        />
+        {/* Title Bar with navigation and mode tabs */}
+        <TitleBar />
 
         {/* Page Content */}
         <main className="relative flex-1 overflow-hidden">{children}</main>

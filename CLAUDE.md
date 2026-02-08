@@ -587,4 +587,8 @@ const MyComponent = memo(({ isActive, className }) => {
 | `48798aa` | ✨ feat(ui): add UserAvatar component | 2026-02-08 |
 | `c11e38c` | ✨ feat(layout): add TitleBar component | 2026-02-08 |
 | `008cf6b` | ♻️ refactor(layout): integrate TitleBar into AppShell | 2026-02-08 |
+| `98865ba` | ✨ feat(i18n): add internationalization support | 2026-02-08 |
+| `c6b572d` | ✨ feat(layout): add TrafficLights component | 2026-02-08 |
+| `4e42368` | ♻️ refactor(layout): align traffic lights with TitleBar | 2026-02-08 |
+| `eb941b5` | 🔥 chore: remove unused TabSwitcher component | 2026-02-08 |
 

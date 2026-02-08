@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom'
-import { AppShell } from '@/components/layout'
+import { AppShell } from '@/components/AppShell'
 import { useGatewayStore, initGatewayIpcListener } from '@/store/gateway'
 import { useEffect } from 'react'
 

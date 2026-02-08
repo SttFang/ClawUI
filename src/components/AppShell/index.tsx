@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { NavRail } from './NavRail'
-import { TitleBar } from './TitleBar'
+import { NavRail } from '@/components/NavRail'
+import { TitleBar } from '@/components/TitleBar'
 
 interface AppShellProps {
   children: ReactNode

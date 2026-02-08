@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { PanelLeft, ChevronLeft, ChevronRight } from 'lucide-react'
-import { IconActionButton } from '@/components/ui/icon-action-button'
+import { IconActionButton } from '@/components/IconActionButton'
 
 export interface TitleBarProps {
   onToggleSidebar?: () => void

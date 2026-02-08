@@ -13,8 +13,13 @@ import MCPPage from './routes/mcp/page'
 import PluginsPage from './routes/plugins/page'
 import SchedulerPage from './routes/scheduler/page'
 import SettingsPage from './routes/settings/page'
+import OnboardingPage from './routes/onboarding/page'
 
 const router = createHashRouter([
+  {
+    path: '/onboarding',
+    element: <OnboardingPage />,
+  },
   {
     path: '/',
     element: <App />,

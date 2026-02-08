@@ -7,6 +7,7 @@ import { UpdaterService } from './services/updater'
 import { registerGatewayHandlers } from './ipc/gateway'
 import { registerConfigHandlers } from './ipc/config'
 import { registerAppHandlers } from './ipc/app'
+import { registerOnboardingHandlers } from './ipc/onboarding'
 
 // Services
 const gatewayService = new GatewayService()
@@ -69,6 +70,7 @@ app.whenReady().then(async () => {
   registerGatewayHandlers(ipcMain, gatewayService)
   registerConfigHandlers(ipcMain, configService)
   registerAppHandlers(ipcMain, updaterService)
+  registerOnboardingHandlers()
 
   // Create the main window
   const mainWindow = createWindow()

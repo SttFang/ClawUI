@@ -22,6 +22,8 @@
       "@/*": ["src/*"],
       "@clawui/ui": ["packages/ui/src/index.ts"],
       "@clawui/ui/*": ["packages/ui/src/*"],
+      "@clawui/database": ["packages/database/src/index.ts"],
+      "@clawui/database/*": ["packages/database/src/*"],
       "@components/*": ["src/components/*"],
       "@features/*": ["src/features/*"],
       "@store/*": ["src/store/*"],

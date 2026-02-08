@@ -26,6 +26,19 @@ export interface ElectronAPI {
     maximize: () => void
     close: () => void
   }
+  onboarding: {
+    detect: () => Promise<RuntimeStatus>
+    install: () => Promise<void>
+    uninstall: () => Promise<void>
+    configureSubscription: (config: OnboardingSubscriptionConfig) => Promise<void>
+    configureBYOK: (keys: BYOKConfig) => Promise<void>
+    validateApiKey: (
+      provider: 'anthropic' | 'openai',
+      apiKey: string
+    ) => Promise<boolean>
+    readConfig: () => Promise<OnboardingOpenClawConfig | null>
+    onInstallProgress: (callback: (progress: InstallProgress) => void) => () => void
+  }
 }
 
 export type GatewayStatus = 'stopped' | 'starting' | 'running' | 'error'
@@ -125,6 +138,63 @@ export interface UpdateInfo {
   releaseDate?: string
 }
 
+// Onboarding types
+export interface RuntimeStatus {
+  nodeInstalled: boolean
+  nodeVersion: string | null
+  nodePath: string | null
+  openclawInstalled: boolean
+  openclawVersion: string | null
+  openclawPath: string | null
+  configExists: boolean
+  configValid: boolean
+  configPath: string
+}
+
+export interface InstallProgress {
+  stage:
+    | 'downloading-node'
+    | 'extracting-node'
+    | 'installing-openclaw'
+    | 'verifying'
+    | 'complete'
+    | 'error'
+  progress: number
+  message: string
+  error?: string
+}
+
+export interface BYOKConfig {
+  anthropic?: string
+  openai?: string
+}
+
+export interface OnboardingSubscriptionConfig {
+  proxyUrl: string
+  proxyToken: string
+}
+
+export interface OnboardingOpenClawConfig {
+  models?: {
+    anthropic?: {
+      apiKey: string
+      models?: string[]
+    }
+    openai?: {
+      apiKey: string
+      models?: string[]
+    }
+  }
+  proxy?: {
+    url: string
+    token?: string
+  }
+  server?: {
+    port: number
+    host: string
+  }
+}
+
 // Get the electron API from the preload script
 export function getElectronAPI(): ElectronAPI | null {
   if (typeof window !== 'undefined' && 'electron' in window) {
@@ -213,6 +283,48 @@ export const ipc = {
     close() {
       const api = getElectronAPI()
       api?.app.close()
+    },
+  },
+  onboarding: {
+    async detect() {
+      const api = getElectronAPI()
+      return api?.onboarding.detect()
+    },
+    async install() {
+      const api = getElectronAPI()
+      if (api) {
+        await api.onboarding.install()
+      }
+    },
+    async uninstall() {
+      const api = getElectronAPI()
+      if (api) {
+        await api.onboarding.uninstall()
+      }
+    },
+    async configureSubscription(config: OnboardingSubscriptionConfig) {
+      const api = getElectronAPI()
+      if (api) {
+        await api.onboarding.configureSubscription(config)
+      }
+    },
+    async configureBYOK(keys: BYOKConfig) {
+      const api = getElectronAPI()
+      if (api) {
+        await api.onboarding.configureBYOK(keys)
+      }
+    },
+    async validateApiKey(provider: 'anthropic' | 'openai', apiKey: string) {
+      const api = getElectronAPI()
+      return api?.onboarding.validateApiKey(provider, apiKey) ?? false
+    },
+    async readConfig() {
+      const api = getElectronAPI()
+      return api?.onboarding.readConfig() ?? null
+    },
+    onInstallProgress(callback: (progress: InstallProgress) => void) {
+      const api = getElectronAPI()
+      return api?.onboarding.onInstallProgress(callback) ?? (() => {})
     },
   },
 }

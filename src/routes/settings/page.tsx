@@ -27,6 +27,7 @@ import {
 import { Key, Server, Info, CheckCircle2, Loader2, Moon, Sun, Monitor } from 'lucide-react'
 import { ipc } from '@/lib/ipc'
 import { useState } from 'react'
+import { Subscription } from '@/features/Subscription'
 
 const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
   { value: 'light', label: 'Light', icon: <Sun className="h-4 w-4" /> },
@@ -80,6 +81,7 @@ export default function SettingsPage() {
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="api">API Keys</TabsTrigger>
             <TabsTrigger value="gateway">Gateway</TabsTrigger>
+            <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
 
@@ -251,6 +253,11 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Subscription Tab */}
+          <TabsContent value="subscription">
+            <Subscription />
           </TabsContent>
 
           {/* About Tab */}

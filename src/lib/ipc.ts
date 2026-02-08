@@ -120,6 +120,17 @@ export interface OpenClawConfig {
     token: string
     path: string
   }
+  mcp?: {
+    servers: Record<
+      string,
+      {
+        command: string
+        args?: string[]
+        env?: Record<string, string>
+        enabled?: boolean
+      }
+    >
+  }
 }
 
 export interface ChannelConfig {

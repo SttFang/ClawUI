@@ -1,15 +1,9 @@
 import { create } from 'zustand'
 import { ipc, RuntimeStatus, InstallProgress } from '@/lib/ipc'
+import type { OnboardingStep } from '@clawui/types/onboarding'
 
-export type OnboardingStep =
-  | 'login'
-  | 'detecting'
-  | 'install-required'
-  | 'installing'
-  | 'config-mode'
-  | 'config-subscription'
-  | 'config-byok'
-  | 'complete'
+// Re-export the type for convenience
+export type { OnboardingStep }
 
 interface OnboardingState {
   step: OnboardingStep
@@ -27,16 +21,13 @@ interface OnboardingActions {
   setError: (error: string | null) => void
   detectRuntime: () => Promise<void>
   startInstall: () => Promise<void>
-  configureSubscription: (proxyUrl: string, proxyToken: string) => Promise<void>
-  configureBYOK: (anthropicKey?: string, openaiKey?: string) => Promise<void>
-  validateApiKey: (provider: 'anthropic' | 'openai', key: string) => Promise<boolean>
   reset: () => void
 }
 
 type OnboardingStore = OnboardingState & OnboardingActions
 
 const initialState: OnboardingState = {
-  step: 'login',
+  step: 'checking',
   runtimeStatus: null,
   installProgress: null,
   isLoading: false,
@@ -53,7 +44,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
   setError: (error) => set({ error }),
 
   detectRuntime: async () => {
-    set({ isLoading: true, error: null, step: 'detecting' })
+    set({ isLoading: true, error: null, step: 'checking' })
     try {
       const status = await ipc.onboarding.detect()
       if (!status) {
@@ -61,17 +52,17 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
       }
       set({ runtimeStatus: status, isLoading: false })
 
-      // Determine next step based on status
-      if (status.configValid) {
-        set({ step: 'complete' })
-      } else if (!status.nodeInstalled || !status.openclawInstalled) {
-        set({ step: 'install-required' })
+      // Simple flow: if not installed, show install; otherwise complete
+      if (!status.nodeInstalled || !status.openclawInstalled) {
+        set({ step: 'install' })
       } else {
-        set({ step: 'config-mode' })
+        // OpenClaw is installed, go to chat page
+        // Config check will be done in ChatPage
+        set({ step: 'complete' })
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Detection failed'
-      set({ error: message, isLoading: false, step: 'login' })
+      set({ error: message, isLoading: false, step: 'error' })
     }
   },
 
@@ -83,10 +74,14 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
       set({ installProgress: progress })
 
       if (progress.stage === 'complete') {
-        set({ isLoading: false, step: 'config-mode' })
+        set({ isLoading: false, step: 'complete' })
         removeListener()
       } else if (progress.stage === 'error') {
-        set({ isLoading: false, error: progress.error || 'Installation failed' })
+        set({
+          isLoading: false,
+          step: 'error',
+          error: progress.error || 'Installation failed'
+        })
         removeListener()
       }
     })
@@ -95,41 +90,8 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
       await ipc.onboarding.install()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Installation failed'
-      set({ error: message, isLoading: false })
+      set({ error: message, isLoading: false, step: 'error' })
       removeListener()
-    }
-  },
-
-  configureSubscription: async (proxyUrl, proxyToken) => {
-    set({ isLoading: true, error: null })
-    try {
-      await ipc.onboarding.configureSubscription({ proxyUrl, proxyToken })
-      set({ isLoading: false, step: 'complete' })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Configuration failed'
-      set({ error: message, isLoading: false })
-    }
-  },
-
-  configureBYOK: async (anthropicKey, openaiKey) => {
-    set({ isLoading: true, error: null })
-    try {
-      await ipc.onboarding.configureBYOK({
-        anthropic: anthropicKey,
-        openai: openaiKey,
-      })
-      set({ isLoading: false, step: 'complete' })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Configuration failed'
-      set({ error: message, isLoading: false })
-    }
-  },
-
-  validateApiKey: async (provider, key) => {
-    try {
-      return await ipc.onboarding.validateApiKey(provider, key)
-    } catch {
-      return false
     }
   },
 

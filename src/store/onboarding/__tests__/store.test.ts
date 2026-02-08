@@ -8,16 +8,13 @@ vi.mock('@/lib/ipc', () => ({
     onboarding: {
       detect: vi.fn(),
       install: vi.fn(),
-      configureSubscription: vi.fn(),
-      configureBYOK: vi.fn(),
-      validateApiKey: vi.fn(),
       onInstallProgress: vi.fn(() => () => {}),
     },
   },
 }))
 
 const initialState = {
-  step: 'login' as const,
+  step: 'checking' as const,
   runtimeStatus: null,
   installProgress: null,
   isLoading: false,
@@ -34,22 +31,19 @@ describe('OnboardingStore', () => {
   describe('setStep', () => {
     it('should update the current step', () => {
       const { setStep } = useOnboardingStore.getState()
-      setStep('detecting')
-      expect(useOnboardingStore.getState().step).toBe('detecting')
+      setStep('install')
+      expect(useOnboardingStore.getState().step).toBe('install')
     })
 
     it('should allow setting any valid step', () => {
       const { setStep } = useOnboardingStore.getState()
 
       const steps = [
-        'login',
-        'detecting',
-        'install-required',
+        'checking',
+        'install',
         'installing',
-        'config-mode',
-        'config-subscription',
-        'config-byok',
         'complete',
+        'error',
       ] as const
 
       for (const step of steps) {
@@ -118,7 +112,7 @@ describe('OnboardingStore', () => {
   })
 
   describe('detectRuntime', () => {
-    it('should set step to complete when config is valid', async () => {
+    it('should set step to complete when OpenClaw is installed', async () => {
       const { ipc } = await import('@/lib/ipc')
       ;(ipc.onboarding.detect as Mock).mockResolvedValue({
         nodeInstalled: true,
@@ -138,10 +132,9 @@ describe('OnboardingStore', () => {
       const state = useOnboardingStore.getState()
       expect(state.step).toBe('complete')
       expect(state.isLoading).toBe(false)
-      expect(state.runtimeStatus?.configValid).toBe(true)
     })
 
-    it('should set step to install-required when node not installed', async () => {
+    it('should set step to install when node not installed', async () => {
       const { ipc } = await import('@/lib/ipc')
       ;(ipc.onboarding.detect as Mock).mockResolvedValue({
         nodeInstalled: false,
@@ -158,10 +151,10 @@ describe('OnboardingStore', () => {
       const { detectRuntime } = useOnboardingStore.getState()
       await detectRuntime()
 
-      expect(useOnboardingStore.getState().step).toBe('install-required')
+      expect(useOnboardingStore.getState().step).toBe('install')
     })
 
-    it('should set step to install-required when openclaw not installed', async () => {
+    it('should set step to install when openclaw not installed', async () => {
       const { ipc } = await import('@/lib/ipc')
       ;(ipc.onboarding.detect as Mock).mockResolvedValue({
         nodeInstalled: true,
@@ -178,10 +171,10 @@ describe('OnboardingStore', () => {
       const { detectRuntime } = useOnboardingStore.getState()
       await detectRuntime()
 
-      expect(useOnboardingStore.getState().step).toBe('install-required')
+      expect(useOnboardingStore.getState().step).toBe('install')
     })
 
-    it('should set step to config-mode when installed but config not valid', async () => {
+    it('should set step to complete when installed (config check happens in ChatPage)', async () => {
       const { ipc } = await import('@/lib/ipc')
       ;(ipc.onboarding.detect as Mock).mockResolvedValue({
         nodeInstalled: true,
@@ -191,14 +184,15 @@ describe('OnboardingStore', () => {
         openclawVersion: '1.0.0',
         openclawPath: '/usr/local/bin/openclaw',
         configExists: true,
-        configValid: false,
+        configValid: false, // Config not valid, but still complete
         configPath: '~/.openclaw/openclaw.json',
       })
 
       const { detectRuntime } = useOnboardingStore.getState()
       await detectRuntime()
 
-      expect(useOnboardingStore.getState().step).toBe('config-mode')
+      // Simplified flow: if installed, go to complete regardless of config
+      expect(useOnboardingStore.getState().step).toBe('complete')
     })
 
     it('should handle detection error', async () => {
@@ -209,7 +203,7 @@ describe('OnboardingStore', () => {
       await detectRuntime()
 
       const state = useOnboardingStore.getState()
-      expect(state.step).toBe('login')
+      expect(state.step).toBe('error')
       expect(state.error).toBe('Detection failed')
       expect(state.isLoading).toBe(false)
     })
@@ -222,11 +216,11 @@ describe('OnboardingStore', () => {
       await detectRuntime()
 
       const state = useOnboardingStore.getState()
-      expect(state.step).toBe('login')
+      expect(state.step).toBe('error')
       expect(state.error).toBe('Failed to detect runtime')
     })
 
-    it('should set step to detecting and loading to true at start', async () => {
+    it('should set step to checking and loading to true at start', async () => {
       const { ipc } = await import('@/lib/ipc')
 
       let capturedState: { step: string; isLoading: boolean } | null = null
@@ -251,7 +245,7 @@ describe('OnboardingStore', () => {
       const { detectRuntime } = useOnboardingStore.getState()
       await detectRuntime()
 
-      expect(capturedState).toEqual({ step: 'detecting', isLoading: true })
+      expect(capturedState).toEqual({ step: 'checking', isLoading: true })
     })
   })
 
@@ -294,7 +288,7 @@ describe('OnboardingStore', () => {
       await startInstall()
 
       const state = useOnboardingStore.getState()
-      expect(state.step).toBe('config-mode')
+      expect(state.step).toBe('complete')
       expect(state.isLoading).toBe(false)
     })
 
@@ -321,6 +315,7 @@ describe('OnboardingStore', () => {
       await startInstall()
 
       const state = useOnboardingStore.getState()
+      expect(state.step).toBe('error')
       expect(state.error).toBe('Network error')
       expect(state.isLoading).toBe(false)
     })
@@ -334,117 +329,9 @@ describe('OnboardingStore', () => {
       await startInstall()
 
       const state = useOnboardingStore.getState()
+      expect(state.step).toBe('error')
       expect(state.error).toBe('Install crashed')
       expect(state.isLoading).toBe(false)
-    })
-  })
-
-  describe('configureSubscription', () => {
-    it('should set step to complete on success', async () => {
-      const { ipc } = await import('@/lib/ipc')
-      ;(ipc.onboarding.configureSubscription as Mock).mockResolvedValue(undefined)
-
-      const { configureSubscription } = useOnboardingStore.getState()
-      await configureSubscription('https://proxy.example.com', 'token123')
-
-      const state = useOnboardingStore.getState()
-      expect(state.step).toBe('complete')
-      expect(state.isLoading).toBe(false)
-      expect(ipc.onboarding.configureSubscription).toHaveBeenCalledWith({
-        proxyUrl: 'https://proxy.example.com',
-        proxyToken: 'token123',
-      })
-    })
-
-    it('should handle configuration error', async () => {
-      const { ipc } = await import('@/lib/ipc')
-      ;(ipc.onboarding.configureSubscription as Mock).mockRejectedValue(
-        new Error('Invalid proxy URL')
-      )
-
-      const { configureSubscription } = useOnboardingStore.getState()
-      await configureSubscription('invalid-url', 'token123')
-
-      const state = useOnboardingStore.getState()
-      expect(state.error).toBe('Invalid proxy URL')
-      expect(state.isLoading).toBe(false)
-      expect(state.step).toBe('login') // Step unchanged on error
-    })
-  })
-
-  describe('configureBYOK', () => {
-    it('should set step to complete on success', async () => {
-      const { ipc } = await import('@/lib/ipc')
-      ;(ipc.onboarding.configureBYOK as Mock).mockResolvedValue(undefined)
-
-      const { configureBYOK } = useOnboardingStore.getState()
-      await configureBYOK('sk-ant-xxx', 'sk-openai-xxx')
-
-      const state = useOnboardingStore.getState()
-      expect(state.step).toBe('complete')
-      expect(state.isLoading).toBe(false)
-      expect(ipc.onboarding.configureBYOK).toHaveBeenCalledWith({
-        anthropic: 'sk-ant-xxx',
-        openai: 'sk-openai-xxx',
-      })
-    })
-
-    it('should handle BYOK with only anthropic key', async () => {
-      const { ipc } = await import('@/lib/ipc')
-      ;(ipc.onboarding.configureBYOK as Mock).mockResolvedValue(undefined)
-
-      const { configureBYOK } = useOnboardingStore.getState()
-      await configureBYOK('sk-ant-xxx')
-
-      expect(ipc.onboarding.configureBYOK).toHaveBeenCalledWith({
-        anthropic: 'sk-ant-xxx',
-        openai: undefined,
-      })
-    })
-
-    it('should handle configuration error', async () => {
-      const { ipc } = await import('@/lib/ipc')
-      ;(ipc.onboarding.configureBYOK as Mock).mockRejectedValue(new Error('Invalid API key'))
-
-      const { configureBYOK } = useOnboardingStore.getState()
-      await configureBYOK('invalid-key')
-
-      const state = useOnboardingStore.getState()
-      expect(state.error).toBe('Invalid API key')
-      expect(state.isLoading).toBe(false)
-    })
-  })
-
-  describe('validateApiKey', () => {
-    it('should return true for valid key', async () => {
-      const { ipc } = await import('@/lib/ipc')
-      ;(ipc.onboarding.validateApiKey as Mock).mockResolvedValue(true)
-
-      const { validateApiKey } = useOnboardingStore.getState()
-      const result = await validateApiKey('anthropic', 'sk-ant-valid')
-
-      expect(result).toBe(true)
-      expect(ipc.onboarding.validateApiKey).toHaveBeenCalledWith('anthropic', 'sk-ant-valid')
-    })
-
-    it('should return false for invalid key', async () => {
-      const { ipc } = await import('@/lib/ipc')
-      ;(ipc.onboarding.validateApiKey as Mock).mockResolvedValue(false)
-
-      const { validateApiKey } = useOnboardingStore.getState()
-      const result = await validateApiKey('openai', 'invalid-key')
-
-      expect(result).toBe(false)
-    })
-
-    it('should return false on error', async () => {
-      const { ipc } = await import('@/lib/ipc')
-      ;(ipc.onboarding.validateApiKey as Mock).mockRejectedValue(new Error('Network error'))
-
-      const { validateApiKey } = useOnboardingStore.getState()
-      const result = await validateApiKey('anthropic', 'sk-ant-xxx')
-
-      expect(result).toBe(false)
     })
   })
 
@@ -472,7 +359,7 @@ describe('OnboardingStore', () => {
       reset()
 
       const state = useOnboardingStore.getState()
-      expect(state.step).toBe('login')
+      expect(state.step).toBe('checking')
       expect(state.runtimeStatus).toBeNull()
       expect(state.installProgress).toBeNull()
       expect(state.isLoading).toBe(false)
@@ -483,8 +370,8 @@ describe('OnboardingStore', () => {
   describe('selectors', () => {
     it('selectOnboardingStep should return current step', async () => {
       const { selectOnboardingStep } = await import('../index')
-      useOnboardingStore.setState({ step: 'config-byok' })
-      expect(selectOnboardingStep(useOnboardingStore.getState())).toBe('config-byok')
+      useOnboardingStore.setState({ step: 'install' })
+      expect(selectOnboardingStep(useOnboardingStore.getState())).toBe('install')
     })
 
     it('selectRuntimeStatus should return runtime status', async () => {

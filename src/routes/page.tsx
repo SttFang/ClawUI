@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react'
 import { Send, Plus, Trash2, MessageSquare } from 'lucide-react'
-import { useChatStore, selectMessages, selectSessions, selectIsLoading, selectInput, selectCurrentSession } from '@/store/chat'
+import { useChatStore, selectMessages, selectSessions, selectIsLoading, selectInput, selectCurrentSession, selectWsConnected } from '@/store/chat'
 import { useGatewayStore, selectIsGatewayRunning } from '@/store/gateway'
 import { cn } from '@/lib/utils'
 import { Button, ScrollArea } from '@clawui/ui'
@@ -11,6 +11,7 @@ export default function ChatPage() {
   const currentSession = useChatStore(selectCurrentSession)
   const isLoading = useChatStore(selectIsLoading)
   const input = useChatStore(selectInput)
+  const wsConnected = useChatStore(selectWsConnected)
   const { setInput, sendMessage, createSession, selectSession, deleteSession } = useChatStore()
   const isGatewayRunning = useGatewayStore(selectIsGatewayRunning)
   
@@ -87,7 +88,9 @@ export default function ChatPage() {
                 <p>Start a conversation</p>
                 <p className="text-sm mt-2">
                   {isGatewayRunning
-                    ? 'Gateway is running. Send a message to begin.'
+                    ? wsConnected
+                      ? 'Gateway connected. Send a message to begin.'
+                      : 'Gateway is running but WebSocket is not connected.'
                     : 'Gateway is not running. Please check settings.'}
                 </p>
               </div>

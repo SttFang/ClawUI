@@ -24,3 +24,12 @@ export {
   type TabsTriggerProps,
   type TabsContentProps,
 } from './tabs'
+export {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from './dialog'
+export { Select, type SelectProps } from './select'

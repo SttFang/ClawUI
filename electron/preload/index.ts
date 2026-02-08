@@ -37,6 +37,20 @@ export interface SubscriptionConfig {
   proxyToken: string
 }
 
+export interface ChatRequest {
+  sessionId: string
+  message: string
+  model?: string
+}
+
+export interface ChatStreamEvent {
+  type: 'start' | 'delta' | 'end' | 'error'
+  sessionId: string
+  messageId: string
+  content?: string
+  error?: string
+}
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electron', {
@@ -89,6 +103,32 @@ contextBridge.exposeInMainWorld('electron', {
       return () => {
         ipcRenderer.removeListener('onboarding:install-progress', listener)
       }
+    },
+  },
+  chat: {
+    connect: (url?: string) => ipcRenderer.invoke('chat:connect', url),
+    disconnect: () => ipcRenderer.invoke('chat:disconnect'),
+    send: (request: ChatRequest) => ipcRenderer.invoke('chat:send', request),
+    isConnected: () => ipcRenderer.invoke('chat:isConnected'),
+    onStream: (callback: (event: ChatStreamEvent) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: ChatStreamEvent) => callback(data)
+      ipcRenderer.on('chat:stream', listener)
+      return () => ipcRenderer.removeListener('chat:stream', listener)
+    },
+    onConnected: (callback: () => void) => {
+      const listener = () => callback()
+      ipcRenderer.on('chat:connected', listener)
+      return () => ipcRenderer.removeListener('chat:connected', listener)
+    },
+    onDisconnected: (callback: () => void) => {
+      const listener = () => callback()
+      ipcRenderer.on('chat:disconnected', listener)
+      return () => ipcRenderer.removeListener('chat:disconnected', listener)
+    },
+    onError: (callback: (error: string) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, error: string) => callback(error)
+      ipcRenderer.on('chat:error', listener)
+      return () => ipcRenderer.removeListener('chat:error', listener)
     },
   },
 })

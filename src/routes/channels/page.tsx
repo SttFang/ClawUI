@@ -1,5 +1,9 @@
-import { useEffect } from 'react'
-import { useChannelsStore, selectChannels } from '@/store/channels'
+import { useEffect, useState } from 'react'
+import {
+  useChannelsStore,
+  selectChannels,
+  type ChannelType,
+} from '@/store/channels'
 import {
   Switch,
   Card,
@@ -10,14 +14,43 @@ import {
   Button,
 } from '@clawui/ui'
 import { Settings } from 'lucide-react'
+import {
+  TelegramConfigDialog,
+  DiscordConfigDialog,
+} from '@/features/Channels'
+import type { ChannelConfig } from '@/lib/ipc'
 
 export default function ChannelsPage() {
   const channels = useChannelsStore(selectChannels)
-  const { loadChannels, enableChannel, disableChannel } = useChannelsStore()
+  const { loadChannels, enableChannel, disableChannel, configureChannel } =
+    useChannelsStore()
+
+  const [telegramDialogOpen, setTelegramDialogOpen] = useState(false)
+  const [discordDialogOpen, setDiscordDialogOpen] = useState(false)
 
   useEffect(() => {
     loadChannels()
   }, [])
+
+  const handleConfigure = (type: ChannelType) => {
+    if (type === 'telegram') {
+      setTelegramDialogOpen(true)
+    } else if (type === 'discord') {
+      setDiscordDialogOpen(true)
+    }
+  }
+
+  const handleSaveConfig = async (
+    type: ChannelType,
+    config: ChannelConfig
+  ) => {
+    await configureChannel(type, config)
+  }
+
+  const getChannelConfig = (type: ChannelType) => {
+    const channel = channels.find((c) => c.type === type)
+    return channel?.config ?? null
+  }
 
   return (
     <div className="p-6">
@@ -63,7 +96,11 @@ export default function ChannelsPage() {
                   >
                     {channel.isConfigured ? 'Configured' : 'Not configured'}
                   </span>
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleConfigure(channel.type)}
+                  >
                     <Settings className="w-4 h-4 mr-2" />
                     Configure
                   </Button>
@@ -73,6 +110,20 @@ export default function ChannelsPage() {
           ))}
         </div>
       </div>
+
+      <TelegramConfigDialog
+        open={telegramDialogOpen}
+        onOpenChange={setTelegramDialogOpen}
+        config={getChannelConfig('telegram')}
+        onSave={(config) => handleSaveConfig('telegram', config)}
+      />
+
+      <DiscordConfigDialog
+        open={discordDialogOpen}
+        onOpenChange={setDiscordDialogOpen}
+        config={getChannelConfig('discord')}
+        onSave={(config) => handleSaveConfig('discord', config)}
+      />
     </div>
   )
 }

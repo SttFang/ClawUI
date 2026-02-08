@@ -1,6 +1,20 @@
 // IPC client for renderer process
 // This module provides type-safe IPC communication with the main process
 
+export interface ChatRequest {
+  sessionId: string
+  message: string
+  model?: string
+}
+
+export interface ChatStreamEvent {
+  type: 'start' | 'delta' | 'end' | 'error'
+  sessionId: string
+  messageId: string
+  content?: string
+  error?: string
+}
+
 export interface ElectronAPI {
   gateway: {
     start: () => Promise<void>
@@ -38,6 +52,16 @@ export interface ElectronAPI {
     ) => Promise<boolean>
     readConfig: () => Promise<OnboardingOpenClawConfig | null>
     onInstallProgress: (callback: (progress: InstallProgress) => void) => () => void
+  }
+  chat: {
+    connect: (url?: string) => Promise<boolean>
+    disconnect: () => Promise<boolean>
+    send: (request: ChatRequest) => Promise<string>
+    isConnected: () => Promise<boolean>
+    onStream: (callback: (event: ChatStreamEvent) => void) => () => void
+    onConnected: (callback: () => void) => () => void
+    onDisconnected: (callback: () => void) => () => void
+    onError: (callback: (error: string) => void) => () => void
   }
 }
 
@@ -325,6 +349,41 @@ export const ipc = {
     onInstallProgress(callback: (progress: InstallProgress) => void) {
       const api = getElectronAPI()
       return api?.onboarding.onInstallProgress(callback) ?? (() => {})
+    },
+  },
+  chat: {
+    async connect(url?: string) {
+      const api = getElectronAPI()
+      return api?.chat.connect(url) ?? false
+    },
+    async disconnect() {
+      const api = getElectronAPI()
+      return api?.chat.disconnect() ?? false
+    },
+    async send(request: ChatRequest) {
+      const api = getElectronAPI()
+      if (!api) throw new Error('Electron API not available')
+      return api.chat.send(request)
+    },
+    async isConnected() {
+      const api = getElectronAPI()
+      return api?.chat.isConnected() ?? false
+    },
+    onStream(callback: (event: ChatStreamEvent) => void) {
+      const api = getElectronAPI()
+      return api?.chat.onStream(callback) ?? (() => {})
+    },
+    onConnected(callback: () => void) {
+      const api = getElectronAPI()
+      return api?.chat.onConnected(callback) ?? (() => {})
+    },
+    onDisconnected(callback: () => void) {
+      const api = getElectronAPI()
+      return api?.chat.onDisconnected(callback) ?? (() => {})
+    },
+    onError(callback: (error: string) => void) {
+      const api = getElectronAPI()
+      return api?.chat.onError(callback) ?? (() => {})
     },
   },
 }

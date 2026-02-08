@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { ipc, ChatStreamEvent } from '@/lib/ipc'
 
 export interface Message {
   id: string
@@ -21,6 +22,7 @@ interface ChatState {
   currentSessionId: string | null
   isLoading: boolean
   input: string
+  wsConnected: boolean
 }
 
 interface ChatActions {
@@ -30,10 +32,15 @@ interface ChatActions {
   renameSession: (id: string, name: string) => void
   addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void
   updateMessage: (id: string, content: string) => void
+  appendMessageContent: (id: string, content: string) => void
+  setMessageStreaming: (id: string, isStreaming: boolean) => void
   setInput: (input: string) => void
   setLoading: (loading: boolean) => void
+  setWsConnected: (connected: boolean) => void
   sendMessage: (content: string) => Promise<void>
   clearCurrentSession: () => void
+  connectWebSocket: (url?: string) => Promise<void>
+  disconnectWebSocket: () => Promise<void>
 }
 
 type ChatStore = ChatState & ChatActions
@@ -43,6 +50,7 @@ const initialState: ChatState = {
   currentSessionId: null,
   isLoading: false,
   input: '',
+  wsConnected: false,
 }
 
 let messageIdCounter = 0
@@ -124,11 +132,54 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })),
     })),
 
+  appendMessageContent: (id, content) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) => ({
+        ...s,
+        messages: s.messages.map((m) =>
+          m.id === id ? { ...m, content: m.content + content } : m
+        ),
+      })),
+    })),
+
+  setMessageStreaming: (id, isStreaming) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) => ({
+        ...s,
+        messages: s.messages.map((m) =>
+          m.id === id ? { ...m, isStreaming } : m
+        ),
+      })),
+    })),
+
   setInput: (input) => set({ input }),
   setLoading: (isLoading) => set({ isLoading }),
+  setWsConnected: (wsConnected) => set({ wsConnected }),
+
+  connectWebSocket: async (url) => {
+    try {
+      await ipc.chat.connect(url)
+    } catch (error) {
+      console.error('Failed to connect WebSocket:', error)
+    }
+  },
+
+  disconnectWebSocket: async () => {
+    try {
+      await ipc.chat.disconnect()
+    } catch (error) {
+      console.error('Failed to disconnect WebSocket:', error)
+    }
+  },
 
   sendMessage: async (content) => {
-    const { addMessage, setLoading, updateMessage } = get()
+    const { addMessage, setLoading, updateMessage, currentSessionId, createSession, wsConnected } = get()
+
+    // Create session if needed
+    let sessionId = currentSessionId
+    if (!sessionId) {
+      sessionId = createSession()
+    }
 
     // Add user message
     addMessage({ role: 'user', content })
@@ -136,20 +187,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     setLoading(true)
 
     // Add placeholder assistant message
-    const assistantMessageId = generateMessageId()
+    const placeholderMessageId = generateMessageId()
     set((state) => {
-      const sessionId = state.currentSessionId
-      if (!sessionId) return state
+      const sid = state.currentSessionId
+      if (!sid) return state
 
       return {
         sessions: state.sessions.map((s) =>
-          s.id === sessionId
+          s.id === sid
             ? {
                 ...s,
                 messages: [
                   ...s.messages,
                   {
-                    id: assistantMessageId,
+                    id: placeholderMessageId,
                     role: 'assistant' as const,
                     content: '',
                     timestamp: Date.now(),
@@ -164,13 +215,30 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     })
 
     try {
-      // TODO: Connect to OpenClaw Gateway WebSocket
-      // For now, simulate a response
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      updateMessage(assistantMessageId, 'This is a simulated response. Connect to OpenClaw Gateway for real responses.')
-    } catch {
-      updateMessage(assistantMessageId, 'Error: Failed to get response from gateway.')
-    } finally {
+      if (wsConnected) {
+        // Send via WebSocket - the actual messageId will be returned
+        const messageId = await ipc.chat.send({
+          sessionId: sessionId!,
+          message: content,
+        })
+        // Update the placeholder message with the actual messageId
+        set((state) => ({
+          sessions: state.sessions.map((s) => ({
+            ...s,
+            messages: s.messages.map((m) =>
+              m.id === placeholderMessageId ? { ...m, id: messageId } : m
+            ),
+          })),
+        }))
+      } else {
+        // Fallback to simulated response when WebSocket is not connected
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        updateMessage(placeholderMessageId, 'WebSocket not connected. Please connect to the gateway first.')
+        setLoading(false)
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error)
+      updateMessage(placeholderMessageId, 'Error: Failed to send message to gateway.')
       setLoading(false)
     }
   },
@@ -198,3 +266,47 @@ export const selectMessages = (state: ChatStore): Message[] => {
 export const selectSessions = (state: ChatStore) => state.sessions
 export const selectIsLoading = (state: ChatStore) => state.isLoading
 export const selectInput = (state: ChatStore) => state.input
+export const selectWsConnected = (state: ChatStore) => state.wsConnected
+
+// Initialize WebSocket stream listener
+let chatStreamListenerInitialized = false
+export function initChatStreamListener() {
+  if (chatStreamListenerInitialized || typeof window === 'undefined') return
+  chatStreamListenerInitialized = true
+
+  // Handle stream events
+  ipc.chat.onStream((event: ChatStreamEvent) => {
+    const { appendMessageContent, setMessageStreaming, setLoading } = useChatStore.getState()
+
+    if (event.type === 'start') {
+      // Stream started - nothing special to do
+    } else if (event.type === 'delta') {
+      // Append content to the message
+      if (event.content) {
+        appendMessageContent(event.messageId, event.content)
+      }
+    } else if (event.type === 'end') {
+      // Stream ended
+      setMessageStreaming(event.messageId, false)
+      setLoading(false)
+    } else if (event.type === 'error') {
+      // Error occurred
+      const { updateMessage } = useChatStore.getState()
+      updateMessage(event.messageId, `Error: ${event.error || 'Unknown error'}`)
+      setLoading(false)
+    }
+  })
+
+  // Handle connection status events
+  ipc.chat.onConnected(() => {
+    useChatStore.getState().setWsConnected(true)
+  })
+
+  ipc.chat.onDisconnected(() => {
+    useChatStore.getState().setWsConnected(false)
+  })
+
+  ipc.chat.onError((error: string) => {
+    console.error('WebSocket error:', error)
+  })
+}

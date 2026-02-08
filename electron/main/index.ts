@@ -8,6 +8,7 @@ import { registerGatewayHandlers } from './ipc/gateway'
 import { registerConfigHandlers } from './ipc/config'
 import { registerAppHandlers } from './ipc/app'
 import { registerOnboardingHandlers } from './ipc/onboarding'
+import { registerChatHandlers } from './ipc/chat'
 
 // Services
 const gatewayService = new GatewayService()
@@ -74,6 +75,9 @@ app.whenReady().then(async () => {
 
   // Create the main window
   const mainWindow = createWindow()
+
+  // Register chat handlers (needs mainWindow reference)
+  registerChatHandlers(mainWindow)
 
   // Initialize services
   try {

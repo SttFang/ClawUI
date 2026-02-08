@@ -16,6 +16,16 @@ import {
   CompleteStep,
 } from './steps'
 
+// Draggable title bar for frameless window
+function DraggableTitleBar() {
+  return (
+    <div
+      className="fixed top-0 left-0 right-0 h-11 z-50"
+      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+    />
+  )
+}
+
 export function Onboarding() {
   const navigate = useNavigate()
 
@@ -44,65 +54,74 @@ export function Onboarding() {
     navigate('/')
   }
 
-  switch (step) {
-    case 'login':
-      return (
-        <LoginStep
-          onLogin={handleLogin}
-          onGithubLogin={handleLogin}
-          onGoogleLogin={handleLogin}
-        />
-      )
+  const renderStep = () => {
+    switch (step) {
+      case 'login':
+        return (
+          <LoginStep
+            onLogin={handleLogin}
+            onGithubLogin={handleLogin}
+            onGoogleLogin={handleLogin}
+          />
+        )
 
-    case 'detecting':
-      return <DetectingStep />
+      case 'detecting':
+        return <DetectingStep />
 
-    case 'install-required':
-    case 'installing':
-      return (
-        <InstallStep
-          runtimeStatus={runtimeStatus}
-          installProgress={installProgress}
-          isInstalling={step === 'installing'}
-          error={error}
-          onInstall={handleInstall}
-        />
-      )
+      case 'install-required':
+      case 'installing':
+        return (
+          <InstallStep
+            runtimeStatus={runtimeStatus}
+            installProgress={installProgress}
+            isInstalling={step === 'installing'}
+            error={error}
+            onInstall={handleInstall}
+          />
+        )
 
-    case 'config-mode':
-      return (
-        <ConfigModeStep
-          onSubscription={() => setStep('config-subscription')}
-          onBYOK={() => setStep('config-byok')}
-        />
-      )
+      case 'config-mode':
+        return (
+          <ConfigModeStep
+            onSubscription={() => setStep('config-subscription')}
+            onBYOK={() => setStep('config-byok')}
+          />
+        )
 
-    case 'config-subscription':
-      // TODO: Implement subscription flow
-      return (
-        <ConfigModeStep
-          onSubscription={() => setStep('config-subscription')}
-          onBYOK={() => setStep('config-byok')}
-        />
-      )
+      case 'config-subscription':
+        // TODO: Implement subscription flow
+        return (
+          <ConfigModeStep
+            onSubscription={() => setStep('config-subscription')}
+            onBYOK={() => setStep('config-byok')}
+          />
+        )
 
-    case 'config-byok':
-      return (
-        <BYOKStep
-          isLoading={isLoading}
-          error={error}
-          onConfigure={configureBYOK}
-          onValidateKey={validateApiKey}
-          onBack={() => setStep('config-mode')}
-        />
-      )
+      case 'config-byok':
+        return (
+          <BYOKStep
+            isLoading={isLoading}
+            error={error}
+            onConfigure={configureBYOK}
+            onValidateKey={validateApiKey}
+            onBack={() => setStep('config-mode')}
+          />
+        )
 
-    case 'complete':
-      return <CompleteStep onComplete={handleComplete} />
+      case 'complete':
+        return <CompleteStep onComplete={handleComplete} />
 
-    default:
-      return <LoginStep onLogin={handleLogin} />
+      default:
+        return <LoginStep onLogin={handleLogin} />
+    }
   }
+
+  return (
+    <>
+      <DraggableTitleBar />
+      {renderStep()}
+    </>
+  )
 }
 
 export default Onboarding

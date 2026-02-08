@@ -9,6 +9,7 @@ vi.mock('@/lib/ipc', () => ({
       set: vi.fn(),
     },
   },
+  getElectronAPI: vi.fn(() => ({})), // Mock as available by default
 }))
 
 const initialState = {
@@ -41,10 +42,10 @@ describe('SettingsStore', () => {
     it('should load API keys from config', async () => {
       const { ipc } = await import('@/lib/ipc')
       ;(ipc.config.get as Mock).mockResolvedValue({
-        providers: {
-          anthropic: { apiKey: 'sk-ant-xxx' },
-          openai: { apiKey: 'sk-openai-xxx' },
-          openrouter: { apiKey: 'sk-or-xxx' },
+        env: {
+          ANTHROPIC_API_KEY: 'sk-ant-xxx',
+          OPENAI_API_KEY: 'sk-openai-xxx',
+          OPENROUTER_API_KEY: 'sk-or-xxx',
         },
       })
 
@@ -61,8 +62,8 @@ describe('SettingsStore', () => {
     it('should handle partial config', async () => {
       const { ipc } = await import('@/lib/ipc')
       ;(ipc.config.get as Mock).mockResolvedValue({
-        providers: {
-          anthropic: { apiKey: 'sk-ant-xxx' },
+        env: {
+          ANTHROPIC_API_KEY: 'sk-ant-xxx',
         },
       })
 
@@ -87,7 +88,7 @@ describe('SettingsStore', () => {
       expect(state.apiKeys.anthropic).toBe('')
     })
 
-    it('should handle config without providers', async () => {
+    it('should handle config without env', async () => {
       const { ipc } = await import('@/lib/ipc')
       ;(ipc.config.get as Mock).mockResolvedValue({})
 
@@ -197,10 +198,10 @@ describe('SettingsStore', () => {
       await saveApiKeys()
 
       expect(ipc.config.set).toHaveBeenCalledWith({
-        providers: {
-          anthropic: { apiKey: 'sk-ant-xxx' },
-          openai: { apiKey: 'sk-openai-xxx' },
-          openrouter: { apiKey: 'sk-or-xxx', baseUrl: 'https://openrouter.ai/api/v1' },
+        env: {
+          ANTHROPIC_API_KEY: 'sk-ant-xxx',
+          OPENAI_API_KEY: 'sk-openai-xxx',
+          OPENROUTER_API_KEY: 'sk-or-xxx',
         },
       })
     })
@@ -221,8 +222,8 @@ describe('SettingsStore', () => {
       await saveApiKeys()
 
       expect(ipc.config.set).toHaveBeenCalledWith({
-        providers: {
-          anthropic: { apiKey: 'sk-ant-xxx' },
+        env: {
+          ANTHROPIC_API_KEY: 'sk-ant-xxx',
         },
       })
     })

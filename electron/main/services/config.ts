@@ -6,9 +6,13 @@ import JSON5 from 'json5'
 
 export interface OpenClawConfig {
   gateway: {
+    mode: 'local' | 'remote'
     port: number
-    bind: string
-    token: string
+    bind: 'loopback' | string
+    auth: {
+      mode: 'token' | 'none'
+      token: string
+    }
   }
   agents: {
     defaults: {
@@ -17,7 +21,6 @@ export interface OpenClawConfig {
         primary: string
         fallbacks: string[]
       }
-      sandbox: { enabled: boolean }
     }
   }
   session: {
@@ -30,12 +33,9 @@ export interface OpenClawConfig {
   }
   channels: Record<string, unknown>
   tools: {
-    access: 'auto' | 'ask' | 'deny'
     allow: string[]
     deny: string[]
-    sandbox: { enabled: boolean }
   }
-  providers: Record<string, { apiKey: string; baseUrl?: string }>
   env: Record<string, string>
   cron: {
     enabled: boolean
@@ -50,9 +50,13 @@ export interface OpenClawConfig {
 
 const DEFAULT_CONFIG: OpenClawConfig = {
   gateway: {
+    mode: 'local',
     port: 18789,
-    bind: '127.0.0.1',
-    token: '',
+    bind: 'loopback',
+    auth: {
+      mode: 'token',
+      token: '',
+    },
   },
   agents: {
     defaults: {
@@ -61,7 +65,6 @@ const DEFAULT_CONFIG: OpenClawConfig = {
         primary: 'anthropic/claude-sonnet-4-5-20250929',
         fallbacks: ['openai/gpt-4o'],
       },
-      sandbox: { enabled: true },
     },
   },
   session: {
@@ -74,12 +77,9 @@ const DEFAULT_CONFIG: OpenClawConfig = {
   },
   channels: {},
   tools: {
-    access: 'ask',
     allow: ['group:fs', 'web_*'],
     deny: ['exec'],
-    sandbox: { enabled: true },
   },
-  providers: {},
   env: {},
   cron: {
     enabled: true,
@@ -113,7 +113,7 @@ export class ConfigService {
     } else {
       this.config = { ...DEFAULT_CONFIG }
       // Generate a random token if not set
-      this.config.gateway.token = this.generateToken()
+      this.config.gateway.auth.token = this.generateToken()
       await this.saveConfig()
     }
   }

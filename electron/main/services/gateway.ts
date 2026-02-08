@@ -1,13 +1,20 @@
 import { spawn, ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
+import { app } from 'electron'
+import { existsSync } from 'fs'
+import path from 'path'
 
 export type GatewayStatus = 'stopped' | 'starting' | 'running' | 'error'
 
 export interface OpenClawConfig {
   gateway: {
+    mode?: 'local' | 'remote'
     port: number
     bind: string
-    token: string
+    auth?: {
+      mode: 'token' | 'none'
+      token: string
+    }
   }
   env?: Record<string, string>
 }
@@ -17,6 +24,7 @@ export class GatewayService extends EventEmitter {
   private status: GatewayStatus = 'stopped'
   private config: OpenClawConfig | null = null
   private port = 18789
+  private runtimeDir = path.join(app.getPath('userData'), 'runtime')
 
   setConfig(config: OpenClawConfig): void {
     this.config = config
@@ -37,6 +45,30 @@ export class GatewayService extends EventEmitter {
     return `ws://localhost:${this.port}`
   }
 
+  /**
+   * Get the path to the openclaw CLI.
+   * Priority: embedded > global
+   */
+  private getOpenClawCommand(): { command: string; args: string[] } {
+    // Check for embedded OpenClaw (installed via npm in runtime dir)
+    const embeddedBinPath = path.join(this.runtimeDir, 'node_modules', '.bin', 'openclaw')
+    if (existsSync(embeddedBinPath)) {
+      console.log('[Gateway] Using embedded OpenClaw:', embeddedBinPath)
+      return { command: embeddedBinPath, args: [] }
+    }
+
+    // Check for embedded OpenClaw package and run via node
+    const embeddedPkgPath = path.join(this.runtimeDir, 'node_modules', 'openclaw', 'dist', 'cli.js')
+    if (existsSync(embeddedPkgPath)) {
+      console.log('[Gateway] Using embedded OpenClaw via node:', embeddedPkgPath)
+      return { command: 'node', args: [embeddedPkgPath] }
+    }
+
+    // Fallback to global openclaw command
+    console.log('[Gateway] Using global OpenClaw command')
+    return { command: 'openclaw', args: [] }
+  }
+
   async start(): Promise<void> {
     if (this.status === 'running' || this.status === 'starting') {
       return
@@ -51,13 +83,19 @@ export class GatewayService extends EventEmitter {
         ...(this.config?.env || {}),
       }
 
-      // Set gateway token if configured
-      if (this.config?.gateway?.token) {
-        env.OPENCLAW_GATEWAY_TOKEN = this.config.gateway.token
+      // Set gateway token if configured (new format: gateway.auth.token)
+      if (this.config?.gateway?.auth?.token) {
+        env.OPENCLAW_GATEWAY_TOKEN = this.config.gateway.auth.token
       }
 
+      // Get the openclaw command (embedded or global)
+      const { command, args } = this.getOpenClawCommand()
+      const fullArgs = [...args, 'gateway', '--port', String(this.port)]
+
+      console.log('[Gateway] Starting:', command, fullArgs.join(' '))
+
       // Start OpenClaw Gateway as subprocess
-      this.process = spawn('openclaw', ['gateway', '--port', String(this.port)], {
+      this.process = spawn(command, fullArgs, {
         env,
         stdio: ['pipe', 'pipe', 'pipe'],
       })

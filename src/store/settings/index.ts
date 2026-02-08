@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ipc } from '@/lib/ipc'
+import { ipc, getElectronAPI } from '@/lib/ipc'
 
 interface ApiKeys {
   anthropic: string
@@ -50,11 +50,13 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     try {
       const config = await ipc.config.get()
       if (config) {
+        // OpenClaw 2026 uses env vars for API keys
+        const env = (config as { env?: Record<string, string> }).env || {}
         set({
           apiKeys: {
-            anthropic: config.providers?.anthropic?.apiKey || '',
-            openai: config.providers?.openai?.apiKey || '',
-            openrouter: config.providers?.openrouter?.apiKey || '',
+            anthropic: env.ANTHROPIC_API_KEY || '',
+            openai: env.OPENAI_API_KEY || '',
+            openrouter: env.OPENROUTER_API_KEY || '',
           },
           isLoading: false,
         })
@@ -79,22 +81,25 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     set({ isSaving: true, error: null, saveSuccess: false })
 
     try {
-      const providers: Record<string, { apiKey: string; baseUrl?: string }> = {}
+      // OpenClaw 2026 uses environment variables for API keys, not "providers" key
+      const env: Record<string, string> = {}
 
       if (apiKeys.anthropic) {
-        providers.anthropic = { apiKey: apiKeys.anthropic }
+        env.ANTHROPIC_API_KEY = apiKeys.anthropic
       }
       if (apiKeys.openai) {
-        providers.openai = { apiKey: apiKeys.openai }
+        env.OPENAI_API_KEY = apiKeys.openai
       }
       if (apiKeys.openrouter) {
-        providers.openrouter = {
-          apiKey: apiKeys.openrouter,
-          baseUrl: 'https://openrouter.ai/api/v1',
-        }
+        env.OPENROUTER_API_KEY = apiKeys.openrouter
       }
 
-      await ipc.config.set({ providers })
+      // Check if Electron API is available
+      if (!getElectronAPI()) {
+        throw new Error('Electron API not available. Are you running in Electron?')
+      }
+
+      await ipc.config.set({ env })
       set({ isSaving: false, saveSuccess: true })
 
       // Clear success message after 3 seconds

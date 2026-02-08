@@ -86,7 +86,11 @@ app.whenReady().then(async () => {
     const config = await configService.getConfig()
     if (config) {
       gatewayService.setConfig({
-        gateway: config.gateway,
+        gateway: {
+          port: config.gateway.port,
+          bind: config.gateway.bind,
+          auth: config.gateway.auth,
+        },
         env: config.env,
       })
     }

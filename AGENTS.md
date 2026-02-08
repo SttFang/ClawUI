@@ -51,12 +51,17 @@
 - Aim to keep files under ~400 LOC; guideline only (not a hard guardrail). Split/refactor when it improves clarity or testability.
 - Brief comments for tricky logic.
 
-## Commit Guidelines
+## Commit & Pull Request Guidelines
 
-- Atomic commits: single responsibility, independently revertible.
-- Prefix with gitmoji: `✨ feat:`, `🐛 fix:`, `♻️ refactor:`, `📝 docs:`.
-- Type-check must pass before commit.
-- Use `scripts/committer` or manual `git add <files> && git commit`.
+- Create commits with `scripts/committer "<msg>" <file...>`; avoid manual `git add`/`git commit` so staging stays scoped.
+- Follow concise, action-oriented commit messages (e.g., `TitleBar: add bottom border`).
+- Prefix with gitmoji when appropriate: `✨ feat:`, `🐛 fix:`, `♻️ refactor:`, `📝 docs:`, `💄 style:`.
+- Group related changes; avoid bundling unrelated refactors.
+- Type-check must pass before commit: `bun run type-check`.
+- PRs should summarize scope, note testing performed, and mention any user-facing changes.
+- PR review flow: when given a PR link, review via `gh pr view`/`gh pr diff` and do **not** change branches.
+- Goal: merge PRs. Prefer **rebase** when commits are clean; **squash** when history is messy.
+- When working on a GitHub Issue or PR, print the full URL at the end of the task.
 
 ## i18n
 

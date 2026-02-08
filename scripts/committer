@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+set -f
+
+usage() {
+  printf 'Usage: %s "commit message" "file" ["file" ...]\n' "$(basename "$0")" >&2
+  exit 2
+}
+
+if [ "$#" -lt 2 ]; then
+  usage
+fi
+
+commit_message=$1
+shift
+
+if [[ "$commit_message" != *[![:space:]]* ]]; then
+  printf 'Error: commit message must not be empty\n' >&2
+  exit 1
+fi
+
+if [ -e "$commit_message" ]; then
+  printf 'Error: first argument looks like a file path ("%s"); provide the commit message first\n' "$commit_message" >&2
+  exit 1
+fi
+
+if [ "$#" -eq 0 ]; then
+  usage
+fi
+
+files=("$@")
+
+# Disallow "." because it stages the entire repository
+for file in "${files[@]}"; do
+  if [ "$file" = "." ]; then
+    printf 'Error: "." is not allowed; list specific paths instead\n' >&2
+    exit 1
+  fi
+done
+
+# Prevent staging node_modules
+for file in "${files[@]}"; do
+  case "$file" in
+    *node_modules* | */node_modules | */node_modules/* | node_modules)
+      printf 'Error: node_modules paths are not allowed: %s\n' "$file" >&2
+      exit 1
+      ;;
+  esac
+done
+
+for file in "${files[@]}"; do
+  if [ ! -e "$file" ]; then
+    if ! git ls-files --error-unmatch -- "$file" >/dev/null 2>&1; then
+      printf 'Error: file not found: %s\n' "$file" >&2
+      exit 1
+    fi
+  fi
+done
+
+git restore --staged :/ 2>/dev/null || true
+git add --force -- "${files[@]}"
+
+if git diff --staged --quiet; then
+  printf 'Warning: no staged changes detected for: %s\n' "${files[*]}" >&2
+  exit 1
+fi
+
+if git commit -m "$commit_message" -- "${files[@]}"; then
+  printf 'Committed "%s" with %d files\n' "$commit_message" "${#files[@]}"
+else
+  exit 1
+fi

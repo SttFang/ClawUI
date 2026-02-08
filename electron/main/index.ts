@@ -29,7 +29,7 @@ function createWindow(): BrowserWindow {
     // h-11 = 44px, 红绿灯高度 = 14px, y = 44/2 - 14/2 = 22 - 7 = 15
     trafficLightPosition: { x: 20, y: 15 },
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,

@@ -21,6 +21,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
+      "@clawui/types": ["packages/types/src/index.ts"],
+      "@clawui/types/*": ["packages/types/src/*"],
       "@clawui/ui": ["packages/ui/src/index.ts"],
       "@clawui/ui/*": ["packages/ui/src/*"],
       "@clawui/database": ["packages/database/src/index.ts"],

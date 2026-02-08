@@ -1,6 +1,12 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Switch } from '@/components/ui/switch'
-import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Switch,
+  Button,
+} from '@clawui/ui'
 import { Shield, FileText, Globe, Terminal, Database, Image } from 'lucide-react'
 
 const toolGroups = [

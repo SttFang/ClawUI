@@ -6,9 +6,10 @@
 ## Project Structure
 
 - Source code: `src/` (React renderer), `electron/` (main process).
+- Packages: `packages/` (monorepo workspace packages).
+  - `@clawui/ui`: UI primitives (shadcn/ui pattern).
 - Tests: colocated `*.test.ts` or `__tests__/` folder.
 - Components: `src/components/` (PascalCase folders, each with `index.tsx`).
-- UI Primitives: `src/components/ui/` (shadcn/ui pattern, flat files).
 - State: `src/store/` (Zustand stores).
 - Routes: `src/routes/` (React Router pages).
 - Locales: `src/locales/` (i18n, zh-CN source).

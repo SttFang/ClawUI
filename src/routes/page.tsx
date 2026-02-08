@@ -3,8 +3,7 @@ import { Send, Plus, Trash2, MessageSquare } from 'lucide-react'
 import { useChatStore, selectMessages, selectSessions, selectIsLoading, selectInput, selectCurrentSession } from '@/store/chat'
 import { useGatewayStore, selectIsGatewayRunning } from '@/store/gateway'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { Button, ScrollArea } from '@clawui/ui'
 
 export default function ChatPage() {
   const messages = useChatStore(selectMessages)

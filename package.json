@@ -26,6 +26,7 @@
     "sync-docs": "./scripts/sync-docs.sh"
   },
   "dependencies": {
+    "@clawui/ui": "workspace:*",
     "@electron-toolkit/utils": "^4.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

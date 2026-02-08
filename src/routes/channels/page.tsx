@@ -1,8 +1,14 @@
 import { useEffect } from 'react'
 import { useChannelsStore, selectChannels } from '@/store/channels'
-import { Switch } from '@/components/ui/switch'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import {
+  Switch,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Button,
+} from '@clawui/ui'
 import { Settings } from 'lucide-react'
 
 export default function ChannelsPage() {

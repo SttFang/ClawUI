@@ -20,6 +20,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
+      "@clawui/ui": ["packages/ui/src/index.ts"],
+      "@clawui/ui/*": ["packages/ui/src/*"],
       "@components/*": ["src/components/*"],
       "@features/*": ["src/features/*"],
       "@store/*": ["src/store/*"],

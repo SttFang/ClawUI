@@ -23,8 +23,9 @@ function createWindow(): BrowserWindow {
     autoHideMenuBar: true,
     // macOS: 隐藏标题栏但保留原生红绿灯
     titleBarStyle: 'hiddenInset',
-    // 红绿灯位置：与 TitleBar (h-11 = 44px) 垂直居中对齐
-    trafficLightPosition: { x: 16, y: 14 },
+    // 红绿灯位置：与 TitleBar (h-11 = 44px) 垂直居中
+    // 红绿灯按钮高度约 12px，居中 y = (44 - 12) / 2 = 16
+    trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

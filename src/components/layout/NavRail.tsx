@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   MessageSquare,
   Radio,
@@ -12,20 +13,21 @@ import { cn } from '@/lib/utils'
 import { useGatewayStore } from '@/store/gateway'
 
 const navItems = [
-  { to: '/', icon: MessageSquare, label: 'Chat' },
-  { to: '/channels', icon: Radio, label: 'Channels' },
-  { to: '/tools', icon: Wrench, label: 'Tools' },
-  { to: '/mcp', icon: Server, label: 'MCP' },
-  { to: '/plugins', icon: Puzzle, label: 'Plugins' },
-  { to: '/scheduler', icon: Clock, label: 'Scheduler' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/', icon: MessageSquare, labelKey: 'nav:chat' },
+  { to: '/channels', icon: Radio, labelKey: 'nav:channels' },
+  { to: '/tools', icon: Wrench, labelKey: 'nav:tools' },
+  { to: '/mcp', icon: Server, labelKey: 'nav:mcp' },
+  { to: '/plugins', icon: Puzzle, labelKey: 'nav:plugins' },
+  { to: '/scheduler', icon: Clock, labelKey: 'nav:scheduler' },
+  { to: '/settings', icon: Settings, labelKey: 'nav:settings' },
 ]
 
 export function NavRail() {
+  const { t } = useTranslation()
   const status = useGatewayStore((s) => s.status)
 
   return (
-    <aside className="flex w-14 shrink-0 flex-col items-center bg-sidebar pb-3 pt-10">
+    <aside className="flex w-14 shrink-0 flex-col items-center bg-sidebar pb-3 pt-3">
       {/* Logo */}
       <div className="mb-4">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
@@ -52,7 +54,7 @@ export function NavRail() {
                   : 'text-muted-foreground'
               )
             }
-            title={item.label}
+            title={t(item.labelKey)}
           >
             <item.icon size={18} />
           </NavLink>

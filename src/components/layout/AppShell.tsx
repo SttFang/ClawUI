@@ -9,31 +9,31 @@ interface AppShellProps {
 /**
  * 应用顶级布局 Shell
  *
- * 布局结构：
- * ┌──────────────────────────────────────────────────────┐
- * │ 🔴🟡🟢 │ [☰] [←] [→]  [Chat][Cowork][Code]     [👤] │
- * │ NavRail├────────────────────────────────────────────┤
- * │  56px  │                                            │
- * │        │              Main Content                  │
- * │        │                                            │
- * └────────┴────────────────────────────────────────────┘
+ * 布局结构（红绿灯与顶边栏对齐）：
+ * ┌──────────────────────────────────────────────────────────────────────┐
+ * │ 🔴🟡🟢  [☰] [←] [→]                        [+ 新建会话]       [👤] │
+ * ├────────┬─────────────────────────────────────────────────────────────┤
+ * │NavRail │                                                             │
+ * │  56px  │                    Main Content                             │
+ * │        │                                                             │
+ * └────────┴─────────────────────────────────────────────────────────────┘
  *
- * NavRail pt-10 (40px) 为红绿灯留空间
- * TitleBar h-11 (44px) 包含导航、模式切换、用户头像
+ * TitleBar h-11 (44px) - 包含红绿灯、导航、新建会话、用户头像
+ * NavRail w-14 (56px) - 左侧导航栏
  */
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Left Navigation Rail */}
-      <NavRail />
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      {/* Top: Title Bar (full width, with traffic lights) */}
+      <TitleBar />
 
-      {/* Main Content Area */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* Title Bar with navigation and mode tabs */}
-        <TitleBar />
+      {/* Bottom: NavRail + Content */}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {/* Left Navigation Rail */}
+        <NavRail />
 
-        {/* Page Content */}
-        <main className="relative flex-1 overflow-hidden">{children}</main>
+        {/* Main Content */}
+        <main className="relative min-w-0 flex-1 overflow-hidden">{children}</main>
       </div>
     </div>
   )

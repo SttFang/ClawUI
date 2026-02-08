@@ -21,9 +21,10 @@ function createWindow(): BrowserWindow {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
-    // 红绿灯位置：x=20 使其在 NavRail (56px) 内居中，y=20 向下偏移
-    trafficLightPosition: { x: 20, y: 20 },
+    // 隐藏原生标题栏和红绿灯，使用自定义 TitleBar 组件
+    titleBarStyle: 'hidden',
+    // macOS: 完全隐藏原生红绿灯，使用自定义 TrafficLights 组件
+    trafficLightPosition: { x: -100, y: -100 },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

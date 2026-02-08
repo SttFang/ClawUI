@@ -580,4 +580,11 @@ const MyComponent = memo(({ isActive, className }) => {
 
 ### Agent Commit Log
 
-<!-- Record your commits here -->
+| Hash | Message | Date |
+|------|---------|------|
+| `cb0db5d` | ✨ feat(ui): add IconActionButton component | 2026-02-08 |
+| `bcaa2ce` | ✨ feat(ui): add TabSwitcher component | 2026-02-08 |
+| `48798aa` | ✨ feat(ui): add UserAvatar component | 2026-02-08 |
+| `c11e38c` | ✨ feat(layout): add TitleBar component | 2026-02-08 |
+| `008cf6b` | ♻️ refactor(layout): integrate TitleBar into AppShell | 2026-02-08 |
+

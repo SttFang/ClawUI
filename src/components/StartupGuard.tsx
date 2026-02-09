@@ -92,7 +92,12 @@ export function StartupGuard({ children }: StartupGuardProps) {
     // Only connect once when gateway becomes running and OpenClaw is installed
     if (gatewayStatus === 'running' && state.openclawInstalled && !wsConnectionAttempted.current) {
       wsConnectionAttempted.current = true
-      useChatStore.getState().connectWebSocket()
+      // Add a small delay to ensure Gateway is fully ready to accept connections
+      const timer = setTimeout(() => {
+        console.log('[StartupGuard] Gateway running, connecting WebSocket...')
+        useChatStore.getState().connectWebSocket()
+      }, 500)
+      return () => clearTimeout(timer)
     }
 
     // Reset the flag if gateway stops so we can reconnect later

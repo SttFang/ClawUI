@@ -22,7 +22,7 @@ import type {
   CostUsageSummary,
   UsageTimeSeries,
 } from '@clawui/types/usage'
-import type { ClawUIState } from '@clawui/types/clawui'
+import type { ClawUIState, ClawUISessionMetadata } from '@clawui/types/clawui'
 import type { ModelsStatus } from '@clawui/types/models'
 
 // Re-export types for backward compatibility
@@ -113,6 +113,9 @@ export interface ElectronAPI {
   }
   models: {
     status: () => Promise<ModelsStatus | null>
+  }
+  metadata: {
+    generate: (sessionKey: string) => Promise<ClawUISessionMetadata>
   }
 }
 
@@ -351,6 +354,13 @@ export const ipc = {
     async status(): Promise<ModelsStatus | null> {
       const api = getElectronAPI()
       return api?.models.status() ?? null
+    },
+  },
+  metadata: {
+    async generate(sessionKey: string): Promise<ClawUISessionMetadata> {
+      const api = getElectronAPI()
+      if (!api?.metadata) throw new Error('Metadata API not available — restart the app')
+      return api.metadata.generate(sessionKey)
     },
   },
 }

@@ -172,4 +172,7 @@ contextBridge.exposeInMainWorld('electron', {
   models: {
     status: () => ipcRenderer.invoke('models:status'),
   },
+  metadata: {
+    generate: (sessionKey: string) => ipcRenderer.invoke('metadata:generate', sessionKey),
+  },
 })

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useChat } from '@ai-sdk/react'
 import type { DynamicToolUIPart, UIMessage } from 'ai'
-import { ArrowDown, MessageSquare, Plus, Send, Trash2 } from 'lucide-react'
+import { ArrowDown, MessageSquare, Plus, Send, Sparkles, Trash2 } from 'lucide-react'
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom'
 import { Streamdown } from 'streamdown'
 import { code } from '@streamdown/code'
@@ -11,6 +11,7 @@ import { cjk } from '@streamdown/cjk'
 import { createOpenClawChatTransport, type OpenClawChatTransportAdapter } from '@clawui/claw-sse'
 import { Button, ScrollArea } from '@clawui/ui'
 import { useTranslation } from 'react-i18next'
+import type { ClawUISessionMetadata } from '@clawui/types/clawui'
 import { ConfigBanner } from '@/components/ConfigBanner'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
@@ -322,6 +323,8 @@ export default function ChatPage() {
   const [configValid, setConfigValid] = useState<boolean | null>(null)
   const [showBanner, setShowBanner] = useState(true)
   const [didLoadSessions, setDidLoadSessions] = useState(false)
+  const [sessionMetadata, setSessionMetadata] = useState<Record<string, ClawUISessionMetadata>>({})
+  const [metaBusyByKey, setMetaBusyByKey] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     void refreshSessions().finally(() => setDidLoadSessions(true))
@@ -345,6 +348,23 @@ export default function ChatPage() {
     }
     void checkConfig()
   }, [])
+
+  useEffect(() => {
+    ipc.state
+      .get()
+      .then((state) => setSessionMetadata(state.sessions?.metadata ?? {}))
+      .catch(() => {})
+  }, [])
+
+  const generateMetadata = async (key: string) => {
+    setMetaBusyByKey((m) => ({ ...m, [key]: true }))
+    try {
+      const meta = await ipc.metadata.generate(key)
+      setSessionMetadata((prev) => ({ ...prev, [key]: meta }))
+    } finally {
+      setMetaBusyByKey((m) => ({ ...m, [key]: false }))
+    }
+  }
 
   const handleDismissBanner = () => {
     setShowBanner(false)
@@ -374,7 +394,28 @@ export default function ChatPage() {
                 onClick={() => selectSession(session.id)}
               >
                 <MessageSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span className="flex-1 truncate text-sm">{session.name}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm">
+                    {sessionMetadata[session.id]?.title ?? session.name}
+                  </div>
+                  {sessionMetadata[session.id]?.summary ? (
+                    <div className="truncate text-xs text-muted-foreground">
+                      {sessionMetadata[session.id]?.summary}
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void generateMetadata(session.id)
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:text-foreground transition-opacity"
+                  aria-label={t('generateSessionMetaAria')}
+                  disabled={!!metaBusyByKey[session.id]}
+                >
+                  <Sparkles className={cn('w-3 h-3', metaBusyByKey[session.id] && 'animate-pulse')} />
+                </button>
 	                <button
 	                  type="button"
 	                  onClick={(e) => {

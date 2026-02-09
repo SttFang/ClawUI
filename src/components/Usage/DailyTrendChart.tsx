@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 import {
-  AreaChart,
-  Area,
+  ComposedChart,
+  Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -35,6 +36,8 @@ const chartConfig = {
   cacheRead: { label: "Cache Read", color: "var(--chart-4)" },
 } satisfies ChartConfig
 
+const DATA_KEYS = ['output', 'input', 'cacheWrite', 'cacheRead'] as const
+
 const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
   { value: 'hour', label: '小时' },
   { value: 'day', label: '日' },
@@ -54,7 +57,7 @@ function formatDateByGranularity(dateStr: string, granularity: Granularity): str
 }
 
 function getMonthKey(dateStr: string): string {
-  return dateStr.slice(0, 7) // "YYYY-MM"
+  return dateStr.slice(0, 7)
 }
 
 function formatMonthLabel(key: string): string {
@@ -113,7 +116,6 @@ export function DailyTrendChart({ data, mode, totals, aggregates, sessionCount }
     if (granularity === 'month') {
       return aggregateByMonth(data, mode)
     }
-    // hour and day use the same daily data (hourly data not available from backend)
     return data.map((d) => ({
       date: formatDateByGranularity(d.date, granularity),
       output: mode === 'cost' ? d.outputCost : d.output,
@@ -157,7 +159,6 @@ export function DailyTrendChart({ data, mode, totals, aggregates, sessionCount }
           <CardTitle className="text-base">
             Trend ({mode === 'cost' ? 'Cost' : 'Tokens'})
           </CardTitle>
-          {/* Granularity toggle */}
           <div className="flex items-center gap-1">
             {GRANULARITY_OPTIONS.map((opt) => (
               <button
@@ -174,7 +175,6 @@ export function DailyTrendChart({ data, mode, totals, aggregates, sessionCount }
             ))}
           </div>
         </div>
-        {/* Inline metadata stats */}
         <div className="flex items-center gap-4">
           {stats.map((s) => (
             <div key={s.label} className="flex items-center gap-1.5">
@@ -189,15 +189,7 @@ export function DailyTrendChart({ data, mode, totals, aggregates, sessionCount }
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="min-h-[280px] w-full">
-          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-            <defs>
-              {Object.keys(chartConfig).map((key) => (
-                <linearGradient key={key} id={`grad-${key}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={`var(--color-${key})`} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={`var(--color-${key})`} stopOpacity={0} />
-                </linearGradient>
-              ))}
-            </defs>
+          <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="date" tick={{ fontSize: 11 }} />
             <YAxis
@@ -212,35 +204,30 @@ export function DailyTrendChart({ data, mode, totals, aggregates, sessionCount }
               }
             />
             <ChartLegend content={<ChartLegendContent />} />
-            <Area
-              type="monotone"
-              dataKey="output"
-              stackId="1"
-              stroke="var(--color-output)"
-              fill="url(#grad-output)"
-            />
-            <Area
-              type="monotone"
-              dataKey="input"
-              stackId="1"
-              stroke="var(--color-input)"
-              fill="url(#grad-input)"
-            />
-            <Area
-              type="monotone"
-              dataKey="cacheWrite"
-              stackId="1"
-              stroke="var(--color-cacheWrite)"
-              fill="url(#grad-cacheWrite)"
-            />
-            <Area
-              type="monotone"
-              dataKey="cacheRead"
-              stackId="1"
-              stroke="var(--color-cacheRead)"
-              fill="url(#grad-cacheRead)"
-            />
-          </AreaChart>
+            {/* Stacked bars */}
+            {DATA_KEYS.map((key) => (
+              <Bar
+                key={`bar-${key}`}
+                dataKey={key}
+                stackId="stack"
+                fill={`var(--color-${key})`}
+                radius={key === 'cacheRead' ? [2, 2, 0, 0] : undefined}
+              />
+            ))}
+            {/* Dashed trend lines connecting bars of the same color */}
+            {DATA_KEYS.map((key) => (
+              <Line
+                key={`line-${key}`}
+                type="monotone"
+                dataKey={key}
+                stroke={`var(--color-${key})`}
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                dot={false}
+                legendType="none"
+              />
+            ))}
+          </ComposedChart>
         </ChartContainer>
       </CardContent>
     </Card>

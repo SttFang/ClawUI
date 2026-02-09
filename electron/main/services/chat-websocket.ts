@@ -168,7 +168,6 @@ export class ChatWebSocketService extends EventEmitter {
   private handleMessage(data: string): void {
     try {
       const message = JSON.parse(data) as ACPMessage
-      chatLog.debug('Received:', message.type, message.type === 'event' ? (message as ACPEvent).event : '')
 
       if (message.type === 'res') {
         // Handle response to a request
@@ -193,6 +192,7 @@ export class ChatWebSocketService extends EventEmitter {
     switch (event.event) {
       case 'connect.challenge':
       case 'health':
+      case 'agent':
         // Expected Gateway events; not needed for current UI.
         return
       case 'chat': {
@@ -279,7 +279,7 @@ export class ChatWebSocketService extends EventEmitter {
         return
       }
       default:
-        chatLog.debug('Unhandled event:', event.event)
+        chatLog.warn('Unhandled event:', event.event)
     }
   }
 

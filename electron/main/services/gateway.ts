@@ -134,7 +134,9 @@ export class GatewayService extends EventEmitter {
 
       this.process.stdout?.on('data', (data) => {
         const output = data.toString()
-        gatewayLog.debug(output.trimEnd())
+        // Strip OpenClaw's own timestamp prefix to avoid double timestamps
+        const stripped = output.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s*/gm, '').trimEnd()
+        if (stripped) gatewayLog.debug(stripped)
         // Check for startup message
         if (output.includes('listening') || output.includes('started')) {
           this.setStatus('running')

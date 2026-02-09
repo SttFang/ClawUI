@@ -40,7 +40,12 @@ export class RuntimeDetectorService {
       ...configResult,
       configPath: this.configPath,
     }
-    detectorLog.info('Detection complete:', JSON.stringify(result))
+    detectorLog.info(
+      'Detection complete:',
+      `node=${result.nodeVersion ?? 'n/a'}`,
+      `openclaw=${result.openclawVersion ?? 'n/a'}`,
+      `config=${result.configExists ? (result.configValid ? 'valid' : 'invalid') : 'missing'}`,
+    )
     return result
   }
 

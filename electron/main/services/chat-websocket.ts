@@ -125,13 +125,13 @@ export class ChatWebSocketService extends EventEmitter {
         minProtocol: 1,
         maxProtocol: 1,
         client: {
-          id: 'clawui',
+          id: 'cli',  // Must be 'cli' for operator connections
           version: '0.1.0',
           platform: process.platform,
           mode: 'operator',
         },
         role: 'operator',
-        scopes: ['chat', 'agent'],
+        scopes: ['operator.read', 'operator.write'],
         auth: {
           token: this.gatewayToken,
         },

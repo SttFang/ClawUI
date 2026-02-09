@@ -102,6 +102,7 @@ export class ConfigService {
   }
 
   async initialize(): Promise<void> {
+    const t0 = Date.now()
     // Ensure .openclaw directory exists
     const configDir = dirname(this.configPath)
     if (!existsSync(configDir)) {
@@ -116,7 +117,9 @@ export class ConfigService {
       // Generate a random token if not set
       this.config.gateway.auth.token = this.generateToken()
       await this.saveConfig()
+      configLog.info('[config.created]', this.configPath)
     }
+    configLog.info('[config.init]', `durationMs=${Date.now() - t0}`)
   }
 
   getConfigPath(): string {
@@ -145,7 +148,7 @@ export class ConfigService {
       const content = await readFile(this.configPath, 'utf-8')
       this.config = JSON5.parse(content) as OpenClawConfig
     } catch (error) {
-      configLog.error('Failed to load config:', error)
+      configLog.error('[config.load.failed]', error)
       this.config = { ...DEFAULT_CONFIG }
     }
   }
@@ -155,7 +158,7 @@ export class ConfigService {
       const content = JSON.stringify(this.config, null, 2)
       await writeFile(this.configPath, content, 'utf-8')
     } catch (error) {
-      configLog.error('Failed to save config:', error)
+      configLog.error('[config.save.failed]', error)
       throw error
     }
   }

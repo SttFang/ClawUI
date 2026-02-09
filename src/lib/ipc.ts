@@ -117,6 +117,9 @@ export interface ElectronAPI {
   metadata: {
     generate: (sessionKey: string) => Promise<ClawUISessionMetadata>
   }
+  secrets: {
+    patch: (patch: Record<string, unknown>) => Promise<void>
+  }
 }
 
 // Get the electron API from the preload script
@@ -361,6 +364,13 @@ export const ipc = {
       const api = getElectronAPI()
       if (!api?.metadata) throw new Error('Metadata API not available — restart the app')
       return api.metadata.generate(sessionKey)
+    },
+  },
+  secrets: {
+    async patch(patch: Record<string, unknown>): Promise<void> {
+      const api = getElectronAPI()
+      if (!api?.secrets) throw new Error('Secrets API not available — restart the app')
+      await api.secrets.patch(patch)
     },
   },
 }

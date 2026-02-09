@@ -27,6 +27,13 @@ import {
   selectModelsStatus,
   selectModelsLoading,
 } from '@/store/settings'
+import {
+  useSecretsStore,
+  selectSecretsLoading,
+  selectSecretsSaving,
+  selectSecretsError,
+  selectSecretsSaveSuccess,
+} from '@/store/secrets'
 import { Key, Server, Info, CheckCircle2, Loader2, Moon, Sun, Monitor, AlertCircle } from 'lucide-react'
 import { ipc } from '@/lib/ipc'
 import { useState } from 'react'
@@ -84,13 +91,28 @@ export default function SettingsPage() {
   const setAutoCheckUpdates = useSettingsStore((s) => s.setAutoCheckUpdates)
   const loadModelsStatus = useSettingsStore((s) => s.loadModelsStatus)
 
+  // Secrets store (non-model tokens/keys; managed via allowlisted env vars)
+  const secretsLoading = useSecretsStore(selectSecretsLoading)
+  const secretsSaving = useSecretsStore(selectSecretsSaving)
+  const secretsError = useSecretsStore(selectSecretsError)
+  const secretsSaveSuccess = useSecretsStore(selectSecretsSaveSuccess)
+  const discordBotToken = useSecretsStore((s) => s.discordBotToken)
+  const discordAppToken = useSecretsStore((s) => s.discordAppToken)
+  const telegramBotToken = useSecretsStore((s) => s.telegramBotToken)
+  const slackBotToken = useSecretsStore((s) => s.slackBotToken)
+  const slackAppToken = useSecretsStore((s) => s.slackAppToken)
+  const loadSecrets = useSecretsStore((s) => s.load)
+  const setSecretValue = useSecretsStore((s) => s.setValue)
+  const saveSecrets = useSecretsStore((s) => s.save)
+
   const [version, setVersion] = useState('0.0.0')
 
   useEffect(() => {
     loadSettings()
     loadModelsStatus()
+    loadSecrets()
     ipc.app.getVersion().then(setVersion)
-  }, [loadSettings, loadModelsStatus])
+  }, [loadSettings, loadModelsStatus, loadSecrets])
 
   const handleApiKeyChange = useCallback(
     (provider: string) => (value: string) => {
@@ -113,6 +135,7 @@ export default function SettingsPage() {
           <TabsList className="mb-4">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="api">Models & Auth</TabsTrigger>
+            <TabsTrigger value="tokens">Channels & Tokens</TabsTrigger>
             <TabsTrigger value="gateway">Gateway</TabsTrigger>
             <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
@@ -177,6 +200,98 @@ export default function SettingsPage() {
                     checked={autoCheckUpdates}
                     onCheckedChange={setAutoCheckUpdates}
                   />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tokens Tab */}
+          <TabsContent value="tokens">
+            <Card>
+              <CardHeader>
+                <CardTitle>Channel Tokens</CardTitle>
+                <CardDescription>
+                  Manage non-model secrets (Discord/Telegram/Slack). These are written into OpenClaw env for both profiles (18789 + 19789).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {secretsError ? (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    {secretsError}
+                  </div>
+                ) : null}
+
+                <div className="space-y-2">
+                  <Label htmlFor="discord-bot-token">Discord Bot Token</Label>
+                  <Input
+                    id="discord-bot-token"
+                    type="password"
+                    value={discordBotToken}
+                    onChange={(e) => setSecretValue('discordBotToken', e.target.value)}
+                    placeholder="..."
+                    disabled={secretsLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="discord-app-token">Discord App Token</Label>
+                  <Input
+                    id="discord-app-token"
+                    type="password"
+                    value={discordAppToken}
+                    onChange={(e) => setSecretValue('discordAppToken', e.target.value)}
+                    placeholder="..."
+                    disabled={secretsLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="telegram-bot-token">Telegram Bot Token</Label>
+                  <Input
+                    id="telegram-bot-token"
+                    type="password"
+                    value={telegramBotToken}
+                    onChange={(e) => setSecretValue('telegramBotToken', e.target.value)}
+                    placeholder="..."
+                    disabled={secretsLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="slack-bot-token">Slack Bot Token</Label>
+                  <Input
+                    id="slack-bot-token"
+                    type="password"
+                    value={slackBotToken}
+                    onChange={(e) => setSecretValue('slackBotToken', e.target.value)}
+                    placeholder="..."
+                    disabled={secretsLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="slack-app-token">Slack App Token</Label>
+                  <Input
+                    id="slack-app-token"
+                    type="password"
+                    value={slackAppToken}
+                    onChange={(e) => setSecretValue('slackAppToken', e.target.value)}
+                    placeholder="..."
+                    disabled={secretsLoading}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button onClick={saveSecrets} disabled={secretsSaving || secretsLoading}>
+                    {secretsSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Save
+                  </Button>
+                  {secretsSaveSuccess ? (
+                    <span className="flex items-center gap-1 text-sm text-green-600">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Saved
+                    </span>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>

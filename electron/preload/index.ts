@@ -175,4 +175,7 @@ contextBridge.exposeInMainWorld('electron', {
   metadata: {
     generate: (sessionKey: string) => ipcRenderer.invoke('metadata:generate', sessionKey),
   },
+  secrets: {
+    patch: (patch: Record<string, unknown>) => ipcRenderer.invoke('secrets:patch', patch),
+  },
 })

@@ -1,41 +1,34 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
-import resources from './default'
+import zhResources from './default'
+import enResources from './en-US'
+import {
+  DEFAULT_LANG,
+  LANG_STORAGE_KEY,
+  SUPPORTED_LANGS,
+  normalizeLanguage,
+  resolveEffectiveLanguage,
+  resolveStoredLocale,
+  type StoredLocale,
+} from './language'
 
-const DEFAULT_LANG = 'zh-CN'
-const STORAGE_KEY = 'clawui-locale'
-const SUPPORTED_LANGS = ['zh-CN', 'en-US'] as const
-type SupportedLang = (typeof SUPPORTED_LANGS)[number]
-
-const normalizeLanguage = (language?: string): SupportedLang => {
-  if (!language) return DEFAULT_LANG
-
-  const value = language.toLowerCase()
-  if (value.startsWith('zh')) return 'zh-CN'
-  if (value.startsWith('en')) return 'en-US'
-
-  return DEFAULT_LANG
-}
-
-const getStoredLanguage = (): SupportedLang | undefined => {
+const getStoredLocale = (): StoredLocale | undefined => {
   if (typeof window === 'undefined') return undefined
 
-  const stored = window.localStorage.getItem(STORAGE_KEY)
-  if (!stored) return undefined
-
-  return normalizeLanguage(stored)
+  return resolveStoredLocale(window.localStorage.getItem(LANG_STORAGE_KEY))
 }
 
 const resolveLanguage = () => {
   if (typeof navigator === 'undefined') return DEFAULT_LANG
 
-  return getStoredLanguage() ?? normalizeLanguage(navigator.language)
+  return resolveEffectiveLanguage(getStoredLocale(), navigator.language)
 }
 
 if (!i18n.isInitialized) {
   void i18n.use(initReactI18next).init({
     resources: {
-      'zh-CN': resources,
+      'zh-CN': zhResources,
+      'en-US': enResources,
     },
     lng: resolveLanguage(),
     fallbackLng: DEFAULT_LANG,
@@ -46,7 +39,7 @@ if (!i18n.isInitialized) {
     react: {
       useSuspense: false,
     },
-    ns: Object.keys(resources),
+    ns: Object.keys(zhResources),
   })
 }
 
@@ -54,8 +47,20 @@ i18n.on('languageChanged', (language) => {
   if (typeof window === 'undefined') return
 
   const normalized = normalizeLanguage(language)
-  window.localStorage.setItem(STORAGE_KEY, normalized)
+
+  const stored = getStoredLocale()
+  // Treat "no stored value" as system mode: don't persist explicit language
+  // unless the user has opted into a concrete locale override.
+  if (stored && stored !== 'system') {
+    window.localStorage.setItem(LANG_STORAGE_KEY, normalized)
+  }
+
   document.documentElement.lang = normalized
 })
+
+// Ensure initial <html lang="..."> is correct even before the first change event.
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = i18n.language
+}
 
 export { i18n }

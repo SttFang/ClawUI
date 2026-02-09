@@ -4,11 +4,16 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@clawui/ui'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from '@clawui/ui/chart'
 import { Loader2 } from 'lucide-react'
 import type { UsageTimeSeries } from '@clawui/types/usage'
 
@@ -23,12 +28,12 @@ function formatTime(ts: number): string {
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
 }
 
-const COLORS = {
-  output: '#ef4444',
-  input: '#f59e0b',
-  cacheRead: '#06b6d4',
-  cumulative: '#8b5cf6',
-}
+const chartConfig = {
+  output: { label: "Output", color: "var(--chart-1)" },
+  input: { label: "Input", color: "var(--chart-2)" },
+  cacheRead: { label: "Cache Read", color: "var(--chart-4)" },
+  cumulative: { label: "Cumulative", color: "var(--chart-5)" },
+} satisfies ChartConfig
 
 export function SessionTimeline({ timeSeries, loading, mode }: SessionTimelineProps) {
   if (loading) {
@@ -57,59 +62,48 @@ export function SessionTimeline({ timeSeries, loading, mode }: SessionTimelinePr
         <CardTitle className="text-base">Session Timeline</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={240}>
+        <ChartContainer config={chartConfig} className="min-h-[240px] w-full">
           <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="time" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '0.5rem',
-                fontSize: '0.75rem',
-              }}
-            />
-            <Legend iconSize={10} wrapperStyle={{ fontSize: '0.75rem' }} />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <ChartLegend content={<ChartLegendContent />} />
             {mode === 'tokens' && (
               <>
                 <Line
                   type="monotone"
                   dataKey="output"
-                  stroke={COLORS.output}
+                  stroke="var(--color-output)"
                   strokeWidth={1.5}
                   dot={false}
-                  name="Output"
                 />
                 <Line
                   type="monotone"
                   dataKey="input"
-                  stroke={COLORS.input}
+                  stroke="var(--color-input)"
                   strokeWidth={1.5}
                   dot={false}
-                  name="Input"
                 />
                 <Line
                   type="monotone"
                   dataKey="cacheRead"
-                  stroke={COLORS.cacheRead}
+                  stroke="var(--color-cacheRead)"
                   strokeWidth={1.5}
                   dot={false}
-                  name="Cache Read"
                 />
               </>
             )}
             <Line
               type="monotone"
               dataKey="cumulative"
-              stroke={COLORS.cumulative}
+              stroke="var(--color-cumulative)"
               strokeWidth={2}
               dot={false}
               strokeDasharray="5 3"
-              name={mode === 'cost' ? 'Cumulative Cost' : 'Cumulative Tokens'}
             />
           </LineChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </CardContent>
     </Card>
   )

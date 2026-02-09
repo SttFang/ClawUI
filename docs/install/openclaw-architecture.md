@@ -75,12 +75,20 @@ cd openclaw && pnpm install && pnpm build
 
 ### 会话 Key 格式
 
+> 更完整的 sessionKey 规则请看：`docs/openclaw/session-management.md`
+
 ```
-agent:{agentId}:{provider}:{scope}:{identifier}
-示例: main:whatsapp:dm:+15555550123
+agent:{agentId}:{mainKey}
+示例: agent:main:main
+
+# 常见扩展（按配置与 channel 不同会变化）
+agent:{agentId}:{channel}:dm:{peerId}
+agent:{agentId}:{channel}:{peerKind}:{peerId}   # peerKind=group/channel
 ```
 
 ## 5. API 协议
+
+> 建议先读：`docs/openclaw/README.md`
 
 ### WebSocket RPC
 
@@ -100,10 +108,13 @@ agent:{agentId}:{provider}:{scope}:{identifier}
 | 方法 | 功能 |
 |------|------|
 | `connect` | 握手认证 |
-| `agent` | 执行 Agent 轮次 |
-| `send` | 投递消息到频道 |
+| `chat.send` | WebChat 发送消息（流式输出走 `event chat`） |
+| `chat.abort` | 中断当前 run |
+| `chat.history` | 拉取历史（用于 UI 回放/重建） |
+| `agent` | 通用 Agent 调度（可选 deliver 到 channel） |
 | `node.list` / `node.invoke` | 设备节点操作 |
 | `config.get` / `config.patch` | 配置管理 |
+| `sessions.*` | 会话管理（list/preview/patch/reset/compact/resolve） |
 
 ### HTTP 端点
 
@@ -119,7 +130,7 @@ agent:{agentId}:{provider}:{scope}:{identifier}
 
 ```
 ┌─────────────────────────────────────────────┐
-│           CatchClaw (Electron)              │
+│             ClawUI (Electron)               │
 ├─────────────────────────────────────────────┤
 │  Main Process                               │
 │  ┌─────────────────────────────────────┐   │

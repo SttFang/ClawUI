@@ -293,6 +293,50 @@ export class ChatWebSocketService extends EventEmitter {
     }
   }
 
+  async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.connected) {
+      throw new Error('WebSocket not connected')
+    }
+
+    const requestId = randomUUID()
+    const t0 = Date.now()
+
+    const acpRequest: ACPRequest = {
+      type: 'req',
+      id: requestId,
+      method,
+      params,
+    }
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingRequests.delete(requestId)
+        chatLog.warn(`[acp.request.timeout]`, `method=${method}`, `durationMs=${Date.now() - t0}`)
+        reject(new Error('Request timeout'))
+      }, 30000)
+
+      this.pendingRequests.set(requestId, {
+        resolve: (response) => {
+          clearTimeout(timeout)
+          const res = response as ACPResponse
+          if (res.ok) {
+            chatLog.info(`[acp.request.ok]`, `method=${method}`, `durationMs=${Date.now() - t0}`)
+            resolve(res.payload)
+          } else {
+            chatLog.warn(`[acp.request.failed]`, `method=${method}`, res.error?.message, `durationMs=${Date.now() - t0}`)
+            reject(new Error(res.error?.message || `${method} failed`))
+          }
+        },
+        reject: (error) => {
+          clearTimeout(timeout)
+          reject(error)
+        },
+      })
+
+      this.ws?.send(JSON.stringify(acpRequest))
+    })
+  }
+
   async sendMessage(request: ChatRequest): Promise<string> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.connected) {
       throw new Error('WebSocket not connected')

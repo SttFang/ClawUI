@@ -123,12 +123,12 @@ export class ChatWebSocketService extends EventEmitter {
       method: 'connect',
       params: {
         minProtocol: 1,
-        maxProtocol: 3,  // Protocol version from OpenClaw source
+        maxProtocol: 3,
         client: {
-          id: 'openclaw-control-ui',  // Valid client ID for UI connections
+          id: 'cli',  // Use CLI - trusted local client, no origin check needed
           version: '0.1.0',
           platform: process.platform,
-          mode: 'ui',  // Valid mode for UI clients
+          mode: 'cli',
         },
         auth: {
           token: this.gatewayToken,

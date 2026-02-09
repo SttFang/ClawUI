@@ -17,6 +17,7 @@ import { OpenClawProfilesService } from './services/openclaw-profiles'
 import { registerProfilesHandlers } from './ipc/profiles'
 import { registerMetadataHandlers } from './ipc/metadata'
 import { registerSecretsHandlers } from './ipc/secrets'
+import { registerSecurityHandlers } from './ipc/security'
 
 // Initialise logging before anything else
 initLogger()
@@ -94,6 +95,7 @@ app.whenReady().then(async () => {
     mainConfigService: configService,
   })
   registerSecretsHandlers(ipcMain, profilesService)
+  registerSecurityHandlers(ipcMain)
 
   // Create the main window
   const mainWindow = createWindow()

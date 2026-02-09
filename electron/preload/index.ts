@@ -181,4 +181,8 @@ contextBridge.exposeInMainWorld('electron', {
   secrets: {
     patch: (patch: Record<string, unknown>) => ipcRenderer.invoke('secrets:patch', patch),
   },
+  security: {
+    get: (paths: string[]) => ipcRenderer.invoke('security:get', paths),
+    apply: (ops: Array<{ path: string; value: unknown }>) => ipcRenderer.invoke('security:apply', ops),
+  },
 })

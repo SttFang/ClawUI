@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, type ChangeEvent } from 'react'
 import {
   Card,
   CardContent,
@@ -8,6 +8,7 @@ import {
   Button,
   Input,
   Label,
+  Select,
   Switch,
   Tabs,
   TabsContent,
@@ -109,6 +110,12 @@ export default function SettingsPage() {
   const [version, setVersion] = useState('0.0.0')
   const [gatewayServiceBusy, setGatewayServiceBusy] = useState(false)
   const [gatewayServiceMessage, setGatewayServiceMessage] = useState<string | null>(null)
+  const [securityLoading, setSecurityLoading] = useState(false)
+  const [securityMessage, setSecurityMessage] = useState<string | null>(null)
+  const [allowElevatedWebchat, setAllowElevatedWebchat] = useState(false)
+  const [allowElevatedDiscord, setAllowElevatedDiscord] = useState(false)
+  const [sandboxMode, setSandboxMode] = useState<'off' | 'docker' | 'native' | string>('off')
+  const [workspaceAccess, setWorkspaceAccess] = useState<'none' | 'ro' | 'rw' | string>('rw')
 
   useEffect(() => {
     loadSettings()
@@ -117,6 +124,27 @@ export default function SettingsPage() {
     loadSecrets()
     ipc.app.getVersion().then(setVersion)
   }, [loadSettings, loadPreferences, loadModelsStatus, loadSecrets])
+
+  useEffect(() => {
+    setSecurityLoading(true)
+    ipc.security
+      .get([
+        'tools.elevated.allowFrom.webchat',
+        'tools.elevated.allowFrom.discord',
+        'agents.defaults.sandbox.mode',
+        'agents.defaults.sandbox.workspaceAccess',
+      ])
+      .then((values) => {
+        setAllowElevatedWebchat(values['tools.elevated.allowFrom.webchat'] === true)
+        setAllowElevatedDiscord(values['tools.elevated.allowFrom.discord'] === true)
+        const sm = values['agents.defaults.sandbox.mode']
+        if (typeof sm === 'string') setSandboxMode(sm)
+        const wa = values['agents.defaults.sandbox.workspaceAccess']
+        if (typeof wa === 'string') setWorkspaceAccess(wa)
+      })
+      .catch((e) => setSecurityMessage(e instanceof Error ? e.message : 'Failed to load security settings'))
+      .finally(() => setSecurityLoading(false))
+  }, [])
 
   const handleApiKeyChange = useCallback(
     (provider: string) => (value: string) => {
@@ -141,6 +169,7 @@ export default function SettingsPage() {
             <TabsTrigger value="api">Models & Auth</TabsTrigger>
             <TabsTrigger value="tokens">Channels & Tokens</TabsTrigger>
             <TabsTrigger value="gateway">Gateway</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
             <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
           </TabsList>
@@ -491,6 +520,101 @@ export default function SettingsPage() {
                 {gatewayServiceMessage ? (
                   <div className="text-sm text-muted-foreground">{gatewayServiceMessage}</div>
                 ) : null}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Security Tab */}
+          <TabsContent value="security">
+            <Card>
+              <CardHeader>
+                <CardTitle>Security</CardTitle>
+                <CardDescription>
+                  Restricted controls that only touch OpenClaw permissions (minmax). These changes are applied via allowlisted `openclaw config set` paths.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {securityMessage ? (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    {securityMessage}
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Allow Elevated (WebChat)</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Enable elevated tools from webchat (use with care)
+                    </p>
+                  </div>
+                  <Switch
+                    checked={allowElevatedWebchat}
+                    onCheckedChange={setAllowElevatedWebchat}
+                    disabled={securityLoading}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Allow Elevated (Discord)</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Enable elevated tools from Discord (use with care)
+                    </p>
+                  </div>
+                  <Switch
+                    checked={allowElevatedDiscord}
+                    onCheckedChange={setAllowElevatedDiscord}
+                    disabled={securityLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Sandbox Mode</Label>
+                  <Select
+                    value={sandboxMode}
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setSandboxMode(e.target.value)}
+                    disabled={securityLoading}
+                  >
+                    <option value="off">off</option>
+                    <option value="docker">docker</option>
+                    <option value="native">native</option>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Workspace Access</Label>
+                  <Select
+                    value={workspaceAccess}
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setWorkspaceAccess(e.target.value)}
+                    disabled={securityLoading}
+                  >
+                    <option value="none">none</option>
+                    <option value="ro">ro</option>
+                    <option value="rw">rw</option>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    disabled={securityLoading}
+                    onClick={() => {
+                      setSecurityLoading(true)
+                      setSecurityMessage(null)
+                      ipc.security
+                        .apply([
+                          { path: 'tools.elevated.allowFrom.webchat', value: allowElevatedWebchat },
+                          { path: 'tools.elevated.allowFrom.discord', value: allowElevatedDiscord },
+                          { path: 'agents.defaults.sandbox.mode', value: sandboxMode },
+                          { path: 'agents.defaults.sandbox.workspaceAccess', value: workspaceAccess },
+                        ])
+                        .then(() => setSecurityMessage('Security settings updated'))
+                        .catch((e) => setSecurityMessage(e instanceof Error ? e.message : 'Apply failed'))
+                        .finally(() => setSecurityLoading(false))
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

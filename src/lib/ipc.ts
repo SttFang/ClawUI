@@ -123,6 +123,10 @@ export interface ElectronAPI {
   secrets: {
     patch: (patch: Record<string, unknown>) => Promise<void>
   }
+  security: {
+    get: (paths: string[]) => Promise<Record<string, unknown>>
+    apply: (ops: Array<{ path: string; value: unknown }>) => Promise<void>
+  }
 }
 
 export type DeepPartial<T> = {
@@ -397,6 +401,18 @@ export const ipc = {
       const api = getElectronAPI()
       if (!api?.secrets) throw new Error('Secrets API not available — restart the app')
       await api.secrets.patch(patch)
+    },
+  },
+  security: {
+    async get(paths: string[]): Promise<Record<string, unknown>> {
+      const api = getElectronAPI()
+      if (!api?.security) throw new Error('Security API not available — restart the app')
+      return api.security.get(paths)
+    },
+    async apply(ops: Array<{ path: string; value: unknown }>): Promise<void> {
+      const api = getElectronAPI()
+      if (!api?.security) throw new Error('Security API not available — restart the app')
+      await api.security.apply(ops)
     },
   },
 }

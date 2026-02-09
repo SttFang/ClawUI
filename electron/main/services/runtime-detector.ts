@@ -100,6 +100,9 @@ export class RuntimeDetectorService {
     } catch {
       detectorLog.warn('[detect.node]', 'not found')
       return {
+        nodeInstalled: false,
+        nodeVersion: null,
+        nodePath: null,
       }
     }
   }

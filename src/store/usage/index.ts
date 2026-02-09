@@ -92,7 +92,7 @@ export const useUsageStore = create<UsageStore>((set, get) => ({
     set({ timeSeriesLoading: true })
     try {
       const result = await ipc.usage.timeseries({
-        sessionKey: key,
+        key,
         startDate,
         endDate,
       })

@@ -107,6 +107,8 @@ export default function SettingsPage() {
   const saveSecrets = useSecretsStore((s) => s.save)
 
   const [version, setVersion] = useState('0.0.0')
+  const [gatewayServiceBusy, setGatewayServiceBusy] = useState(false)
+  const [gatewayServiceMessage, setGatewayServiceMessage] = useState<string | null>(null)
 
   useEffect(() => {
     loadSettings()
@@ -437,6 +439,58 @@ export default function SettingsPage() {
                     {isGatewayRunning ? 'Stop' : 'Start'} Gateway
                   </Button>
                 </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={gatewayServiceBusy}
+                    onClick={() => {
+                      setGatewayServiceBusy(true)
+                      setGatewayServiceMessage(null)
+                      ipc.gateway
+                        .installService()
+                        .then(() => setGatewayServiceMessage('Gateway service installed'))
+                        .catch((e) => setGatewayServiceMessage(e instanceof Error ? e.message : 'Install failed'))
+                        .finally(() => setGatewayServiceBusy(false))
+                    }}
+                  >
+                    Install Service
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={gatewayServiceBusy}
+                    onClick={() => {
+                      setGatewayServiceBusy(true)
+                      setGatewayServiceMessage(null)
+                      ipc.gateway
+                        .restartService()
+                        .then(() => setGatewayServiceMessage('Gateway service restarted'))
+                        .catch((e) => setGatewayServiceMessage(e instanceof Error ? e.message : 'Restart failed'))
+                        .finally(() => setGatewayServiceBusy(false))
+                    }}
+                  >
+                    Restart Service
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    disabled={gatewayServiceBusy}
+                    onClick={() => {
+                      setGatewayServiceBusy(true)
+                      setGatewayServiceMessage(null)
+                      ipc.gateway
+                        .uninstallService()
+                        .then(() => setGatewayServiceMessage('Gateway service uninstalled'))
+                        .catch((e) => setGatewayServiceMessage(e instanceof Error ? e.message : 'Uninstall failed'))
+                        .finally(() => setGatewayServiceBusy(false))
+                    }}
+                  >
+                    Uninstall Service
+                  </Button>
+                </div>
+
+                {gatewayServiceMessage ? (
+                  <div className="text-sm text-muted-foreground">{gatewayServiceMessage}</div>
+                ) : null}
               </CardContent>
             </Card>
           </TabsContent>

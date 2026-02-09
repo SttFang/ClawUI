@@ -1,7 +1,18 @@
 import { IpcMain, BrowserWindow } from 'electron'
 import { GatewayService } from '../services/gateway'
+import type { ConfigService } from '../services/config'
+import { execInLoginShell } from '../utils/login-shell'
 
-export function registerGatewayHandlers(ipcMain: IpcMain, gateway: GatewayService): void {
+function shEscape(value: string): string {
+  // Single-quote escape for POSIX shells.
+  return `'${value.replace(/'/g, `'\"'\"'`)}'`
+}
+
+export function registerGatewayHandlers(
+  ipcMain: IpcMain,
+  gateway: GatewayService,
+  configService: ConfigService
+): void {
   // Forward gateway status changes to all windows
   gateway.on('status-changed', (status) => {
     BrowserWindow.getAllWindows().forEach((window) => {
@@ -25,5 +36,27 @@ export function registerGatewayHandlers(ipcMain: IpcMain, gateway: GatewayServic
 
   ipcMain.handle('gateway:websocket-url', () => {
     return gateway.getWebSocketUrl()
+  })
+
+  ipcMain.handle('gateway:install-service', async () => {
+    const cfg = await configService.getConfig()
+    const port = cfg?.gateway?.port ?? 18789
+    const token = cfg?.gateway?.auth?.token
+    const cmd = [
+      'openclaw gateway install --force',
+      `--port ${port}`,
+      token ? `--token ${shEscape(token)}` : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+    await execInLoginShell(cmd, { timeoutMs: 120_000 })
+  })
+
+  ipcMain.handle('gateway:restart-service', async () => {
+    await execInLoginShell('openclaw gateway restart', { timeoutMs: 60_000 })
+  })
+
+  ipcMain.handle('gateway:uninstall-service', async () => {
+    await execInLoginShell('openclaw gateway uninstall', { timeoutMs: 60_000 })
   })
 }

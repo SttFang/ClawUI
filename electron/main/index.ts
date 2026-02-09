@@ -81,7 +81,7 @@ app.whenReady().then(async () => {
   })
 
   // Register IPC handlers
-  registerGatewayHandlers(ipcMain, gatewayService)
+  registerGatewayHandlers(ipcMain, gatewayService, configService)
   registerConfigHandlers(ipcMain, configService)
   registerAppHandlers(ipcMain, updaterService)
   registerOnboardingHandlers()

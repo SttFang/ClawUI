@@ -69,6 +69,9 @@ contextBridge.exposeInMainWorld('electron', {
     start: () => ipcRenderer.invoke('gateway:start'),
     stop: () => ipcRenderer.invoke('gateway:stop'),
     getStatus: () => ipcRenderer.invoke('gateway:status'),
+    installService: () => ipcRenderer.invoke('gateway:install-service'),
+    restartService: () => ipcRenderer.invoke('gateway:restart-service'),
+    uninstallService: () => ipcRenderer.invoke('gateway:uninstall-service'),
     onStatusChange: (callback: (status: GatewayStatus) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, status: GatewayStatus) => callback(status)
       ipcRenderer.on('gateway:status-changed', listener)

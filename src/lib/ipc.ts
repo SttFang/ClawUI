@@ -50,6 +50,9 @@ export interface ElectronAPI {
     start: () => Promise<void>
     stop: () => Promise<void>
     getStatus: () => Promise<GatewayStatus>
+    installService: () => Promise<void>
+    restartService: () => Promise<void>
+    uninstallService: () => Promise<void>
     onStatusChange: (callback: (status: GatewayStatus) => void) => () => void
     onEvent: (callback: (event: GatewayEventFrame) => void) => () => void
   }
@@ -156,6 +159,21 @@ export const ipc = {
     async getStatus() {
       const api = getElectronAPI()
       return api?.gateway.getStatus() ?? Promise.resolve('stopped' as const)
+    },
+    async installService() {
+      const api = getElectronAPI()
+      if (!api?.gateway.installService) throw new Error('Gateway install API not available — restart the app')
+      await api.gateway.installService()
+    },
+    async restartService() {
+      const api = getElectronAPI()
+      if (!api?.gateway.restartService) throw new Error('Gateway restart API not available — restart the app')
+      await api.gateway.restartService()
+    },
+    async uninstallService() {
+      const api = getElectronAPI()
+      if (!api?.gateway.uninstallService) throw new Error('Gateway uninstall API not available — restart the app')
+      await api.gateway.uninstallService()
     },
     onStatusChange(callback: (status: GatewayStatus) => void) {
       const api = getElectronAPI()

@@ -124,7 +124,14 @@ app.whenReady().then(async () => {
 
   // Set up updater
   updaterService.setWindow(mainWindow)
-  updaterService.checkForUpdates()
+  try {
+    const clawuiState = await clawUIStateService.get()
+    if (clawuiState.app?.autoCheckUpdates !== false) {
+      updaterService.checkForUpdates()
+    }
+  } catch {
+    updaterService.checkForUpdates()
+  }
 
   app.on('activate', function () {
     // On macOS re-create window when dock icon is clicked and no other windows are open

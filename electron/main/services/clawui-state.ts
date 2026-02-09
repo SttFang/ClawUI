@@ -26,6 +26,9 @@ export interface ClawUIStateV1 {
     locale: 'system' | 'zh-CN' | 'en-US'
     sidebarCollapsed: boolean
   }
+  app: {
+    autoCheckUpdates: boolean
+  }
   subscription: {
     currentPlan: 'free' | 'pro' | 'team'
   }
@@ -63,6 +66,9 @@ const DEFAULT_STATE: ClawUIState = {
     theme: 'system',
     locale: 'system',
     sidebarCollapsed: false,
+  },
+  app: {
+    autoCheckUpdates: true,
   },
   subscription: {
     currentPlan: 'free',

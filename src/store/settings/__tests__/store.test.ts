@@ -13,6 +13,10 @@ vi.mock('@/lib/ipc', () => ({
     models: {
       status: vi.fn(),
     },
+    state: {
+      get: vi.fn(),
+      patch: vi.fn(),
+    },
   },
   getElectronAPI: vi.fn(() => ({})), // Mock as available by default
 }))
@@ -287,6 +291,8 @@ describe('SettingsStore', () => {
 
   describe('setAutoStartGateway', () => {
     it('should update autoStartGateway setting', async () => {
+      const { ipc } = await import('@/lib/ipc')
+      ;(ipc.state.patch as Mock).mockResolvedValue({})
       const { setAutoStartGateway } = useSettingsStore.getState()
 
       await setAutoStartGateway(false)
@@ -299,6 +305,8 @@ describe('SettingsStore', () => {
 
   describe('setAutoCheckUpdates', () => {
     it('should update autoCheckUpdates setting', async () => {
+      const { ipc } = await import('@/lib/ipc')
+      ;(ipc.state.patch as Mock).mockResolvedValue({})
       const { setAutoCheckUpdates } = useSettingsStore.getState()
 
       await setAutoCheckUpdates(false)
@@ -306,6 +314,21 @@ describe('SettingsStore', () => {
 
       await setAutoCheckUpdates(true)
       expect(useSettingsStore.getState().autoCheckUpdates).toBe(true)
+    })
+  })
+
+  describe('loadPreferences', () => {
+    it('should hydrate preferences from clawui state', async () => {
+      const { ipc } = await import('@/lib/ipc')
+      ;(ipc.state.get as Mock).mockResolvedValue({
+        openclaw: { autoStart: { main: false } },
+        app: { autoCheckUpdates: false },
+      })
+
+      await useSettingsStore.getState().loadPreferences()
+
+      expect(useSettingsStore.getState().autoStartGateway).toBe(false)
+      expect(useSettingsStore.getState().autoCheckUpdates).toBe(false)
     })
   })
 

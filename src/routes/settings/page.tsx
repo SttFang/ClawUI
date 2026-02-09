@@ -90,6 +90,7 @@ export default function SettingsPage() {
   const setAutoStartGateway = useSettingsStore((s) => s.setAutoStartGateway)
   const setAutoCheckUpdates = useSettingsStore((s) => s.setAutoCheckUpdates)
   const loadModelsStatus = useSettingsStore((s) => s.loadModelsStatus)
+  const loadPreferences = useSettingsStore((s) => s.loadPreferences)
 
   // Secrets store (non-model tokens/keys; managed via allowlisted env vars)
   const secretsLoading = useSecretsStore(selectSecretsLoading)
@@ -109,10 +110,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadSettings()
+    loadPreferences()
     loadModelsStatus()
     loadSecrets()
     ipc.app.getVersion().then(setVersion)
-  }, [loadSettings, loadModelsStatus, loadSecrets])
+  }, [loadSettings, loadPreferences, loadModelsStatus, loadSecrets])
 
   const handleApiKeyChange = useCallback(
     (provider: string) => (value: string) => {

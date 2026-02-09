@@ -22,6 +22,7 @@ interface SettingsState {
 
 interface SettingsActions {
   loadSettings: () => Promise<void>
+  loadPreferences: () => Promise<void>
   setApiKey: (provider: keyof ApiKeys, key: string) => void
   saveApiKeys: () => Promise<void>
   setAutoStartGateway: (enabled: boolean) => Promise<void>
@@ -85,6 +86,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
 
+  loadPreferences: async () => {
+    try {
+      const state = await ipc.state.get()
+      set({
+        autoStartGateway: state.openclaw?.autoStart?.main ?? true,
+        autoCheckUpdates: state.app?.autoCheckUpdates ?? true,
+      })
+    } catch {
+      // Best-effort: keep defaults.
+    }
+  },
+
   setApiKey: (provider, key) => {
     set((state) => ({
       apiKeys: { ...state.apiKeys, [provider]: key },
@@ -131,10 +144,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   setAutoStartGateway: async (enabled) => {
     set({ autoStartGateway: enabled })
+    await ipc.state.patch({ openclaw: { autoStart: { main: enabled } } })
   },
 
   setAutoCheckUpdates: async (enabled) => {
     set({ autoCheckUpdates: enabled })
+    await ipc.state.patch({ app: { autoCheckUpdates: enabled } })
   },
 
   clearSaveSuccess: () => {

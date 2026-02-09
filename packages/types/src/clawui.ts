@@ -22,6 +22,9 @@ export interface ClawUIStateV1 {
     locale: LocalePreference
     sidebarCollapsed: boolean
   }
+  app: {
+    autoCheckUpdates: boolean
+  }
   subscription: {
     currentPlan: 'free' | 'pro' | 'team'
   }

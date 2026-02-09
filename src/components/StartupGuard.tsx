@@ -46,8 +46,9 @@ export function StartupGuard({ children }: StartupGuardProps) {
     async function checkOpenClaw() {
       try {
         // Hydrate ClawUI state early so theme/locale/sidebar apply before the main UI renders.
+        let clawuiState: Awaited<ReturnType<typeof ipc.state.get>> | null = null
         try {
-          const clawuiState = await ipc.state.get()
+          clawuiState = await ipc.state.get()
           useUIStore.getState().hydrate(clawuiState.ui)
         } catch {
           // Best-effort: startup should continue even if state is unreadable.
@@ -80,7 +81,8 @@ export function StartupGuard({ children }: StartupGuardProps) {
           // OpenClaw is installed - start Gateway
           startupLog.info('OpenClaw installed, starting Gateway')
           const gatewayStore = useGatewayStore.getState()
-          if (gatewayStore.status === 'stopped') {
+          const shouldAutoStart = clawuiState?.openclaw?.autoStart?.main !== false
+          if (shouldAutoStart && gatewayStore.status === 'stopped') {
             gatewayStore.start()
           }
         }

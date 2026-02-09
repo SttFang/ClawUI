@@ -24,6 +24,7 @@ export interface ChatStreamEvent {
 export class ChatWebSocketService extends EventEmitter {
   private ws: WebSocket | null = null
   private gatewayUrl: string = 'ws://127.0.0.1:18789'
+  private gatewayToken: string = ''
   private reconnectAttempts = 0
   private maxReconnectAttempts = 5
   private reconnectDelay = 1000
@@ -32,10 +33,21 @@ export class ChatWebSocketService extends EventEmitter {
     this.gatewayUrl = url
   }
 
+  setGatewayToken(token: string): void {
+    this.gatewayToken = token
+  }
+
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(this.gatewayUrl)
+        // Build URL with token if provided
+        let url = this.gatewayUrl
+        if (this.gatewayToken) {
+          const separator = url.includes('?') ? '&' : '?'
+          url = `${url}${separator}token=${encodeURIComponent(this.gatewayToken)}`
+        }
+        console.log('[ChatWebSocket] Connecting to:', this.gatewayUrl.replace(/token=.*/, 'token=***'))
+        this.ws = new WebSocket(url)
 
         this.ws.on('open', () => {
           this.reconnectAttempts = 0

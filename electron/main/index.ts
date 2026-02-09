@@ -77,7 +77,7 @@ app.whenReady().then(async () => {
   const mainWindow = createWindow()
 
   // Register chat handlers (needs mainWindow reference)
-  registerChatHandlers(mainWindow)
+  registerChatHandlers(mainWindow, configService)
 
   // Initialize services
   try {

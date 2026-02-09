@@ -1,11 +1,19 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { chatWebSocket, ChatRequest, ChatStreamEvent } from '../services/chat-websocket'
+import { ConfigService } from '../services/config'
 
-export function registerChatHandlers(mainWindow: BrowserWindow): void {
+export function registerChatHandlers(mainWindow: BrowserWindow, configService: ConfigService): void {
   // Connect to WebSocket
   ipcMain.handle('chat:connect', async (_, url?: string) => {
+    // Get token from config
+    const config = await configService.getConfig()
+    if (config?.gateway?.auth?.token) {
+      chatWebSocket.setGatewayToken(config.gateway.auth.token)
+    }
     if (url) {
       chatWebSocket.setGatewayUrl(url)
+    } else if (config?.gateway?.port) {
+      chatWebSocket.setGatewayUrl(`ws://127.0.0.1:${config.gateway.port}`)
     }
     await chatWebSocket.connect()
     return true

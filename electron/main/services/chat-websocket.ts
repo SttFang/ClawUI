@@ -190,43 +190,88 @@ export class ChatWebSocketService extends EventEmitter {
   private handleEvent(event: ACPEvent): void {
     // Map OpenClaw events to our ChatStreamEvent format
     switch (event.event) {
-      case 'agent:stream:start': {
-        const payload = event.payload as { sessionId: string; messageId: string }
-        this.emit('stream', {
-          type: 'start',
-          sessionId: payload.sessionId,
-          messageId: payload.messageId,
-        })
-        break
-      }
-      case 'agent:stream:delta': {
-        const payload = event.payload as { sessionId: string; messageId: string; content: string }
-        this.emit('stream', {
-          type: 'delta',
-          sessionId: payload.sessionId,
-          messageId: payload.messageId,
-          content: payload.content,
-        })
-        break
-      }
-      case 'agent:stream:end': {
-        const payload = event.payload as { sessionId: string; messageId: string }
-        this.emit('stream', {
-          type: 'end',
-          sessionId: payload.sessionId,
-          messageId: payload.messageId,
-        })
-        break
-      }
-      case 'agent:stream:error': {
-        const payload = event.payload as { sessionId: string; messageId: string; error: string }
-        this.emit('stream', {
-          type: 'error',
-          sessionId: payload.sessionId,
-          messageId: payload.messageId,
-          error: payload.error,
-        })
-        break
+      case 'chat': {
+        const payload = event.payload as {
+          runId?: unknown
+          sessionKey?: unknown
+          state?: unknown
+          message?: unknown
+          errorMessage?: unknown
+        }
+
+        const runId = typeof payload?.runId === 'string' ? payload.runId : null
+        const sessionKey = typeof payload?.sessionKey === 'string' ? payload.sessionKey : null
+        const state = typeof payload?.state === 'string' ? payload.state : null
+
+        if (!runId || !sessionKey || !state) return
+
+        const extractText = (msg: unknown): string | null => {
+          if (!msg) return null
+          if (typeof msg === 'string') return msg
+          if (typeof msg !== 'object') return null
+          const content = (msg as { content?: unknown }).content
+          if (!Array.isArray(content) || content.length === 0) return null
+          const first = content[0] as { type?: unknown; text?: unknown } | undefined
+          if (!first || typeof first !== 'object') return null
+          const text = (first as { text?: unknown }).text
+          return typeof text === 'string' ? text : null
+        }
+
+        if (state === 'delta') {
+          const content = extractText(payload.message)
+          if (content) {
+            this.emit('stream', {
+              type: 'delta',
+              sessionId: sessionKey,
+              messageId: runId,
+              content,
+            })
+          }
+          return
+        }
+
+        if (state === 'final') {
+          const content = extractText(payload.message)
+          if (content) {
+            // Ensure the renderer sees the final full content before we end the stream.
+            this.emit('stream', {
+              type: 'delta',
+              sessionId: sessionKey,
+              messageId: runId,
+              content,
+            })
+          }
+          this.emit('stream', {
+            type: 'end',
+            sessionId: sessionKey,
+            messageId: runId,
+          })
+          return
+        }
+
+        if (state === 'aborted') {
+          this.emit('stream', {
+            type: 'error',
+            sessionId: sessionKey,
+            messageId: runId,
+            error: 'aborted',
+          })
+          return
+        }
+
+        if (state === 'error') {
+          const errorMessage =
+            typeof payload.errorMessage === 'string' ? payload.errorMessage : 'chat error'
+          this.emit('stream', {
+            type: 'error',
+            sessionId: sessionKey,
+            messageId: runId,
+            error: errorMessage,
+          })
+          return
+        }
+
+        return
       }
       default:
         console.log('[ChatWebSocket] Unhandled event:', event.event)
@@ -248,19 +293,20 @@ export class ChatWebSocketService extends EventEmitter {
       throw new Error('WebSocket not connected')
     }
 
+    // Use a stable runId/idempotency key so we can map streaming events back to a renderer message.
     const messageId = randomUUID()
     const requestId = randomUUID()
 
-    // Use OpenClaw ACP protocol format
+    // OpenClaw Gateway v2026 uses `chat.send` + `chat` events for streaming.
     const acpRequest: ACPRequest = {
       type: 'req',
       id: requestId,
-      method: 'agent.chat',
+      method: 'chat.send',
       params: {
-        sessionId: request.sessionId,
+        sessionKey: request.sessionId,
         message: request.message,
-        model: request.model,
-        messageId,
+        deliver: false,
+        idempotencyKey: messageId,
       },
     }
 

@@ -32,6 +32,7 @@ interface ChatActions {
   renameSession: (id: string, name: string) => void
   addMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void
   updateMessage: (id: string, content: string) => void
+  updateStreamingMessage: (id: string, content: string) => void
   appendMessageContent: (id: string, content: string) => void
   setMessageStreaming: (id: string, isStreaming: boolean) => void
   setInput: (input: string) => void
@@ -129,6 +130,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         messages: s.messages.map((m) =>
           m.id === id ? { ...m, content, isStreaming: false } : m
         ),
+      })),
+    })),
+
+  updateStreamingMessage: (id, content) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) => ({
+        ...s,
+        messages: s.messages.map((m) => {
+          if (m.id !== id) return m
+          // OpenClaw chat delta payloads are cumulative; avoid regressing to shorter snapshots.
+          if (!m.content || content.length >= m.content.length) {
+            return { ...m, content }
+          }
+          return m
+        }),
       })),
     })),
 
@@ -276,14 +292,14 @@ export function initChatStreamListener() {
 
   // Handle stream events
   ipc.chat.onStream((event: ChatStreamEvent) => {
-    const { appendMessageContent, setMessageStreaming, setLoading } = useChatStore.getState()
+    const { updateStreamingMessage, setMessageStreaming, setLoading } = useChatStore.getState()
 
     if (event.type === 'start') {
       // Stream started - nothing special to do
     } else if (event.type === 'delta') {
-      // Append content to the message
+      // OpenClaw chat delta events carry the full accumulated text snapshot.
       if (event.content) {
-        appendMessageContent(event.messageId, event.content)
+        updateStreamingMessage(event.messageId, event.content)
       }
     } else if (event.type === 'end') {
       // Stream ended

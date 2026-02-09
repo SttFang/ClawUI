@@ -17,7 +17,6 @@ import {
   selectTimeSeriesLoading,
 } from '@/store/usage'
 import { UsageHeader } from '@/components/Usage/UsageHeader'
-import { UsageSummaryCards } from '@/components/Usage/UsageSummaryCards'
 import { DailyTrendChart } from '@/components/Usage/DailyTrendChart'
 import { CostBreakdown } from '@/components/Usage/CostBreakdown'
 import { ProviderBreakdown } from '@/components/Usage/ProviderBreakdown'
@@ -91,16 +90,15 @@ export default function UsagePage() {
           </div>
         ) : (
           <>
-            {/* Summary Cards */}
-            <UsageSummaryCards
-              totals={totals}
-              aggregates={aggregates}
-              sessionCount={sessions.length}
-            />
-
-            {/* Daily Trend */}
+            {/* Daily Trend (with integrated summary stats) */}
             {costDaily.length > 0 && (
-              <DailyTrendChart data={costDaily} mode={chartMode} />
+              <DailyTrendChart
+                data={costDaily}
+                mode={chartMode}
+                totals={totals}
+                aggregates={aggregates}
+                sessionCount={sessions.length}
+              />
             )}
 
             {/* Cost Breakdown + Provider Distribution */}

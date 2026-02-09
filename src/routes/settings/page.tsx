@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useCallback } from 'react'
 import {
   Card,
   CardContent,
@@ -24,17 +24,37 @@ import {
   selectIsSaving,
   selectSaveSuccess,
   selectError,
+  selectModelsStatus,
+  selectModelsLoading,
 } from '@/store/settings'
 import { Key, Server, Info, CheckCircle2, Loader2, Moon, Sun, Monitor, AlertCircle } from 'lucide-react'
 import { ipc } from '@/lib/ipc'
 import { useState } from 'react'
 import { Subscription } from '@/features/Subscription'
+import { ProviderCard } from '@/components/Settings/ProviderCard'
+import { ModelConfig } from '@/components/Settings/ModelConfig'
+import type { OAuthProviderStatus } from '@clawui/types/models'
 
 const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
   { value: 'light', label: 'Light', icon: <Sun className="h-4 w-4" /> },
   { value: 'dark', label: 'Dark', icon: <Moon className="h-4 w-4" /> },
   { value: 'system', label: 'System', icon: <Monitor className="h-4 w-4" /> },
 ]
+
+/** Map provider name to apiKeys store key */
+function mapProviderToKey(provider: string): 'anthropic' | 'openai' | 'openrouter' {
+  if (provider === 'openai-codex') return 'openai'
+  if (provider === 'anthropic') return 'anthropic'
+  if (provider === 'openrouter') return 'openrouter'
+  return 'openai'
+}
+
+function findOAuthStatus(
+  modelsStatus: { auth: { oauthStatus?: { providers: OAuthProviderStatus[] } } },
+  provider: string,
+): OAuthProviderStatus | undefined {
+  return modelsStatus.auth.oauthStatus?.providers.find((p) => p.provider === provider)
+}
 
 export default function SettingsPage() {
   // Gateway store
@@ -55,18 +75,29 @@ export default function SettingsPage() {
   const isSaving = useSettingsStore(selectIsSaving)
   const saveSuccess = useSettingsStore(selectSaveSuccess)
   const settingsError = useSettingsStore(selectError)
+  const modelsStatus = useSettingsStore(selectModelsStatus)
+  const modelsLoading = useSettingsStore(selectModelsLoading)
   const loadSettings = useSettingsStore((s) => s.loadSettings)
   const setApiKey = useSettingsStore((s) => s.setApiKey)
   const saveApiKeys = useSettingsStore((s) => s.saveApiKeys)
   const setAutoStartGateway = useSettingsStore((s) => s.setAutoStartGateway)
   const setAutoCheckUpdates = useSettingsStore((s) => s.setAutoCheckUpdates)
+  const loadModelsStatus = useSettingsStore((s) => s.loadModelsStatus)
 
   const [version, setVersion] = useState('0.0.0')
 
   useEffect(() => {
     loadSettings()
+    loadModelsStatus()
     ipc.app.getVersion().then(setVersion)
-  }, [loadSettings])
+  }, [loadSettings, loadModelsStatus])
+
+  const handleApiKeyChange = useCallback(
+    (provider: string) => (value: string) => {
+      setApiKey(mapProviderToKey(provider), value)
+    },
+    [setApiKey],
+  )
 
   return (
     <div className="p-6">
@@ -81,7 +112,7 @@ export default function SettingsPage() {
         <Tabs defaultValue="general">
           <TabsList className="mb-4">
             <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="api">API Keys</TabsTrigger>
+            <TabsTrigger value="api">Models & Auth</TabsTrigger>
             <TabsTrigger value="gateway">Gateway</TabsTrigger>
             <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
@@ -151,75 +182,105 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          {/* API Keys Tab */}
+          {/* Models & Auth Tab */}
           <TabsContent value="api">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Key className="w-5 h-5" />
-                  <CardTitle>API Keys</CardTitle>
-                </div>
-                <CardDescription>
-                  Configure your AI provider API keys. Keys are stored locally and encrypted.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="anthropic-key">Anthropic API Key</Label>
-                  <Input
-                    id="anthropic-key"
-                    type="password"
-                    placeholder="sk-ant-..."
-                    value={apiKeys.anthropic}
-                    onChange={(e) => setApiKey('anthropic', e.target.value)}
+            {modelsLoading ? (
+              <Card>
+                <CardContent className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Loading models status...</span>
+                </CardContent>
+              </Card>
+            ) : modelsStatus ? (
+              <div className="space-y-4">
+                <ModelConfig
+                  defaultModel={modelsStatus.defaultModel}
+                  fallbacks={modelsStatus.fallbacks}
+                />
+                {modelsStatus.auth.providers.map((p) => (
+                  <ProviderCard
+                    key={p.provider}
+                    provider={p.provider}
+                    authInfo={p}
+                    oauthStatus={findOAuthStatus(modelsStatus, p.provider)}
+                    apiKeyValue={apiKeys[mapProviderToKey(p.provider)]}
+                    onApiKeyChange={handleApiKeyChange(p.provider)}
+                    onApiKeySave={saveApiKeys}
+                    isSaving={isSaving}
+                    saveSuccess={saveSuccess}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="openai-key">OpenAI API Key</Label>
-                  <Input
-                    id="openai-key"
-                    type="password"
-                    placeholder="sk-..."
-                    value={apiKeys.openai}
-                    onChange={(e) => setApiKey('openai', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="openrouter-key">OpenRouter API Key</Label>
-                  <Input
-                    id="openrouter-key"
-                    type="password"
-                    placeholder="sk-or-..."
-                    value={apiKeys.openrouter}
-                    onChange={(e) => setApiKey('openrouter', e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button onClick={saveApiKeys} disabled={isSaving}>
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save API Keys'
+                ))}
+              </div>
+            ) : (
+              /* Fallback: old manual input UI when openclaw CLI is unavailable */
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Key className="w-5 h-5" />
+                    <CardTitle>API Keys</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Configure your AI provider API keys. Keys are stored locally and encrypted.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="anthropic-key">Anthropic API Key</Label>
+                    <Input
+                      id="anthropic-key"
+                      type="password"
+                      placeholder="sk-ant-..."
+                      value={apiKeys.anthropic}
+                      onChange={(e) => setApiKey('anthropic', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="openai-key">OpenAI API Key</Label>
+                    <Input
+                      id="openai-key"
+                      type="password"
+                      placeholder="sk-..."
+                      value={apiKeys.openai}
+                      onChange={(e) => setApiKey('openai', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="openrouter-key">OpenRouter API Key</Label>
+                    <Input
+                      id="openrouter-key"
+                      type="password"
+                      placeholder="sk-or-..."
+                      value={apiKeys.openrouter}
+                      onChange={(e) => setApiKey('openrouter', e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button onClick={saveApiKeys} disabled={isSaving}>
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save API Keys'
+                      )}
+                    </Button>
+                    {saveSuccess && (
+                      <span className="flex items-center gap-1 text-sm text-green-500">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Saved!
+                      </span>
                     )}
-                  </Button>
-                  {saveSuccess && (
-                    <span className="flex items-center gap-1 text-sm text-green-500">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Saved!
-                    </span>
-                  )}
-                  {settingsError && (
-                    <span className="flex items-center gap-1 text-sm text-destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      {settingsError}
-                    </span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {settingsError && (
+                      <span className="flex items-center gap-1 text-sm text-destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        {settingsError}
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Gateway Tab */}

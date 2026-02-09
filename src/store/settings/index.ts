@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { ipc, getElectronAPI } from '@/lib/ipc'
+import type { ModelsStatus } from '@clawui/types/models'
 
 interface ApiKeys {
   anthropic: string
@@ -15,6 +16,8 @@ interface SettingsState {
   isSaving: boolean
   error: string | null
   saveSuccess: boolean
+  modelsStatus: ModelsStatus | null
+  modelsLoading: boolean
 }
 
 interface SettingsActions {
@@ -24,6 +27,7 @@ interface SettingsActions {
   setAutoStartGateway: (enabled: boolean) => Promise<void>
   setAutoCheckUpdates: (enabled: boolean) => Promise<void>
   clearSaveSuccess: () => void
+  loadModelsStatus: () => Promise<void>
 }
 
 type SettingsStore = SettingsState & SettingsActions
@@ -40,6 +44,8 @@ const initialState: SettingsState = {
   isSaving: false,
   error: null,
   saveSuccess: false,
+  modelsStatus: null,
+  modelsLoading: false,
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -66,6 +72,16 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load settings'
       set({ error: message, isLoading: false })
+    }
+  },
+
+  loadModelsStatus: async () => {
+    set({ modelsLoading: true })
+    try {
+      const status = await ipc.models.status()
+      set({ modelsStatus: status, modelsLoading: false })
+    } catch {
+      set({ modelsStatus: null, modelsLoading: false })
     }
   },
 
@@ -114,8 +130,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   setAutoStartGateway: async (enabled) => {
     set({ autoStartGateway: enabled })
-    // This would typically save to a local settings file
-    // For now, we just update the state
   },
 
   setAutoCheckUpdates: async (enabled) => {
@@ -135,3 +149,5 @@ export const selectIsLoading = (state: SettingsStore) => state.isLoading
 export const selectIsSaving = (state: SettingsStore) => state.isSaving
 export const selectError = (state: SettingsStore) => state.error
 export const selectSaveSuccess = (state: SettingsStore) => state.saveSuccess
+export const selectModelsStatus = (state: SettingsStore) => state.modelsStatus
+export const selectModelsLoading = (state: SettingsStore) => state.modelsLoading

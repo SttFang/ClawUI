@@ -8,6 +8,9 @@ vi.mock('@/lib/ipc', () => ({
       get: vi.fn(),
       set: vi.fn(),
     },
+    models: {
+      status: vi.fn(),
+    },
   },
   getElectronAPI: vi.fn(() => ({})), // Mock as available by default
 }))
@@ -24,6 +27,8 @@ const initialState = {
   isSaving: false,
   error: null,
   saveSuccess: false,
+  modelsStatus: null,
+  modelsLoading: false,
 }
 
 describe('SettingsStore', () => {

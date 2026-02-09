@@ -1,31 +1,273 @@
-import { useRef, useEffect, useState } from 'react'
-import { Send, Plus, Trash2, MessageSquare } from 'lucide-react'
-import { useChatStore, selectMessages, selectSessions, selectIsLoading, selectInput, selectCurrentSession, selectWsConnected } from '@/store/chat'
-import { useGatewayStore, selectIsGatewayRunning } from '@/store/gateway'
-import { cn } from '@/lib/utils'
+import { useEffect, useMemo, useState } from 'react'
+import { useChat } from '@ai-sdk/react'
+import type { DynamicToolUIPart, UIMessage } from 'ai'
+import { ArrowDown, MessageSquare, Plus, Send, Trash2 } from 'lucide-react'
+import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom'
+import { Streamdown } from 'streamdown'
+import { code } from '@streamdown/code'
+import { mermaid } from '@streamdown/mermaid'
+import { math } from '@streamdown/math'
+import { cjk } from '@streamdown/cjk'
+import { createOpenClawChatTransport, type OpenClawChatTransportAdapter } from '@clawui/claw-sse'
 import { Button, ScrollArea } from '@clawui/ui'
 import { ConfigBanner } from '@/components/ConfigBanner'
 import { ipc } from '@/lib/ipc'
+import { cn } from '@/lib/utils'
+import { useChatStore, selectCurrentSession, selectSessions } from '@/store/chat'
+import { useGatewayStore, selectIsGatewayRunning } from '@/store/gateway'
+
+const STREAMDOWN_PLUGINS = { code, mermaid, math, cjk }
+
+function createRendererOpenClawAdapter(): OpenClawChatTransportAdapter {
+  let connectPromise: Promise<void> | null = null
+
+  return {
+    onGatewayEvent: (handler) => ipc.gateway.onEvent(handler),
+    isConnected: () => ipc.chat.isConnected(),
+    connect: async () => {
+      if (connectPromise) return connectPromise
+      connectPromise = (async () => {
+        const ok = await ipc.chat.connect()
+        if (!ok) throw new Error('Failed to connect gateway WebSocket')
+      })().finally(() => {
+        connectPromise = null
+      })
+      return connectPromise
+    },
+    sendChat: async ({ sessionKey, message }) => {
+      return ipc.chat.send({ sessionId: sessionKey, message })
+    },
+  }
+}
+
+function formatJson(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+function ScrollToBottomButton() {
+  const { isAtBottom, scrollToBottom } = useStickToBottomContext()
+
+  if (isAtBottom) return null
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        'absolute bottom-3 left-1/2 -translate-x-1/2',
+        'flex items-center gap-2 rounded-full border bg-background/90 px-3 py-1.5 text-xs shadow-sm',
+        'text-muted-foreground hover:text-foreground hover:bg-background'
+      )}
+      onClick={() => void scrollToBottom()}
+      aria-label="Scroll to bottom"
+    >
+      <ArrowDown className="h-4 w-4" />
+      <span>Jump to latest</span>
+    </button>
+  )
+}
+
+function MessageText(props: { text: string; isAnimating: boolean }) {
+  const { text, isAnimating } = props
+  return (
+    <Streamdown plugins={STREAMDOWN_PLUGINS} mode={isAnimating ? 'streaming' : 'static'} isAnimating={isAnimating}>
+      {text}
+    </Streamdown>
+  )
+}
+
+function ToolCard(props: { part: DynamicToolUIPart }) {
+  const { part } = props
+
+  const title = part.title?.trim() ? part.title : part.toolName
+  const state = part.state
+
+  return (
+    <div className="rounded-xl border bg-card px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium">{title}</div>
+          <div className="mt-0.5 truncate text-xs text-muted-foreground">
+            {part.toolName} · {part.toolCallId}
+          </div>
+        </div>
+        <div className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+          {state}
+        </div>
+      </div>
+
+      {state === 'input-available' || state === 'input-streaming' ? (
+        <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs">
+          {formatJson(part.input)}
+        </pre>
+      ) : null}
+
+      {state === 'output-available' ? (
+        <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs">
+          {formatJson(part.output)}
+        </pre>
+      ) : null}
+
+      {state === 'output-error' ? (
+        <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {part.errorText}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function MessageParts(props: { message: UIMessage; streaming: boolean }) {
+  const { message, streaming } = props
+
+  return (
+    <div className="space-y-3">
+      {message.parts.map((part, index) => {
+        if (part.type === 'step-start') return null
+        if (part.type === 'text') {
+          if (!part.text.trim()) return null
+          return <MessageText key={index} text={part.text} isAnimating={streaming && part.state === 'streaming'} />
+        }
+        if (part.type === 'dynamic-tool') {
+          return <ToolCard key={index} part={part} />
+        }
+        // v1: ignore other parts (files, reasoning, sources, data parts, static tools).
+        return null
+      })}
+    </div>
+  )
+}
+
+function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; isGatewayRunning: boolean }) {
+  const { sessionKey, wsConnected, isGatewayRunning } = props
+
+  const adapter = useMemo(() => createRendererOpenClawAdapter(), [])
+  const transport = useMemo(() => createOpenClawChatTransport({ sessionKey, adapter }), [sessionKey, adapter])
+
+  const chat = useChat({ id: sessionKey, transport })
+  const [input, setInput] = useState('')
+
+  const isBusy = chat.status === 'submitted' || chat.status === 'streaming'
+
+  const handleSend = async () => {
+    const text = input.trim()
+    if (!text || isBusy) return
+    setInput('')
+    await chat.sendMessage({ text })
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      void handleSend()
+    }
+  }
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col">
+      {/* Messages */}
+      <StickToBottom className="relative flex-1 overflow-auto p-4" resize="smooth" initial="smooth">
+        <StickToBottom.Content className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+          {chat.messages.length === 0 ? (
+            <div className="text-center text-muted-foreground py-12">
+              <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>Start a conversation</p>
+              <p className="text-sm mt-2">
+                {isGatewayRunning
+                  ? wsConnected
+                    ? 'Gateway connected. Send a message to begin.'
+                    : 'Gateway is running but WebSocket is not connected.'
+                  : 'Gateway is not running. Please check settings.'}
+              </p>
+            </div>
+          ) : (
+            chat.messages.map((message) => {
+              const isUser = message.role === 'user'
+              const streaming = chat.status === 'streaming' && message.role === 'assistant'
+
+              return (
+                <div
+                  key={message.id}
+                  className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}
+                >
+                  <div className={cn('w-full max-w-[80%]', isUser ? 'text-right' : 'text-left')}>
+                    {isUser ? (
+                      <div className="rounded-xl bg-primary px-4 py-3 text-primary-foreground">
+                        <MessageParts message={message} streaming={false} />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="rounded-xl bg-muted px-4 py-3">
+                          <MessageParts message={message} streaming={streaming} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })
+          )}
+
+          {chat.error ? (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <div className="font-medium">Error</div>
+              <div className="mt-1">{chat.error.message}</div>
+              <div className="mt-3">
+                <Button variant="outline" size="sm" onClick={() => chat.clearError()}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </StickToBottom.Content>
+
+        <ScrollToBottomButton />
+      </StickToBottom>
+
+      {/* Input area */}
+      <div className="border-t p-4">
+        <div className="mx-auto flex w-full max-w-3xl gap-2">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a message..."
+            className={cn(
+              'flex-1 resize-none rounded-lg border bg-background px-4 py-2',
+              'min-h-[44px] max-h-32 focus:outline-none focus:ring-2 focus:ring-ring'
+            )}
+            rows={1}
+            disabled={isBusy}
+          />
+          <Button onClick={() => void handleSend()} disabled={!input.trim() || isBusy} size="icon">
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function ChatPage() {
-  const messages = useChatStore(selectMessages)
   const sessions = useChatStore(selectSessions)
   const currentSession = useChatStore(selectCurrentSession)
-  const isLoading = useChatStore(selectIsLoading)
-  const input = useChatStore(selectInput)
-  const wsConnected = useChatStore(selectWsConnected)
+  const wsConnected = useChatStore((s) => s.wsConnected)
   const isGatewayRunning = useGatewayStore(selectIsGatewayRunning)
 
-  // Use stable action references via getState() to avoid infinite re-renders
-  const setInput = useChatStore((s) => s.setInput)
-  const sendMessage = useChatStore((s) => s.sendMessage)
   const createSession = useChatStore((s) => s.createSession)
   const selectSession = useChatStore((s) => s.selectSession)
   const deleteSession = useChatStore((s) => s.deleteSession)
 
   const [configValid, setConfigValid] = useState<boolean | null>(null)
   const [showBanner, setShowBanner] = useState(true)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (sessions.length > 0) return
+    createSession()
+  }, [sessions.length, createSession])
 
   // Check config validity on mount
   useEffect(() => {
@@ -37,24 +279,8 @@ export default function ChatPage() {
         setConfigValid(false)
       }
     }
-    checkConfig()
+    void checkConfig()
   }, [])
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  const handleSend = () => {
-    if (!input.trim() || isLoading) return
-    sendMessage(input.trim())
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }
 
   const handleDismissBanner = () => {
     setShowBanner(false)
@@ -65,16 +291,12 @@ export default function ChatPage() {
       {/* Sessions sidebar */}
       <div className="w-64 border-r bg-card flex flex-col">
         <div className="p-4 border-b">
-          <Button
-            onClick={() => createSession()}
-            className="w-full"
-            variant="outline"
-          >
+          <Button onClick={() => createSession()} className="w-full" variant="outline">
             <Plus className="w-4 h-4 mr-2" />
             New Session
           </Button>
         </div>
-        
+
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
             {sessions.map((session) => (
@@ -90,11 +312,13 @@ export default function ChatPage() {
                 <MessageSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 <span className="flex-1 truncate text-sm">{session.name}</span>
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation()
                     deleteSession(session.id)
                   }}
                   className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity"
+                  aria-label="Delete session"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
@@ -105,77 +329,26 @@ export default function ChatPage() {
       </div>
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Config Banner */}
-        {configValid === false && showBanner && (
+        {configValid === false && showBanner ? (
           <div className="p-4 pb-0">
             <ConfigBanner onDismiss={handleDismissBanner} />
           </div>
+        ) : null}
+
+        {currentSession?.id ? (
+          <OpenClawChatPanel
+            key={currentSession.id}
+            sessionKey={currentSession.id}
+            wsConnected={wsConnected}
+            isGatewayRunning={isGatewayRunning}
+          />
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-muted-foreground">
+            Create a session to start chatting.
+          </div>
         )}
-
-        {/* Messages */}
-        <ScrollArea className="flex-1 p-4">
-          <div className="max-w-3xl mx-auto space-y-4">
-            {messages.length === 0 ? (
-              <div className="text-center text-muted-foreground py-12">
-                <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Start a conversation</p>
-                <p className="text-sm mt-2">
-                  {isGatewayRunning
-                    ? wsConnected
-                      ? 'Gateway connected. Send a message to begin.'
-                      : 'Gateway is running but WebSocket is not connected.'
-                    : 'Gateway is not running. Please check settings.'}
-                </p>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    'flex gap-3',
-                    message.role === 'user' && 'justify-end'
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'max-w-[80%] rounded-lg px-4 py-2',
-                      message.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted',
-                      message.isStreaming && 'animate-pulse'
-                    )}
-                  >
-                    <p className="whitespace-pre-wrap">{message.content || '...'}</p>
-                  </div>
-                </div>
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
-
-        {/* Input area */}
-        <div className="border-t p-4">
-          <div className="max-w-3xl mx-auto flex gap-2">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
-              className="flex-1 resize-none rounded-lg border bg-background px-4 py-2 min-h-[44px] max-h-32 focus:outline-none focus:ring-2 focus:ring-ring"
-              rows={1}
-              disabled={isLoading}
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() || isLoading}
-              size="icon"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   )

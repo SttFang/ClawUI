@@ -1,4 +1,5 @@
 import { execInLoginShell, resolveCommandPath } from '../utils/login-shell'
+import { installerLog } from '../lib/logger'
 
 export interface InstallProgress {
   stage:
@@ -19,6 +20,7 @@ const DEFAULT_OPENCLAW_SPEC = 'openclaw@latest'
 export class InstallerService {
   async install(onProgress: ProgressCallback): Promise<void> {
     try {
+      installerLog.info('Starting installation...')
       // Step 1: Check Node.js + npm
       onProgress({
         stage: 'checking-requirements',
@@ -51,6 +53,7 @@ export class InstallerService {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error'
+      installerLog.error('Installation failed:', errorMessage)
       onProgress({
         stage: 'error',
         progress: 0,
@@ -62,6 +65,7 @@ export class InstallerService {
   }
 
   private async verifyNodeAndNpm(): Promise<void> {
+    installerLog.info('Checking Node.js and npm...')
     // Require Node.js >= 22
     const { stdout: nodeVersionOutput } = await execInLoginShell('node --version', {
       timeoutMs: 10_000,
@@ -78,6 +82,7 @@ export class InstallerService {
 
   private async installOpenClawGlobal(onProgress: ProgressCallback): Promise<void> {
     const spec = process.env.CLAWUI_OPENCLAW_SPEC || DEFAULT_OPENCLAW_SPEC
+    installerLog.info('Installing globally:', spec)
     await execInLoginShell(
       // Keep it quiet-ish but still show errors
       `npm --no-fund --no-audit install -g ${spec}`,
@@ -92,6 +97,7 @@ export class InstallerService {
   }
 
   private async verify(): Promise<void> {
+    installerLog.info('Verifying installation...')
     const openclawPath = await resolveCommandPath('openclaw')
     if (!openclawPath) throw new Error('OpenClaw installation verification failed: openclaw not found in PATH')
 
@@ -100,6 +106,7 @@ export class InstallerService {
   }
 
   async uninstall(): Promise<void> {
+    installerLog.info('Uninstalling OpenClaw...')
     // Best-effort uninstall; this might fail on systems where global npm needs extra permissions.
     await execInLoginShell('npm uninstall -g openclaw', { timeoutMs: 5 * 60_000 })
   }

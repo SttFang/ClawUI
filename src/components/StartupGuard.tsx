@@ -4,6 +4,7 @@ import { ipc, RuntimeStatus } from '@/lib/ipc'
 import { Loader2 } from 'lucide-react'
 import { useGatewayStore, selectGatewayStatus } from '@/store/gateway'
 import { useChatStore } from '@/store/chat'
+import { startupLog } from '@/lib/logger'
 
 interface StartupGuardProps {
   children: React.ReactNode
@@ -43,13 +44,13 @@ export function StartupGuard({ children }: StartupGuardProps) {
 
     async function checkOpenClaw() {
       try {
-        console.log('[StartupGuard] Starting OpenClaw detection...')
+        startupLog.info('Starting OpenClaw detection...')
         const status = await ipc.onboarding.detect()
-        console.log('[StartupGuard] Detection result:', status)
+        startupLog.info('Detection result:', status)
 
         if (!status) {
           // Can't detect - go to onboarding
-          console.log('[StartupGuard] No status returned, redirecting to onboarding')
+          startupLog.info('No status returned, redirecting to onboarding')
           navigate('/onboarding', { replace: true })
           return
         }
@@ -64,18 +65,18 @@ export function StartupGuard({ children }: StartupGuardProps) {
         // Only redirect if OpenClaw is NOT installed
         // Config check is done in ChatPage with a banner prompt
         if (!status.openclawInstalled) {
-          console.log('[StartupGuard] OpenClaw not installed, redirecting to onboarding')
+          startupLog.info('OpenClaw not installed, redirecting to onboarding')
           navigate('/onboarding', { replace: true })
         } else {
           // OpenClaw is installed - start Gateway
-          console.log('[StartupGuard] OpenClaw installed, starting Gateway')
+          startupLog.info('OpenClaw installed, starting Gateway')
           const gatewayStore = useGatewayStore.getState()
           if (gatewayStore.status === 'stopped') {
             gatewayStore.start()
           }
         }
       } catch (error) {
-        console.error('[StartupGuard] Failed to check OpenClaw:', error)
+        startupLog.error('Failed to check OpenClaw:', error)
         // On error, go to onboarding to let user install
         navigate('/onboarding', { replace: true })
       }
@@ -94,7 +95,7 @@ export function StartupGuard({ children }: StartupGuardProps) {
       wsConnectionAttempted.current = true
       // Add a small delay to ensure Gateway is fully ready to accept connections
       const timer = setTimeout(() => {
-        console.log('[StartupGuard] Gateway running, connecting WebSocket...')
+        startupLog.info('Gateway running, connecting WebSocket...')
         useChatStore.getState().connectWebSocket()
       }, 500)
       return () => clearTimeout(timer)

@@ -6,6 +6,7 @@ import { homedir } from 'os'
 import path from 'path'
 import { app } from 'electron'
 import { execInLoginShell, resolveCommandPath } from '../utils/login-shell'
+import { detectorLog } from '../lib/logger'
 
 const execAsync = promisify(exec)
 
@@ -26,7 +27,7 @@ export class RuntimeDetectorService {
   private configPath = path.join(homedir(), '.openclaw', 'openclaw.json')
 
   async detect(): Promise<RuntimeStatus> {
-    console.log('[RuntimeDetector] Starting detection...')
+    detectorLog.info('Starting detection...')
     const [nodeResult, openclawResult, configResult] = await Promise.all([
       this.detectNode(),
       this.detectOpenClaw(),
@@ -39,7 +40,7 @@ export class RuntimeDetectorService {
       ...configResult,
       configPath: this.configPath,
     }
-    console.log('[RuntimeDetector] Detection complete:', JSON.stringify(result, null, 2))
+    detectorLog.info('Detection complete:', JSON.stringify(result))
     return result
   }
 
@@ -110,7 +111,7 @@ export class RuntimeDetectorService {
           { timeoutMs: 5_000 }
         )
         const version = versionOutput.trim() || 'unknown'
-        console.log('[RuntimeDetector] Found OpenClaw:', version, 'at', openclawPath)
+        detectorLog.info('Found OpenClaw:', version, 'at', openclawPath)
         return {
           openclawInstalled: true,
           openclawVersion: version,
@@ -118,10 +119,10 @@ export class RuntimeDetectorService {
         }
       }
     } catch (error) {
-      console.log('[RuntimeDetector] Failed to detect OpenClaw:', error)
+      detectorLog.warn('Failed to detect OpenClaw:', error)
     }
 
-    console.log('[RuntimeDetector] OpenClaw not installed')
+    detectorLog.info('OpenClaw not installed')
     return {
       openclawInstalled: false,
       openclawVersion: null,

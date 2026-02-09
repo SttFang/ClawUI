@@ -12,6 +12,7 @@ import {
   DialogFooter,
 } from '@clawui/ui'
 import { Loader2 } from 'lucide-react'
+import { schedulerLog } from '@/lib/logger'
 import type { ScheduledTask } from '@/store/scheduler'
 
 interface TaskDialogProps {
@@ -147,7 +148,7 @@ export function TaskDialog({
       }
       onOpenChange(false)
     } catch (error) {
-      console.error('Failed to save task:', error)
+      schedulerLog.error('Failed to save task:', error)
     } finally {
       setIsLoading(false)
     }

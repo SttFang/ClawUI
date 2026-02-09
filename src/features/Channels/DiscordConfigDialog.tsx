@@ -13,6 +13,7 @@ import {
   Select,
 } from '@clawui/ui'
 import { Loader2 } from 'lucide-react'
+import { channelsLog } from '@/lib/logger'
 import type { ChannelConfig } from '@/lib/ipc'
 
 interface DiscordConfigDialogProps {
@@ -58,7 +59,7 @@ export function DiscordConfigDialog({
       })
       onOpenChange(false)
     } catch (error) {
-      console.error('Failed to save config:', error)
+      channelsLog.error('Failed to save config:', error)
     } finally {
       setIsLoading(false)
     }

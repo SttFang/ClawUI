@@ -2,6 +2,7 @@ import { spawn, ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
 import net from 'net'
 import { buildLoginShellInvocation, execInLoginShell } from '../utils/login-shell'
+import { gatewayLog } from '../lib/logger'
 
 export type GatewayStatus = 'stopped' | 'starting' | 'running' | 'error'
 
@@ -102,7 +103,7 @@ export class GatewayService extends EventEmitter {
     try {
       // If a gateway is already running (maybe started outside ClawUI), just mark it running.
       if (await this.isGatewayReachable()) {
-        console.log('[Gateway] Detected running gateway on port', this.port)
+        gatewayLog.info('Detected running gateway on port', this.port)
         this.setStatus('running')
         return
       }
@@ -123,7 +124,7 @@ export class GatewayService extends EventEmitter {
       const gatewayCmd = `openclaw gateway --port ${this.port}`
       const { file: command, args: fullArgs } = buildLoginShellInvocation(gatewayCmd)
 
-      console.log('[Gateway] Starting:', command, fullArgs.join(' '))
+      gatewayLog.info('Starting:', command, fullArgs.join(' '))
 
       // Start OpenClaw Gateway as subprocess
       this.process = spawn(command, fullArgs, {
@@ -133,7 +134,7 @@ export class GatewayService extends EventEmitter {
 
       this.process.stdout?.on('data', (data) => {
         const output = data.toString()
-        console.log('[Gateway]', output)
+        gatewayLog.debug(output.trimEnd())
         // Check for startup message
         if (output.includes('listening') || output.includes('started')) {
           this.setStatus('running')
@@ -141,16 +142,16 @@ export class GatewayService extends EventEmitter {
       })
 
       this.process.stderr?.on('data', (data) => {
-        console.error('[Gateway Error]', data.toString())
+        gatewayLog.error(data.toString().trimEnd())
       })
 
       this.process.on('error', (error) => {
-        console.error('[Gateway] Failed to start:', error)
+        gatewayLog.error('Failed to start:', error)
         this.setStatus('error')
       })
 
       this.process.on('exit', (code, signal) => {
-        console.log(`[Gateway] Process exited with code ${code}, signal ${signal}`)
+        gatewayLog.info('Process exited with code', code, 'signal', signal)
         if (this.status !== 'stopped') {
           this.setStatus('stopped')
         }
@@ -166,7 +167,7 @@ export class GatewayService extends EventEmitter {
         this.setStatus('running')
       }
     } catch (error) {
-      console.error('[Gateway] Failed to start:', error)
+      gatewayLog.error('Failed to start:', error)
       this.setStatus('error')
       throw error
     }
@@ -178,7 +179,7 @@ export class GatewayService extends EventEmitter {
       try {
         await execInLoginShell('openclaw gateway stop', { timeoutMs: 30_000 })
       } catch (error) {
-        console.log('[Gateway] Failed to stop gateway via CLI:', error)
+        gatewayLog.warn('Failed to stop gateway via CLI:', error)
       }
 
       // Re-check reachability; don't lie to the UI.

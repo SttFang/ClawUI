@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { initLogger, mainLog } from './lib/logger'
 import { GatewayService } from './services/gateway'
 import { ConfigService } from './services/config'
 import { UpdaterService } from './services/updater'
@@ -9,6 +10,9 @@ import { registerConfigHandlers } from './ipc/config'
 import { registerAppHandlers } from './ipc/app'
 import { registerOnboardingHandlers } from './ipc/onboarding'
 import { registerChatHandlers } from './ipc/chat'
+
+// Initialise logging before anything else
+initLogger()
 
 // Services
 const gatewayService = new GatewayService()
@@ -95,7 +99,7 @@ app.whenReady().then(async () => {
       })
     }
   } catch (error) {
-    console.error('Failed to initialize services:', error)
+    mainLog.error('Failed to initialize services:', error)
   }
 
   // Set up updater

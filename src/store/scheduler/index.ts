@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { ipc } from '@/lib/ipc'
+import { schedulerLog } from '@/lib/logger'
 
 export interface ScheduledTask {
   id: string
@@ -158,7 +159,7 @@ export const useSchedulerStore = create<SchedulerStore>((set, get) => ({
     try {
       localStorage.setItem('scheduler_tasks', JSON.stringify(newTasks))
     } catch (error) {
-      console.error('Failed to save task:', error)
+      schedulerLog.error('Failed to save task:', error)
     }
   },
 
@@ -179,7 +180,7 @@ export const useSchedulerStore = create<SchedulerStore>((set, get) => ({
     try {
       localStorage.setItem('scheduler_tasks', JSON.stringify(newTasks))
     } catch (error) {
-      console.error('Failed to update task:', error)
+      schedulerLog.error('Failed to update task:', error)
     }
   },
 
@@ -191,7 +192,7 @@ export const useSchedulerStore = create<SchedulerStore>((set, get) => ({
     try {
       localStorage.setItem('scheduler_tasks', JSON.stringify(newTasks))
     } catch (error) {
-      console.error('Failed to delete task:', error)
+      schedulerLog.error('Failed to delete task:', error)
     }
   },
 
@@ -214,7 +215,7 @@ export const useSchedulerStore = create<SchedulerStore>((set, get) => ({
         nextRun: calculateNextRun(task.cron),
       })
       // TODO: Actually execute the task action via IPC
-      console.log('Running task:', task.name, task.action)
+      schedulerLog.info('Running task:', task.name, task.action)
     }
   },
 }))

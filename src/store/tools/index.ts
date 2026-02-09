@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { ipc } from '@/lib/ipc'
+import { toolsLog } from '@/lib/logger'
 
 export type ToolAccessMode = 'auto' | 'ask' | 'deny'
 
@@ -144,7 +145,7 @@ export const useToolsStore = create<ToolsStore>((set, get) => ({
         },
       })
     } catch (error) {
-      console.error('Failed to save access mode:', error)
+      toolsLog.error('Failed to save access mode:', error)
     }
   },
 
@@ -171,7 +172,7 @@ export const useToolsStore = create<ToolsStore>((set, get) => ({
         },
       })
     } catch (error) {
-      console.error('Failed to enable tool:', error)
+      toolsLog.error('Failed to enable tool:', error)
     }
   },
 
@@ -198,7 +199,7 @@ export const useToolsStore = create<ToolsStore>((set, get) => ({
         },
       })
     } catch (error) {
-      console.error('Failed to disable tool:', error)
+      toolsLog.error('Failed to disable tool:', error)
     }
   },
 
@@ -216,7 +217,7 @@ export const useToolsStore = create<ToolsStore>((set, get) => ({
         },
       })
     } catch (error) {
-      console.error('Failed to toggle sandbox:', error)
+      toolsLog.error('Failed to toggle sandbox:', error)
     }
   },
 
@@ -238,7 +239,7 @@ export const useToolsStore = create<ToolsStore>((set, get) => ({
         },
       })
     } catch (error) {
-      console.error('Failed to add to allow list:', error)
+      toolsLog.error('Failed to add to allow list:', error)
     }
   },
 
@@ -260,7 +261,7 @@ export const useToolsStore = create<ToolsStore>((set, get) => ({
         },
       })
     } catch (error) {
-      console.error('Failed to add to deny list:', error)
+      toolsLog.error('Failed to add to deny list:', error)
     }
   },
 
@@ -279,7 +280,7 @@ export const useToolsStore = create<ToolsStore>((set, get) => ({
         },
       })
     } catch (error) {
-      console.error('Failed to remove from allow list:', error)
+      toolsLog.error('Failed to remove from allow list:', error)
     }
   },
 
@@ -298,7 +299,7 @@ export const useToolsStore = create<ToolsStore>((set, get) => ({
         },
       })
     } catch (error) {
-      console.error('Failed to remove from deny list:', error)
+      toolsLog.error('Failed to remove from deny list:', error)
     }
   },
 }))

@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events'
 import WebSocket from 'ws'
 import { randomUUID } from 'crypto'
+import { chatLog } from '../lib/logger'
 
 export interface ChatMessage {
   id: string
@@ -69,11 +70,11 @@ export class ChatWebSocketService extends EventEmitter {
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        console.log('[ChatWebSocket] Connecting to:', this.gatewayUrl)
+        chatLog.info('Connecting to:', this.gatewayUrl)
         this.ws = new WebSocket(this.gatewayUrl)
 
         this.ws.on('open', async () => {
-          console.log('[ChatWebSocket] WebSocket opened, sending connect frame')
+          chatLog.info('WebSocket opened, sending connect frame')
           try {
             await this.sendConnectFrame()
             this.connected = true
@@ -81,7 +82,7 @@ export class ChatWebSocketService extends EventEmitter {
             this.emit('connected')
             resolve()
           } catch (error) {
-            console.error('[ChatWebSocket] Connect handshake failed:', error)
+            chatLog.error('Connect handshake failed:', error)
             this.ws?.close()
             reject(error)
           }
@@ -92,7 +93,7 @@ export class ChatWebSocketService extends EventEmitter {
         })
 
         this.ws.on('close', (code, reason) => {
-          console.log(`[ChatWebSocket] Connection closed: ${code} - ${reason}`)
+          chatLog.info('Connection closed:', code, String(reason))
           this.connected = false
           this.emit('disconnected')
           // Reject all pending requests
@@ -104,7 +105,7 @@ export class ChatWebSocketService extends EventEmitter {
         })
 
         this.ws.on('error', (error) => {
-          console.error('[ChatWebSocket] WebSocket error:', error.message)
+          chatLog.error('WebSocket error:', error.message)
           this.emit('error', error.message)
           reject(error)
         })
@@ -147,7 +148,7 @@ export class ChatWebSocketService extends EventEmitter {
           clearTimeout(timeout)
           const res = response as ACPResponse
           if (res.ok) {
-            console.log('[ChatWebSocket] Connected successfully')
+            chatLog.info('Connected successfully')
             resolve()
           } else {
             reject(new Error(res.error?.message || 'Connect failed'))
@@ -159,7 +160,7 @@ export class ChatWebSocketService extends EventEmitter {
         },
       })
 
-      console.log('[ChatWebSocket] Sending connect frame:', JSON.stringify(connectRequest))
+      chatLog.debug('Sending connect frame')
       this.ws?.send(JSON.stringify(connectRequest))
     })
   }
@@ -167,7 +168,7 @@ export class ChatWebSocketService extends EventEmitter {
   private handleMessage(data: string): void {
     try {
       const message = JSON.parse(data) as ACPMessage
-      console.log('[ChatWebSocket] Received:', message.type, 'type' in message && message.type === 'event' ? (message as ACPEvent).event : '')
+      chatLog.debug('Received:', message.type, message.type === 'event' ? (message as ACPEvent).event : '')
 
       if (message.type === 'res') {
         // Handle response to a request
@@ -183,7 +184,7 @@ export class ChatWebSocketService extends EventEmitter {
         this.handleEvent(event)
       }
     } catch (e) {
-      console.error('[ChatWebSocket] Failed to parse message:', e, data)
+      chatLog.error('Failed to parse message:', e)
     }
   }
 
@@ -278,14 +279,14 @@ export class ChatWebSocketService extends EventEmitter {
         return
       }
       default:
-        console.log('[ChatWebSocket] Unhandled event:', event.event)
+        chatLog.debug('Unhandled event:', event.event)
     }
   }
 
   private attemptReconnect(): void {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++
-      console.log(`[ChatWebSocket] Reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`)
+      chatLog.info('Reconnect attempt', this.reconnectAttempts, '/', this.maxReconnectAttempts)
       setTimeout(() => {
         this.connect().catch(() => {})
       }, this.reconnectDelay * this.reconnectAttempts)

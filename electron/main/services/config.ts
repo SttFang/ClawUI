@@ -3,6 +3,7 @@ import { existsSync } from 'fs'
 import { homedir } from 'os'
 import { join, dirname } from 'path'
 import JSON5 from 'json5'
+import { configLog } from '../lib/logger'
 
 export interface OpenClawConfig {
   gateway: {
@@ -144,7 +145,7 @@ export class ConfigService {
       const content = await readFile(this.configPath, 'utf-8')
       this.config = JSON5.parse(content) as OpenClawConfig
     } catch (error) {
-      console.error('Failed to load config:', error)
+      configLog.error('Failed to load config:', error)
       this.config = { ...DEFAULT_CONFIG }
     }
   }
@@ -154,7 +155,7 @@ export class ConfigService {
       const content = JSON.stringify(this.config, null, 2)
       await writeFile(this.configPath, content, 'utf-8')
     } catch (error) {
-      console.error('Failed to save config:', error)
+      configLog.error('Failed to save config:', error)
       throw error
     }
   }

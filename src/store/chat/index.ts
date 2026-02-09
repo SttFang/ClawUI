@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { ipc, ChatStreamEvent } from '@/lib/ipc'
+import { chatLog } from '@/lib/logger'
 
 export interface Message {
   id: string
@@ -176,7 +177,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     try {
       await ipc.chat.connect(url)
     } catch (error) {
-      console.error('Failed to connect WebSocket:', error)
+      chatLog.error('Failed to connect WebSocket:', error)
     }
   },
 
@@ -184,7 +185,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     try {
       await ipc.chat.disconnect()
     } catch (error) {
-      console.error('Failed to disconnect WebSocket:', error)
+      chatLog.error('Failed to disconnect WebSocket:', error)
     }
   },
 
@@ -253,7 +254,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         setLoading(false)
       }
     } catch (error) {
-      console.error('Failed to send message:', error)
+      chatLog.error('Failed to send message:', error)
       updateMessage(placeholderMessageId, 'Error: Failed to send message to gateway.')
       setLoading(false)
     }
@@ -323,6 +324,6 @@ export function initChatStreamListener() {
   })
 
   ipc.chat.onError((error: string) => {
-    console.error('WebSocket error:', error)
+    chatLog.error('WebSocket error:', error)
   })
 }

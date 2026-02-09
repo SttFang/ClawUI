@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { subscriptionLog } from '@/lib/logger'
 
 export type PlanType = 'free' | 'pro' | 'team'
 
@@ -174,7 +175,7 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
             },
           })
         } catch (error) {
-          console.error('Failed to refresh usage:', error)
+          subscriptionLog.error('Failed to refresh usage:', error)
         }
       },
     }),

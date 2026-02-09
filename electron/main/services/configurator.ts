@@ -2,6 +2,7 @@ import { homedir } from 'os'
 import path from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import { readFile, writeFile } from 'fs/promises'
+import { onboardingLog } from '../lib/logger'
 
 export interface OpenClawConfig {
   models?: {
@@ -39,6 +40,7 @@ export class ConfiguratorService {
   private configPath = path.join(this.configDir, 'openclaw.json')
 
   async configureSubscription(config: SubscriptionConfig): Promise<void> {
+    onboardingLog.info('Configuring subscription mode')
     const openclawConfig: OpenClawConfig = {
       proxy: {
         url: config.proxyUrl,
@@ -54,6 +56,7 @@ export class ConfiguratorService {
   }
 
   async configureBYOK(keys: BYOKConfig): Promise<void> {
+    onboardingLog.info('Configuring BYOK mode')
     const openclawConfig: OpenClawConfig = {
       models: {},
       server: {
@@ -110,6 +113,7 @@ export class ConfiguratorService {
     }
 
     await writeFile(this.configPath, JSON.stringify(config, null, 2), 'utf-8')
+    onboardingLog.info('Config written to', this.configPath)
   }
 
   async validateApiKey(

@@ -1,5 +1,6 @@
 import { BrowserWindow, app } from 'electron'
 import electronUpdater, { type UpdateCheckResult } from 'electron-updater'
+import { updaterLog } from '../lib/logger'
 
 const { autoUpdater } = electronUpdater
 
@@ -19,11 +20,11 @@ export class UpdaterService {
 
     // Set up event handlers
     autoUpdater.on('checking-for-update', () => {
-      console.log('[Updater] Checking for updates...')
+      updaterLog.info('Checking for updates...')
     })
 
     autoUpdater.on('update-available', (info) => {
-      console.log('[Updater] Update available:', info.version)
+      updaterLog.info('Update available:', info.version)
       this.notifyWindow('update-available', {
         version: info.version,
         releaseNotes: info.releaseNotes,
@@ -32,16 +33,16 @@ export class UpdaterService {
     })
 
     autoUpdater.on('update-not-available', () => {
-      console.log('[Updater] No updates available')
+      updaterLog.info('No updates available')
     })
 
     autoUpdater.on('download-progress', (progress) => {
-      console.log(`[Updater] Download progress: ${progress.percent}%`)
+      updaterLog.info('Download progress:', Math.round(progress.percent), '%')
       this.notifyWindow('download-progress', progress)
     })
 
     autoUpdater.on('update-downloaded', (info) => {
-      console.log('[Updater] Update downloaded:', info.version)
+      updaterLog.info('Update downloaded:', info.version)
       this.notifyWindow('update-downloaded', {
         version: info.version,
         releaseNotes: info.releaseNotes,
@@ -50,7 +51,7 @@ export class UpdaterService {
     })
 
     autoUpdater.on('error', (error) => {
-      console.error('[Updater] Error:', error)
+      updaterLog.error('Error:', error)
     })
   }
 
@@ -72,7 +73,7 @@ export class UpdaterService {
       }
       return null
     } catch (error) {
-      console.error('[Updater] Check for updates failed:', error)
+      updaterLog.error('Check for updates failed:', error)
       return null
     }
   }

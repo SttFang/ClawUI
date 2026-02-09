@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { UIMessage } from 'ai'
 import { createOpenClawChatTransport, type GatewayEventFrame } from '../openclaw-chat-transport'
 
@@ -100,6 +100,7 @@ describe('createOpenClawChatTransport', () => {
   })
 
   it('should map OpenClaw tool events into AI SDK tool chunks', async () => {
+    vi.useFakeTimers()
     let handler: ((frame: GatewayEventFrame) => void) | null = null
 
     const transport = createOpenClawChatTransport({
@@ -198,6 +199,9 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
+    // lifecycle finish is delayed to avoid truncation (chat.final usually arrives after lifecycle end).
+    await vi.advanceTimersByTimeAsync(300)
+
     // Drain until finished.
     for (;;) {
       const { done, value } = await reader.read()
@@ -206,9 +210,92 @@ describe('createOpenClawChatTransport', () => {
         break
       }
     }
+
+    vi.useRealTimers()
   })
 
-  it('should finish when agent lifecycle ends even without chat.final', async () => {
+  it('should wait for chat.final if lifecycle end arrives first (avoid truncation)', async () => {
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'run1'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('hi')],
+      abortSignal: undefined,
+    })
+
+    const reader = stream.getReader()
+
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'run1',
+        sessionKey: 's1',
+        seq: 1,
+        state: 'delta',
+        message: { content: [{ type: 'text', text: '你好 Steven，' }] },
+      },
+    })
+
+    const d1 = await readNext(reader)
+    expect(d1).toEqual({ type: 'text-delta', id: 'text-1', delta: '你好 Steven，' })
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run1',
+        seq: 1,
+        stream: 'lifecycle',
+        ts: Date.now(),
+        data: { phase: 'end' },
+      },
+    })
+
+    // If we finished immediately here, we'd miss the trailing chat.final payload (truncation bug).
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'run1',
+        sessionKey: 's1',
+        seq: 2,
+        state: 'final',
+        message: { content: [{ type: 'text', text: '你好 Steven，我在。今晚想让我帮你做点什么？' }] },
+      },
+    })
+
+    const d2 = await readNext(reader)
+    expect(d2).toEqual({ type: 'text-delta', id: 'text-1', delta: '我在。今晚想让我帮你做点什么？' })
+
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+  })
+
+  it('should finish when agent lifecycle ends even without chat.final (delayed fallback)', async () => {
+    vi.useFakeTimers()
     let handler: ((frame: GatewayEventFrame) => void) | null = null
 
     const transport = createOpenClawChatTransport({
@@ -252,9 +339,12 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
+    await vi.advanceTimersByTimeAsync(300)
+
     expect((await readNext(reader)).type).toBe('text-end')
     expect((await readNext(reader)).type).toBe('finish-step')
     expect((await readNext(reader)).type).toBe('finish')
+
+    vi.useRealTimers()
   })
 })
-

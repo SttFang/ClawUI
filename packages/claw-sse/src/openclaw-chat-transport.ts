@@ -133,6 +133,7 @@ export function createOpenClawChatTransport(params: {
           let prevChatSnapshot = ''
           let didStartText = false
           let didFinish = false
+          let lifecycleFinishTimer: ReturnType<typeof setTimeout> | null = null
           const textPartId = 'text-1'
           const buffered: GatewayEventFrame[] = []
           let unsubscribe: (() => void) | null = null
@@ -141,6 +142,10 @@ export function createOpenClawChatTransport(params: {
             if (closed) return
             closed = true
             unsubscribe?.()
+            if (lifecycleFinishTimer) {
+              clearTimeout(lifecycleFinishTimer)
+              lifecycleFinishTimer = null
+            }
             controller.close()
           }
 
@@ -148,6 +153,10 @@ export function createOpenClawChatTransport(params: {
             if (closed) return
             closed = true
             unsubscribe?.()
+            if (lifecycleFinishTimer) {
+              clearTimeout(lifecycleFinishTimer)
+              lifecycleFinishTimer = null
+            }
             controller.enqueue({ type: 'error', errorText })
             controller.close()
           }
@@ -162,6 +171,10 @@ export function createOpenClawChatTransport(params: {
           const finishOnce = (opts?: { kind?: 'ok' | 'abort'; reason?: string }) => {
             if (didFinish) return
             didFinish = true
+            if (lifecycleFinishTimer) {
+              clearTimeout(lifecycleFinishTimer)
+              lifecycleFinishTimer = null
+            }
             // Always close the active text part to avoid leaving it in "streaming".
             if (didStartText) {
               controller.enqueue({ type: 'text-end', id: textPartId })
@@ -270,8 +283,12 @@ export function createOpenClawChatTransport(params: {
             if (evt.runId !== runId) return
             const phase = typeof lifecycle.phase === 'string' ? lifecycle.phase : null
             if (phase === 'end') {
-              // Some runs might not emit `event chat final` (best-effort safety).
-              finishOnce()
+              // Fallback only: OpenClaw 的 WS 事件里 `agent.lifecycle=end` 往往早于 `chat.final`，
+              // 如果这里立刻 finish，会导致尾部内容被截断（错过紧随其后的 chat.final）。
+              // 这里做一个短延迟的兜底：如果 chat.final 没来，再结束流。
+              if (!lifecycleFinishTimer) {
+                lifecycleFinishTimer = setTimeout(() => finishOnce(), 250)
+              }
               return
             }
             if (phase === 'error') {

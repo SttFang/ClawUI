@@ -7,11 +7,10 @@ import {
   Server,
   Puzzle,
   Clock,
+  BarChart3,
   Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useGatewayStore, selectGatewayStatus } from '@/store/gateway'
-
 const navItems = [
   { to: '/', icon: MessageSquare, labelKey: 'nav:chat' },
   { to: '/channels', icon: Radio, labelKey: 'nav:channels' },
@@ -19,13 +18,12 @@ const navItems = [
   { to: '/mcp', icon: Server, labelKey: 'nav:mcp' },
   { to: '/plugins', icon: Puzzle, labelKey: 'nav:plugins' },
   { to: '/scheduler', icon: Clock, labelKey: 'nav:scheduler' },
+  { to: '/usage', icon: BarChart3, labelKey: 'nav:usage' },
   { to: '/settings', icon: Settings, labelKey: 'nav:settings' },
 ]
 
 export function NavRail() {
   const { t } = useTranslation()
-  // Use stable selector to avoid infinite re-renders in React 19
-  const status = useGatewayStore(selectGatewayStatus)
 
   return (
     <aside className="flex w-14 shrink-0 flex-col items-center bg-sidebar pb-3 pt-3">
@@ -62,19 +60,6 @@ export function NavRail() {
         ))}
       </nav>
 
-      {/* Gateway Status */}
-      <div className="mt-auto flex flex-col items-center gap-2">
-        <div
-          className={cn(
-            'h-2.5 w-2.5 rounded-full',
-            status === 'running' && 'bg-green-500',
-            status === 'starting' && 'animate-pulse bg-yellow-500',
-            status === 'stopped' && 'bg-gray-400',
-            status === 'error' && 'bg-red-500'
-          )}
-          title={`Gateway: ${status}`}
-        />
-      </div>
     </aside>
   )
 }

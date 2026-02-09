@@ -3,6 +3,13 @@
 - Repo: https://github.com/SttFang/ClawUI
 - GitHub issues/comments/PR comments: use literal multiline strings or `-F - <<'EOF'` for real newlines; never embed "\n".
 
+## Related Repositories
+
+| 项目 | 路径 | 说明 |
+|------|------|------|
+| ClawUI | `.` (本仓库) | Electron 桌面客户端 |
+| OpenClaw | `../openclaw` | Gateway 服务端源码 |
+
 ## Project Structure
 
 - Source code: `src/` (React renderer), `electron/` (main process).

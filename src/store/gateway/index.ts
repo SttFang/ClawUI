@@ -31,8 +31,9 @@ export const useGatewayStore = create<GatewayStore>((set) => ({
     set({ status: 'starting', error: null })
     try {
       await ipc.gateway.start()
-      // Don't set status to 'running' here - wait for the IPC event
-      // The GatewayService will emit 'status-changed' when it's actually running
+      // Sync actual status from main process in case the IPC event was missed
+      const actual = await ipc.gateway.getStatus()
+      set({ status: actual })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to start gateway'
       set({ status: 'error', error: message })

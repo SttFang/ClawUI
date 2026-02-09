@@ -128,7 +128,6 @@ export class ChatWebSocketService extends EventEmitter {
           id: 'cli',  // Must be 'cli' for operator connections
           version: '0.1.0',
           platform: process.platform,
-          mode: 'operator',
         },
         role: 'operator',
         scopes: ['operator.read', 'operator.write'],

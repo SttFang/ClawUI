@@ -11,6 +11,7 @@ import ToolsPage from './routes/tools/page'
 import MCPPage from './routes/mcp/page'
 import PluginsPage from './routes/plugins/page'
 import SchedulerPage from './routes/scheduler/page'
+import UsagePage from './routes/usage/page'
 import SettingsPage from './routes/settings/page'
 import OnboardingPage from './routes/onboarding/page'
 
@@ -29,6 +30,7 @@ const router = createHashRouter([
       { path: 'mcp', element: <MCPPage /> },
       { path: 'plugins', element: <PluginsPage /> },
       { path: 'scheduler', element: <SchedulerPage /> },
+      { path: 'usage', element: <UsagePage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
   },

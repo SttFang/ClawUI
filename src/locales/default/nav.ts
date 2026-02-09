@@ -5,6 +5,7 @@ const nav = {
   mcp: 'MCP',
   plugins: '插件',
   scheduler: '定时任务',
+  usage: '用量',
   settings: '设置',
 } as const
 

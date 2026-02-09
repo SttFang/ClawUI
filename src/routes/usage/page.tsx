@@ -1,0 +1,135 @@
+import { useEffect, useCallback } from 'react'
+import { Loader2 } from 'lucide-react'
+import { Alert, AlertDescription } from '@clawui/ui'
+import {
+  useUsageStore,
+  selectUsageLoading,
+  selectUsageError,
+  selectSessions,
+  selectTotals,
+  selectAggregates,
+  selectCostDaily,
+  selectStartDate,
+  selectEndDate,
+  selectSelectedSessionKey,
+  selectChartMode,
+  selectTimeSeries,
+  selectTimeSeriesLoading,
+} from '@/store/usage'
+import { UsageHeader } from '@/components/Usage/UsageHeader'
+import { UsageSummaryCards } from '@/components/Usage/UsageSummaryCards'
+import { DailyTrendChart } from '@/components/Usage/DailyTrendChart'
+import { CostBreakdown } from '@/components/Usage/CostBreakdown'
+import { ProviderBreakdown } from '@/components/Usage/ProviderBreakdown'
+import { SessionList } from '@/components/Usage/SessionList'
+import { SessionDetail } from '@/components/Usage/SessionDetail'
+import { SessionTimeline } from '@/components/Usage/SessionTimeline'
+
+export default function UsagePage() {
+  const loading = useUsageStore(selectUsageLoading)
+  const error = useUsageStore(selectUsageError)
+  const sessions = useUsageStore(selectSessions)
+  const totals = useUsageStore(selectTotals)
+  const aggregates = useUsageStore(selectAggregates)
+  const costDaily = useUsageStore(selectCostDaily)
+  // Use individual primitive selectors to avoid Object.is re-render loops
+  const startDate = useUsageStore(selectStartDate)
+  const endDate = useUsageStore(selectEndDate)
+  const selectedSessionKey = useUsageStore(selectSelectedSessionKey)
+  const chartMode = useUsageStore(selectChartMode)
+  const timeSeries = useUsageStore(selectTimeSeries)
+  const timeSeriesLoading = useUsageStore(selectTimeSeriesLoading)
+
+  const loadUsage = useUsageStore((s) => s.loadUsage)
+  const setDateRange = useUsageStore((s) => s.setDateRange)
+  const doSelectSession = useUsageStore((s) => s.selectSession)
+  const setChartMode = useUsageStore((s) => s.setChartMode)
+
+  // Stable callback that reads date range from store via get()
+  const handleLoad = useCallback(() => {
+    loadUsage()
+  }, [loadUsage])
+
+  // Load on mount and when date range changes
+  useEffect(() => {
+    handleLoad()
+  }, [handleLoad, startDate, endDate])
+
+  const selectedSession = sessions.find((s) => s.key === selectedSessionKey)
+
+  return (
+    <div className="p-6">
+      <div className="mx-auto max-w-5xl space-y-6">
+        {/* Title */}
+        <div>
+          <h1 className="text-2xl font-semibold">Usage</h1>
+          <p className="text-muted-foreground">Token 消耗与成本分析</p>
+        </div>
+
+        {/* Header: date range + mode + refresh */}
+        <UsageHeader
+          startDate={startDate}
+          endDate={endDate}
+          chartMode={chartMode}
+          loading={loading}
+          onDateRangeChange={setDateRange}
+          onChartModeChange={setChartMode}
+          onRefresh={handleLoad}
+        />
+
+        {/* Error */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Loading overlay for initial load */}
+        {loading && !totals ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            {/* Summary Cards */}
+            <UsageSummaryCards
+              totals={totals}
+              aggregates={aggregates}
+              sessionCount={sessions.length}
+            />
+
+            {/* Daily Trend */}
+            {costDaily.length > 0 && (
+              <DailyTrendChart data={costDaily} mode={chartMode} />
+            )}
+
+            {/* Cost Breakdown + Provider Distribution */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <CostBreakdown totals={totals} />
+              <ProviderBreakdown byProvider={aggregates?.byProvider ?? []} />
+            </div>
+
+            {/* Session List */}
+            <SessionList
+              sessions={sessions}
+              selectedKey={selectedSessionKey}
+              onSelect={doSelectSession}
+            />
+
+            {/* Session Detail + Timeline (shown when session selected) */}
+            {selectedSessionKey && (
+              <div className="space-y-4">
+                <SessionDetail session={selectedSession} />
+                <SessionTimeline
+                  timeSeries={timeSeries}
+                  loading={timeSeriesLoading}
+                  mode={chartMode}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}

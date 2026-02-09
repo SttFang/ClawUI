@@ -1,4 +1,5 @@
 export type Theme = 'light' | 'dark' | 'system'
+export type LocalePreference = 'system' | 'zh-CN' | 'en-US'
 
 export interface ClawUISessionMetadata {
   title: string
@@ -18,7 +19,7 @@ export interface ClawUIStateV1 {
   schemaVersion: 1
   ui: {
     theme: Theme
-    locale: 'zh-CN' | 'en-US'
+    locale: LocalePreference
     sidebarCollapsed: boolean
   }
   subscription: {
@@ -43,4 +44,3 @@ export interface ClawUIStateV1 {
 }
 
 export type ClawUIState = ClawUIStateV1
-

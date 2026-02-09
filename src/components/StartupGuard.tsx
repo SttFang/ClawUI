@@ -4,6 +4,7 @@ import { ipc, RuntimeStatus } from '@/lib/ipc'
 import { Loader2 } from 'lucide-react'
 import { useGatewayStore, selectGatewayStatus } from '@/store/gateway'
 import { useChatStore } from '@/store/chat'
+import { useUIStore } from '@/store/ui'
 import { startupLog } from '@/lib/logger'
 
 interface StartupGuardProps {
@@ -44,6 +45,14 @@ export function StartupGuard({ children }: StartupGuardProps) {
 
     async function checkOpenClaw() {
       try {
+        // Hydrate ClawUI state early so theme/locale/sidebar apply before the main UI renders.
+        try {
+          const clawuiState = await ipc.state.get()
+          useUIStore.getState().hydrate(clawuiState.ui)
+        } catch {
+          // Best-effort: startup should continue even if state is unreadable.
+        }
+
         startupLog.info('Starting OpenClaw detection...')
         const status = await ipc.onboarding.detect()
         startupLog.info('Detection result:', status)

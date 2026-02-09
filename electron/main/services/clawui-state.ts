@@ -23,7 +23,7 @@ export interface ClawUIStateV1 {
   schemaVersion: 1
   ui: {
     theme: Theme
-    locale: 'zh-CN' | 'en-US'
+    locale: 'system' | 'zh-CN' | 'en-US'
     sidebarCollapsed: boolean
   }
   subscription: {
@@ -49,11 +49,19 @@ export interface ClawUIStateV1 {
 
 export type ClawUIState = ClawUIStateV1
 
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends (infer U)[]
+    ? U[]
+    : T[K] extends object
+      ? DeepPartial<T[K]>
+      : T[K]
+}
+
 const DEFAULT_STATE: ClawUIState = {
   schemaVersion: 1,
   ui: {
     theme: 'system',
-    locale: 'zh-CN',
+    locale: 'system',
     sidebarCollapsed: false,
   },
   subscription: {
@@ -127,9 +135,9 @@ export class ClawUIStateService {
     return this.state ?? DEFAULT_STATE
   }
 
-  async patch(partial: Partial<ClawUIState>): Promise<ClawUIState> {
+  async patch(partial: DeepPartial<ClawUIState>): Promise<ClawUIState> {
     const current = await this.get()
-    this.state = deepMerge(current, partial)
+    this.state = deepMerge(current, partial as any)
     await this.save()
     return this.state
   }

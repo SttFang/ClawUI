@@ -124,20 +124,18 @@ export const useSchedulerStore = create<SchedulerStore>((set, get) => ({
         set({ isLoading: false })
         return
       }
-      // Tasks would be stored in config or a separate file
-      // For now, use localStorage as a simple persistence layer
-      const storedTasks = localStorage.getItem('scheduler_tasks')
-      if (storedTasks) {
-        const tasks: ScheduledTask[] = JSON.parse(storedTasks)
-        // Recalculate next run times
-        const updatedTasks = tasks.map((task) => ({
-          ...task,
-          nextRun: task.enabled ? calculateNextRun(task.cron) : undefined,
-        }))
-        set({ tasks: updatedTasks, isLoading: false })
-      } else {
-        set({ isLoading: false })
-      }
+      const clawuiState = await ipc.state.get()
+      const rawTasks = clawuiState.scheduler?.tasks
+      const tasks = Array.isArray(rawTasks)
+        ? rawTasks.map(coerceTask).filter((t): t is ScheduledTask => t !== null)
+        : []
+
+      // Recalculate next run times
+      const updatedTasks = tasks.map((task) => ({
+        ...task,
+        nextRun: task.enabled ? calculateNextRun(task.cron) : undefined,
+      }))
+      set({ tasks: updatedTasks, isLoading: false })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load tasks'
       set({ error: message, isLoading: false })
@@ -157,7 +155,7 @@ export const useSchedulerStore = create<SchedulerStore>((set, get) => ({
     set({ tasks: newTasks })
 
     try {
-      localStorage.setItem('scheduler_tasks', JSON.stringify(newTasks))
+      await ipc.state.patch({ scheduler: { tasks: newTasks } })
     } catch (error) {
       schedulerLog.error('Failed to save task:', error)
     }
@@ -178,7 +176,7 @@ export const useSchedulerStore = create<SchedulerStore>((set, get) => ({
     set({ tasks: newTasks })
 
     try {
-      localStorage.setItem('scheduler_tasks', JSON.stringify(newTasks))
+      await ipc.state.patch({ scheduler: { tasks: newTasks } })
     } catch (error) {
       schedulerLog.error('Failed to update task:', error)
     }
@@ -190,7 +188,7 @@ export const useSchedulerStore = create<SchedulerStore>((set, get) => ({
     set({ tasks: newTasks })
 
     try {
-      localStorage.setItem('scheduler_tasks', JSON.stringify(newTasks))
+      await ipc.state.patch({ scheduler: { tasks: newTasks } })
     } catch (error) {
       schedulerLog.error('Failed to delete task:', error)
     }
@@ -219,6 +217,36 @@ export const useSchedulerStore = create<SchedulerStore>((set, get) => ({
     }
   },
 }))
+
+function coerceTask(value: unknown): ScheduledTask | null {
+  if (!value || typeof value !== 'object') return null
+  const v = value as Partial<ScheduledTask>
+  if (!v.id || typeof v.id !== 'string') return null
+  if (!v.name || typeof v.name !== 'string') return null
+  if (!v.description || typeof v.description !== 'string') return null
+  if (!v.cron || typeof v.cron !== 'string') return null
+  if (typeof v.enabled !== 'boolean') return null
+  if (!v.action || typeof v.action !== 'object') return null
+  const action = v.action as ScheduledTask['action']
+  if (action.type !== 'message' && action.type !== 'command' && action.type !== 'webhook') return null
+  if (typeof action.content !== 'string') return null
+
+  return {
+    id: v.id,
+    name: v.name,
+    description: v.description,
+    cron: v.cron,
+    enabled: v.enabled,
+    action: {
+      type: action.type,
+      target: typeof action.target === 'string' ? action.target : undefined,
+      content: action.content,
+    },
+    lastRun: typeof v.lastRun === 'number' ? v.lastRun : undefined,
+    nextRun: typeof v.nextRun === 'number' ? v.nextRun : undefined,
+    runCount: typeof v.runCount === 'number' ? v.runCount : 0,
+  }
+}
 
 // Selectors
 export const selectTasks = (state: SchedulerStore) => state.tasks

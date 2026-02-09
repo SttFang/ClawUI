@@ -4,24 +4,14 @@ import zhResources from './default'
 import enResources from './en-US'
 import {
   DEFAULT_LANG,
-  LANG_STORAGE_KEY,
   SUPPORTED_LANGS,
   normalizeLanguage,
   resolveEffectiveLanguage,
-  resolveStoredLocale,
-  type StoredLocale,
 } from './language'
 
-const getStoredLocale = (): StoredLocale | undefined => {
-  if (typeof window === 'undefined') return undefined
-
-  return resolveStoredLocale(window.localStorage.getItem(LANG_STORAGE_KEY))
-}
-
-const resolveLanguage = () => {
+const resolveInitialLanguage = () => {
   if (typeof navigator === 'undefined') return DEFAULT_LANG
-
-  return resolveEffectiveLanguage(getStoredLocale(), navigator.language)
+  return resolveEffectiveLanguage('system', navigator.language)
 }
 
 if (!i18n.isInitialized) {
@@ -30,7 +20,7 @@ if (!i18n.isInitialized) {
       'zh-CN': zhResources,
       'en-US': enResources,
     },
-    lng: resolveLanguage(),
+    lng: resolveInitialLanguage(),
     fallbackLng: DEFAULT_LANG,
     supportedLngs: SUPPORTED_LANGS,
     interpolation: {
@@ -47,13 +37,6 @@ i18n.on('languageChanged', (language) => {
   if (typeof window === 'undefined') return
 
   const normalized = normalizeLanguage(language)
-
-  const stored = getStoredLocale()
-  // Treat "no stored value" as system mode: don't persist explicit language
-  // unless the user has opted into a concrete locale override.
-  if (stored && stored !== 'system') {
-    window.localStorage.setItem(LANG_STORAGE_KEY, normalized)
-  }
 
   document.documentElement.lang = normalized
 })

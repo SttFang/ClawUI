@@ -65,7 +65,7 @@ export interface ElectronAPI {
   }
   state: {
     get: () => Promise<ClawUIState>
-    patch: (partial: Partial<ClawUIState>) => Promise<ClawUIState>
+    patch: (partial: DeepPartial<ClawUIState>) => Promise<ClawUIState>
     getPath: () => Promise<string>
   }
   subscription: {
@@ -120,6 +120,14 @@ export interface ElectronAPI {
   secrets: {
     patch: (patch: Record<string, unknown>) => Promise<void>
   }
+}
+
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends (infer U)[]
+    ? U[]
+    : T[K] extends object
+      ? DeepPartial<T[K]>
+      : T[K]
 }
 
 // Get the electron API from the preload script
@@ -197,7 +205,7 @@ export const ipc = {
       if (!api) throw new Error('Electron API not available')
       return api.state.get()
     },
-    async patch(partial: Partial<ClawUIState>) {
+    async patch(partial: DeepPartial<ClawUIState>) {
       const api = getElectronAPI()
       if (!api) throw new Error('Electron API not available')
       return api.state.patch(partial)

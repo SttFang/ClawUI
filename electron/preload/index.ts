@@ -2,6 +2,14 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 export type GatewayStatus = 'stopped' | 'starting' | 'running' | 'error'
 
+export interface GatewayEventFrame {
+  type: 'event'
+  event: string
+  payload?: unknown
+  seq?: number
+  stateVersion?: number
+}
+
 export interface InstallProgress {
   stage:
     | 'checking-requirements'
@@ -62,6 +70,13 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.on('gateway:status-changed', listener)
       return () => {
         ipcRenderer.removeListener('gateway:status-changed', listener)
+      }
+    },
+    onEvent: (callback: (event: GatewayEventFrame) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, evt: GatewayEventFrame) => callback(evt)
+      ipcRenderer.on('gateway:event', listener)
+      return () => {
+        ipcRenderer.removeListener('gateway:event', listener)
       }
     },
   },

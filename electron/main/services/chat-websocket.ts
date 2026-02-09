@@ -39,7 +39,7 @@ interface ACPResponse {
   error?: { message: string; code?: string }
 }
 
-interface ACPEvent {
+export interface GatewayEventFrame {
   type: 'event'
   event: string
   payload?: unknown
@@ -47,7 +47,7 @@ interface ACPEvent {
   stateVersion?: number
 }
 
-type ACPMessage = ACPRequest | ACPResponse | ACPEvent
+type ACPMessage = ACPRequest | ACPResponse | GatewayEventFrame
 
 export class ChatWebSocketService extends EventEmitter {
   private ws: WebSocket | null = null
@@ -70,19 +70,21 @@ export class ChatWebSocketService extends EventEmitter {
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        chatLog.info('Connecting to:', this.gatewayUrl)
+        const t0 = Date.now()
+        chatLog.info('[ws.connecting]', this.gatewayUrl)
         this.ws = new WebSocket(this.gatewayUrl)
 
         this.ws.on('open', async () => {
-          chatLog.info('WebSocket opened, sending connect frame')
+          chatLog.info('[ws.open]', `durationMs=${Date.now() - t0}`)
           try {
             await this.sendConnectFrame()
             this.connected = true
             this.reconnectAttempts = 0
             this.emit('connected')
+            chatLog.info('[ws.connected]', `durationMs=${Date.now() - t0}`)
             resolve()
           } catch (error) {
-            chatLog.error('Connect handshake failed:', error)
+            chatLog.error('[acp.connect.failed]', error)
             this.ws?.close()
             reject(error)
           }
@@ -93,7 +95,7 @@ export class ChatWebSocketService extends EventEmitter {
         })
 
         this.ws.on('close', (code, reason) => {
-          chatLog.info('Connection closed:', code, String(reason))
+          chatLog.info('[ws.closed]', `code=${code}`, `reason=${String(reason)}`)
           this.connected = false
           this.emit('disconnected')
           // Reject all pending requests
@@ -105,7 +107,7 @@ export class ChatWebSocketService extends EventEmitter {
         })
 
         this.ws.on('error', (error) => {
-          chatLog.error('WebSocket error:', error.message)
+          chatLog.error('[ws.error]', error.message)
           this.emit('error', error.message)
           reject(error)
         })
@@ -117,6 +119,7 @@ export class ChatWebSocketService extends EventEmitter {
 
   private async sendConnectFrame(): Promise<void> {
     const connectId = randomUUID()
+    const t0 = Date.now()
 
     const connectRequest: ACPRequest = {
       type: 'req',
@@ -131,6 +134,8 @@ export class ChatWebSocketService extends EventEmitter {
           platform: process.platform,
           mode: 'cli',
         },
+        // Enable enhanced streaming features (e.g. tool call events).
+        caps: ['tool-events'],
         auth: {
           token: this.gatewayToken,
         },
@@ -148,9 +153,10 @@ export class ChatWebSocketService extends EventEmitter {
           clearTimeout(timeout)
           const res = response as ACPResponse
           if (res.ok) {
-            chatLog.info('Connected successfully')
+            chatLog.info('[acp.connected]', `durationMs=${Date.now() - t0}`)
             resolve()
           } else {
+            chatLog.warn('[acp.connect.rejected]', res.error?.message, `durationMs=${Date.now() - t0}`)
             reject(new Error(res.error?.message || 'Connect failed'))
           }
         },
@@ -160,7 +166,7 @@ export class ChatWebSocketService extends EventEmitter {
         },
       })
 
-      chatLog.debug('Sending connect frame')
+      chatLog.debug('[acp.connect.send]')
       this.ws?.send(JSON.stringify(connectRequest))
     })
   }
@@ -179,114 +185,108 @@ export class ChatWebSocketService extends EventEmitter {
         }
       } else if (message.type === 'event') {
         // Handle server events
-        const event = message as ACPEvent
+        const event = message as GatewayEventFrame
         this.handleEvent(event)
       }
     } catch (e) {
-      chatLog.error('Failed to parse message:', e)
+      chatLog.error('[ws.parse.error]', e)
     }
   }
 
-  private handleEvent(event: ACPEvent): void {
-    // Map OpenClaw events to our ChatStreamEvent format
-    switch (event.event) {
-      case 'connect.challenge':
-      case 'health':
-      case 'agent':
-        // Expected Gateway events; not needed for current UI.
-        return
-      case 'chat': {
-        const payload = event.payload as {
-          runId?: unknown
-          sessionKey?: unknown
-          state?: unknown
-          message?: unknown
-          errorMessage?: unknown
-        }
+  private handleEvent(event: GatewayEventFrame): void {
+    // Forward raw Gateway events for richer renderer-side transports.
+    this.emit('gateway-event', event)
 
-        const runId = typeof payload?.runId === 'string' ? payload.runId : null
-        const sessionKey = typeof payload?.sessionKey === 'string' ? payload.sessionKey : null
-        const state = typeof payload?.state === 'string' ? payload.state : null
+    // Map OpenClaw chat events to our legacy ChatStreamEvent format.
+    if (event.event !== 'chat') return
 
-        if (!runId || !sessionKey || !state) return
-
-        const extractText = (msg: unknown): string | null => {
-          if (!msg) return null
-          if (typeof msg === 'string') return msg
-          if (typeof msg !== 'object') return null
-          const content = (msg as { content?: unknown }).content
-          if (!Array.isArray(content) || content.length === 0) return null
-          const first = content[0] as { type?: unknown; text?: unknown } | undefined
-          if (!first || typeof first !== 'object') return null
-          const text = (first as { text?: unknown }).text
-          return typeof text === 'string' ? text : null
-        }
-
-        if (state === 'delta') {
-          const content = extractText(payload.message)
-          if (content) {
-            this.emit('stream', {
-              type: 'delta',
-              sessionId: sessionKey,
-              messageId: runId,
-              content,
-            })
-          }
-          return
-        }
-
-        if (state === 'final') {
-          const content = extractText(payload.message)
-          if (content) {
-            // Ensure the renderer sees the final full content before we end the stream.
-            this.emit('stream', {
-              type: 'delta',
-              sessionId: sessionKey,
-              messageId: runId,
-              content,
-            })
-          }
-          this.emit('stream', {
-            type: 'end',
-            sessionId: sessionKey,
-            messageId: runId,
-          })
-          return
-        }
-
-        if (state === 'aborted') {
-          this.emit('stream', {
-            type: 'error',
-            sessionId: sessionKey,
-            messageId: runId,
-            error: 'aborted',
-          })
-          return
-        }
-
-        if (state === 'error') {
-          const errorMessage =
-            typeof payload.errorMessage === 'string' ? payload.errorMessage : 'chat error'
-          this.emit('stream', {
-            type: 'error',
-            sessionId: sessionKey,
-            messageId: runId,
-            error: errorMessage,
-          })
-          return
-        }
-
-        return
-      }
-      default:
-        chatLog.warn('Unhandled event:', event.event)
+    const payload = event.payload as {
+      runId?: unknown
+      sessionKey?: unknown
+      state?: unknown
+      message?: unknown
+      errorMessage?: unknown
     }
+
+    const runId = typeof payload?.runId === 'string' ? payload.runId : null
+    const sessionKey = typeof payload?.sessionKey === 'string' ? payload.sessionKey : null
+    const state = typeof payload?.state === 'string' ? payload.state : null
+
+    if (!runId || !sessionKey || !state) return
+
+    const extractText = (msg: unknown): string | null => {
+      if (!msg) return null
+      if (typeof msg === 'string') return msg
+      if (typeof msg !== 'object') return null
+      const content = (msg as { content?: unknown }).content
+      if (!Array.isArray(content) || content.length === 0) return null
+      const first = content[0] as { type?: unknown; text?: unknown } | undefined
+      if (!first || typeof first !== 'object') return null
+      const text = (first as { text?: unknown }).text
+      return typeof text === 'string' ? text : null
+    }
+
+    if (state === 'delta') {
+      const content = extractText(payload.message)
+      if (content) {
+        this.emit('stream', {
+          type: 'delta',
+          sessionId: sessionKey,
+          messageId: runId,
+          content,
+        })
+      }
+      return
+    }
+
+    if (state === 'final') {
+      const content = extractText(payload.message)
+      if (content) {
+        // Ensure the renderer sees the final full content before we end the stream.
+        this.emit('stream', {
+          type: 'delta',
+          sessionId: sessionKey,
+          messageId: runId,
+          content,
+        })
+      }
+      this.emit('stream', {
+        type: 'end',
+        sessionId: sessionKey,
+        messageId: runId,
+      })
+      return
+    }
+
+    if (state === 'aborted') {
+      this.emit('stream', {
+        type: 'error',
+        sessionId: sessionKey,
+        messageId: runId,
+        error: 'aborted',
+      })
+      return
+    }
+
+    if (state === 'error') {
+      const errorMessage =
+        typeof payload.errorMessage === 'string' ? payload.errorMessage : 'chat error'
+      this.emit('stream', {
+        type: 'error',
+        sessionId: sessionKey,
+        messageId: runId,
+        error: errorMessage,
+      })
+      return
+    }
+
+    return
   }
 
   private attemptReconnect(): void {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++
-      chatLog.info('Reconnect attempt', this.reconnectAttempts, '/', this.maxReconnectAttempts)
+      chatLog.info('[ws.reconnect]', `attempt=${this.reconnectAttempts}/${this.maxReconnectAttempts}`)
       setTimeout(() => {
         this.connect().catch(() => {})
       }, this.reconnectDelay * this.reconnectAttempts)
@@ -301,6 +301,7 @@ export class ChatWebSocketService extends EventEmitter {
     // Use a stable runId/idempotency key so we can map streaming events back to a renderer message.
     const messageId = randomUUID()
     const requestId = randomUUID()
+    const t0 = Date.now()
 
     // OpenClaw Gateway v2026 uses `chat.send` + `chat` events for streaming.
     const acpRequest: ACPRequest = {
@@ -318,6 +319,7 @@ export class ChatWebSocketService extends EventEmitter {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(requestId)
+        chatLog.warn('[chat.send.timeout]', `sessionId=${request.sessionId}`, `durationMs=${Date.now() - t0}`)
         reject(new Error('Request timeout'))
       }, 30000)
 
@@ -326,8 +328,10 @@ export class ChatWebSocketService extends EventEmitter {
           clearTimeout(timeout)
           const res = response as ACPResponse
           if (res.ok) {
+            chatLog.info('[chat.send.ok]', `sessionId=${request.sessionId}`, `durationMs=${Date.now() - t0}`)
             resolve(messageId)
           } else {
+            chatLog.warn('[chat.send.failed]', `sessionId=${request.sessionId}`, res.error?.message, `durationMs=${Date.now() - t0}`)
             reject(new Error(res.error?.message || 'Chat request failed'))
           }
         },

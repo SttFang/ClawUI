@@ -10,7 +10,7 @@ import type {
 } from '@clawui/types/onboarding'
 import type { ChatRequest, ChatStreamEvent } from '@clawui/types/chat'
 import type { OpenClawConfig, OnboardingOpenClawConfig, ChannelConfig } from '@clawui/types/config'
-import type { GatewayStatus } from '@clawui/types/gateway'
+import type { GatewayStatus, GatewayEventFrame } from '@clawui/types/gateway'
 import type {
   LoginCredentials,
   LoginResult,
@@ -44,6 +44,7 @@ export interface ElectronAPI {
     stop: () => Promise<void>
     getStatus: () => Promise<GatewayStatus>
     onStatusChange: (callback: (status: GatewayStatus) => void) => () => void
+    onEvent: (callback: (event: GatewayEventFrame) => void) => () => void
   }
   config: {
     get: () => Promise<OpenClawConfig>
@@ -118,6 +119,10 @@ export const ipc = {
     onStatusChange(callback: (status: GatewayStatus) => void) {
       const api = getElectronAPI()
       return api?.gateway.onStatusChange(callback) ?? (() => {})
+    },
+    onEvent(callback: (event: GatewayEventFrame) => void) {
+      const api = getElectronAPI()
+      return api?.gateway.onEvent(callback) ?? (() => {})
     },
   },
   config: {

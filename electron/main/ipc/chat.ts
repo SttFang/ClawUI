@@ -1,5 +1,5 @@
 import { ipcMain, BrowserWindow } from 'electron'
-import { chatWebSocket, ChatRequest, ChatStreamEvent } from '../services/chat-websocket'
+import { chatWebSocket, ChatRequest, ChatStreamEvent, type GatewayEventFrame } from '../services/chat-websocket'
 import { ConfigService } from '../services/config'
 
 export function registerChatHandlers(mainWindow: BrowserWindow, configService: ConfigService): void {
@@ -39,6 +39,13 @@ export function registerChatHandlers(mainWindow: BrowserWindow, configService: C
   chatWebSocket.on('stream', (event: ChatStreamEvent) => {
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send('chat:stream', event)
+    }
+  })
+
+  // Forward raw Gateway events to renderer (used by richer streaming transports / UI).
+  chatWebSocket.on('gateway-event', (event: GatewayEventFrame) => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('gateway:event', event)
     }
   })
 

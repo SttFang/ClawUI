@@ -77,9 +77,9 @@ describe('OnboardingStore', () => {
     it('should update install progress', () => {
       const { setInstallProgress } = useOnboardingStore.getState()
       const progress: InstallProgress = {
-        stage: 'downloading-node',
+        stage: 'checking-requirements',
         progress: 50,
-        message: 'Downloading Node.js...',
+        message: 'Checking Node.js/npm...',
       }
 
       setInstallProgress(progress)
@@ -394,7 +394,7 @@ describe('OnboardingStore', () => {
     it('selectInstallProgress should return install progress', async () => {
       const { selectInstallProgress } = await import('../index')
       const progress: InstallProgress = {
-        stage: 'downloading-node',
+        stage: 'checking-requirements',
         progress: 50,
         message: 'Downloading...',
       }

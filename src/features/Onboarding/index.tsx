@@ -23,8 +23,7 @@ function DraggableTitleBar() {
 // Stage labels for user-friendly display
 const stageLabels: Record<string, string> = {
   'idle': 'Preparing...',
-  'downloading-node': 'Downloading Node.js runtime...',
-  'extracting-node': 'Extracting Node.js...',
+  'checking-requirements': 'Checking Node.js/npm...',
   'installing-openclaw': 'Installing OpenClaw...',
   'verifying': 'Verifying installation...',
   'complete': 'Installation complete!',

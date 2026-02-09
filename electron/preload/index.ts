@@ -4,8 +4,7 @@ export type GatewayStatus = 'stopped' | 'starting' | 'running' | 'error'
 
 export interface InstallProgress {
   stage:
-    | 'downloading-node'
-    | 'extracting-node'
+    | 'checking-requirements'
     | 'installing-openclaw'
     | 'verifying'
     | 'complete'

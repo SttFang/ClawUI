@@ -31,8 +31,7 @@ export interface RuntimeStatus {
  */
 export type InstallStage =
   | 'idle'
-  | 'downloading-node'
-  | 'extracting-node'
+  | 'checking-requirements'
   | 'installing-openclaw'
   | 'verifying'
   | 'complete'

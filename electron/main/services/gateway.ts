@@ -1,8 +1,7 @@
 import { spawn, ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
-import { app } from 'electron'
-import { existsSync } from 'fs'
-import path from 'path'
+import net from 'net'
+import { buildLoginShellInvocation, execInLoginShell } from '../utils/login-shell'
 
 export type GatewayStatus = 'stopped' | 'starting' | 'running' | 'error'
 
@@ -24,13 +23,16 @@ export class GatewayService extends EventEmitter {
   private status: GatewayStatus = 'stopped'
   private config: OpenClawConfig | null = null
   private port = 18789
-  private runtimeDir = path.join(app.getPath('userData'), 'runtime')
+  private monitorTimer: NodeJS.Timeout | null = null
 
   setConfig(config: OpenClawConfig): void {
     this.config = config
     if (config.gateway?.port) {
       this.port = config.gateway.port
     }
+
+    // Start monitoring as soon as we know which port to watch.
+    this.ensureMonitoring()
   }
 
   getStatus(): GatewayStatus {
@@ -45,28 +47,49 @@ export class GatewayService extends EventEmitter {
     return `ws://localhost:${this.port}`
   }
 
-  /**
-   * Get the path to the openclaw CLI.
-   * Priority: embedded > global
-   */
-  private getOpenClawCommand(): { command: string; args: string[] } {
-    // Check for embedded OpenClaw (installed via npm in runtime dir)
-    const embeddedBinPath = path.join(this.runtimeDir, 'node_modules', '.bin', 'openclaw')
-    if (existsSync(embeddedBinPath)) {
-      console.log('[Gateway] Using embedded OpenClaw:', embeddedBinPath)
-      return { command: embeddedBinPath, args: [] }
-    }
+  private ensureMonitoring(): void {
+    if (this.monitorTimer) return
 
-    // Check for embedded OpenClaw package and run via node
-    const embeddedPkgPath = path.join(this.runtimeDir, 'node_modules', 'openclaw', 'dist', 'cli.js')
-    if (existsSync(embeddedPkgPath)) {
-      console.log('[Gateway] Using embedded OpenClaw via node:', embeddedPkgPath)
-      return { command: 'node', args: [embeddedPkgPath] }
-    }
+    // Lightweight reachability check. This lets us reflect external starts/stops
+    // (e.g. user manages gateway via `openclaw gateway install/stop`) in the UI.
+    this.monitorTimer = setInterval(() => {
+      this.refreshReachability().catch(() => {})
+    }, 3_000)
+  }
 
-    // Fallback to global openclaw command
-    console.log('[Gateway] Using global OpenClaw command')
-    return { command: 'openclaw', args: [] }
+  private async refreshReachability(): Promise<void> {
+    // Only auto-flip between running/stopped when not in the middle of a managed transition.
+    if (this.status === 'starting' || this.status === 'error') return
+
+    const reachable = await this.isGatewayReachable()
+    if (reachable && this.status !== 'running') {
+      this.setStatus('running')
+      return
+    }
+    if (!reachable && this.status === 'running') {
+      this.setStatus('stopped')
+    }
+  }
+
+  private async isGatewayReachable(): Promise<boolean> {
+    // TCP connect is enough to know if something is listening.
+    // We avoid ACP auth handshakes here to keep monitoring cheap.
+    const host = '127.0.0.1'
+    const port = this.port
+
+    return await new Promise<boolean>((resolve) => {
+      const socket = net.createConnection({ host, port })
+      const done = (ok: boolean) => {
+        socket.removeAllListeners()
+        socket.destroy()
+        resolve(ok)
+      }
+
+      socket.setTimeout(750)
+      socket.once('connect', () => done(true))
+      socket.once('timeout', () => done(false))
+      socket.once('error', () => done(false))
+    })
   }
 
   async start(): Promise<void> {
@@ -77,6 +100,13 @@ export class GatewayService extends EventEmitter {
     this.setStatus('starting')
 
     try {
+      // If a gateway is already running (maybe started outside ClawUI), just mark it running.
+      if (await this.isGatewayReachable()) {
+        console.log('[Gateway] Detected running gateway on port', this.port)
+        this.setStatus('running')
+        return
+      }
+
       // Build environment variables
       const env: Record<string, string> = {
         ...process.env as Record<string, string>,
@@ -88,9 +118,10 @@ export class GatewayService extends EventEmitter {
         env.OPENCLAW_GATEWAY_TOKEN = this.config.gateway.auth.token
       }
 
-      // Get the openclaw command (embedded or global)
-      const { command, args } = this.getOpenClawCommand()
-      const fullArgs = [...args, 'gateway', '--port', String(this.port)]
+      // Run via a login shell so PATH matches the user's terminal environment.
+      // This is important on macOS where GUI apps often have a minimal PATH.
+      const gatewayCmd = `openclaw gateway --port ${this.port}`
+      const { file: command, args: fullArgs } = buildLoginShellInvocation(gatewayCmd)
 
       console.log('[Gateway] Starting:', command, fullArgs.join(' '))
 
@@ -142,8 +173,20 @@ export class GatewayService extends EventEmitter {
   }
 
   async stop(): Promise<void> {
+    // If we didn't start it, try stopping the gateway service (best-effort) so UI controls still work.
     if (!this.process) {
-      this.setStatus('stopped')
+      try {
+        await execInLoginShell('openclaw gateway stop', { timeoutMs: 30_000 })
+      } catch (error) {
+        console.log('[Gateway] Failed to stop gateway via CLI:', error)
+      }
+
+      // Re-check reachability; don't lie to the UI.
+      if (await this.isGatewayReachable()) {
+        this.setStatus('running')
+      } else {
+        this.setStatus('stopped')
+      }
       return
     }
 

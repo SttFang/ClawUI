@@ -5,6 +5,7 @@ import { readFile } from 'fs/promises'
 import { homedir } from 'os'
 import path from 'path'
 import { app } from 'electron'
+import { execInLoginShell, resolveCommandPath } from '../utils/login-shell'
 
 const execAsync = promisify(exec)
 
@@ -63,14 +64,13 @@ export class RuntimeDetectorService {
       }
     }
 
-    // Check system Node.js
+    // Check system Node.js (via login shell so PATH matches user's terminal)
     try {
-      const { stdout: versionOutput } = await execAsync('node --version')
-      const { stdout: pathOutput } = await execAsync(
-        process.platform === 'win32' ? 'where node' : 'which node'
-      )
+      const { stdout: versionOutput } = await execInLoginShell('node --version', {
+        timeoutMs: 5_000,
+      })
+      const nodePath = await resolveCommandPath('node')
       const version = versionOutput.trim()
-      const nodePath = pathOutput.trim().split('\n')[0]
 
       // Check if version >= 22
       const majorVersion = parseInt(version.replace('v', '').split('.')[0], 10)
@@ -100,55 +100,25 @@ export class RuntimeDetectorService {
     openclawVersion: string | null
     openclawPath: string | null
   }> {
-    // Check embedded OpenClaw first
-    const embeddedPath = path.join(this.runtimeDir, 'node_modules', 'openclaw')
-    if (existsSync(embeddedPath)) {
-      try {
-        const pkgPath = path.join(embeddedPath, 'package.json')
-        const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'))
-        console.log('[RuntimeDetector] Found embedded OpenClaw:', pkg.version)
+    // For ClawUI's product goal, we treat "installed" as: available in the user's shell PATH.
+    // (The embedded runtime install does not satisfy `openclaw` in Terminal.)
+    try {
+      const openclawPath = await resolveCommandPath('openclaw')
+      if (openclawPath && existsSync(openclawPath)) {
+        const { stdout: versionOutput } = await execInLoginShell(
+          'openclaw --version',
+          { timeoutMs: 5_000 }
+        )
+        const version = versionOutput.trim() || 'unknown'
+        console.log('[RuntimeDetector] Found OpenClaw:', version, 'at', openclawPath)
         return {
           openclawInstalled: true,
-          openclawVersion: pkg.version,
-          openclawPath: embeddedPath,
-        }
-      } catch (error) {
-        console.log('[RuntimeDetector] Failed to read embedded OpenClaw:', error)
-        // Fall through
-      }
-    }
-
-    // Check global OpenClaw via `which openclaw` or `where openclaw`
-    // This is more reliable than npx which might try to download
-    try {
-      const whichCmd = process.platform === 'win32' ? 'where openclaw' : 'which openclaw'
-      const { stdout: pathOutput } = await execAsync(whichCmd, { timeout: 5000 })
-      const openclawPath = pathOutput.trim().split('\n')[0]
-
-      if (openclawPath && existsSync(openclawPath)) {
-        // Try to get version
-        try {
-          const { stdout: versionOutput } = await execAsync('openclaw --version', { timeout: 5000 })
-          const version = versionOutput.trim()
-          console.log('[RuntimeDetector] Found global OpenClaw:', version, 'at', openclawPath)
-          return {
-            openclawInstalled: true,
-            openclawVersion: version,
-            openclawPath,
-          }
-        } catch {
-          // Has openclaw binary but can't get version
-          console.log('[RuntimeDetector] Found OpenClaw binary but failed to get version')
-          return {
-            openclawInstalled: true,
-            openclawVersion: 'unknown',
-            openclawPath,
-          }
+          openclawVersion: version,
+          openclawPath,
         }
       }
-    } catch {
-      // which/where failed - OpenClaw not in PATH
-      console.log('[RuntimeDetector] OpenClaw not found in PATH')
+    } catch (error) {
+      console.log('[RuntimeDetector] Failed to detect OpenClaw:', error)
     }
 
     console.log('[RuntimeDetector] OpenClaw not installed')
@@ -184,7 +154,8 @@ export class RuntimeDetectorService {
   private getEmbeddedNodePath(): string | null {
     const platform = process.platform
     const nodeBinary = platform === 'win32' ? 'node.exe' : 'node'
-    return path.join(this.runtimeDir, 'node', nodeBinary)
+    if (platform === 'win32') return path.join(this.runtimeDir, 'node', nodeBinary)
+    return path.join(this.runtimeDir, 'node', 'bin', nodeBinary)
   }
 }
 

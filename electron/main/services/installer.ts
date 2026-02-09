@@ -1,17 +1,8 @@
-import { app, net } from 'electron'
-import { createWriteStream, existsSync, mkdirSync, chmodSync } from 'fs'
-import { mkdir, rm } from 'fs/promises'
-import { exec } from 'child_process'
-import { promisify } from 'util'
-import path from 'path'
-import { extract } from 'tar'
-
-const execAsync = promisify(exec)
+import { execInLoginShell, resolveCommandPath } from '../utils/login-shell'
 
 export interface InstallProgress {
   stage:
-    | 'downloading-node'
-    | 'extracting-node'
+    | 'checking-requirements'
     | 'installing-openclaw'
     | 'verifying'
     | 'complete'
@@ -23,40 +14,26 @@ export interface InstallProgress {
 
 export type ProgressCallback = (progress: InstallProgress) => void
 
-export class InstallerService {
-  private runtimeDir = path.join(app.getPath('userData'), 'runtime')
-  private nodeVersion = '22.12.0'
+const DEFAULT_OPENCLAW_SPEC = 'openclaw@latest'
 
+export class InstallerService {
   async install(onProgress: ProgressCallback): Promise<void> {
     try {
-      // Ensure runtime directory exists
-      if (!existsSync(this.runtimeDir)) {
-        mkdirSync(this.runtimeDir, { recursive: true })
-      }
-
-      // Step 1: Download Node.js
+      // Step 1: Check Node.js + npm
       onProgress({
-        stage: 'downloading-node',
+        stage: 'checking-requirements',
         progress: 0,
-        message: 'Downloading Node.js runtime...',
+        message: 'Checking Node.js/npm...',
       })
-      await this.downloadNode(onProgress)
-
-      // Step 2: Extract Node.js
-      onProgress({
-        stage: 'extracting-node',
-        progress: 40,
-        message: 'Extracting Node.js...',
-      })
-      await this.extractNode()
+      await this.verifyNodeAndNpm()
 
       // Step 3: Install OpenClaw
       onProgress({
         stage: 'installing-openclaw',
-        progress: 60,
-        message: 'Installing OpenClaw...',
+        progress: 40,
+        message: `Installing OpenClaw globally (${DEFAULT_OPENCLAW_SPEC})...`,
       })
-      await this.installOpenClaw(onProgress)
+      await this.installOpenClawGlobal(onProgress)
 
       // Step 4: Verify installation
       onProgress({
@@ -84,147 +61,28 @@ export class InstallerService {
     }
   }
 
-  private getNodeDownloadUrl(): string {
-    const platform = process.platform
-    const arch = process.arch
-
-    let platformStr: string
-    let ext: string
-
-    switch (platform) {
-      case 'darwin':
-        platformStr = 'darwin'
-        ext = 'tar.gz'
-        break
-      case 'win32':
-        platformStr = 'win'
-        ext = 'zip'
-        break
-      case 'linux':
-        platformStr = 'linux'
-        ext = 'tar.gz'
-        break
-      default:
-        throw new Error(`Unsupported platform: ${platform}`)
-    }
-
-    let archStr: string
-    switch (arch) {
-      case 'x64':
-        archStr = 'x64'
-        break
-      case 'arm64':
-        archStr = 'arm64'
-        break
-      default:
-        throw new Error(`Unsupported architecture: ${arch}`)
-    }
-
-    return `https://nodejs.org/dist/v${this.nodeVersion}/node-v${this.nodeVersion}-${platformStr}-${archStr}.${ext}`
-  }
-
-  private async downloadNode(onProgress: ProgressCallback): Promise<string> {
-    const url = this.getNodeDownloadUrl()
-    const downloadPath = path.join(this.runtimeDir, 'node-download.tar.gz')
-
-    return new Promise((resolve, reject) => {
-      const request = net.request(url)
-
-      request.on('response', (response) => {
-        if (response.statusCode !== 200) {
-          reject(
-            new Error(`Failed to download Node.js: ${response.statusCode}`)
-          )
-          return
-        }
-
-        const totalSize =
-          parseInt(response.headers['content-length'] as string, 10) || 0
-        let downloadedSize = 0
-
-        const fileStream = createWriteStream(downloadPath)
-
-        response.on('data', (chunk: Buffer) => {
-          fileStream.write(chunk)
-          downloadedSize += chunk.length
-          if (totalSize > 0) {
-            const progress = Math.round((downloadedSize / totalSize) * 40)
-            onProgress({
-              stage: 'downloading-node',
-              progress,
-              message: `Downloading Node.js... ${Math.round((downloadedSize / totalSize) * 100)}%`,
-            })
-          }
-        })
-
-        response.on('end', () => {
-          fileStream.end()
-          resolve(downloadPath)
-        })
-
-        response.on('error', reject)
-      })
-
-      request.on('error', reject)
-      request.end()
+  private async verifyNodeAndNpm(): Promise<void> {
+    // Require Node.js >= 22
+    const { stdout: nodeVersionOutput } = await execInLoginShell('node --version', {
+      timeoutMs: 10_000,
     })
+    const nodeVersion = nodeVersionOutput.trim()
+    const major = parseInt(nodeVersion.replace(/^v/, '').split('.')[0] || '0', 10)
+    if (!Number.isFinite(major) || major < 22) {
+      throw new Error(`Node.js v22+ required (found ${nodeVersion || 'unknown'})`)
+    }
+
+    // Require npm
+    await execInLoginShell('npm --version', { timeoutMs: 10_000 })
   }
 
-  private async extractNode(): Promise<void> {
-    const downloadPath = path.join(this.runtimeDir, 'node-download.tar.gz')
-    const nodeDir = path.join(this.runtimeDir, 'node')
-
-    // Remove existing node directory
-    if (existsSync(nodeDir)) {
-      await rm(nodeDir, { recursive: true })
-    }
-    await mkdir(nodeDir, { recursive: true })
-
-    if (process.platform === 'win32') {
-      // Use PowerShell for Windows
-      await execAsync(
-        `powershell -Command "Expand-Archive -Path '${downloadPath}' -DestinationPath '${nodeDir}' -Force"`
-      )
-    } else {
-      // Use tar for macOS/Linux
-      await extract({
-        file: downloadPath,
-        cwd: nodeDir,
-        strip: 1, // Remove the top-level directory
-      })
-    }
-
-    // Make node executable
-    if (process.platform !== 'win32') {
-      const nodeBin = path.join(nodeDir, 'bin', 'node')
-      if (existsSync(nodeBin)) {
-        chmodSync(nodeBin, 0o755)
-      }
-    }
-
-    // Cleanup download
-    await rm(downloadPath, { force: true })
-  }
-
-  private async installOpenClaw(onProgress: ProgressCallback): Promise<void> {
-    const nodeDir = path.join(this.runtimeDir, 'node')
-    const npmPath =
-      process.platform === 'win32'
-        ? path.join(nodeDir, 'npm.cmd')
-        : path.join(nodeDir, 'bin', 'npm')
-
-    // Install openclaw package
-    const installCmd = `"${npmPath}" install openclaw --prefix "${this.runtimeDir}"`
-
-    await execAsync(installCmd, {
-      env: {
-        ...process.env,
-        PATH:
-          process.platform === 'win32'
-            ? nodeDir
-            : `${path.join(nodeDir, 'bin')}:${process.env.PATH}`,
-      },
-    })
+  private async installOpenClawGlobal(onProgress: ProgressCallback): Promise<void> {
+    const spec = process.env.CLAWUI_OPENCLAW_SPEC || DEFAULT_OPENCLAW_SPEC
+    await execInLoginShell(
+      // Keep it quiet-ish but still show errors
+      `npm --no-fund --no-audit install -g ${spec}`,
+      { timeoutMs: 10 * 60_000 }
+    )
 
     onProgress({
       stage: 'installing-openclaw',
@@ -234,26 +92,16 @@ export class InstallerService {
   }
 
   private async verify(): Promise<void> {
-    const nodeDir = path.join(this.runtimeDir, 'node')
-    const nodePath =
-      process.platform === 'win32'
-        ? path.join(nodeDir, 'node.exe')
-        : path.join(nodeDir, 'bin', 'node')
+    const openclawPath = await resolveCommandPath('openclaw')
+    if (!openclawPath) throw new Error('OpenClaw installation verification failed: openclaw not found in PATH')
 
-    if (!existsSync(nodePath)) {
-      throw new Error('Node.js installation verification failed')
-    }
-
-    const openclawPath = path.join(this.runtimeDir, 'node_modules', 'openclaw')
-    if (!existsSync(openclawPath)) {
-      throw new Error('OpenClaw installation verification failed')
-    }
+    const { stdout } = await execInLoginShell('openclaw --version', { timeoutMs: 10_000 })
+    if (!stdout.trim()) throw new Error('OpenClaw installation verification failed: could not read version')
   }
 
   async uninstall(): Promise<void> {
-    if (existsSync(this.runtimeDir)) {
-      await rm(this.runtimeDir, { recursive: true })
-    }
+    // Best-effort uninstall; this might fail on systems where global npm needs extra permissions.
+    await execInLoginShell('npm uninstall -g openclaw', { timeoutMs: 5 * 60_000 })
   }
 }
 

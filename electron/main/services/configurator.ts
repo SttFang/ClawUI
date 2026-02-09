@@ -40,7 +40,7 @@ export class ConfiguratorService {
   private configPath = path.join(this.configDir, 'openclaw.json')
 
   async configureSubscription(config: SubscriptionConfig): Promise<void> {
-    onboardingLog.info('Configuring subscription mode')
+    onboardingLog.info('[config.subscription]')
     const openclawConfig: OpenClawConfig = {
       proxy: {
         url: config.proxyUrl,
@@ -56,7 +56,7 @@ export class ConfiguratorService {
   }
 
   async configureBYOK(keys: BYOKConfig): Promise<void> {
-    onboardingLog.info('Configuring BYOK mode')
+    onboardingLog.info('[config.byok]', `providers=${[keys.anthropic ? 'anthropic' : '', keys.openai ? 'openai' : ''].filter(Boolean).join(',')}`)
     const openclawConfig: OpenClawConfig = {
       models: {},
       server: {
@@ -113,7 +113,7 @@ export class ConfiguratorService {
     }
 
     await writeFile(this.configPath, JSON.stringify(config, null, 2), 'utf-8')
-    onboardingLog.info('Config written to', this.configPath)
+    onboardingLog.info('[config.written]', this.configPath)
   }
 
   async validateApiKey(

@@ -35,3 +35,12 @@ export {
   DialogFooter,
 } from './dialog'
 export { Select, type SelectProps } from './select'
+export {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  ChartStyle,
+  type ChartConfig,
+} from './chart'

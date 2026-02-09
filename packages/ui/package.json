@@ -36,11 +36,16 @@
     "./tabs": {
       "types": "./src/tabs.tsx",
       "default": "./src/tabs.tsx"
+    },
+    "./chart": {
+      "types": "./src/chart.tsx",
+      "default": "./src/chart.tsx"
     }
   },
   "peerDependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "recharts": ">=2.0.0"
   },
   "dependencies": {
     "@radix-ui/react-progress": "^1.1.8",

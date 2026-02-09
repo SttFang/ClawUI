@@ -11,6 +11,9 @@ import { registerAppHandlers } from './ipc/app'
 import { registerOnboardingHandlers } from './ipc/onboarding'
 import { registerChatHandlers } from './ipc/chat'
 import { registerUsageHandlers } from './ipc/usage'
+import { ClawUIStateService } from './services/clawui-state'
+import { registerStateHandlers } from './ipc/state'
+import { registerModelsHandlers } from './ipc/models'
 
 // Initialise logging before anything else
 initLogger()
@@ -19,6 +22,7 @@ initLogger()
 const gatewayService = new GatewayService()
 const configService = new ConfigService()
 const updaterService = new UpdaterService()
+const clawUIStateService = new ClawUIStateService()
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -77,6 +81,8 @@ app.whenReady().then(async () => {
   registerConfigHandlers(ipcMain, configService)
   registerAppHandlers(ipcMain, updaterService)
   registerOnboardingHandlers()
+  registerStateHandlers(ipcMain, clawUIStateService)
+  registerModelsHandlers(ipcMain)
 
   // Create the main window
   const mainWindow = createWindow()
@@ -87,6 +93,7 @@ app.whenReady().then(async () => {
 
   // Initialize services
   try {
+    await clawUIStateService.initialize()
     await configService.initialize()
     // Auto-start gateway if configured
     const config = await configService.getConfig()

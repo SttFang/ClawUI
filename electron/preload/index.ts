@@ -89,6 +89,11 @@ contextBridge.exposeInMainWorld('electron', {
     set: (config: unknown) => ipcRenderer.invoke('config:set', config),
     getPath: () => ipcRenderer.invoke('config:path'),
   },
+  state: {
+    get: () => ipcRenderer.invoke('state:get'),
+    patch: (partial: unknown) => ipcRenderer.invoke('state:patch', partial),
+    getPath: () => ipcRenderer.invoke('state:path'),
+  },
   subscription: {
     login: (credentials: { email: string; password: string }) =>
       ipcRenderer.invoke('subscription:login', credentials),
@@ -154,5 +159,8 @@ contextBridge.exposeInMainWorld('electron', {
     cost: (params?: Record<string, unknown>) => ipcRenderer.invoke('usage:cost', params),
     timeseries: (params?: Record<string, unknown>) => ipcRenderer.invoke('usage:timeseries', params),
     logs: (params?: Record<string, unknown>) => ipcRenderer.invoke('usage:logs', params),
+  },
+  models: {
+    status: () => ipcRenderer.invoke('models:status'),
   },
 })

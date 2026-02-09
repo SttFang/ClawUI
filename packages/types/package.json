@@ -12,6 +12,9 @@
     "./config": "./src/config.ts",
     "./gateway": "./src/gateway.ts",
     "./subscription": "./src/subscription.ts",
-    "./app": "./src/app.ts"
+    "./app": "./src/app.ts",
+    "./usage": "./src/usage.ts",
+    "./clawui": "./src/clawui.ts",
+    "./models": "./src/models.ts"
   }
 }

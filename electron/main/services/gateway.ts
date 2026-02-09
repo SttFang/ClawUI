@@ -98,12 +98,13 @@ export class GatewayService extends EventEmitter {
       return
     }
 
+    const t0 = Date.now()
     this.setStatus('starting')
 
     try {
       // If a gateway is already running (maybe started outside ClawUI), just mark it running.
       if (await this.isGatewayReachable()) {
-        gatewayLog.info('Detected running gateway on port', this.port)
+        gatewayLog.info('[gateway.started]', `port=${this.port}`, 'source=external', `durationMs=${Date.now() - t0}`)
         this.setStatus('running')
         return
       }
@@ -124,7 +125,7 @@ export class GatewayService extends EventEmitter {
       const gatewayCmd = `openclaw gateway --port ${this.port}`
       const { file: command, args: fullArgs } = buildLoginShellInvocation(gatewayCmd)
 
-      gatewayLog.info('Starting:', command, fullArgs.join(' '))
+      gatewayLog.info('[gateway.spawn]', command, fullArgs.join(' '))
 
       // Start OpenClaw Gateway as subprocess
       this.process = spawn(command, fullArgs, {
@@ -148,12 +149,12 @@ export class GatewayService extends EventEmitter {
       })
 
       this.process.on('error', (error) => {
-        gatewayLog.error('Failed to start:', error)
+        gatewayLog.error('[gateway.error]', error.message, `durationMs=${Date.now() - t0}`)
         this.setStatus('error')
       })
 
       this.process.on('exit', (code, signal) => {
-        gatewayLog.info('Process exited with code', code, 'signal', signal)
+        gatewayLog.info('[gateway.exit]', `code=${code}`, `signal=${signal}`)
         if (this.status !== 'stopped') {
           this.setStatus('stopped')
         }
@@ -169,7 +170,7 @@ export class GatewayService extends EventEmitter {
         this.setStatus('running')
       }
     } catch (error) {
-      gatewayLog.error('Failed to start:', error)
+      gatewayLog.error('[gateway.start.failed]', error, `durationMs=${Date.now() - t0}`)
       this.setStatus('error')
       throw error
     }
@@ -181,7 +182,7 @@ export class GatewayService extends EventEmitter {
       try {
         await execInLoginShell('openclaw gateway stop', { timeoutMs: 30_000 })
       } catch (error) {
-        gatewayLog.warn('Failed to stop gateway via CLI:', error)
+        gatewayLog.warn('[gateway.stop.failed]', 'CLI stop failed:', error)
       }
 
       // Re-check reachability; don't lie to the UI.
@@ -219,7 +220,11 @@ export class GatewayService extends EventEmitter {
   }
 
   private setStatus(status: GatewayStatus): void {
+    const prev = this.status
     this.status = status
+    if (prev !== status) {
+      gatewayLog.info('[gateway.status]', `${prev} -> ${status}`)
+    }
     this.emit('status-changed', status)
   }
 }

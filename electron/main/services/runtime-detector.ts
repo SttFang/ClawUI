@@ -27,7 +27,8 @@ export class RuntimeDetectorService {
   private configPath = path.join(homedir(), '.openclaw', 'openclaw.json')
 
   async detect(): Promise<RuntimeStatus> {
-    detectorLog.info('Starting detection...')
+    const t0 = Date.now()
+    detectorLog.info('[detect.start]')
     const [nodeResult, openclawResult, configResult] = await Promise.all([
       this.detectNode(),
       this.detectOpenClaw(),
@@ -41,10 +42,11 @@ export class RuntimeDetectorService {
       configPath: this.configPath,
     }
     detectorLog.info(
-      'Detection complete:',
+      '[detect.complete]',
       `node=${result.nodeVersion ?? 'n/a'}`,
       `openclaw=${result.openclawVersion ?? 'n/a'}`,
       `config=${result.configExists ? (result.configValid ? 'valid' : 'invalid') : 'missing'}`,
+      `durationMs=${Date.now() - t0}`,
     )
     return result
   }
@@ -72,6 +74,7 @@ export class RuntimeDetectorService {
 
     // Check system Node.js (via login shell so PATH matches user's terminal)
     try {
+      const t0 = Date.now()
       const { stdout: versionOutput } = await execInLoginShell('node --version', {
         timeoutMs: 5_000,
       })
@@ -81,22 +84,22 @@ export class RuntimeDetectorService {
       // Check if version >= 22
       const majorVersion = parseInt(version.replace('v', '').split('.')[0], 10)
       if (majorVersion >= 22) {
+        detectorLog.info('[detect.node]', `version=${version}`, `path=${nodePath}`, `durationMs=${Date.now() - t0}`)
         return {
           nodeInstalled: true,
           nodeVersion: version,
           nodePath,
         }
       }
+      detectorLog.warn('[detect.node]', `version=${version} (<22, unsupported)`, `durationMs=${Date.now() - t0}`)
       return {
         nodeInstalled: false,
         nodeVersion: version,
         nodePath: null,
       }
     } catch {
+      detectorLog.warn('[detect.node]', 'not found')
       return {
-        nodeInstalled: false,
-        nodeVersion: null,
-        nodePath: null,
       }
     }
   }
@@ -116,7 +119,7 @@ export class RuntimeDetectorService {
           { timeoutMs: 5_000 }
         )
         const version = versionOutput.trim() || 'unknown'
-        detectorLog.info('Found OpenClaw:', version, 'at', openclawPath)
+        detectorLog.info('[detect.openclaw]', `version=${version}`, `path=${openclawPath}`)
         return {
           openclawInstalled: true,
           openclawVersion: version,
@@ -124,10 +127,10 @@ export class RuntimeDetectorService {
         }
       }
     } catch (error) {
-      detectorLog.warn('Failed to detect OpenClaw:', error)
+      detectorLog.warn('[detect.openclaw]', 'detection failed:', error)
     }
 
-    detectorLog.info('OpenClaw not installed')
+    detectorLog.info('[detect.openclaw]', 'not installed')
     return {
       openclawInstalled: false,
       openclawVersion: null,

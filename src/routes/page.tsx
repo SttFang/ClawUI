@@ -6,7 +6,7 @@ import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom'
 import { Streamdown } from 'streamdown'
 import { code } from '@streamdown/code'
 import { mermaid } from '@streamdown/mermaid'
-import { math } from '@streamdown/math'
+import { createMathPlugin } from '@streamdown/math'
 import { cjk } from '@streamdown/cjk'
 import { createOpenClawChatTransport, type OpenClawChatTransportAdapter } from '@clawui/claw-sse'
 import { Button, ScrollArea } from '@clawui/ui'
@@ -16,7 +16,13 @@ import { cn } from '@/lib/utils'
 import { useChatStore, selectCurrentSession, selectSessions } from '@/store/chat'
 import { useGatewayStore, selectIsGatewayRunning } from '@/store/gateway'
 
-const STREAMDOWN_PLUGINS = { code, mermaid, math, cjk }
+const STREAMDOWN_PLUGINS = {
+  code,
+  mermaid,
+  // OpenClaw 输出里经常用 `$...$` 做行内公式；这里显式开启。
+  math: createMathPlugin({ singleDollarTextMath: true }),
+  cjk,
+}
 
 function createRendererOpenClawAdapter(): OpenClawChatTransportAdapter {
   let connectPromise: Promise<void> | null = null
@@ -72,11 +78,44 @@ function ScrollToBottomButton() {
 
 function MessageText(props: { text: string; isAnimating: boolean }) {
   const { text, isAnimating } = props
+  const normalized = normalizeMathDelimiters(text)
   return (
-    <Streamdown plugins={STREAMDOWN_PLUGINS} mode={isAnimating ? 'streaming' : 'static'} isAnimating={isAnimating}>
-      {text}
+    <Streamdown
+      plugins={STREAMDOWN_PLUGINS}
+      mode={isAnimating ? 'streaming' : 'static'}
+      isAnimating={isAnimating}
+      parseIncompleteMarkdown
+      className="break-words"
+    >
+      {normalized}
     </Streamdown>
   )
+}
+
+function normalizeMathDelimiters(markdown: string): string {
+  // 将 `\\( ... \\)` / `\\[ ... \\]` 转成 remark-math 可解析的 `$` / `$$`。
+  // 为了避免破坏 fenced code block，这里只在非 ``` fence 区域做替换。
+  const lines = markdown.split('\n')
+  let inFence = false
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? ''
+
+    if (line.trimStart().startsWith('```')) {
+      inFence = !inFence
+      continue
+    }
+
+    if (inFence) continue
+
+    lines[i] = line
+      .replaceAll('\\[', '$$')
+      .replaceAll('\\]', '$$')
+      .replaceAll('\\(', '$')
+      .replaceAll('\\)', '$')
+  }
+
+  return lines.join('\n')
 }
 
 function ToolCard(props: { part: DynamicToolUIPart }) {
@@ -167,9 +206,17 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* Messages */}
-      <StickToBottom className="relative flex-1 overflow-auto p-4" resize="smooth" initial="smooth">
+      <StickToBottom
+        className={cn(
+          'relative min-h-0 flex-1 overflow-y-auto overscroll-contain p-4',
+          // 允许触控/触控板在该区域垂直滚动
+          'touch-pan-y'
+        )}
+        resize="smooth"
+        initial="smooth"
+      >
         <StickToBottom.Content className="mx-auto flex w-full max-w-3xl flex-col gap-4">
           {chat.messages.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
@@ -193,14 +240,19 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
                   key={message.id}
                   className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}
                 >
-                  <div className={cn('w-full max-w-[80%]', isUser ? 'text-right' : 'text-left')}>
+                  <div
+                    className={cn(
+                      'min-w-0 max-w-[85%] sm:max-w-[75%]',
+                      isUser ? 'ml-auto text-right' : 'mr-auto text-left'
+                    )}
+                  >
                     {isUser ? (
-                      <div className="rounded-xl bg-primary px-4 py-3 text-primary-foreground">
+                      <div className="inline-block max-w-full rounded-xl bg-primary px-4 py-3 text-primary-foreground">
                         <MessageParts message={message} streaming={false} />
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="rounded-xl bg-muted px-4 py-3">
+                        <div className="inline-block max-w-full rounded-xl bg-muted px-4 py-3">
                           <MessageParts message={message} streaming={streaming} />
                         </div>
                       </div>
@@ -287,9 +339,9 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-0">
       {/* Sessions sidebar */}
-      <div className="w-64 border-r bg-card flex flex-col">
+      <div className="flex min-h-0 w-64 flex-col border-r bg-card">
         <div className="p-4 border-b">
           <Button onClick={() => createSession()} className="w-full" variant="outline">
             <Plus className="w-4 h-4 mr-2" />
@@ -297,7 +349,7 @@ export default function ChatPage() {
           </Button>
         </div>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="min-h-0 flex-1">
           <div className="p-2 space-y-1">
             {sessions.map((session) => (
               <div
@@ -329,7 +381,7 @@ export default function ChatPage() {
       </div>
 
       {/* Chat area */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Config Banner */}
         {configValid === false && showBanner ? (
           <div className="p-4 pb-0">

@@ -1,167 +1,18 @@
 import { useEffect, useState } from 'react'
+import { Button } from '@clawui/ui'
+import { ExternalLink, Puzzle } from 'lucide-react'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Button,
-  Switch,
-  Input,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  Label,
-} from '@clawui/ui'
-import {
-  Puzzle,
-  Download,
-  Trash2,
-  ExternalLink,
-  Settings,
-  Search,
-  Sparkles,
-  Zap,
-  Link,
-  Wrench,
-} from 'lucide-react'
-import {
-  usePluginsStore,
+  selectCategoryFilter,
   selectFilteredPlugins,
   selectIsLoading,
   selectSearchQuery,
-  selectCategoryFilter,
   type Plugin,
-  type PluginCategory,
-  type PluginConfigSchema,
+  usePluginsStore,
 } from '@/store/plugins'
-
-const categoryIcons: Record<PluginCategory, React.ReactNode> = {
-  ai: <Sparkles className="w-4 h-4" />,
-  productivity: <Zap className="w-4 h-4" />,
-  integration: <Link className="w-4 h-4" />,
-  utility: <Wrench className="w-4 h-4" />,
-}
-
-const categoryLabels: Record<PluginCategory | 'all', string> = {
-  all: 'All',
-  ai: 'AI',
-  productivity: 'Productivity',
-  integration: 'Integration',
-  utility: 'Utility',
-}
-
-interface PluginConfigDialogProps {
-  plugin: Plugin | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSave: (id: string, config: Record<string, unknown>) => void
-}
-
-function PluginConfigDialog({ plugin, open, onOpenChange, onSave }: PluginConfigDialogProps) {
-  const [config, setConfig] = useState<Record<string, unknown>>({})
-
-  useEffect(() => {
-    if (plugin) {
-      setConfig(plugin.config || getDefaultConfig(plugin.configSchema))
-    }
-  }, [plugin])
-
-  const getDefaultConfig = (schema?: PluginConfigSchema): Record<string, unknown> => {
-    if (!schema) return {}
-    const defaults: Record<string, unknown> = {}
-    for (const [key, field] of Object.entries(schema)) {
-      if (field.default !== undefined) {
-        defaults[key] = field.default
-      }
-    }
-    return defaults
-  }
-
-  const handleSave = () => {
-    if (plugin) {
-      onSave(plugin.id, config)
-      onOpenChange(false)
-    }
-  }
-
-  if (!plugin?.configSchema) return null
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onClose={() => onOpenChange(false)}>
-        <DialogHeader>
-          <DialogTitle>Configure {plugin.name}</DialogTitle>
-          <DialogDescription>Adjust the settings for this plugin.</DialogDescription>
-        </DialogHeader>
-        <div className="p-6 space-y-4">
-          {Object.entries(plugin.configSchema).map(([key, field]) => (
-            <div key={key} className="space-y-2">
-              <Label htmlFor={key}>
-                {field.label}
-                {field.required && <span className="text-destructive ml-1">*</span>}
-              </Label>
-              {field.type === 'string' && (
-                <Input
-                  id={key}
-                  value={(config[key] as string) || ''}
-                  onChange={(e) => setConfig({ ...config, [key]: e.target.value })}
-                  placeholder={field.description}
-                />
-              )}
-              {field.type === 'number' && (
-                <Input
-                  id={key}
-                  type="number"
-                  value={(config[key] as number) || ''}
-                  onChange={(e) => setConfig({ ...config, [key]: Number(e.target.value) })}
-                  placeholder={field.description}
-                />
-              )}
-              {field.type === 'boolean' && (
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={(config[key] as boolean) || false}
-                    onCheckedChange={(checked) => setConfig({ ...config, [key]: checked })}
-                  />
-                  {field.description && (
-                    <span className="text-sm text-muted-foreground">{field.description}</span>
-                  )}
-                </div>
-              )}
-              {field.type === 'select' && field.options && (
-                <select
-                  id={key}
-                  value={(config[key] as string) || ''}
-                  onChange={(e) => setConfig({ ...config, [key]: e.target.value })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  {field.options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {field.description && field.type !== 'boolean' && (
-                <p className="text-xs text-muted-foreground">{field.description}</p>
-              )}
-            </div>
-          ))}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
+import type { PluginCategoryFilter } from './constants'
+import { PluginConfigDialog } from './components/PluginConfigDialog'
+import { PluginFilters } from './components/PluginFilters'
+import { PluginGrid } from './components/PluginGrid'
 
 export default function PluginsPage() {
   const plugins = usePluginsStore(selectFilteredPlugins)
@@ -183,14 +34,14 @@ export default function PluginsPage() {
   const [configDialogOpen, setConfigDialogOpen] = useState(false)
 
   useEffect(() => {
-    loadPlugins()
+    void loadPlugins()
   }, [loadPlugins])
 
   const handleToggleEnabled = (plugin: Plugin) => {
     if (plugin.enabled) {
-      disablePlugin(plugin.id)
+      void disablePlugin(plugin.id)
     } else {
-      enablePlugin(plugin.id)
+      void enablePlugin(plugin.id)
     }
   }
 
@@ -198,8 +49,6 @@ export default function PluginsPage() {
     setConfigPlugin(plugin)
     setConfigDialogOpen(true)
   }
-
-  const categories: (PluginCategory | 'all')[] = ['all', 'ai', 'productivity', 'integration', 'utility']
 
   return (
     <div className="p-6">
@@ -217,30 +66,12 @@ export default function PluginsPage() {
           </Button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search plugins..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {categories.map((category) => (
-              <Button
-                key={category}
-                variant={categoryFilter === category ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setCategoryFilter(category)}
-              >
-                {category !== 'all' && categoryIcons[category]}
-                <span className={category !== 'all' ? 'ml-1' : ''}>{categoryLabels[category]}</span>
-              </Button>
-            ))}
-          </div>
-        </div>
+        <PluginFilters
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+          categoryFilter={categoryFilter as PluginCategoryFilter}
+          onCategoryFilterChange={(category) => setCategoryFilter(category)}
+        />
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
@@ -253,71 +84,13 @@ export default function PluginsPage() {
             <p className="text-muted-foreground">Try adjusting your search or filters</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {plugins.map((plugin) => (
-              <Card key={plugin.id} className="flex flex-col">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                        {categoryIcons[plugin.category] || <Puzzle className="w-4 h-4" />}
-                      </div>
-                      <div>
-                        <CardTitle className="text-base">{plugin.name}</CardTitle>
-                        <span className="text-xs text-muted-foreground">v{plugin.version}</span>
-                      </div>
-                    </div>
-                    {plugin.installed && (
-                      <Switch
-                        checked={plugin.enabled}
-                        onCheckedChange={() => handleToggleEnabled(plugin)}
-                      />
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col">
-                  <CardDescription className="flex-1 mb-4">{plugin.description}</CardDescription>
-                  <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">by {plugin.author}</p>
-                    <div className="flex gap-2">
-                      {plugin.installed ? (
-                        <>
-                          {plugin.configSchema && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                              onClick={() => handleOpenConfig(plugin)}
-                            >
-                              <Settings className="w-4 h-4 mr-1" />
-                              Configure
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => uninstallPlugin(plugin.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          size="sm"
-                          className="w-full"
-                          onClick={() => installPlugin(plugin.id)}
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Install
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <PluginGrid
+            plugins={plugins}
+            onToggleEnabled={handleToggleEnabled}
+            onInstall={(id) => void installPlugin(id)}
+            onUninstall={(id) => void uninstallPlugin(id)}
+            onOpenConfig={handleOpenConfig}
+          />
         )}
       </div>
 
@@ -325,8 +98,9 @@ export default function PluginsPage() {
         plugin={configPlugin}
         open={configDialogOpen}
         onOpenChange={setConfigDialogOpen}
-        onSave={updatePluginConfig}
+        onSave={(id, config) => void updatePluginConfig(id, config)}
       />
     </div>
   )
 }
+

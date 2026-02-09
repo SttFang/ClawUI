@@ -1,6 +1,7 @@
 import { useGatewayStore, selectGatewayStatus } from '@/store/gateway'
 import { useChatStore, selectWsConnected } from '@/store/chat'
 import { cn } from '@/lib/utils'
+import { useTranslation } from 'react-i18next'
 
 /**
  * ConnectionStatus — 顶边栏右上角的连接状态指示器
@@ -13,10 +14,12 @@ import { cn } from '@/lib/utils'
  *   ws disconnected → 橙点 "Connecting"
  */
 export function ConnectionStatus() {
+  const { t } = useTranslation('common')
   const gatewayStatus = useGatewayStore(selectGatewayStatus)
   const wsConnected = useChatStore(selectWsConnected)
 
-  const { color, label } = getStatusDisplay(gatewayStatus, wsConnected)
+  const { color, labelKey } = getStatusDisplay(gatewayStatus, wsConnected)
+  const label = t(labelKey)
 
   return (
     <div
@@ -32,19 +35,19 @@ export function ConnectionStatus() {
 function getStatusDisplay(
   gateway: string,
   wsConnected: boolean
-): { color: string; label: string } {
+): { color: string; labelKey: string } {
   if (gateway === 'error') {
-    return { color: 'bg-red-500', label: 'Error' }
+    return { color: 'bg-red-500', labelKey: 'connection.error' }
   }
   if (gateway === 'stopped') {
-    return { color: 'bg-gray-400', label: 'Offline' }
+    return { color: 'bg-gray-400', labelKey: 'connection.offline' }
   }
   if (gateway === 'starting') {
-    return { color: 'bg-yellow-500 animate-pulse', label: 'Starting' }
+    return { color: 'bg-yellow-500 animate-pulse', labelKey: 'connection.starting' }
   }
   // gateway === 'running'
   if (wsConnected) {
-    return { color: 'bg-green-500', label: 'Connected' }
+    return { color: 'bg-green-500', labelKey: 'connection.connected' }
   }
-  return { color: 'bg-orange-400 animate-pulse', label: 'Connecting' }
+  return { color: 'bg-orange-400 animate-pulse', labelKey: 'connection.connecting' }
 }

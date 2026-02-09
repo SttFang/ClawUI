@@ -1,4 +1,5 @@
 import { ConnectionStatus } from '@/components/ConnectionStatus'
+import { LanguageManager } from '@/components/LanguageManager'
 
 /**
  * TitleBar - 应用顶边栏
@@ -13,9 +14,10 @@ import { ConnectionStatus } from '@/components/ConnectionStatus'
 export function TitleBar() {
   return (
     <div
-      className="titlebar flex h-11 w-full shrink-0 items-center justify-end border-b border-border bg-sidebar"
+      className="titlebar flex h-11 w-full shrink-0 items-center justify-end gap-1 border-b border-border bg-sidebar pr-2"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
+      <LanguageManager />
       <ConnectionStatus />
     </div>
   )

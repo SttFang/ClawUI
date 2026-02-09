@@ -20,11 +20,11 @@ export class UpdaterService {
 
     // Set up event handlers
     autoUpdater.on('checking-for-update', () => {
-      updaterLog.info('Checking for updates...')
+      updaterLog.info('[updater.checking]')
     })
 
     autoUpdater.on('update-available', (info) => {
-      updaterLog.info('Update available:', info.version)
+      updaterLog.info('[updater.available]', `version=${info.version}`)
       this.notifyWindow('update-available', {
         version: info.version,
         releaseNotes: info.releaseNotes,
@@ -33,16 +33,16 @@ export class UpdaterService {
     })
 
     autoUpdater.on('update-not-available', () => {
-      updaterLog.info('No updates available')
+      updaterLog.info('[updater.up-to-date]')
     })
 
     autoUpdater.on('download-progress', (progress) => {
-      updaterLog.info('Download progress:', Math.round(progress.percent), '%')
+      updaterLog.info('[updater.downloading]', `progress=${Math.round(progress.percent)}%`)
       this.notifyWindow('download-progress', progress)
     })
 
     autoUpdater.on('update-downloaded', (info) => {
-      updaterLog.info('Update downloaded:', info.version)
+      updaterLog.info('[updater.downloaded]', `version=${info.version}`)
       this.notifyWindow('update-downloaded', {
         version: info.version,
         releaseNotes: info.releaseNotes,
@@ -51,7 +51,7 @@ export class UpdaterService {
     })
 
     autoUpdater.on('error', (error) => {
-      updaterLog.error('Error:', error)
+      updaterLog.error('[updater.error]', error)
     })
   }
 
@@ -60,6 +60,7 @@ export class UpdaterService {
   }
 
   async checkForUpdates(): Promise<UpdateInfo | null> {
+    const t0 = Date.now()
     try {
       const result: UpdateCheckResult | null = await autoUpdater.checkForUpdates()
       if (result?.updateInfo) {
@@ -73,7 +74,7 @@ export class UpdaterService {
       }
       return null
     } catch (error) {
-      updaterLog.error('Check for updates failed:', error)
+      updaterLog.error('[updater.check.failed]', error, `durationMs=${Date.now() - t0}`)
       return null
     }
   }

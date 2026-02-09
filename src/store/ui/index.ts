@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { ipc } from '@/lib/ipc'
 
 export type Theme = 'light' | 'dark' | 'system'
 
@@ -12,6 +12,7 @@ interface UIActions {
   setTheme: (theme: Theme) => void
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
+  hydrate: (state: Partial<UIState>) => void
 }
 
 type UIStore = UIState & UIActions
@@ -35,50 +36,55 @@ const applyTheme = (theme: Theme) => {
 }
 
 export const useUIStore = create<UIStore>()(
-  persist(
-    (set) => ({
-      theme: 'system',
-      sidebarCollapsed: false,
+  (set, get) => ({
+    theme: 'system',
+    sidebarCollapsed: false,
 
-      setTheme: (theme) => {
-        set({ theme })
-        applyTheme(theme)
-      },
+    hydrate: (state) => {
+      if (state.theme) {
+        set({ theme: state.theme })
+        applyTheme(state.theme)
+      }
+      if (typeof state.sidebarCollapsed === 'boolean') {
+        set({ sidebarCollapsed: state.sidebarCollapsed })
+      }
+    },
 
-      toggleSidebar: () => {
-        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }))
-      },
+    setTheme: (theme) => {
+      set({ theme })
+      applyTheme(theme)
+      // Persist to ClawUI state (best-effort)
+      void ipc.state.patch({ ui: { theme } } as any).catch(() => {})
+    },
 
-      setSidebarCollapsed: (collapsed) => {
-        set({ sidebarCollapsed: collapsed })
-      },
-    }),
-    {
-      name: 'clawui-ui',
-      onRehydrateStorage: () => (state) => {
-        // Apply theme on rehydration
-        if (state?.theme) {
-          applyTheme(state.theme)
-        }
-      },
-    }
-  )
+    toggleSidebar: () => {
+      const next = !get().sidebarCollapsed
+      set({ sidebarCollapsed: next })
+      void ipc.state.patch({ ui: { sidebarCollapsed: next } } as any).catch(() => {})
+    },
+
+    setSidebarCollapsed: (collapsed) => {
+      set({ sidebarCollapsed: collapsed })
+      void ipc.state.patch({ ui: { sidebarCollapsed: collapsed } } as any).catch(() => {})
+    },
+  })
 )
 
-// Initialize theme on load
-export function initTheme() {
+// Initialize theme on load (uses in-memory default until hydrated).
+export function initThemeListeners() {
   const { theme } = useUIStore.getState()
   applyTheme(theme)
 
-  // Listen for system theme changes
   if (typeof window !== 'undefined') {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-      const currentTheme = useUIStore.getState().theme
-      if (currentTheme === 'system') {
-        applyTheme('system')
-      }
+      if (useUIStore.getState().theme === 'system') applyTheme('system')
     })
   }
+}
+
+// Backward-compatible alias (App.tsx expects initTheme()).
+export function initTheme() {
+  initThemeListeners()
 }
 
 // Selectors

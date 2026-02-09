@@ -22,6 +22,8 @@ import type {
   CostUsageSummary,
   UsageTimeSeries,
 } from '@clawui/types/usage'
+import type { ClawUIState } from '@clawui/types/clawui'
+import type { ModelsStatus } from '@clawui/types/models'
 
 // Re-export types for backward compatibility
 export type {
@@ -54,6 +56,11 @@ export interface ElectronAPI {
   config: {
     get: () => Promise<OpenClawConfig>
     set: (config: Partial<OpenClawConfig>) => Promise<void>
+    getPath: () => Promise<string>
+  }
+  state: {
+    get: () => Promise<ClawUIState>
+    patch: (partial: Partial<ClawUIState>) => Promise<ClawUIState>
     getPath: () => Promise<string>
   }
   subscription: {
@@ -97,6 +104,9 @@ export interface ElectronAPI {
     cost: (params?: Record<string, unknown>) => Promise<CostUsageSummary>
     timeseries: (params?: Record<string, unknown>) => Promise<UsageTimeSeries>
     logs: (params?: Record<string, unknown>) => Promise<unknown>
+  }
+  models: {
+    status: () => Promise<ModelsStatus | null>
   }
 }
 
@@ -150,6 +160,22 @@ export const ipc = {
     async getPath() {
       const api = getElectronAPI()
       return api?.config.getPath() ?? ''
+    },
+  },
+  state: {
+    async get() {
+      const api = getElectronAPI()
+      if (!api) throw new Error('Electron API not available')
+      return api.state.get()
+    },
+    async patch(partial: Partial<ClawUIState>) {
+      const api = getElectronAPI()
+      if (!api) throw new Error('Electron API not available')
+      return api.state.patch(partial)
+    },
+    async getPath() {
+      const api = getElectronAPI()
+      return api?.state.getPath() ?? ''
     },
   },
   subscription: {
@@ -291,6 +317,12 @@ export const ipc = {
       const api = getElectronAPI()
       if (!api?.usage) throw new Error('Usage API not available — restart the app')
       return api.usage.logs(params)
+    },
+  },
+  models: {
+    async status(): Promise<ModelsStatus | null> {
+      const api = getElectronAPI()
+      return api?.models.status() ?? null
     },
   },
 }

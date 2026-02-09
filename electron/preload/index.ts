@@ -139,6 +139,8 @@ contextBridge.exposeInMainWorld('electron', {
     connect: (url?: string) => ipcRenderer.invoke('chat:connect', url),
     disconnect: () => ipcRenderer.invoke('chat:disconnect'),
     send: (request: ChatRequest) => ipcRenderer.invoke('chat:send', request),
+    request: (method: string, params?: Record<string, unknown>) =>
+      ipcRenderer.invoke('chat:request', method, params),
     isConnected: () => ipcRenderer.invoke('chat:isConnected'),
     onStream: (callback: (event: ChatStreamEvent) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, data: ChatStreamEvent) => callback(data)

@@ -98,6 +98,7 @@ export interface ElectronAPI {
     connect: (url?: string) => Promise<boolean>
     disconnect: () => Promise<boolean>
     send: (request: ChatRequest) => Promise<string>
+    request: (method: string, params?: Record<string, unknown>) => Promise<unknown>
     isConnected: () => Promise<boolean>
     onStream: (callback: (event: ChatStreamEvent) => void) => () => void
     onConnected: (callback: () => void) => () => void
@@ -297,6 +298,11 @@ export const ipc = {
       const api = getElectronAPI()
       if (!api) throw new Error('Electron API not available')
       return api.chat.send(request)
+    },
+    async request(method: string, params?: Record<string, unknown>) {
+      const api = getElectronAPI()
+      if (!api) throw new Error('Electron API not available')
+      return api.chat.request(method, params)
     },
     async isConnected() {
       const api = getElectronAPI()

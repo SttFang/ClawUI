@@ -10,6 +10,7 @@ import { createMathPlugin } from '@streamdown/math'
 import { cjk } from '@streamdown/cjk'
 import { createOpenClawChatTransport, type OpenClawChatTransportAdapter } from '@clawui/claw-sse'
 import { Button, ScrollArea } from '@clawui/ui'
+import { useTranslation } from 'react-i18next'
 import { ConfigBanner } from '@/components/ConfigBanner'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
@@ -55,6 +56,7 @@ function formatJson(value: unknown): string {
 }
 
 function ScrollToBottomButton() {
+  const { t } = useTranslation('chat')
   const { isAtBottom, scrollToBottom } = useStickToBottomContext()
 
   if (isAtBottom) return null
@@ -68,10 +70,10 @@ function ScrollToBottomButton() {
         'text-muted-foreground hover:text-foreground hover:bg-background'
       )}
       onClick={() => void scrollToBottom()}
-      aria-label="Scroll to bottom"
+      aria-label={t('scrollToLatestAria')}
     >
       <ArrowDown className="h-4 w-4" />
-      <span>Jump to latest</span>
+      <span>{t('scrollToLatest')}</span>
     </button>
   )
 }
@@ -182,6 +184,8 @@ function MessageParts(props: { message: UIMessage; streaming: boolean }) {
 
 function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; isGatewayRunning: boolean }) {
   const { sessionKey, wsConnected, isGatewayRunning } = props
+  const { t } = useTranslation('chat')
+  const { t: tCommon } = useTranslation('common')
 
   const adapter = useMemo(() => createRendererOpenClawAdapter(), [])
   const transport = useMemo(() => createOpenClawChatTransport({ sessionKey, adapter }), [sessionKey, adapter])
@@ -217,20 +221,20 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
         resize="smooth"
         initial="smooth"
       >
-        <StickToBottom.Content className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-          {chat.messages.length === 0 ? (
-            <div className="text-center text-muted-foreground py-12">
-              <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Start a conversation</p>
-              <p className="text-sm mt-2">
-                {isGatewayRunning
-                  ? wsConnected
-                    ? 'Gateway connected. Send a message to begin.'
-                    : 'Gateway is running but WebSocket is not connected.'
-                  : 'Gateway is not running. Please check settings.'}
-              </p>
-            </div>
-          ) : (
+	        <StickToBottom.Content className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+	          {chat.messages.length === 0 ? (
+	            <div className="text-center text-muted-foreground py-12">
+	              <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+	              <p>{t('emptyTitle')}</p>
+	              <p className="text-sm mt-2">
+	                {isGatewayRunning
+	                  ? wsConnected
+	                    ? t('emptyHintConnected')
+	                    : t('emptyHintWsDisconnected')
+	                  : t('emptyHintGatewayStopped')}
+	              </p>
+	            </div>
+	          ) : (
             chat.messages.map((message) => {
               const isUser = message.role === 'user'
               const streaming = chat.status === 'streaming' && message.role === 'assistant'
@@ -263,35 +267,35 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
             })
           )}
 
-          {chat.error ? (
-            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              <div className="font-medium">Error</div>
-              <div className="mt-1">{chat.error.message}</div>
-              <div className="mt-3">
-                <Button variant="outline" size="sm" onClick={() => chat.clearError()}>
-                  Dismiss
-                </Button>
-              </div>
-            </div>
-          ) : null}
+	          {chat.error ? (
+	            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+	              <div className="font-medium">{t('errorTitle')}</div>
+	              <div className="mt-1">{chat.error.message}</div>
+	              <div className="mt-3">
+	                <Button variant="outline" size="sm" onClick={() => chat.clearError()}>
+	                  {tCommon('actions.close')}
+	                </Button>
+	              </div>
+	            </div>
+	          ) : null}
         </StickToBottom.Content>
 
         <ScrollToBottomButton />
       </StickToBottom>
 
       {/* Input area */}
-      <div className="border-t p-4">
-        <div className="mx-auto flex w-full max-w-3xl gap-2">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
-            className={cn(
-              'flex-1 resize-none rounded-lg border bg-background px-4 py-2',
-              'min-h-[44px] max-h-32 focus:outline-none focus:ring-2 focus:ring-ring'
-            )}
-            rows={1}
+	      <div className="border-t p-4">
+	        <div className="mx-auto flex w-full max-w-3xl gap-2">
+	          <textarea
+	            value={input}
+	            onChange={(e) => setInput(e.target.value)}
+	            onKeyDown={handleKeyDown}
+	            placeholder={t('inputPlaceholder')}
+	            className={cn(
+	              'flex-1 resize-none rounded-lg border bg-background px-4 py-2',
+	              'min-h-[44px] max-h-32 focus:outline-none focus:ring-2 focus:ring-ring'
+	            )}
+	            rows={1}
             disabled={isBusy}
           />
           <Button onClick={() => void handleSend()} disabled={!input.trim() || isBusy} size="icon">
@@ -304,22 +308,30 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
 }
 
 export default function ChatPage() {
+  const { t } = useTranslation('chat')
   const sessions = useChatStore(selectSessions)
   const currentSession = useChatStore(selectCurrentSession)
   const wsConnected = useChatStore((s) => s.wsConnected)
   const isGatewayRunning = useGatewayStore(selectIsGatewayRunning)
 
   const createSession = useChatStore((s) => s.createSession)
+  const refreshSessions = useChatStore((s) => s.refreshSessions)
   const selectSession = useChatStore((s) => s.selectSession)
   const deleteSession = useChatStore((s) => s.deleteSession)
 
   const [configValid, setConfigValid] = useState<boolean | null>(null)
   const [showBanner, setShowBanner] = useState(true)
+  const [didLoadSessions, setDidLoadSessions] = useState(false)
 
   useEffect(() => {
+    void refreshSessions().finally(() => setDidLoadSessions(true))
+  }, [refreshSessions])
+
+  useEffect(() => {
+    if (!didLoadSessions) return
     if (sessions.length > 0) return
     createSession()
-  }, [sessions.length, createSession])
+  }, [didLoadSessions, sessions.length, createSession])
 
   // Check config validity on mount
   useEffect(() => {
@@ -340,14 +352,14 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-full min-h-0">
-      {/* Sessions sidebar */}
-      <div className="flex min-h-0 w-64 flex-col border-r bg-card">
-        <div className="p-4 border-b">
-          <Button onClick={() => createSession()} className="w-full" variant="outline">
-            <Plus className="w-4 h-4 mr-2" />
-            New Session
-          </Button>
-        </div>
+	      {/* Sessions sidebar */}
+	      <div className="flex min-h-0 w-64 flex-col border-r bg-card">
+	        <div className="p-4 border-b">
+	          <Button onClick={() => createSession()} className="w-full" variant="outline">
+	            <Plus className="w-4 h-4 mr-2" />
+	            {t('newSession')}
+	          </Button>
+	        </div>
 
         <ScrollArea className="min-h-0 flex-1">
           <div className="p-2 space-y-1">
@@ -363,19 +375,19 @@ export default function ChatPage() {
               >
                 <MessageSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 <span className="flex-1 truncate text-sm">{session.name}</span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    deleteSession(session.id)
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity"
-                  aria-label="Delete session"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
+	                <button
+	                  type="button"
+	                  onClick={(e) => {
+	                    e.stopPropagation()
+	                    deleteSession(session.id)
+	                  }}
+	                  className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity"
+	                  aria-label={t('deleteSessionAria')}
+	                >
+	                  <Trash2 className="w-3 h-3" />
+	                </button>
+	              </div>
+	            ))}
           </div>
         </ScrollArea>
       </div>

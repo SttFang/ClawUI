@@ -28,6 +28,7 @@ interface ChatState {
 
 interface ChatActions {
   createSession: (name?: string) => string
+  refreshSessions: () => Promise<void>
   selectSession: (id: string | null) => void
   deleteSession: (id: string) => void
   renameSession: (id: string, name: string) => void
@@ -88,6 +89,44 @@ const generateChatRunId = (): string => {
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   ...initialState,
+
+  refreshSessions: async () => {
+    try {
+      const payload = await ipc.chat.request('sessions.list', {
+        limit: 50,
+        includeDerivedTitles: true,
+        includeLastMessage: true,
+      })
+
+      const sessions = parseSessionsListPayload(payload)
+      if (sessions.length === 0) return
+
+      // Merge into existing sessions to preserve any local UI state (e.g. in-memory messages).
+      const prevById = new Map(get().sessions.map((s) => [s.id, s]))
+      const merged = sessions.map((remote, idx) => {
+        const prev = prevById.get(remote.id)
+        if (prev) {
+          return {
+            ...prev,
+            name: remote.name,
+            updatedAt: remote.updatedAt,
+          }
+        }
+        return {
+          ...remote,
+          name: remote.name || `Session ${idx + 1}`,
+          messages: [],
+        } satisfies Session
+      })
+
+      set((state) => ({
+        sessions: merged,
+        currentSessionId: state.currentSessionId ?? merged[0]?.id ?? null,
+      }))
+    } catch (error) {
+      chatLog.warn('Failed to refresh sessions from gateway:', error)
+    }
+  },
 
   createSession: (name) => {
     const id = generateSessionId()
@@ -342,4 +381,31 @@ export function initChatStreamListener() {
   ipc.chat.onError((error: string) => {
     chatLog.error('WebSocket error:', error)
   })
+}
+
+function parseSessionsListPayload(payload: unknown): Array<Pick<Session, 'id' | 'name' | 'createdAt' | 'updatedAt'>> {
+  if (!payload || typeof payload !== 'object') return []
+  const sessionsValue = (payload as { sessions?: unknown }).sessions
+  if (!Array.isArray(sessionsValue)) return []
+
+  const out: Array<Pick<Session, 'id' | 'name' | 'createdAt' | 'updatedAt'>> = []
+  for (const item of sessionsValue) {
+    if (!item || typeof item !== 'object') continue
+    const key = (item as { key?: unknown }).key
+    if (typeof key !== 'string' || !key.trim()) continue
+
+    const derivedTitle = (item as { derivedTitle?: unknown }).derivedTitle
+    const updatedAt = (item as { updatedAt?: unknown }).updatedAt
+
+    out.push({
+      id: key,
+      name: typeof derivedTitle === 'string' && derivedTitle.trim() ? derivedTitle : key,
+      createdAt: typeof updatedAt === 'number' ? updatedAt : Date.now(),
+      updatedAt: typeof updatedAt === 'number' ? updatedAt : Date.now(),
+    })
+  }
+
+  // Newest first
+  out.sort((a, b) => b.updatedAt - a.updatedAt)
+  return out
 }

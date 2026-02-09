@@ -3,8 +3,7 @@ import { chatWebSocket, ChatRequest, ChatStreamEvent, type GatewayEventFrame } f
 import { ConfigService } from '../services/config'
 
 export function registerChatHandlers(mainWindow: BrowserWindow, configService: ConfigService): void {
-  // Connect to WebSocket
-  ipcMain.handle('chat:connect', async (_, url?: string) => {
+  async function ensureConnected(url?: string): Promise<void> {
     // Get token from config
     const config = await configService.getConfig()
     if (config?.gateway?.auth?.token) {
@@ -15,7 +14,14 @@ export function registerChatHandlers(mainWindow: BrowserWindow, configService: C
     } else if (config?.gateway?.port) {
       chatWebSocket.setGatewayUrl(`ws://127.0.0.1:${config.gateway.port}`)
     }
-    await chatWebSocket.connect()
+    if (!chatWebSocket.isConnected()) {
+      await chatWebSocket.connect()
+    }
+  }
+
+  // Connect to WebSocket
+  ipcMain.handle('chat:connect', async (_, url?: string) => {
+    await ensureConnected(url)
     return true
   })
 
@@ -29,6 +35,15 @@ export function registerChatHandlers(mainWindow: BrowserWindow, configService: C
   ipcMain.handle('chat:send', async (_, request: ChatRequest) => {
     return chatWebSocket.sendMessage(request)
   })
+
+  // Generic ACP request (e.g. sessions.list / sessions.preview).
+  ipcMain.handle(
+    'chat:request',
+    async (_, method: string, params?: Record<string, unknown>): Promise<unknown> => {
+      await ensureConnected()
+      return chatWebSocket.request(method, params)
+    },
+  )
 
   // Check connection status
   ipcMain.handle('chat:isConnected', () => {

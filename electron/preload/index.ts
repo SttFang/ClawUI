@@ -89,6 +89,13 @@ contextBridge.exposeInMainWorld('electron', {
     set: (config: unknown) => ipcRenderer.invoke('config:set', config),
     getPath: () => ipcRenderer.invoke('config:path'),
   },
+  profiles: {
+    ensure: () => ipcRenderer.invoke('profiles:ensure'),
+    patchEnvBoth: (patch: Record<string, string | null | undefined>) =>
+      ipcRenderer.invoke('profiles:patch-env-both', patch),
+    getConfigPath: (profileId: 'main' | 'configAgent') =>
+      ipcRenderer.invoke('profiles:config-path', profileId),
+  },
   state: {
     get: () => ipcRenderer.invoke('state:get'),
     patch: (partial: unknown) => ipcRenderer.invoke('state:patch', partial),

@@ -98,16 +98,16 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
     try {
       // OpenClaw 2026 uses environment variables for API keys, not "providers" key
-      const env: Record<string, string> = {}
+      const patch: Record<string, string | null> = {}
 
       if (apiKeys.anthropic) {
-        env.ANTHROPIC_API_KEY = apiKeys.anthropic
+        patch.ANTHROPIC_API_KEY = apiKeys.anthropic
       }
       if (apiKeys.openai) {
-        env.OPENAI_API_KEY = apiKeys.openai
+        patch.OPENAI_API_KEY = apiKeys.openai
       }
       if (apiKeys.openrouter) {
-        env.OPENROUTER_API_KEY = apiKeys.openrouter
+        patch.OPENROUTER_API_KEY = apiKeys.openrouter
       }
 
       // Check if Electron API is available
@@ -115,7 +115,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         throw new Error('Electron API not available. Are you running in Electron?')
       }
 
-      await ipc.config.set({ env })
+      // Double-write into both OpenClaw profiles (18789 + 19789).
+      await ipc.profiles.patchEnvBoth(patch)
       set({ isSaving: false, saveSuccess: true })
 
       // Clear success message after 3 seconds

@@ -58,6 +58,11 @@ export interface ElectronAPI {
     set: (config: Partial<OpenClawConfig>) => Promise<void>
     getPath: () => Promise<string>
   }
+  profiles: {
+    ensure: () => Promise<{ paths: { main: string; configAgent: string } }>
+    patchEnvBoth: (patch: Record<string, string | null | undefined>) => Promise<void>
+    getConfigPath: (profileId: 'main' | 'configAgent') => Promise<string>
+  }
   state: {
     get: () => Promise<ClawUIState>
     patch: (partial: Partial<ClawUIState>) => Promise<ClawUIState>
@@ -160,6 +165,23 @@ export const ipc = {
     async getPath() {
       const api = getElectronAPI()
       return api?.config.getPath() ?? ''
+    },
+  },
+  profiles: {
+    async ensure() {
+      const api = getElectronAPI()
+      if (!api?.profiles) throw new Error('Profiles API not available — restart the app')
+      return api.profiles.ensure()
+    },
+    async patchEnvBoth(patch: Record<string, string | null | undefined>) {
+      const api = getElectronAPI()
+      if (!api?.profiles) throw new Error('Profiles API not available — restart the app')
+      await api.profiles.patchEnvBoth(patch)
+    },
+    async getConfigPath(profileId: 'main' | 'configAgent') {
+      const api = getElectronAPI()
+      if (!api?.profiles) throw new Error('Profiles API not available — restart the app')
+      return api.profiles.getConfigPath(profileId)
     },
   },
   state: {

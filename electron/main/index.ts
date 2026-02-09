@@ -3,7 +3,6 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { initLogger, mainLog } from './lib/logger'
 import { GatewayService } from './services/gateway'
-import { ConfigService } from './services/config'
 import { UpdaterService } from './services/updater'
 import { registerGatewayHandlers } from './ipc/gateway'
 import { registerConfigHandlers } from './ipc/config'
@@ -14,13 +13,16 @@ import { registerUsageHandlers } from './ipc/usage'
 import { ClawUIStateService } from './services/clawui-state'
 import { registerStateHandlers } from './ipc/state'
 import { registerModelsHandlers } from './ipc/models'
+import { OpenClawProfilesService } from './services/openclaw-profiles'
+import { registerProfilesHandlers } from './ipc/profiles'
 
 // Initialise logging before anything else
 initLogger()
 
 // Services
 const gatewayService = new GatewayService()
-const configService = new ConfigService()
+const profilesService = new OpenClawProfilesService()
+const configService = profilesService.getConfigService('main')
 const updaterService = new UpdaterService()
 const clawUIStateService = new ClawUIStateService()
 
@@ -83,6 +85,7 @@ app.whenReady().then(async () => {
   registerOnboardingHandlers()
   registerStateHandlers(ipcMain, clawUIStateService)
   registerModelsHandlers(ipcMain)
+  registerProfilesHandlers(ipcMain, profilesService)
 
   // Create the main window
   const mainWindow = createWindow()
@@ -94,7 +97,7 @@ app.whenReady().then(async () => {
   // Initialize services
   try {
     await clawUIStateService.initialize()
-    await configService.initialize()
+    await profilesService.initialize()
     // Auto-start gateway if configured
     const config = await configService.getConfig()
     if (config) {

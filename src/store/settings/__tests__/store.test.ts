@@ -6,7 +6,9 @@ vi.mock('@/lib/ipc', () => ({
   ipc: {
     config: {
       get: vi.fn(),
-      set: vi.fn(),
+    },
+    profiles: {
+      patchEnvBoth: vi.fn(),
     },
     models: {
       status: vi.fn(),
@@ -189,7 +191,7 @@ describe('SettingsStore', () => {
   describe('saveApiKeys', () => {
     it('should save all API keys', async () => {
       const { ipc } = await import('@/lib/ipc')
-      ;(ipc.config.set as Mock).mockResolvedValue(undefined)
+      ;(ipc.profiles.patchEnvBoth as Mock).mockResolvedValue(undefined)
 
       useSettingsStore.setState({
         apiKeys: {
@@ -202,18 +204,16 @@ describe('SettingsStore', () => {
       const { saveApiKeys } = useSettingsStore.getState()
       await saveApiKeys()
 
-      expect(ipc.config.set).toHaveBeenCalledWith({
-        env: {
-          ANTHROPIC_API_KEY: 'sk-ant-xxx',
-          OPENAI_API_KEY: 'sk-openai-xxx',
-          OPENROUTER_API_KEY: 'sk-or-xxx',
-        },
+      expect(ipc.profiles.patchEnvBoth).toHaveBeenCalledWith({
+        ANTHROPIC_API_KEY: 'sk-ant-xxx',
+        OPENAI_API_KEY: 'sk-openai-xxx',
+        OPENROUTER_API_KEY: 'sk-or-xxx',
       })
     })
 
     it('should only save non-empty keys', async () => {
       const { ipc } = await import('@/lib/ipc')
-      ;(ipc.config.set as Mock).mockResolvedValue(undefined)
+      ;(ipc.profiles.patchEnvBoth as Mock).mockResolvedValue(undefined)
 
       useSettingsStore.setState({
         apiKeys: {
@@ -226,16 +226,14 @@ describe('SettingsStore', () => {
       const { saveApiKeys } = useSettingsStore.getState()
       await saveApiKeys()
 
-      expect(ipc.config.set).toHaveBeenCalledWith({
-        env: {
-          ANTHROPIC_API_KEY: 'sk-ant-xxx',
-        },
+      expect(ipc.profiles.patchEnvBoth).toHaveBeenCalledWith({
+        ANTHROPIC_API_KEY: 'sk-ant-xxx',
       })
     })
 
     it('should set saveSuccess on successful save', async () => {
       const { ipc } = await import('@/lib/ipc')
-      ;(ipc.config.set as Mock).mockResolvedValue(undefined)
+      ;(ipc.profiles.patchEnvBoth as Mock).mockResolvedValue(undefined)
 
       const { saveApiKeys } = useSettingsStore.getState()
       await saveApiKeys()
@@ -246,7 +244,7 @@ describe('SettingsStore', () => {
 
     it('should clear saveSuccess after 3 seconds', async () => {
       const { ipc } = await import('@/lib/ipc')
-      ;(ipc.config.set as Mock).mockResolvedValue(undefined)
+      ;(ipc.profiles.patchEnvBoth as Mock).mockResolvedValue(undefined)
 
       const { saveApiKeys } = useSettingsStore.getState()
       await saveApiKeys()
@@ -260,7 +258,7 @@ describe('SettingsStore', () => {
 
     it('should handle save error', async () => {
       const { ipc } = await import('@/lib/ipc')
-      ;(ipc.config.set as Mock).mockRejectedValue(new Error('Write failed'))
+      ;(ipc.profiles.patchEnvBoth as Mock).mockRejectedValue(new Error('Write failed'))
 
       const { saveApiKeys } = useSettingsStore.getState()
       await saveApiKeys()
@@ -275,7 +273,7 @@ describe('SettingsStore', () => {
       const { ipc } = await import('@/lib/ipc')
 
       let capturedSaving = false
-      ;(ipc.config.set as Mock).mockImplementation(() => {
+      ;(ipc.profiles.patchEnvBoth as Mock).mockImplementation(() => {
         capturedSaving = useSettingsStore.getState().isSaving
         return Promise.resolve()
       })

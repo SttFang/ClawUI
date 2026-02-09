@@ -49,56 +49,60 @@ export interface OpenClawConfig {
   }
 }
 
-const DEFAULT_CONFIG: OpenClawConfig = {
-  gateway: {
-    mode: 'local',
-    port: 18789,
-    bind: 'loopback',
-    auth: {
-      mode: 'token',
-      token: '',
-    },
-  },
-  agents: {
-    defaults: {
-      workspace: '~/.openclaw/workspace',
-      model: {
-        primary: 'anthropic/claude-sonnet-4-5-20250929',
-        fallbacks: ['openai/gpt-4o'],
+export function createDefaultConfig(port: number): OpenClawConfig {
+  return {
+    gateway: {
+      mode: 'local',
+      port,
+      bind: 'loopback',
+      auth: {
+        mode: 'token',
+        token: '',
       },
     },
-  },
-  session: {
-    scope: 'per-sender',
-    store: '~/.openclaw/agents/{agentId}/sessions/sessions.json',
-    reset: {
-      mode: 'idle',
-      idleMinutes: 60,
+    agents: {
+      defaults: {
+        workspace: '~/.openclaw/workspace',
+        model: {
+          primary: 'anthropic/claude-sonnet-4-5-20250929',
+          fallbacks: ['openai/gpt-4o'],
+        },
+      },
     },
-  },
-  channels: {},
-  tools: {
-    allow: ['group:fs', 'web_*'],
-    deny: ['exec'],
-  },
-  env: {},
-  cron: {
-    enabled: true,
-    store: '~/.openclaw/cron/jobs.json',
-  },
-  hooks: {
-    enabled: true,
-    token: 'webhook-secret',
-    path: '/hooks',
-  },
+    session: {
+      scope: 'per-sender',
+      store: '~/.openclaw/agents/{agentId}/sessions/sessions.json',
+      reset: {
+        mode: 'idle',
+        idleMinutes: 60,
+      },
+    },
+    channels: {},
+    tools: {
+      allow: ['group:fs', 'web_*'],
+      deny: ['exec'],
+    },
+    env: {},
+    cron: {
+      enabled: true,
+      store: '~/.openclaw/cron/jobs.json',
+    },
+    hooks: {
+      enabled: true,
+      token: 'webhook-secret',
+      path: '/hooks',
+    },
+  }
 }
 
 export class ConfigService {
   private configPath: string
   private config: OpenClawConfig | null = null
+  private defaultConfig: OpenClawConfig
 
-  constructor() {
-    this.configPath = join(homedir(), '.openclaw', 'openclaw.json')
+  constructor(options?: { configPath?: string; defaultConfig?: OpenClawConfig }) {
+    this.configPath = options?.configPath ?? join(homedir(), '.openclaw', 'openclaw.json')
+    this.defaultConfig = options?.defaultConfig ?? createDefaultConfig(18789)
   }
 
   async initialize(): Promise<void> {
@@ -112,8 +116,13 @@ export class ConfigService {
     // Load or create config
     if (existsSync(this.configPath)) {
       await this.loadConfig()
+      // If the config exists but is missing the gateway token, set one.
+      if (this.config && !this.config.gateway?.auth?.token) {
+        this.config.gateway.auth.token = this.generateToken()
+        await this.saveConfig()
+      }
     } else {
-      this.config = { ...DEFAULT_CONFIG }
+      this.config = { ...this.defaultConfig }
       // Generate a random token if not set
       this.config.gateway.auth.token = this.generateToken()
       await this.saveConfig()
@@ -139,8 +148,24 @@ export class ConfigService {
     }
 
     // Deep merge the partial config
-    this.config = this.deepMerge(this.config || DEFAULT_CONFIG, partial)
+    this.config = this.deepMerge(this.config || this.defaultConfig, partial)
     await this.saveConfig()
+  }
+
+  async patchEnv(patch: Record<string, string | null | undefined>): Promise<void> {
+    const cfg = (await this.getConfig()) ?? { ...this.defaultConfig }
+    const currentEnv = { ...(cfg.env || {}) } as Record<string, string>
+
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) continue
+      if (value === null) {
+        delete currentEnv[key]
+      } else {
+        currentEnv[key] = value
+      }
+    }
+
+    await this.setConfig({ env: currentEnv })
   }
 
   private async loadConfig(): Promise<void> {
@@ -149,7 +174,7 @@ export class ConfigService {
       this.config = JSON5.parse(content) as OpenClawConfig
     } catch (error) {
       configLog.error('[config.load.failed]', error)
-      this.config = { ...DEFAULT_CONFIG }
+      this.config = { ...this.defaultConfig }
     }
   }
 

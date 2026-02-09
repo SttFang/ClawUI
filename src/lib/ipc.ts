@@ -17,6 +17,11 @@ import type {
   SubscriptionStatus,
 } from '@clawui/types/subscription'
 import type { UpdateInfo } from '@clawui/types/app'
+import type {
+  SessionsUsageResult,
+  CostUsageSummary,
+  UsageTimeSeries,
+} from '@clawui/types/usage'
 
 // Re-export types for backward compatibility
 export type {
@@ -86,6 +91,12 @@ export interface ElectronAPI {
     onConnected: (callback: () => void) => () => void
     onDisconnected: (callback: () => void) => () => void
     onError: (callback: (error: string) => void) => () => void
+  }
+  usage: {
+    sessions: (params?: Record<string, unknown>) => Promise<SessionsUsageResult>
+    cost: (params?: Record<string, unknown>) => Promise<CostUsageSummary>
+    timeseries: (params?: Record<string, unknown>) => Promise<UsageTimeSeries>
+    logs: (params?: Record<string, unknown>) => Promise<unknown>
   }
 }
 
@@ -258,6 +269,28 @@ export const ipc = {
     onError(callback: (error: string) => void) {
       const api = getElectronAPI()
       return api?.chat.onError(callback) ?? (() => {})
+    },
+  },
+  usage: {
+    async sessions(params?: Record<string, unknown>) {
+      const api = getElectronAPI()
+      if (!api) throw new Error('Electron API not available')
+      return api.usage.sessions(params)
+    },
+    async cost(params?: Record<string, unknown>) {
+      const api = getElectronAPI()
+      if (!api) throw new Error('Electron API not available')
+      return api.usage.cost(params)
+    },
+    async timeseries(params?: Record<string, unknown>) {
+      const api = getElectronAPI()
+      if (!api) throw new Error('Electron API not available')
+      return api.usage.timeseries(params)
+    },
+    async logs(params?: Record<string, unknown>) {
+      const api = getElectronAPI()
+      if (!api) throw new Error('Electron API not available')
+      return api.usage.logs(params)
     },
   },
 }

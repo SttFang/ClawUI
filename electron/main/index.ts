@@ -10,6 +10,7 @@ import { registerConfigHandlers } from './ipc/config'
 import { registerAppHandlers } from './ipc/app'
 import { registerOnboardingHandlers } from './ipc/onboarding'
 import { registerChatHandlers } from './ipc/chat'
+import { registerUsageHandlers } from './ipc/usage'
 
 // Initialise logging before anything else
 initLogger()
@@ -82,6 +83,7 @@ app.whenReady().then(async () => {
 
   // Register chat handlers (needs mainWindow reference)
   registerChatHandlers(mainWindow, configService)
+  registerUsageHandlers()
 
   // Initialize services
   try {

@@ -145,4 +145,10 @@ contextBridge.exposeInMainWorld('electron', {
       return () => ipcRenderer.removeListener('chat:error', listener)
     },
   },
+  usage: {
+    sessions: (params?: Record<string, unknown>) => ipcRenderer.invoke('usage:sessions', params),
+    cost: (params?: Record<string, unknown>) => ipcRenderer.invoke('usage:cost', params),
+    timeseries: (params?: Record<string, unknown>) => ipcRenderer.invoke('usage:timeseries', params),
+    logs: (params?: Record<string, unknown>) => ipcRenderer.invoke('usage:logs', params),
+  },
 })

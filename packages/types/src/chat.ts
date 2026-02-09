@@ -36,6 +36,14 @@ export interface Session {
 export interface ChatRequest {
   sessionId: string
   message: string
+  /**
+   * Stable idempotency key / runId for this chat run.
+   *
+   * For OpenClaw WebChat, this value becomes `event chat.payload.runId`, which
+   * lets the renderer map streaming events back to the placeholder assistant
+   * message without any id-rewrite race.
+   */
+  messageId?: string
   model?: string
 }
 

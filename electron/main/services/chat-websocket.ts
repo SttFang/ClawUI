@@ -12,6 +12,11 @@ export interface ChatMessage {
 export interface ChatRequest {
   sessionId: string
   message: string
+  /**
+   * Optional stable idempotency key / runId for this chat run.
+   * If provided, it becomes `chat.send.params.idempotencyKey`.
+   */
+  messageId?: string
   model?: string
 }
 
@@ -343,7 +348,7 @@ export class ChatWebSocketService extends EventEmitter {
     }
 
     // Use a stable runId/idempotency key so we can map streaming events back to a renderer message.
-    const messageId = randomUUID()
+    const messageId = request.messageId ?? randomUUID()
     const requestId = randomUUID()
     const t0 = Date.now()
 

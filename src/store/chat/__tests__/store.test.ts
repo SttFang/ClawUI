@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
-import { useChatStore, type Session } from '../index'
+import { describe, it, expect, beforeAll, beforeEach, vi, type Mock } from 'vitest'
+import type { Session } from '../index'
 
 // Mock IPC
 vi.mock('@/lib/ipc', () => ({
@@ -17,6 +17,16 @@ vi.mock('@/lib/ipc', () => ({
   },
 }))
 
+// Avoid hanging vitest runs due to electron-log open handles in renderer logger.
+vi.mock('@/lib/logger', () => {
+  const noop = () => {}
+  return {
+    chatLog: { debug: noop, info: noop, warn: noop, error: noop },
+  }
+})
+
+let useChatStore: typeof import('../index').useChatStore
+
 const initialState = {
   sessions: [] as Session[],
   currentSessionId: null as string | null,
@@ -26,6 +36,10 @@ const initialState = {
 }
 
 describe('ChatStore', () => {
+  beforeAll(async () => {
+    ;({ useChatStore } = await import('../index'))
+  })
+
   beforeEach(() => {
     // Reset store state before each test
     useChatStore.setState(initialState)
@@ -307,14 +321,15 @@ describe('ChatStore', () => {
 
     it('should handle connection error gracefully', async () => {
       const { ipc } = await import('@/lib/ipc')
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const { chatLog } = await import('@/lib/logger')
+      const logSpy = vi.spyOn(chatLog, 'error').mockImplementation(() => {})
       ;(ipc.chat.connect as Mock).mockRejectedValue(new Error('Connection failed'))
 
       const { connectWebSocket } = useChatStore.getState()
       await connectWebSocket()
 
-      expect(consoleSpy).toHaveBeenCalled()
-      consoleSpy.mockRestore()
+      expect(logSpy).toHaveBeenCalled()
+      logSpy.mockRestore()
     })
   })
 
@@ -333,7 +348,7 @@ describe('ChatStore', () => {
   describe('sendMessage', () => {
     it('should add user message and clear input', async () => {
       const { ipc } = await import('@/lib/ipc')
-      ;(ipc.chat.send as Mock).mockResolvedValue('msg_123')
+      ;(ipc.chat.send as Mock).mockImplementation(async (req) => req.messageId ?? 'msg_123')
 
       useChatStore.setState({ wsConnected: true })
       const { createSession, setInput, sendMessage } = useChatStore.getState()
@@ -350,7 +365,7 @@ describe('ChatStore', () => {
 
     it('should create assistant placeholder message', async () => {
       const { ipc } = await import('@/lib/ipc')
-      ;(ipc.chat.send as Mock).mockResolvedValue('msg_123')
+      ;(ipc.chat.send as Mock).mockImplementation(async (req) => req.messageId ?? 'msg_123')
 
       useChatStore.setState({ wsConnected: true })
       const { createSession, sendMessage } = useChatStore.getState()
@@ -362,11 +377,16 @@ describe('ChatStore', () => {
       expect(messages).toHaveLength(2)
       expect(messages[1].role).toBe('assistant')
       expect(messages[1].isStreaming).toBe(true)
+      expect(ipc.chat.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messageId: messages[1].id,
+        })
+      )
     })
 
     it('should create session if none exists', async () => {
       const { ipc } = await import('@/lib/ipc')
-      ;(ipc.chat.send as Mock).mockResolvedValue('msg_123')
+      ;(ipc.chat.send as Mock).mockImplementation(async (req) => req.messageId ?? 'msg_123')
 
       useChatStore.setState({ wsConnected: true })
       const { sendMessage } = useChatStore.getState()

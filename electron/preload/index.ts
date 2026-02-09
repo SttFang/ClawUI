@@ -47,6 +47,10 @@ export interface SubscriptionConfig {
 export interface ChatRequest {
   sessionId: string
   message: string
+  /**
+   * Optional stable idempotency key for this chat run (maps to OpenClaw runId).
+   */
+  messageId?: string
   model?: string
 }
 

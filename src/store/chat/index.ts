@@ -61,6 +61,31 @@ const generateMessageId = () => `msg_${Date.now()}_${messageIdCounter++}`
 let sessionIdCounter = 0
 const generateSessionId = () => `session_${Date.now()}_${sessionIdCounter++}`
 
+let chatRunIdCounter = 0
+const generateChatRunId = (): string => {
+  const cryptoObj = (globalThis as unknown as { crypto?: Crypto }).crypto
+  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') return cryptoObj.randomUUID()
+
+  // Fallback for environments without crypto.randomUUID (should still be available in Electron/Chromium):
+  // generate a RFC4122 v4 UUID using getRandomValues.
+  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16)
+    cryptoObj.getRandomValues(bytes)
+    // Version 4
+    bytes[6] = (bytes[6] & 0x0f) | 0x40
+    // Variant 10xx
+    bytes[8] = (bytes[8] & 0x3f) | 0x80
+
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+  }
+
+  // Last-resort: stable-ish id. Prefer keeping it uuid-shaped to satisfy downstream validators.
+  const t = Date.now().toString(16).padStart(12, '0')
+  const c = (chatRunIdCounter++).toString(16).padStart(12, '0')
+  return `00000000-0000-4000-8000-${t.slice(-12)}${c.slice(-12)}`.slice(0, 36)
+}
+
 export const useChatStore = create<ChatStore>((set, get) => ({
   ...initialState,
 
@@ -204,7 +229,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     setLoading(true)
 
     // Add placeholder assistant message
-    const placeholderMessageId = generateMessageId()
+    const runId = generateChatRunId()
     set((state) => {
       const sid = state.currentSessionId
       if (!sid) return state
@@ -217,7 +242,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 messages: [
                   ...s.messages,
                   {
-                    id: placeholderMessageId,
+                    id: runId,
                     role: 'assistant' as const,
                     content: '',
                     timestamp: Date.now(),
@@ -233,29 +258,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       if (wsConnected) {
-        // Send via WebSocket - the actual messageId will be returned
-        const messageId = await ipc.chat.send({
+        await ipc.chat.send({
           sessionId: sessionId!,
           message: content,
+          messageId: runId,
         })
-        // Update the placeholder message with the actual messageId
-        set((state) => ({
-          sessions: state.sessions.map((s) => ({
-            ...s,
-            messages: s.messages.map((m) =>
-              m.id === placeholderMessageId ? { ...m, id: messageId } : m
-            ),
-          })),
-        }))
       } else {
         // Fallback to simulated response when WebSocket is not connected
         await new Promise((resolve) => setTimeout(resolve, 1000))
-        updateMessage(placeholderMessageId, 'WebSocket not connected. Please connect to the gateway first.')
+        updateMessage(runId, 'WebSocket not connected. Please connect to the gateway first.')
         setLoading(false)
       }
     } catch (error) {
       chatLog.error('Failed to send message:', error)
-      updateMessage(placeholderMessageId, 'Error: Failed to send message to gateway.')
+      updateMessage(runId, 'Error: Failed to send message to gateway.')
       setLoading(false)
     }
   },

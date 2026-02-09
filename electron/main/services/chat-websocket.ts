@@ -190,6 +190,10 @@ export class ChatWebSocketService extends EventEmitter {
   private handleEvent(event: ACPEvent): void {
     // Map OpenClaw events to our ChatStreamEvent format
     switch (event.event) {
+      case 'connect.challenge':
+      case 'health':
+        // Expected Gateway events; not needed for current UI.
+        return
       case 'chat': {
         const payload = event.payload as {
           runId?: unknown

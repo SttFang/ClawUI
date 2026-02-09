@@ -58,7 +58,7 @@ export default function UsagePage() {
   const selectedSession = sessions.find((s) => s.key === selectedSessionKey)
 
   return (
-    <div className="p-6">
+    <div className="h-full overflow-y-auto p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         {/* Title */}
         <div>

@@ -133,8 +133,8 @@
 | `supabase-postgres-best-practices` | Postgres 性能与查询/建模最佳实践（Supabase 语境） |
 | `playwright` | 需要浏览器自动化（导航/填表/截图/录制/抓取）时使用 |
 | `agent-browser` | 需要在真实网站完成交互式操作（登录/点击/截图）时使用 |
-| `better-auth-best-practices` | Better Auth 鉴权与安全最佳实践（待安装） |
-| `web-artifacts-builder` | 构建/产出可发布的 Web 产物（静态页/截图/包）流程化（待安装） |
+| `better-auth-best-practices` | Better Auth 鉴权与安全最佳实践 |
+| `web-artifacts-builder` | 构建/产出可发布的 Web 产物（静态页/截图/包）流程化 |
 
 ### 何时使用哪个 Skill（对标 OpenClaw 的“按场景选工具”）
 
@@ -148,19 +148,8 @@
 - 在写/改 Postgres（表结构、索引、慢查询、SQL 优化、RLS）并希望对齐 Supabase 经验时：使用 `supabase-postgres-best-practices`。
 - 在需要端到端 UI 自动化（页面操作、断言、截图、数据提取）时：使用 `playwright`。
 - 在需要更偏“网站操作/流程自动化”的浏览器能力（登录、点击、表单、截图）时：使用 `agent-browser`。
-- 在做 Better Auth 相关的鉴权/会话/安全策略设计与落地时：使用 `better-auth-best-practices`（待安装）。
-- 在需要把 Web 页面/组件输出成可交付物（静态产物、截图、报告）并流程化时：使用 `web-artifacts-builder`（待安装）。
-
-### 待安装 Skills
-
-- `better-auth-best-practices`
-- `web-artifacts-builder`
-
-安装方式（示例）：
-```bash
-npx skills search better-auth-best-practices
-npx skills add <owner/repo@skill> -y -g
-```
+- 在做 Better Auth 相关的鉴权/会话/安全策略设计与落地时：使用 `better-auth-best-practices`。
+- 在需要把 Web 页面/组件输出成可交付物（静态产物、截图、报告）并流程化时：使用 `web-artifacts-builder`。
 
 安装新 skill：
 ```bash

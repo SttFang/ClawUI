@@ -39,7 +39,14 @@ export function createOpenClawChatStream(params: {
 
   return new ReadableStream<UIMessageChunk>({
     start(controller) {
-      let runId: string | null = null
+      // `chat.send` 的 idempotencyKey（ClawUI 侧用作 messageId）不一定等于 agent 内部 runId。
+      // OpenClaw 可能会用内部 runId 来广播 `event chat` / `event agent`，这会导致严格按 runId 过滤时“收不到流”。
+      //
+      // 这里做一个“自动绑定”：
+      // - clientRunId：本次 chat.send 的稳定 idempotencyKey（用于 abort）
+      // - observedRunId：从 event chat/agent 首次观测到的内部 runId（用于匹配后续事件）
+      let clientRunId: string | null = null
+      let observedRunId: string | null = null
       let closed = false
       let currentText = ''
       let didStartText = false
@@ -49,6 +56,27 @@ export function createOpenClawChatStream(params: {
       const textPartId = 'text-1'
       const buffered: GatewayEventFrame[] = []
       let unsubscribe: (() => void) | null = null
+
+      const isCurrentRun = (rid: string) => {
+        if (clientRunId && rid === clientRunId) return true
+        if (observedRunId && rid === observedRunId) return true
+        return false
+      }
+
+      const maybeAdoptObservedRunId = (rid: string) => {
+        if (!rid) return
+        // Prefer keeping observedRunId stable once chosen.
+        if (observedRunId) return
+        // If the server uses a different internal id than our idempotency key, bind to it.
+        if (clientRunId && rid !== clientRunId) {
+          observedRunId = rid
+          return
+        }
+        // If clientRunId is not yet known (should be rare), bind anyway.
+        if (!clientRunId) {
+          observedRunId = rid
+        }
+      }
 
       const closeOnce = () => {
         if (closed) return
@@ -102,11 +130,11 @@ export function createOpenClawChatStream(params: {
       }
 
       const onAbort = () => {
-        if (!runId) {
+        if (!clientRunId) {
           finishOnce({ kind: 'abort', reason: 'aborted' })
           return
         }
-        void adapter.abortChat?.({ sessionKey, runId }).catch(() => {})
+        void adapter.abortChat?.({ sessionKey, runId: clientRunId }).catch(() => {})
         finishOnce({ kind: 'abort', reason: 'aborted' })
       }
 
@@ -136,7 +164,8 @@ export function createOpenClawChatStream(params: {
 
       const handleChatEvent = (evt: OpenClawChatEvent) => {
         if (evt.sessionKey !== sessionKey) return
-        if (evt.runId !== runId) return
+        maybeAdoptObservedRunId(evt.runId)
+        if (!isCurrentRun(evt.runId)) return
 
         if (evt.state === 'delta' || evt.state === 'final') {
           lastChatEventAt = Date.now()
@@ -164,7 +193,8 @@ export function createOpenClawChatStream(params: {
       }
 
       const handleAssistantEvent = (evt: OpenClawAgentEventPayload) => {
-        if (evt.runId !== runId) return
+        maybeAdoptObservedRunId(evt.runId)
+        if (!isCurrentRun(evt.runId)) return
         if (evt.stream !== 'assistant') return
         // OpenClaw 的 `chat.delta` 是累计快照，最终也由 assistant.text 映射而来。
         // 过去同时消费 `agent.assistant` + `chat.delta` 会出现“重复/口吃式”拼接：
@@ -175,7 +205,8 @@ export function createOpenClawChatStream(params: {
       }
 
       const handleToolEvent = (evt: OpenClawAgentEventPayload, tool: OpenClawToolEventData) => {
-        if (evt.runId !== runId) return
+        maybeAdoptObservedRunId(evt.runId)
+        if (!isCurrentRun(evt.runId)) return
 
         const toolName = String(tool.name ?? '').trim()
         const toolCallId = String(tool.toolCallId ?? '').trim()
@@ -232,7 +263,8 @@ export function createOpenClawChatStream(params: {
       }
 
       const handleLifecycleEvent = (evt: OpenClawAgentEventPayload, lifecycle: OpenClawLifecycleEventData) => {
-        if (evt.runId !== runId) return
+        maybeAdoptObservedRunId(evt.runId)
+        if (!isCurrentRun(evt.runId)) return
         const phase = typeof lifecycle.phase === 'string' ? lifecycle.phase : null
         if (phase) {
           controller.enqueue({
@@ -277,7 +309,7 @@ export function createOpenClawChatStream(params: {
           if (typeof payload.runId !== 'string') return
           if (typeof payload.sessionKey !== 'string') return
           if (typeof payload.state !== 'string') return
-          if (!runId) return
+          if (!clientRunId) return
           handleChatEvent(payload)
           return
         }
@@ -285,10 +317,11 @@ export function createOpenClawChatStream(params: {
           const payload = frame.payload as OpenClawAgentEventPayload | undefined
           if (!payload || typeof payload !== 'object') return
           if (typeof payload.runId !== 'string') return
-          if (!runId) return
-          if (payload.runId !== runId) return
+          if (!clientRunId) return
           if (typeof payload.stream !== 'string') return
           if (!payload.data || typeof payload.data !== 'object') return
+          // Some agent events include sessionKey; if present, use it to avoid cross-session pollution.
+          if (typeof payload.sessionKey === 'string' && payload.sessionKey !== sessionKey) return
 
           if (payload.stream === 'tool') {
             handleToolEvent(payload, payload.data as unknown as OpenClawToolEventData)
@@ -305,7 +338,7 @@ export function createOpenClawChatStream(params: {
       }
 
       const handleIncomingFrame = (frame: GatewayEventFrame) => {
-        if (!runId) {
+        if (!clientRunId) {
           buffered.push(frame)
           return
         }
@@ -319,9 +352,9 @@ export function createOpenClawChatStream(params: {
         try {
           const connected = await adapter.isConnected?.()
           if (!connected) await adapter.connect?.()
-          runId = await adapter.sendChat({ sessionKey, message: userText })
+          clientRunId = await adapter.sendChat({ sessionKey, message: userText })
 
-          controller.enqueue({ type: 'start', messageId: runId })
+          controller.enqueue({ type: 'start', messageId: clientRunId })
           ensureTextStarted()
 
           for (const frame of buffered) processEventFrame(frame)

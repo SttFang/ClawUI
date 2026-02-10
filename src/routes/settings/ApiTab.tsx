@@ -100,7 +100,9 @@ export function ApiTab() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="anthropic-key">{t("settings.page.api.fallback.fields.anthropicKey")}</Label>
+          <Label htmlFor="anthropic-key">
+            {t("settings.page.api.fallback.fields.anthropicKey")}
+          </Label>
           <Input
             id="anthropic-key"
             type="password"
@@ -120,7 +122,9 @@ export function ApiTab() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="openrouter-key">{t("settings.page.api.fallback.fields.openrouterKey")}</Label>
+          <Label htmlFor="openrouter-key">
+            {t("settings.page.api.fallback.fields.openrouterKey")}
+          </Label>
           <Input
             id="openrouter-key"
             type="password"

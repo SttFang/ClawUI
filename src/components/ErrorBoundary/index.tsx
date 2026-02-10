@@ -1,7 +1,7 @@
-import { useRouteError, isRouteErrorResponse, useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { AlertTriangle } from "lucide-react";
 import { Button } from "@clawui/ui";
+import { AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { useRouteError, isRouteErrorResponse, useNavigate } from "react-router-dom";
 
 export function RouteErrorBoundary() {
   const error = useRouteError();
@@ -28,9 +28,7 @@ export function RouteErrorBoundary() {
           <Button variant="outline" onClick={() => window.location.reload()}>
             {t("errorBoundary.reload")}
           </Button>
-          <Button onClick={() => navigate("/")}>
-            {t("errorBoundary.goHome")}
-          </Button>
+          <Button onClick={() => navigate("/")}>{t("errorBoundary.goHome")}</Button>
         </div>
       </div>
     </div>

@@ -1,11 +1,4 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Button,
-} from "@clawui/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "@clawui/ui";
 import { Server } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -29,11 +22,7 @@ export function GatewayTab() {
   const [serviceBusy, setServiceBusy] = useState(false);
   const [serviceMessage, setServiceMessage] = useState<string | null>(null);
 
-  const serviceAction = (
-    action: () => Promise<void>,
-    successKey: string,
-    failKey: string,
-  ) => {
+  const serviceAction = (action: () => Promise<void>, successKey: string, failKey: string) => {
     setServiceBusy(true);
     setServiceMessage(null);
     action()

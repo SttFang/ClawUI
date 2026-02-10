@@ -1,6 +1,5 @@
-import ChatLayout from './ChatLayout'
+import ChatLayout from "./ChatLayout";
 
 export default function ChatPage() {
-  return <ChatLayout />
+  return <ChatLayout />;
 }
-

@@ -1,8 +1,8 @@
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import net from "net";
-import { gatewayLog } from "../lib/logger";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
+import { gatewayLog } from "../lib/logger";
 import { buildLoginShellInvocation, execInLoginShell } from "../utils/login-shell";
 
 export type GatewayStatus = "stopped" | "starting" | "running" | "error";

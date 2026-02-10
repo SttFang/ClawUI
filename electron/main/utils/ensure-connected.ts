@@ -1,5 +1,5 @@
-import { chatWebSocket } from "../services/chat-websocket";
 import type { ConfigService } from "../services/config";
+import { chatWebSocket } from "../services/chat-websocket";
 
 /**
  * Shared helper: read gateway config → set token/url → connect if needed.

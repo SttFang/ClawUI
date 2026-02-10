@@ -78,8 +78,7 @@ export default function AgentsPage() {
   }, [loadChannels, loadTools, loadPlugins, loadMcpServers]);
 
   const agents = useMemo(() => toAgentViews(config), [config]);
-  const selectedAgent =
-    agents.find((a) => a.id === selectedAgentId) ?? agents[0] ?? null;
+  const selectedAgent = agents.find((a) => a.id === selectedAgentId) ?? agents[0] ?? null;
 
   const configuredChannels = channels.filter((c) => c.isConfigured);
   const enabledChannels = channels.filter((c) => c.isEnabled);
@@ -263,9 +262,7 @@ export default function AgentsPage() {
                   <span className="text-muted-foreground">{t("agents.tools.enabledTools")}: </span>
                   <span>{tools.filter((x) => x.enabled).length}</span>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {t("agents.tools.policyNote")}
-                </div>
+                <div className="text-xs text-muted-foreground">{t("agents.tools.policyNote")}</div>
               </CardContent>
             </Card>
 
@@ -315,9 +312,7 @@ export default function AgentsPage() {
                     </div>
                   </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {t("agents.extensions.note")}
-                </div>
+                <div className="text-xs text-muted-foreground">{t("agents.extensions.note")}</div>
               </CardContent>
             </Card>
           </div>

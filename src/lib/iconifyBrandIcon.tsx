@@ -1,5 +1,5 @@
-import { Icon, type IconifyIcon } from "@iconify/react";
 import type { ComponentType } from "react";
+import { Icon, type IconifyIcon } from "@iconify/react";
 
 export type BrandIcon = ComponentType<{ size?: number; className?: string }>;
 
@@ -11,4 +11,3 @@ export function createIconifyBrandIcon(icon: IconifyIcon): BrandIcon {
   IconifyBrandIcon.displayName = "IconifyBrandIcon";
   return IconifyBrandIcon;
 }
-

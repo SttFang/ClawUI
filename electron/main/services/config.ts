@@ -4,8 +4,8 @@ import { readFile, writeFile, mkdir } from "fs/promises";
 import JSON5 from "json5";
 import { homedir } from "os";
 import { join, dirname } from "path";
-import { configLog } from "../lib/logger";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
+import { configLog } from "../lib/logger";
 
 export interface OpenClawConfig {
   gateway: {

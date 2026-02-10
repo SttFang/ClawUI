@@ -1,12 +1,12 @@
-import OpenRouter from "@lobehub/icons/es/OpenRouter";
-import azureIcon from "@iconify/icons-logos/azure-icon";
 import aws from "@iconify/icons-logos/aws";
+import azureIcon from "@iconify/icons-logos/azure-icon";
 import googleBardIcon from "@iconify/icons-logos/google-bard-icon";
 import googleIcon from "@iconify/icons-logos/google-icon";
 import microsoftIcon from "@iconify/icons-logos/microsoft-icon";
 import openaiIcon from "@iconify/icons-logos/openai-icon";
-import { createIconifyBrandIcon, type BrandIcon } from "@/lib/iconifyBrandIcon";
+import OpenRouter from "@lobehub/icons/es/OpenRouter";
 import { SiAnthropic, SiMeta } from "react-icons/si";
+import { createIconifyBrandIcon, type BrandIcon } from "@/lib/iconifyBrandIcon";
 
 const PROVIDER_ICONS: Record<string, BrandIcon> = {
   anthropic: SiAnthropic, // no multi-color logo in @iconify/icons-logos right now

@@ -1,12 +1,12 @@
-import type { ChannelType } from "@/store/channels";
-import type { BrandIcon } from "@/lib/iconifyBrandIcon";
-import { createIconifyBrandIcon } from "@/lib/iconifyBrandIcon";
 import type { IconifyIcon } from "@iconify/react";
 import discordIcon from "@iconify/icons-logos/discord-icon";
 import signal from "@iconify/icons-logos/signal";
 import slackIcon from "@iconify/icons-logos/slack-icon";
 import telegram from "@iconify/icons-logos/telegram";
 import whatsappIcon from "@iconify/icons-logos/whatsapp-icon";
+import type { BrandIcon } from "@/lib/iconifyBrandIcon";
+import type { ChannelType } from "@/store/channels";
+import { createIconifyBrandIcon } from "@/lib/iconifyBrandIcon";
 
 // WeChat: original (non-Flaticon) two-bubble mark, matching the common visual language.
 // We use an SVG mask to punch "eye" holes so it works on both light/dark backgrounds.
@@ -14,7 +14,7 @@ const weChatIcon: IconifyIcon = {
   width: 512,
   height: 512,
   body: [
-    '<defs>',
+    "<defs>",
     '<mask id="clawui-wechat-eyes">',
     '<rect width="512" height="512" fill="#fff"/>',
     '<circle cx="164" cy="214" r="22" fill="#000"/>',

@@ -1,7 +1,7 @@
 import { IpcMain, BrowserWindow } from "electron";
 import type { ConfigService } from "../services/config";
-import { GatewayService } from "../services/gateway";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
+import { GatewayService } from "../services/gateway";
 import { execInLoginShell } from "../utils/login-shell";
 
 function shEscape(value: string): string {

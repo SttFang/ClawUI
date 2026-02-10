@@ -6,12 +6,12 @@ import { RouteErrorBoundary } from "./components/ErrorBoundary";
 import "./locales/i18n";
 import "katex/dist/katex.min.css";
 import "./index.css";
+import AgentsPage from "./routes/agents/page";
 import ChannelsPage from "./routes/channels/page";
 import MCPPage from "./routes/mcp/page";
 import OnboardingPage from "./routes/onboarding/page";
 // Routes
 import ChatPage from "./routes/page";
-import AgentsPage from "./routes/agents/page";
 import PluginsPage from "./routes/plugins/page";
 import SchedulerPage from "./routes/scheduler/page";
 import SettingsPage from "./routes/settings/page";

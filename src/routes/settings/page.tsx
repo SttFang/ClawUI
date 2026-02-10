@@ -2,14 +2,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@clawui/ui";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Subscription } from "@/features/Subscription";
-import { useSettingsStore } from "@/store/settings";
 import { useSecretsStore } from "@/store/secrets";
-import { GeneralTab } from "./GeneralTab";
-import { ApiTab } from "./ApiTab";
-import { TokensTab } from "./TokensTab";
-import { GatewayTab } from "./GatewayTab";
-import { SecurityTab } from "./SecurityTab";
+import { useSettingsStore } from "@/store/settings";
 import { AboutTab } from "./AboutTab";
+import { ApiTab } from "./ApiTab";
+import { GatewayTab } from "./GatewayTab";
+import { GeneralTab } from "./GeneralTab";
+import { SecurityTab } from "./SecurityTab";
+import { TokensTab } from "./TokensTab";
 
 export default function SettingsPage() {
   const { t } = useTranslation("common");

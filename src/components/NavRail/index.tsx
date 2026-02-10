@@ -1,10 +1,4 @@
-import {
-  MessageSquare,
-  Bot,
-  Clock,
-  BarChart3,
-  Settings,
-} from "lucide-react";
+import { MessageSquare, Bot, Clock, BarChart3, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";

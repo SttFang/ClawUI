@@ -1,6 +1,6 @@
-import { BrowserWindow, dialog } from "electron";
 import type { IpcMain } from "electron";
 import type { OpenDialogOptions, SaveDialogOptions } from "electron";
+import { BrowserWindow, dialog } from "electron";
 import { readFile, writeFile } from "fs/promises";
 import { basename } from "path";
 import type { ClawUIState, ClawUIStateService, DeepPartial } from "../services/clawui-state";

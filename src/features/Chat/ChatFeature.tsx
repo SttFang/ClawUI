@@ -1,11 +1,11 @@
-import { MessageSquare, Plus, Sparkles, Trash2 } from 'lucide-react'
-import { Button, ScrollArea, Tabs, TabsList, TabsTrigger } from '@clawui/ui'
-import { useTranslation } from 'react-i18next'
-import { ConfigBanner } from '@/components/ConfigBanner'
-import { cn } from '@/lib/utils'
-import { OpenClawChatPanel } from './components/OpenClawChatPanel'
-import type { ChatFeatureProps } from './types'
-import { classifySession, getSessionSourceBadge } from './utils/sessionKey'
+import { Button, ScrollArea, Tabs, TabsList, TabsTrigger } from "@clawui/ui";
+import { MessageSquare, Plus, Sparkles, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { ConfigBanner } from "@/components/ConfigBanner";
+import { cn } from "@/lib/utils";
+import type { ChatFeatureProps } from "./types";
+import { OpenClawChatPanel } from "./components/OpenClawChatPanel";
+import { classifySession, getSessionSourceBadge } from "./utils/sessionKey";
 
 export function ChatFeature(props: ChatFeatureProps) {
   const {
@@ -26,9 +26,9 @@ export function ChatFeature(props: ChatFeatureProps) {
     onGenerateMetadata,
     sessionMetadata,
     metaBusyByKey,
-  } = props
+  } = props;
 
-  const { t } = useTranslation('chat')
+  const { t } = useTranslation("chat");
 
   return (
     <div className="flex h-full min-h-0">
@@ -37,19 +37,22 @@ export function ChatFeature(props: ChatFeatureProps) {
         <div className="p-4 border-b">
           <Button onClick={onCreateSession} className="w-full" variant="outline">
             <Plus className="w-4 h-4 mr-2" />
-            {t('newSession')}
+            {t("newSession")}
           </Button>
           <div className="mt-3">
-            <Tabs value={sessionFilter} onValueChange={(v) => onSessionFilterChange(v as typeof sessionFilter)}>
+            <Tabs
+              value={sessionFilter}
+              onValueChange={(v) => onSessionFilterChange(v as typeof sessionFilter)}
+            >
               <TabsList className="w-full justify-between">
                 <TabsTrigger value="ui" className="flex-1 justify-center">
-                  {t('sessionFilters.ui')}
+                  {t("sessionFilters.ui")}
                 </TabsTrigger>
                 <TabsTrigger value="discord" className="flex-1 justify-center">
-                  {t('sessionFilters.discord')}
+                  {t("sessionFilters.discord")}
                 </TabsTrigger>
                 <TabsTrigger value="all" className="flex-1 justify-center">
-                  {t('sessionFilters.all')}
+                  {t("sessionFilters.all")}
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -59,26 +62,35 @@ export function ChatFeature(props: ChatFeatureProps) {
         <ScrollArea className="min-h-0 flex-1">
           <div className="p-2 space-y-1">
             {sessions.length === 0 ? (
-              <div className="text-center text-muted-foreground text-sm py-8">{t('noSessions')}</div>
+              <div className="text-center text-muted-foreground text-sm py-8">
+                {t("noSessions")}
+              </div>
             ) : (
               sessions.map((session) => {
-                const { source } = classifySession({ sessionKey: session.id, surface: session.surface })
-                const badge = getSessionSourceBadge(source)
+                const { source } = classifySession({
+                  sessionKey: session.id,
+                  surface: session.surface,
+                });
+                const badge = getSessionSourceBadge(source);
                 return (
                   <div
                     key={session.id}
                     className={cn(
-                      'group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer',
-                      'hover:bg-accent transition-colors',
-                      currentSessionId === session.id && 'bg-accent'
+                      "group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer",
+                      "hover:bg-accent transition-colors",
+                      currentSessionId === session.id && "bg-accent",
                     )}
                     onClick={() => onSelectSession(session.id)}
                   >
                     <MessageSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm">{sessionMetadata[session.id]?.title ?? session.name}</div>
+                      <div className="truncate text-sm">
+                        {sessionMetadata[session.id]?.title ?? session.name}
+                      </div>
                       {sessionMetadata[session.id]?.summary ? (
-                        <div className="truncate text-xs text-muted-foreground">{sessionMetadata[session.id]?.summary}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {sessionMetadata[session.id]?.summary}
+                        </div>
                       ) : null}
                     </div>
 
@@ -91,29 +103,31 @@ export function ChatFeature(props: ChatFeatureProps) {
                     <button
                       type="button"
                       onClick={(e) => {
-                        e.stopPropagation()
-                        void onGenerateMetadata(session.id)
+                        e.stopPropagation();
+                        void onGenerateMetadata(session.id);
                       }}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:text-foreground transition-opacity"
-                      aria-label={t('generateSessionMetaAria')}
+                      aria-label={t("generateSessionMetaAria")}
                       disabled={!!metaBusyByKey[session.id]}
                     >
-                      <Sparkles className={cn('w-3 h-3', metaBusyByKey[session.id] && 'animate-pulse')} />
+                      <Sparkles
+                        className={cn("w-3 h-3", metaBusyByKey[session.id] && "animate-pulse")}
+                      />
                     </button>
 
                     <button
                       type="button"
                       onClick={(e) => {
-                        e.stopPropagation()
-                        onDeleteSession(session.id)
+                        e.stopPropagation();
+                        onDeleteSession(session.id);
                       }}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity"
-                      aria-label={t('deleteSessionAria')}
+                      aria-label={t("deleteSessionAria")}
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
-                )
+                );
               })
             )}
           </div>
@@ -125,7 +139,11 @@ export function ChatFeature(props: ChatFeatureProps) {
         {/* Config Banner */}
         {configValid === false && showBanner ? (
           <div className="p-4 pb-0">
-            <ConfigBanner onDismiss={onDismissBanner} onOneClick={onOneClickConfig} onManualConfig={onManualConfig} />
+            <ConfigBanner
+              onDismiss={onDismissBanner}
+              onOneClick={onOneClickConfig}
+              onManualConfig={onManualConfig}
+            />
           </div>
         ) : null}
 
@@ -137,9 +155,11 @@ export function ChatFeature(props: ChatFeatureProps) {
             isGatewayRunning={isGatewayRunning}
           />
         ) : (
-          <div className="flex flex-1 items-center justify-center text-muted-foreground">{t('createSessionHint')}</div>
+          <div className="flex flex-1 items-center justify-center text-muted-foreground">
+            {t("createSessionHint")}
+          </div>
         )}
       </div>
     </div>
-  )
+  );
 }

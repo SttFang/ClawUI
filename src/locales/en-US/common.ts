@@ -126,8 +126,7 @@ const common = {
       pluginsStatus: "{{installed}} installed",
       mcp: "MCP",
       mcpStatus: "{{servers}} servers",
-      note:
-        "Note: plugins/MCP ultimately surface as tools/capabilities. Prefer presenting them under agents.",
+      note: "Note: plugins/MCP ultimately surface as tools/capabilities. Prefer presenting them under agents.",
     },
   },
   channels: {

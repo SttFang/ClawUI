@@ -1,10 +1,4 @@
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Button,
-} from "@clawui/ui";
+import { Card, CardContent, CardHeader, CardTitle, Button } from "@clawui/ui";
 import { Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

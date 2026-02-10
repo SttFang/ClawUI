@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
 import { EventEmitter } from "events";
 import WebSocket from "ws";
-import { chatLog } from "../lib/logger";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
+import { chatLog } from "../lib/logger";
 
 export interface ChatMessage {
   id: string;

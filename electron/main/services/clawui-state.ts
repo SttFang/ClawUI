@@ -93,9 +93,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function deepMerge<T>(target: T, source: Partial<T>): T {
-  const result = (
-    Array.isArray(target) ? [...target] : { ...target }
-  ) as Record<string, unknown>;
+  const result = (Array.isArray(target) ? [...target] : { ...target }) as Record<string, unknown>;
   for (const [key, sourceValue] of Object.entries(source as Record<string, unknown>)) {
     const targetValue = result[key];
     if (isPlainObject(targetValue) && isPlainObject(sourceValue)) {

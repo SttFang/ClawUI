@@ -11,8 +11,8 @@ import { Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChannelConfig } from "@/lib/ipc";
-import { getChannelBrandIcon } from "@/lib/channelBrandIcons";
 import { TelegramConfigDialog, DiscordConfigDialog } from "@/features/Channels";
+import { getChannelBrandIcon } from "@/lib/channelBrandIcons";
 import { useChannelsStore, selectChannels, type ChannelType } from "@/store/channels";
 
 export default function ChannelsPage() {
@@ -58,48 +58,52 @@ export default function ChannelsPage() {
 
             return (
               <Card key={channel.type}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {Icon ? <Icon size={22} /> : <span className="text-2xl">{channel.icon}</span>}
-                    <div>
-                      <CardTitle className="text-lg">
-                        {t(`channels.items.${channel.type}.name`, { defaultValue: channel.name })}
-                      </CardTitle>
-                      <CardDescription>
-                        {t(`channels.items.${channel.type}.description`, {
-                          defaultValue: channel.description,
-                        })}
-                      </CardDescription>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {Icon ? <Icon size={22} /> : <span className="text-2xl">{channel.icon}</span>}
+                      <div>
+                        <CardTitle className="text-lg">
+                          {t(`channels.items.${channel.type}.name`, { defaultValue: channel.name })}
+                        </CardTitle>
+                        <CardDescription>
+                          {t(`channels.items.${channel.type}.description`, {
+                            defaultValue: channel.description,
+                          })}
+                        </CardDescription>
+                      </div>
                     </div>
+                    <Switch
+                      checked={channel.isEnabled}
+                      onCheckedChange={(checked) =>
+                        checked ? enableChannel(channel.type) : disableChannel(channel.type)
+                      }
+                      disabled={!channel.isConfigured}
+                    />
                   </div>
-                  <Switch
-                    checked={channel.isEnabled}
-                    onCheckedChange={(checked) =>
-                      checked ? enableChannel(channel.type) : disableChannel(channel.type)
-                    }
-                    disabled={!channel.isConfigured}
-                  />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`text-sm ${
-                      channel.isConfigured ? "text-green-600" : "text-muted-foreground"
-                    }`}
-                  >
-                    {channel.isConfigured
-                      ? t("channels.status.configured")
-                      : t("channels.status.notConfigured")}
-                  </span>
-                  <Button variant="outline" size="sm" onClick={() => handleConfigure(channel.type)}>
-                    <Settings className="w-4 h-4 mr-2" />
-                    {t("channels.actions.configure")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-sm ${
+                        channel.isConfigured ? "text-green-600" : "text-muted-foreground"
+                      }`}
+                    >
+                      {channel.isConfigured
+                        ? t("channels.status.configured")
+                        : t("channels.status.notConfigured")}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleConfigure(channel.type)}
+                    >
+                      <Settings className="w-4 h-4 mr-2" />
+                      {t("channels.actions.configure")}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>

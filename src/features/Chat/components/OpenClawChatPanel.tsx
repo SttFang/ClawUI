@@ -202,7 +202,10 @@ export function OpenClawChatPanel(props: {
         </div>
 
         <div className="mx-auto w-full max-w-3xl">
-          <SessionControlStrip sessionKey={sessionKey} disabled={!isGatewayRunning || !wsConnected} />
+          <SessionControlStrip
+            sessionKey={sessionKey}
+            disabled={!isGatewayRunning || !wsConnected}
+          />
         </div>
       </div>
     </div>

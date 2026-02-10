@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Input, Select } from "@clawui/ui";
 import { Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
-import { useChatStore } from "@/store/chat";
 import { cn } from "@/lib/utils";
+import { useChatStore } from "@/store/chat";
 
 type GatewaySessionsDefaults = {
   contextTokens?: number | null;
@@ -151,12 +151,7 @@ export function SessionControlStrip(props: { sessionKey: string; disabled: boole
 
   // Keep the strip usable on narrow windows: wrap instead of forcing horizontal scrolling.
   return (
-    <div
-      className={cn(
-        "mt-3 flex flex-wrap items-end gap-2",
-        disabled && "opacity-60",
-      )}
-    >
+    <div className={cn("mt-3 flex flex-wrap items-end gap-2", disabled && "opacity-60")}>
       <div className="min-w-[220px] flex-1">
         <div className="text-[11px] text-muted-foreground">{t("sessionStrip.label")}</div>
         <Input

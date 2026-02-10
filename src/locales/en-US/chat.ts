@@ -34,7 +34,8 @@ const chat = {
     actions: "Actions",
     inherit: "inherit",
     delete: "Delete",
-    confirmDelete: "Delete this session? (Will only remove the session entry; transcript is kept by default.)",
+    confirmDelete:
+      "Delete this session? (Will only remove the session entry; transcript is kept by default.)",
   },
 } as const;
 

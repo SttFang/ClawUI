@@ -1,7 +1,7 @@
 import { useChat } from "@ai-sdk/react";
 import { createOpenClawChatTransport, openclawTranscriptToUIMessages } from "@clawui/claw-sse";
 import { Button } from "@clawui/ui";
-import { Send, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StickToBottom } from "use-stick-to-bottom";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
 import { MessageParts } from "./MessageParts";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
-import { SessionControlStrip } from "./SessionControlStrip";
+import { ChatComposer } from "../prompt/ChatComposer";
 
 export function OpenClawChatPanel(props: {
   sessionKey: string;
@@ -93,20 +93,6 @@ export function OpenClawChatPanel(props: {
     });
   }, [sessionKey, refreshHistory]);
 
-  const handleSend = async () => {
-    const text = input.trim();
-    if (!text || isBusy) return;
-    setInput("");
-    await chat.sendMessage({ text });
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
-  };
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* Messages */}
@@ -183,30 +169,19 @@ export function OpenClawChatPanel(props: {
 
       {/* Input area */}
       <div className="border-t p-4">
-        <div className="mx-auto flex w-full max-w-3xl gap-2">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t("inputPlaceholder")}
-            className={cn(
-              "flex-1 resize-none rounded-lg border bg-background px-4 py-2",
-              "min-h-[44px] max-h-32 focus:outline-none focus:ring-2 focus:ring-ring",
-            )}
-            rows={1}
-            disabled={isBusy}
-          />
-          <Button onClick={() => void handleSend()} disabled={!input.trim() || isBusy} size="icon">
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
-
-        <div className="mx-auto w-full max-w-3xl">
-          <SessionControlStrip
-            sessionKey={sessionKey}
-            disabled={!isGatewayRunning || !wsConnected}
-          />
-        </div>
+        <ChatComposer
+          sessionKey={sessionKey}
+          value={input}
+          onChange={setInput}
+          disabled={isBusy || !isGatewayRunning || !wsConnected}
+          sessionControlsDisabled={!isGatewayRunning || !wsConnected}
+          onSubmit={async () => {
+            const text = input.trim();
+            if (!text || isBusy) return;
+            setInput("");
+            await chat.sendMessage({ text });
+          }}
+        />
       </div>
     </div>
   );

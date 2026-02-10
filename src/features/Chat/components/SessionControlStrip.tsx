@@ -53,8 +53,8 @@ function toPatchValue(value: string): string | null {
   return value === "inherit" ? null : value;
 }
 
-export function SessionControlStrip(props: { sessionKey: string; disabled: boolean }) {
-  const { sessionKey, disabled } = props;
+export function SessionControlStrip(props: { sessionKey: string; disabled: boolean; className?: string }) {
+  const { sessionKey, disabled, className } = props;
   const { t } = useTranslation("chat");
 
   const refreshSessions = useChatStore((s) => s.refreshSessions);
@@ -151,7 +151,7 @@ export function SessionControlStrip(props: { sessionKey: string; disabled: boole
 
   // Keep the strip usable on narrow windows: wrap instead of forcing horizontal scrolling.
   return (
-    <div className={cn("mt-3 flex flex-wrap items-end gap-2", disabled && "opacity-60")}>
+    <div className={cn("flex flex-wrap items-end gap-2", disabled && "opacity-60", className)}>
       <div className="min-w-[220px] flex-1">
         <div className="text-[11px] text-muted-foreground">{t("sessionStrip.label")}</div>
         <Input

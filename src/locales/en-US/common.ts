@@ -32,6 +32,30 @@ const common = {
     oneClick: 'One-click config',
     manual: 'Manual config',
   },
+  plugins: {
+    title: 'Plugins',
+    description: 'Extend your AI assistant with additional capabilities',
+    browseClawHub: 'Browse ClawHub',
+    searchPlaceholder: 'Search plugins...',
+    emptyTitle: 'No plugins found',
+    emptyDescription: 'Try adjusting your search or filters',
+    byAuthor: 'by {{author}}',
+    actions: {
+      configure: 'Configure',
+      install: 'Install',
+    },
+    config: {
+      title: 'Configure {{name}}',
+      description: 'Adjust the settings for this plugin.',
+    },
+    categories: {
+      all: 'All',
+      ai: 'AI',
+      productivity: 'Productivity',
+      integration: 'Integration',
+      utility: 'Utility',
+    },
+  },
   language: {
     manage: 'Language',
     current: 'Current language',

@@ -1,5 +1,6 @@
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Switch } from '@clawui/ui'
 import { Download, Puzzle, Settings, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { Plugin } from '@/store/plugins'
 import { categoryIcons } from '../../constants'
 
@@ -11,6 +12,7 @@ export function PluginGrid(props: {
   onOpenConfig: (plugin: Plugin) => void
 }) {
   const { plugins, onToggleEnabled, onInstall, onUninstall, onOpenConfig } = props
+  const { t } = useTranslation('common')
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -37,7 +39,7 @@ export function PluginGrid(props: {
             <CardContent className="flex-1 flex flex-col">
               <CardDescription className="flex-1 mb-4">{plugin.description}</CardDescription>
               <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">by {plugin.author}</p>
+                <p className="text-xs text-muted-foreground">{t('plugins.byAuthor', { author: plugin.author })}</p>
                 <div className="flex gap-2">
                   {plugin.installed ? (
                     <>
@@ -49,7 +51,7 @@ export function PluginGrid(props: {
                           onClick={() => onOpenConfig(plugin)}
                         >
                           <Settings className="w-4 h-4 mr-1" />
-                          Configure
+                          {t('plugins.actions.configure')}
                         </Button>
                       ) : null}
                       <Button
@@ -64,7 +66,7 @@ export function PluginGrid(props: {
                   ) : (
                     <Button size="sm" className="w-full" onClick={() => onInstall(plugin.id)}>
                       <Download className="w-4 h-4 mr-2" />
-                      Install
+                      {t('plugins.actions.install')}
                     </Button>
                   )}
                 </div>
@@ -76,4 +78,3 @@ export function PluginGrid(props: {
     </div>
   )
 }
-

@@ -1,7 +1,8 @@
 import { Button, Input } from '@clawui/ui'
 import { Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { PluginCategoryFilter } from '../../constants'
-import { categoryIcons, categoryLabels, pluginCategories } from '../../constants'
+import { categoryIcons, categoryLabelKeys, pluginCategories } from '../../constants'
 
 export function PluginFilters(props: {
   searchQuery: string
@@ -10,13 +11,14 @@ export function PluginFilters(props: {
   onCategoryFilterChange: (category: PluginCategoryFilter) => void
 }) {
   const { searchQuery, onSearchQueryChange, categoryFilter, onCategoryFilterChange } = props
+  const { t } = useTranslation('common')
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 mb-6">
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search plugins..."
+          placeholder={t('plugins.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
           className="pl-10"
@@ -33,7 +35,7 @@ export function PluginFilters(props: {
               onClick={() => onCategoryFilterChange(category)}
             >
               {Icon ? <Icon className="w-4 h-4" /> : null}
-              <span className={category !== 'all' ? 'ml-1' : ''}>{categoryLabels[category]}</span>
+              <span className={category !== 'all' ? 'ml-1' : ''}>{t(categoryLabelKeys[category])}</span>
             </Button>
           )
         })}
@@ -41,4 +43,3 @@ export function PluginFilters(props: {
     </div>
   )
 }
-

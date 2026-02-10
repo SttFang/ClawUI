@@ -6,12 +6,12 @@ export const pluginCategories = ['all', 'ai', 'productivity', 'integration', 'ut
 
 export type PluginCategoryFilter = PluginCategory | 'all'
 
-export const categoryLabels: Record<PluginCategoryFilter, string> = {
-  all: 'All',
-  ai: 'AI',
-  productivity: 'Productivity',
-  integration: 'Integration',
-  utility: 'Utility',
+export const categoryLabelKeys: Record<PluginCategoryFilter, string> = {
+  all: 'plugins.categories.all',
+  ai: 'plugins.categories.ai',
+  productivity: 'plugins.categories.productivity',
+  integration: 'plugins.categories.integration',
+  utility: 'plugins.categories.utility',
 }
 
 export const categoryIcons: Record<PluginCategory, LucideIcon> = {
@@ -20,4 +20,3 @@ export const categoryIcons: Record<PluginCategory, LucideIcon> = {
   integration: LinkIcon,
   utility: Wrench,
 }
-

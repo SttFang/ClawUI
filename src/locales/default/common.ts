@@ -32,6 +32,30 @@ const common = {
     oneClick: '一键配置',
     manual: '手动配置',
   },
+  plugins: {
+    title: '插件',
+    description: '为你的 AI 助手扩展更多能力',
+    browseClawHub: '浏览 ClawHub',
+    searchPlaceholder: '搜索插件...',
+    emptyTitle: '未找到插件',
+    emptyDescription: '试试调整搜索关键词或筛选条件',
+    byAuthor: '作者：{{author}}',
+    actions: {
+      configure: '配置',
+      install: '安装',
+    },
+    config: {
+      title: '配置 {{name}}',
+      description: '调整该插件的设置。',
+    },
+    categories: {
+      all: '全部',
+      ai: 'AI',
+      productivity: '效率',
+      integration: '集成',
+      utility: '工具',
+    },
+  },
   language: {
     manage: '语言',
     current: '当前语言',

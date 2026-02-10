@@ -12,6 +12,7 @@ import {
   Select,
   Switch,
 } from '@clawui/ui'
+import { useTranslation } from 'react-i18next'
 import type { Plugin, PluginConfigSchema } from '@/store/plugins'
 
 function getDefaultConfig(schema?: PluginConfigSchema): Record<string, unknown> {
@@ -30,6 +31,7 @@ export function PluginConfigDialog(props: {
   onSave: (id: string, config: Record<string, unknown>) => void
 }) {
   const { plugin, open, onOpenChange, onSave } = props
+  const { t } = useTranslation('common')
   const [config, setConfig] = useState<Record<string, unknown>>({})
 
   useEffect(() => {
@@ -50,8 +52,8 @@ export function PluginConfigDialog(props: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onClose={() => onOpenChange(false)}>
         <DialogHeader>
-          <DialogTitle>Configure {plugin.name}</DialogTitle>
-          <DialogDescription>Adjust the settings for this plugin.</DialogDescription>
+          <DialogTitle>{t('plugins.config.title', { name: plugin.name })}</DialogTitle>
+          <DialogDescription>{t('plugins.config.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="p-6 space-y-4">
@@ -131,12 +133,11 @@ export function PluginConfigDialog(props: {
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('actions.cancel')}
           </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
+          <Button onClick={handleSave}>{t('actions.save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
-

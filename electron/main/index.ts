@@ -44,7 +44,7 @@ function createWindow(): BrowserWindow {
     trafficLightPosition: { x: 20, y: 15 },
     webPreferences: {
       preload: join(__dirname, "../preload/index.mjs"),
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -55,7 +55,7 @@ function createWindow(): BrowserWindow {
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    if (details.url.startsWith("https://") || details.url.startsWith("http://")) {
+    if (details.url.startsWith("https://")) {
       shell.openExternal(details.url);
     } else {
       mainLog.warn("[window.blockedUrl]", details.url);

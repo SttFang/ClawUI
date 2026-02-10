@@ -141,9 +141,7 @@ export function SessionItem(props: {
                 "rounded-md border bg-background/70 p-1",
                 "text-muted-foreground hover:text-foreground hover:bg-accent",
                 "transition-opacity",
-                selected
-                  ? "opacity-100"
-                  : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+                "opacity-0 group-hover:opacity-100",
               )}
               aria-label={t("sessionMenu.moreAria")}
               data-testid="session-more"

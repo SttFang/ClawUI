@@ -6,9 +6,7 @@ export type PlanType = 'free' | 'pro' | 'team'
 
 export interface SubscriptionPlan {
   id: PlanType
-  name: string
   price: number // monthly, USD
-  features: string[]
   limits: {
     tokensPerMonth: number
     apiCallsPerDay: number
@@ -46,35 +44,17 @@ type SubscriptionStore = SubscriptionState & SubscriptionActions
 const plans: SubscriptionPlan[] = [
   {
     id: 'free',
-    name: 'Free',
     price: 0,
-    features: ['Basic AI chat', '1 channel', '1 MCP server', 'Community support'],
     limits: { tokensPerMonth: 100000, apiCallsPerDay: 100, channels: 1, mcpServers: 1 },
   },
   {
     id: 'pro',
-    name: 'Pro',
     price: 19,
-    features: [
-      'Unlimited AI chat',
-      '5 channels',
-      '10 MCP servers',
-      'Priority support',
-      'Advanced tools',
-    ],
     limits: { tokensPerMonth: 1000000, apiCallsPerDay: 1000, channels: 5, mcpServers: 10 },
   },
   {
     id: 'team',
-    name: 'Team',
     price: 49,
-    features: [
-      'Everything in Pro',
-      'Unlimited channels',
-      'Unlimited MCP servers',
-      'Team collaboration',
-      'Admin dashboard',
-    ],
     limits: { tokensPerMonth: 5000000, apiCallsPerDay: 5000, channels: -1, mcpServers: -1 },
   },
 ]
@@ -195,9 +175,6 @@ export const selectPlans = (state: SubscriptionStore) => state.plans
 export const selectIsLoading = (state: SubscriptionStore) => state.isLoading
 export const selectIsUpgrading = (state: SubscriptionStore) => state.isUpgrading
 export const selectError = (state: SubscriptionStore) => state.error
-
-export const selectCurrentPlanData = (state: SubscriptionStore) =>
-  state.plans.find((p) => p.id === state.currentPlan)
 
 export const selectUsagePercentage = (state: SubscriptionStore) => {
   if (!state.usage) return { tokens: 0, apiCalls: 0 }

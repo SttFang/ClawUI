@@ -525,6 +525,81 @@ const common = {
     zhCN: 'Chinese (Simplified)',
     enUS: 'English (US)',
   },
+  subscription: {
+    current: {
+      title: 'Current plan: {{name}}',
+      billingPeriod: 'Billing period: {{start}} - {{end}}',
+    },
+    actions: {
+      refresh: 'Refresh',
+    },
+    usage: {
+      tokenUsage: 'Token usage',
+      apiCallsToday: 'API calls today',
+    },
+    legend: {
+      normal: 'Normal',
+      nearLimit: 'Near limit (80%+)',
+      overLimit: 'Over limit',
+    },
+    availablePlans: 'Available plans',
+    info: {
+      enterprisePrefix: 'Need more than Team plan offers? Contact us at',
+      enterpriseSuffix: 'for Enterprise pricing.',
+      trial: 'All plans include a 14-day free trial. Cancel anytime. Prices are in USD.',
+    },
+    planCard: {
+      badges: {
+        current: 'Current plan',
+        popular: 'Popular',
+      },
+      perMonth: '/month',
+      limits: {
+        tokens: 'Tokens',
+        apiCalls: 'API calls',
+        channels: 'Channels',
+        mcpServers: 'MCP servers',
+      },
+      unlimited: 'Unlimited',
+      tokensPerMonth: '{{n}}M/mo',
+      apiCallsPerDay: '{{n}}/day',
+      processing: 'Processing...',
+      current: 'Current plan',
+      downgrade: 'Downgrade',
+      upgrade: 'Upgrade',
+    },
+    plans: {
+      free: {
+        name: 'Free',
+        features: {
+          basicAiChat: 'Basic AI chat',
+          oneChannel: '1 channel',
+          oneMcpServer: '1 MCP server',
+          communitySupport: 'Community support',
+        },
+      },
+      pro: {
+        name: 'Pro',
+        features: {
+          unlimitedAiChat: 'Unlimited AI chat',
+          fiveChannels: '5 channels',
+          tenMcpServers: '10 MCP servers',
+          prioritySupport: 'Priority support',
+          advancedTools: 'Advanced tools',
+        },
+      },
+      team: {
+        name: 'Team',
+        features: {
+          everythingInPro: 'Everything in Pro',
+          unlimitedChannels: 'Unlimited channels',
+          unlimitedMcpServers: 'Unlimited MCP servers',
+          teamCollaboration: 'Team collaboration',
+          adminDashboard: 'Admin dashboard',
+        },
+      },
+    },
+  },
 } as const
 
 export default common

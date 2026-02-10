@@ -525,6 +525,81 @@ const common = {
     zhCN: '中文（简体）',
     enUS: '英语（美国）',
   },
+  subscription: {
+    current: {
+      title: '当前计划：{{name}}',
+      billingPeriod: '计费周期：{{start}} - {{end}}',
+    },
+    actions: {
+      refresh: '刷新',
+    },
+    usage: {
+      tokenUsage: 'Token 用量',
+      apiCallsToday: '今日 API 调用',
+    },
+    legend: {
+      normal: '正常',
+      nearLimit: '接近上限（80%+）',
+      overLimit: '超出上限',
+    },
+    availablePlans: '可用套餐',
+    info: {
+      enterprisePrefix: '需要超过团队版的能力？请联系',
+      enterpriseSuffix: '获取企业版报价。',
+      trial: '所有套餐包含 14 天免费试用。随时取消。价格单位为 USD。',
+    },
+    planCard: {
+      badges: {
+        current: '当前套餐',
+        popular: '热门',
+      },
+      perMonth: '/月',
+      limits: {
+        tokens: 'Tokens',
+        apiCalls: 'API 调用',
+        channels: '渠道',
+        mcpServers: 'MCP 服务器',
+      },
+      unlimited: '无限制',
+      tokensPerMonth: '{{n}}M/月',
+      apiCallsPerDay: '{{n}}/天',
+      processing: '处理中...',
+      current: '当前套餐',
+      downgrade: '降级',
+      upgrade: '升级',
+    },
+    plans: {
+      free: {
+        name: '免费',
+        features: {
+          basicAiChat: '基础 AI 对话',
+          oneChannel: '1 个渠道',
+          oneMcpServer: '1 个 MCP 服务器',
+          communitySupport: '社区支持',
+        },
+      },
+      pro: {
+        name: '专业版',
+        features: {
+          unlimitedAiChat: '无限 AI 对话',
+          fiveChannels: '5 个渠道',
+          tenMcpServers: '10 个 MCP 服务器',
+          prioritySupport: '优先支持',
+          advancedTools: '高级工具',
+        },
+      },
+      team: {
+        name: '团队版',
+        features: {
+          everythingInPro: '包含专业版全部内容',
+          unlimitedChannels: '无限渠道',
+          unlimitedMcpServers: '无限 MCP 服务器',
+          teamCollaboration: '团队协作',
+          adminDashboard: '管理面板',
+        },
+      },
+    },
+  },
 } as const
 
 export default common

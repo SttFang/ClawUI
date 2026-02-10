@@ -1,6 +1,6 @@
 import { homedir } from 'os'
 import path from 'path'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, chmodSync } from 'fs'
 import { readFile, writeFile } from 'fs/promises'
 import { onboardingLog } from '../lib/logger'
 
@@ -113,6 +113,7 @@ export class ConfiguratorService {
     }
 
     await writeFile(this.configPath, JSON.stringify(config, null, 2), 'utf-8')
+    chmodSync(this.configPath, 0o600)
     onboardingLog.info('[config.written]', this.configPath)
   }
 

@@ -1,5 +1,4 @@
 import { Select } from "@clawui/ui";
-import { AlignLeft, Brain, Sigma } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
@@ -133,15 +132,15 @@ export function SessionControlStrip(props: {
       )}
     >
       <div className="flex items-center gap-1">
-        <div className="text-muted-foreground" title={t("sessionStrip.thinking")} aria-hidden>
-          <Brain className="h-3.5 w-3.5" />
+        <div className="whitespace-nowrap text-[11px] text-muted-foreground">
+          {t("sessionStrip.thinking")}
         </div>
         <Select
           value={thinkingValue}
           onChange={(e) => void patch({ thinkingLevel: toPatchValue(e.target.value) })}
           disabled={disabled || saving}
           aria-label={t("sessionStrip.thinking")}
-          className="h-8 w-[100px] px-2 text-xs"
+          className="h-8 w-[92px] px-1.5 pr-7 text-[11px]"
         >
           {THINKING_OPTIONS.map((v) => (
             <option key={v} value={v}>
@@ -152,15 +151,15 @@ export function SessionControlStrip(props: {
       </div>
 
       <div className="flex items-center gap-1">
-        <div className="text-muted-foreground" title={t("sessionStrip.verbose")} aria-hidden>
-          <AlignLeft className="h-3.5 w-3.5" />
+        <div className="whitespace-nowrap text-[11px] text-muted-foreground">
+          {t("sessionStrip.verbose")}
         </div>
         <Select
           value={verboseValue}
           onChange={(e) => void patch({ verboseLevel: toPatchValue(e.target.value) })}
           disabled={disabled || saving}
           aria-label={t("sessionStrip.verbose")}
-          className="h-8 w-[88px] px-2 text-xs"
+          className="h-8 w-[76px] px-1.5 pr-7 text-[11px]"
         >
           {VERBOSE_OPTIONS.map((v) => (
             <option key={v} value={v}>
@@ -171,15 +170,15 @@ export function SessionControlStrip(props: {
       </div>
 
       <div className="flex items-center gap-1">
-        <div className="text-muted-foreground" title={t("sessionStrip.reasoning")} aria-hidden>
-          <Sigma className="h-3.5 w-3.5" />
+        <div className="whitespace-nowrap text-[11px] text-muted-foreground">
+          {t("sessionStrip.reasoning")}
         </div>
         <Select
           value={reasoningValue}
           onChange={(e) => void patch({ reasoningLevel: toPatchValue(e.target.value) })}
           disabled={disabled || saving}
           aria-label={t("sessionStrip.reasoning")}
-          className="h-8 w-[88px] px-2 text-xs"
+          className="h-8 w-[76px] px-1.5 pr-7 text-[11px]"
         >
           {REASONING_OPTIONS.map((v) => (
             <option key={v} value={v}>

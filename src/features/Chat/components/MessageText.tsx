@@ -11,7 +11,8 @@ export function MessageText(props: { text: string; isAnimating: boolean }) {
   return (
     <Streamdown
       plugins={STREAMDOWN_PLUGINS}
-      mode={isAnimating ? "streaming" : "static"}
+      // Keep a single render path to avoid a layout "jump" when streaming completes.
+      mode="streaming"
       isAnimating={isAnimating}
       parseIncompleteMarkdown
       // Make long tokens/URLs wrap instead of expanding the bubble.

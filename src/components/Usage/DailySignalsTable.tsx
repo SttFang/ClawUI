@@ -1,8 +1,8 @@
+import type { UsageAggregates } from "@clawui/types/usage";
+import { Card, CardContent, CardHeader, CardTitle } from "@clawui/ui";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Card, CardContent, CardHeader, CardTitle } from "@clawui/ui";
 import { formatCost, formatTokens } from "@/lib/format";
-import type { UsageAggregates } from "@clawui/types/usage";
 
 interface DailySignalsTableProps {
   daily: UsageAggregates["daily"];
@@ -86,11 +86,15 @@ export function DailySignalsTable({ daily }: DailySignalsTableProps) {
 
               <div className="flex items-center justify-between gap-2 text-sm tabular-nums">
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">{t("usage.dailySignals.toolCallsShort")}</span>
+                  <span className="text-muted-foreground">
+                    {t("usage.dailySignals.toolCallsShort")}
+                  </span>
                   <span>{d.toolCalls ?? 0}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">{t("usage.dailySignals.errorsShort")}</span>
+                  <span className="text-muted-foreground">
+                    {t("usage.dailySignals.errorsShort")}
+                  </span>
                   <span className={d.errors ? "text-red-600" : ""}>{d.errors ?? 0}</span>
                 </div>
               </div>
@@ -103,4 +107,3 @@ export function DailySignalsTable({ daily }: DailySignalsTableProps) {
     </Card>
   );
 }
-

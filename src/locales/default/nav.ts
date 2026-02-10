@@ -1,5 +1,6 @@
 const nav = {
   chat: "对话",
+  agents: "Agent",
   channels: "渠道",
   tools: "工具",
   mcp: "MCP",

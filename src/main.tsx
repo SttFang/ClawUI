@@ -11,6 +11,7 @@ import MCPPage from "./routes/mcp/page";
 import OnboardingPage from "./routes/onboarding/page";
 // Routes
 import ChatPage from "./routes/page";
+import AgentsPage from "./routes/agents/page";
 import PluginsPage from "./routes/plugins/page";
 import SchedulerPage from "./routes/scheduler/page";
 import SettingsPage from "./routes/settings/page";
@@ -28,6 +29,7 @@ const router = createHashRouter([
     errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <ChatPage /> },
+      { path: "agents", element: <AgentsPage /> },
       { path: "channels", element: <ChannelsPage /> },
       { path: "tools", element: <ToolsPage /> },
       { path: "mcp", element: <MCPPage /> },

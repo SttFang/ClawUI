@@ -59,6 +59,74 @@ const common = {
       utility: "工具",
     },
   },
+  agents: {
+    title: "Agents",
+    description: "以 Agent 为中心统一查看输入渠道、工具权限与扩展能力。",
+    errorTitle: "加载失败",
+    list: {
+      title: "Agent 列表",
+      description: "选择一个 Agent 查看它的输入、能力与扩展。",
+      empty: "未发现可用 Agent。",
+      unknownModel: "未配置模型",
+    },
+    sections: {
+      identity: {
+        title: "Identity",
+        description: "该 Agent 的模型与工作目录信息。",
+      },
+      inputs: {
+        title: "Inputs",
+        description: "消息从哪些渠道进入，并被路由给该 Agent。",
+      },
+      capabilities: {
+        title: "Capabilities",
+        description: "工具权限与沙盒策略（展示为有效状态）。",
+      },
+      extensions: {
+        title: "Extensions",
+        description: "插件与 MCP 等扩展能力来源。",
+      },
+    },
+    fields: {
+      agentId: "agentId",
+      modelPrimary: "model.primary",
+      modelFallbacks: "model.fallbacks",
+      workspace: "workspace",
+    },
+    values: {
+      notConfigured: "未配置",
+      none: "无",
+      enabled: "已启用",
+      disabled: "已禁用",
+    },
+    actions: {
+      manageChannels: "管理渠道",
+      manageTools: "管理工具",
+      managePlugins: "管理插件",
+      manageMcp: "管理 MCP",
+    },
+    inputs: {
+      channels: "渠道",
+      channelsStatus: "已配置 {{configured}} 个，启用 {{enabled}} 个",
+      noChannels: "尚未配置任何渠道。",
+      bindingsNote:
+        "提示：消息路由（bindings）将作为 Inputs 的一部分展示；当前页面先聚合展示渠道连接状态。",
+    },
+    tools: {
+      access: "工具访问模式",
+      sandbox: "沙盒",
+      enabledTools: "启用的工具数",
+      policyNote:
+        "提示：这里展示的是全局工具策略；后续可扩展为 per-agent 的 effective 权限解释。",
+    },
+    extensions: {
+      plugins: "插件",
+      pluginsStatus: "已安装 {{installed}} 个",
+      mcp: "MCP",
+      mcpStatus: "Server {{servers}} 个",
+      note: "提示：插件/MCP 最终体现为可用工具与能力来源，建议在 Agent 下统一呈现。",
+    },
+  },
   channels: {
     title: "渠道",
     description: "连接消息平台到你的 AI 助手",

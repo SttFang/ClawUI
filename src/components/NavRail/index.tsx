@@ -1,9 +1,6 @@
 import {
   MessageSquare,
-  Radio,
-  Wrench,
-  Server,
-  Puzzle,
+  Bot,
   Clock,
   BarChart3,
   Settings,
@@ -13,10 +10,7 @@ import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 const navItems = [
   { to: "/", icon: MessageSquare, labelKey: "nav:chat" },
-  { to: "/channels", icon: Radio, labelKey: "nav:channels" },
-  { to: "/tools", icon: Wrench, labelKey: "nav:tools" },
-  { to: "/mcp", icon: Server, labelKey: "nav:mcp" },
-  { to: "/plugins", icon: Puzzle, labelKey: "nav:plugins" },
+  { to: "/agents", icon: Bot, labelKey: "nav:agents" },
   { to: "/scheduler", icon: Clock, labelKey: "nav:scheduler" },
   { to: "/usage", icon: BarChart3, labelKey: "nav:usage" },
   { to: "/settings", icon: Settings, labelKey: "nav:settings" },

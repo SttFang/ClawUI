@@ -60,6 +60,75 @@ const common = {
       utility: "Utility",
     },
   },
+  agents: {
+    title: "Agents",
+    description: "Manage inputs, tool access, and extensions around agents.",
+    errorTitle: "Load failed",
+    list: {
+      title: "Agent List",
+      description: "Select an agent to inspect its inputs, capabilities, and extensions.",
+      empty: "No agents found.",
+      unknownModel: "Model not configured",
+    },
+    sections: {
+      identity: {
+        title: "Identity",
+        description: "Model and workspace for this agent.",
+      },
+      inputs: {
+        title: "Inputs",
+        description: "Where messages come from and how they route to this agent.",
+      },
+      capabilities: {
+        title: "Capabilities",
+        description: "Tool policy and sandbox state (effective view).",
+      },
+      extensions: {
+        title: "Extensions",
+        description: "Plugins and MCP as capability sources.",
+      },
+    },
+    fields: {
+      agentId: "agentId",
+      modelPrimary: "model.primary",
+      modelFallbacks: "model.fallbacks",
+      workspace: "workspace",
+    },
+    values: {
+      notConfigured: "Not configured",
+      none: "None",
+      enabled: "Enabled",
+      disabled: "Disabled",
+    },
+    actions: {
+      manageChannels: "Manage channels",
+      manageTools: "Manage tools",
+      managePlugins: "Manage plugins",
+      manageMcp: "Manage MCP",
+    },
+    inputs: {
+      channels: "Channels",
+      channelsStatus: "{{configured}} configured, {{enabled}} enabled",
+      noChannels: "No channels configured yet.",
+      bindingsNote:
+        "Note: bindings (routing) will be surfaced under Inputs; this page currently aggregates connector status.",
+    },
+    tools: {
+      access: "Tool access",
+      sandbox: "Sandbox",
+      enabledTools: "Enabled tools",
+      policyNote:
+        "Note: this is the global tool policy. We can extend this to per-agent effective explanations later.",
+    },
+    extensions: {
+      plugins: "Plugins",
+      pluginsStatus: "{{installed}} installed",
+      mcp: "MCP",
+      mcpStatus: "{{servers}} servers",
+      note:
+        "Note: plugins/MCP ultimately surface as tools/capabilities. Prefer presenting them under agents.",
+    },
+  },
   channels: {
     title: "Channels",
     description: "Connect messaging platforms to your AI assistant",

@@ -1,5 +1,6 @@
 const nav = {
   chat: "Chat",
+  agents: "Agents",
   channels: "Channels",
   tools: "Tools",
   mcp: "MCP",

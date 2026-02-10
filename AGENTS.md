@@ -104,6 +104,11 @@
 - Use `vi.spyOn` over `vi.mock`.
 - Test files: `*.test.ts` colocated with source.
 
+## Scope Guardrails
+
+- 不要修改 `packages/claw-sse/**` 的任何文件；该包内部的类型错误不属于本轮 i18n/前端文案工作范围。
+- 如果 `bun run type-check` 的失败**仅**来自 `packages/claw-sse/**` 的既有错误：允许继续提交，但必须确保本次改动不引入新的 TypeScript 报错（至少保证报错文件/数量不增加）。
+
 ## Agent Commit Log
 
 | Hash | Message | Date |

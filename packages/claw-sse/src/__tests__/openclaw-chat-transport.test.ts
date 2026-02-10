@@ -164,6 +164,32 @@ describe('createOpenClawChatTransport', () => {
       event: 'agent',
       payload: {
         runId: 'run1',
+        seq: 10,
+        stream: 'tool',
+        ts: Date.now(),
+        data: {
+          phase: 'update',
+          name: 'search',
+          toolCallId: 'tc1',
+          partialResult: { items: [1] },
+        },
+      },
+    })
+
+    const toolUpdate = await readNext(reader)
+    expect(toolUpdate).toMatchObject({
+      type: 'tool-output-available',
+      toolCallId: 'tc1',
+      preliminary: true,
+      dynamic: true,
+      output: { items: [1] },
+    })
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run1',
         seq: 11,
         stream: 'tool',
         ts: Date.now(),
@@ -212,6 +238,69 @@ describe('createOpenClawChatTransport', () => {
     }
 
     vi.useRealTimers()
+  })
+
+  it('should prefer agent assistant deltas when available', async () => {
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'run1'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('hi')],
+      abortSignal: undefined,
+    })
+
+    const reader = stream.getReader()
+
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run1',
+        seq: 1,
+        stream: 'assistant',
+        ts: Date.now(),
+        data: { text: 'hello', delta: 'hello' },
+      },
+    })
+
+    const d1 = await readNext(reader)
+    expect(d1).toEqual({ type: 'text-delta', id: 'text-1', delta: 'hello' })
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'run1',
+        sessionKey: 's1',
+        seq: 2,
+        state: 'final',
+        message: { content: [{ type: 'text', text: 'hello world' }] },
+      },
+    })
+
+    const d2 = await readNext(reader)
+    expect(d2).toEqual({ type: 'text-delta', id: 'text-1', delta: ' world' })
   })
 
   it('should wait for chat.final if lifecycle end arrives first (avoid truncation)', async () => {
@@ -272,6 +361,9 @@ describe('createOpenClawChatTransport', () => {
         data: { phase: 'end' },
       },
     })
+
+    // lifecycle event is forwarded as a data chunk (A2UI can render it).
+    expect((await readNext(reader)).type).toBe('data-openclaw-lifecycle')
 
     // If we finished immediately here, we'd miss the trailing chat.final payload (truncation bug).
     handler?.({
@@ -341,6 +433,7 @@ describe('createOpenClawChatTransport', () => {
 
     await vi.advanceTimersByTimeAsync(300)
 
+    expect((await readNext(reader)).type).toBe('data-openclaw-lifecycle')
     expect((await readNext(reader)).type).toBe('text-end')
     expect((await readNext(reader)).type).toBe('finish-step')
     expect((await readNext(reader)).type).toBe('finish')

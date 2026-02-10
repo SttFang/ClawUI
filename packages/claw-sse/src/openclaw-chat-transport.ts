@@ -66,7 +66,7 @@ export function createOpenClawChatTransport(params: {
         start(controller) {
           let runId: string | null = null
           let closed = false
-          let prevChatSnapshot = ''
+          let currentText = ''
           let didStartText = false
           let didFinish = false
           let lifecycleFinishTimer: ReturnType<typeof setTimeout> | null = null
@@ -142,18 +142,44 @@ export function createOpenClawChatTransport(params: {
             abortSignal.addEventListener('abort', onAbort, { once: true })
           }
 
+          const updateTextWithSnapshot = (nextText: string) => {
+            if (!nextText) return
+            if (!currentText) {
+              ensureTextStarted()
+              currentText = nextText
+              controller.enqueue({ type: 'text-delta', id: textPartId, delta: nextText })
+              return
+            }
+            // Ignore non-monotonic snapshots (best-effort).
+            if (nextText.length < currentText.length) return
+            ensureTextStarted()
+            const delta = computeSuffixDelta(currentText, nextText)
+            currentText = nextText
+            if (delta) controller.enqueue({ type: 'text-delta', id: textPartId, delta })
+          }
+
+          const updateTextWithDelta = (delta: string, fullText?: string) => {
+            if (!delta && !fullText) return
+            ensureTextStarted()
+            if (fullText && fullText.length >= currentText.length) {
+              const d = computeSuffixDelta(currentText, fullText)
+              currentText = fullText
+              if (d) controller.enqueue({ type: 'text-delta', id: textPartId, delta: d })
+              return
+            }
+            if (delta) {
+              currentText += delta
+              controller.enqueue({ type: 'text-delta', id: textPartId, delta })
+            }
+          }
+
           const handleChatEvent = (evt: OpenClawChatEvent) => {
             if (evt.sessionKey !== sessionKey) return
             if (evt.runId !== runId) return
 
             if (evt.state === 'delta' || evt.state === 'final') {
               const nextText = extractOpenClawTextFromMessage(evt.message) ?? ''
-              if (nextText) {
-                ensureTextStarted()
-                const delta = computeSuffixDelta(prevChatSnapshot, nextText)
-                prevChatSnapshot = nextText
-                if (delta) controller.enqueue({ type: 'text-delta', id: textPartId, delta })
-              }
+              updateTextWithSnapshot(nextText)
               if (evt.state === 'final') {
                 finishOnce()
               }
@@ -168,6 +194,17 @@ export function createOpenClawChatTransport(params: {
             if (evt.state === 'error') {
               const msg = typeof evt.errorMessage === 'string' ? evt.errorMessage : 'chat error'
               failOnce(msg)
+            }
+          }
+
+          const handleAssistantEvent = (evt: OpenClawAgentEventPayload) => {
+            if (evt.runId !== runId) return
+            if (evt.stream !== 'assistant') return
+            const data = evt.data ?? {}
+            const delta = typeof (data as { delta?: unknown }).delta === 'string' ? String((data as { delta?: unknown }).delta) : ''
+            const text = typeof (data as { text?: unknown }).text === 'string' ? String((data as { text?: unknown }).text) : undefined
+            if (delta || text) {
+              updateTextWithDelta(delta, text)
             }
           }
 
@@ -189,6 +226,18 @@ export function createOpenClawChatTransport(params: {
                 dynamic: true,
                 providerExecuted: true,
                 title: meta,
+              })
+              return
+            }
+
+            if (tool.phase === 'update') {
+              controller.enqueue({
+                type: 'tool-output-available',
+                toolCallId,
+                output: tool.partialResult,
+                providerExecuted: true,
+                dynamic: true,
+                preliminary: true,
               })
               return
             }
@@ -218,6 +267,20 @@ export function createOpenClawChatTransport(params: {
           const handleLifecycleEvent = (evt: OpenClawAgentEventPayload, lifecycle: OpenClawLifecycleEventData) => {
             if (evt.runId !== runId) return
             const phase = typeof lifecycle.phase === 'string' ? lifecycle.phase : null
+            if (phase) {
+              controller.enqueue({
+                type: 'data-openclaw-lifecycle',
+                data: {
+                  runId: evt.runId,
+                  sessionKey,
+                  seq: evt.seq,
+                  ts: evt.ts,
+                  phase,
+                  error: lifecycle.error,
+                  raw: lifecycle,
+                },
+              })
+            }
             if (phase === 'end') {
               // Fallback only: OpenClaw 的 WS 事件里 `agent.lifecycle=end` 往往早于 `chat.final`，
               // 如果这里立刻 finish，会导致尾部内容被截断（错过紧随其后的 chat.final）。
@@ -256,6 +319,10 @@ export function createOpenClawChatTransport(params: {
 
               if (payload.stream === 'tool') {
                 handleToolEvent(payload, payload.data as unknown as OpenClawToolEventData)
+                return
+              }
+              if (payload.stream === 'assistant') {
+                handleAssistantEvent(payload)
                 return
               }
               if (payload.stream === 'lifecycle') {

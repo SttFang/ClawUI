@@ -13,6 +13,7 @@ import {
   Select,
 } from '@clawui/ui'
 import { Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { channelsLog } from '@/lib/logger'
 import type { ChannelConfig } from '@/lib/ipc'
 
@@ -29,6 +30,7 @@ export function DiscordConfigDialog({
   config,
   onSave,
 }: DiscordConfigDialogProps) {
+  const { t } = useTranslation('common')
   const [isLoading, setIsLoading] = useState(false)
   const [botToken, setBotToken] = useState('')
   const [appToken, setAppToken] = useState('')
@@ -69,34 +71,34 @@ export function DiscordConfigDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onClose={() => onOpenChange(false)}>
         <DialogHeader>
-          <DialogTitle>Configure Discord</DialogTitle>
+          <DialogTitle>{t('channels.discord.configTitle')}</DialogTitle>
           <DialogDescription>
-            Set up your Discord bot integration
+            {t('channels.discord.configDescription')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="p-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="botToken">Bot Token</Label>
+            <Label htmlFor="botToken">{t('channels.fields.botToken')}</Label>
             <Input
               id="botToken"
               type="password"
-              placeholder="Your Discord bot token"
+              placeholder={t('channels.fields.botToken')}
               value={botToken}
               onChange={(e) => setBotToken(e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="appToken">Application ID</Label>
+            <Label htmlFor="appToken">{t('channels.fields.applicationId')}</Label>
             <Input
               id="appToken"
-              placeholder="Your Discord application ID"
+              placeholder={t('channels.fields.applicationId')}
               value={appToken}
               onChange={(e) => setAppToken(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Get credentials from{' '}
+              {t('channels.discord.applicationHelpPrefix')}{' '}
               <a
                 href="https://discord.com/developers/applications"
                 target="_blank"
@@ -105,41 +107,42 @@ export function DiscordConfigDialog({
               >
                 Discord Developer Portal
               </a>
+              {t('channels.discord.applicationHelpSuffix')}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="dmPolicy">DM Policy</Label>
+            <Label htmlFor="dmPolicy">{t('channels.policies.dm')}</Label>
             <Select
               id="dmPolicy"
               value={dmPolicy}
               onChange={(e) => setDmPolicy(e.target.value)}
             >
-              <option value="pairing">Pairing (require code)</option>
-              <option value="allowlist">Allowlist only</option>
-              <option value="open">Open (anyone can DM)</option>
-              <option value="disabled">Disabled</option>
+              <option value="pairing">{t('channels.policies.pairing')}</option>
+              <option value="allowlist">{t('channels.policies.allowlist')}</option>
+              <option value="open">{t('channels.policies.open')}</option>
+              <option value="disabled">{t('channels.policies.disabled')}</option>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="groupPolicy">Server Policy</Label>
+            <Label htmlFor="groupPolicy">{t('channels.policies.groupDiscord')}</Label>
             <Select
               id="groupPolicy"
               value={groupPolicy}
               onChange={(e) => setGroupPolicy(e.target.value)}
             >
-              <option value="allowlist">Allowlist only</option>
-              <option value="open">Open (all servers)</option>
-              <option value="disabled">Disabled</option>
+              <option value="allowlist">{t('channels.policies.allowlist')}</option>
+              <option value="open">{t('channels.policies.open')}</option>
+              <option value="disabled">{t('channels.policies.disabled')}</option>
             </Select>
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <Label>Require Mention</Label>
+              <Label>{t('channels.fields.requireMention')}</Label>
               <p className="text-xs text-muted-foreground">
-                Bot must be mentioned in channels
+                {t('channels.fields.requireMentionChannelsHint')}
               </p>
             </div>
             <Switch
@@ -151,16 +154,16 @@ export function DiscordConfigDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('actions.cancel')}
           </Button>
           <Button onClick={handleSave} disabled={isLoading || !botToken}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {t('status.saving')}
               </>
             ) : (
-              'Save'
+              t('actions.save')
             )}
           </Button>
         </DialogFooter>

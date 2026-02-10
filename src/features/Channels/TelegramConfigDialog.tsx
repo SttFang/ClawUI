@@ -13,6 +13,7 @@ import {
   Select,
 } from '@clawui/ui'
 import { Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { channelsLog } from '@/lib/logger'
 import type { ChannelConfig } from '@/lib/ipc'
 
@@ -29,6 +30,7 @@ export function TelegramConfigDialog({
   config,
   onSave,
 }: TelegramConfigDialogProps) {
+  const { t } = useTranslation('common')
   const [isLoading, setIsLoading] = useState(false)
   const [botToken, setBotToken] = useState('')
   const [dmPolicy, setDmPolicy] = useState<string>('pairing')
@@ -69,15 +71,15 @@ export function TelegramConfigDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onClose={() => onOpenChange(false)}>
         <DialogHeader>
-          <DialogTitle>Configure Telegram</DialogTitle>
+          <DialogTitle>{t('channels.telegram.configTitle')}</DialogTitle>
           <DialogDescription>
-            Set up your Telegram bot integration
+            {t('channels.telegram.configDescription')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="p-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="botToken">Bot Token</Label>
+            <Label htmlFor="botToken">{t('channels.fields.botToken')}</Label>
             <Input
               id="botToken"
               type="password"
@@ -86,7 +88,7 @@ export function TelegramConfigDialog({
               onChange={(e) => setBotToken(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Get your bot token from{' '}
+              {t('channels.telegram.botTokenHelpPrefix')}{' '}
               <a
                 href="https://t.me/BotFather"
                 target="_blank"
@@ -95,41 +97,42 @@ export function TelegramConfigDialog({
               >
                 @BotFather
               </a>
+              {t('channels.telegram.botTokenHelpSuffix')}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="dmPolicy">DM Policy</Label>
+            <Label htmlFor="dmPolicy">{t('channels.policies.dm')}</Label>
             <Select
               id="dmPolicy"
               value={dmPolicy}
               onChange={(e) => setDmPolicy(e.target.value)}
             >
-              <option value="pairing">Pairing (require code)</option>
-              <option value="allowlist">Allowlist only</option>
-              <option value="open">Open (anyone can DM)</option>
-              <option value="disabled">Disabled</option>
+              <option value="pairing">{t('channels.policies.pairing')}</option>
+              <option value="allowlist">{t('channels.policies.allowlist')}</option>
+              <option value="open">{t('channels.policies.open')}</option>
+              <option value="disabled">{t('channels.policies.disabled')}</option>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="groupPolicy">Group Policy</Label>
+            <Label htmlFor="groupPolicy">{t('channels.policies.groupTelegram')}</Label>
             <Select
               id="groupPolicy"
               value={groupPolicy}
               onChange={(e) => setGroupPolicy(e.target.value)}
             >
-              <option value="allowlist">Allowlist only</option>
-              <option value="open">Open (all groups)</option>
-              <option value="disabled">Disabled</option>
+              <option value="allowlist">{t('channels.policies.allowlist')}</option>
+              <option value="open">{t('channels.policies.open')}</option>
+              <option value="disabled">{t('channels.policies.disabled')}</option>
             </Select>
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <Label>Require Mention</Label>
+              <Label>{t('channels.fields.requireMention')}</Label>
               <p className="text-xs text-muted-foreground">
-                Bot must be mentioned in groups
+                {t('channels.fields.requireMentionGroupsHint')}
               </p>
             </div>
             <Switch
@@ -139,7 +142,7 @@ export function TelegramConfigDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="historyLimit">History Limit</Label>
+            <Label htmlFor="historyLimit">{t('channels.fields.historyLimit')}</Label>
             <Input
               id="historyLimit"
               type="number"
@@ -149,23 +152,23 @@ export function TelegramConfigDialog({
               onChange={(e) => setHistoryLimit(parseInt(e.target.value) || 50)}
             />
             <p className="text-xs text-muted-foreground">
-              Maximum messages to include in context
+              {t('channels.fields.historyLimitHint')}
             </p>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('actions.cancel')}
           </Button>
           <Button onClick={handleSave} disabled={isLoading || !botToken}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {t('status.saving')}
               </>
             ) : (
-              'Save'
+              t('actions.save')
             )}
           </Button>
         </DialogFooter>

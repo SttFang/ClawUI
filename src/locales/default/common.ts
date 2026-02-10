@@ -56,6 +56,74 @@ const common = {
       utility: '工具',
     },
   },
+  channels: {
+    title: '渠道',
+    description: '连接消息平台到你的 AI 助手',
+    status: {
+      configured: '已配置',
+      notConfigured: '未配置',
+    },
+    actions: {
+      configure: '配置',
+    },
+    items: {
+      telegram: {
+        name: 'Telegram',
+        description: '连接 Telegram 机器人',
+      },
+      discord: {
+        name: 'Discord',
+        description: '连接 Discord 机器人',
+      },
+      whatsapp: {
+        name: 'WhatsApp',
+        description: '连接 WhatsApp',
+      },
+      slack: {
+        name: 'Slack',
+        description: '连接 Slack 工作区',
+      },
+      wechat: {
+        name: '微信',
+        description: '连接微信',
+      },
+      signal: {
+        name: 'Signal',
+        description: '连接 Signal',
+      },
+    },
+    policies: {
+      dm: '私聊策略',
+      groupTelegram: '群聊策略',
+      groupDiscord: '服务器策略',
+      pairing: '配对（需要验证码）',
+      allowlist: '仅白名单',
+      open: '开放（任何人都可以）',
+      disabled: '禁用',
+    },
+    fields: {
+      botToken: 'Bot Token',
+      applicationId: 'Application ID',
+      requireMention: '必须 @ 提及',
+      requireMentionGroupsHint: '在群聊中需要提及机器人',
+      requireMentionChannelsHint: '在频道中需要提及机器人',
+      historyLimit: '历史消息上限',
+      historyLimitHint: '最多包含多少条消息作为上下文',
+      envVarsEmpty: '未配置环境变量',
+    },
+    telegram: {
+      configTitle: '配置 Telegram',
+      configDescription: '设置 Telegram 机器人集成',
+      botTokenHelpPrefix: '从',
+      botTokenHelpSuffix: '获取 Bot Token',
+    },
+    discord: {
+      configTitle: '配置 Discord',
+      configDescription: '设置 Discord 机器人集成',
+      applicationHelpPrefix: '从',
+      applicationHelpSuffix: '获取凭据',
+    },
+  },
   language: {
     manage: '语言',
     current: '当前语言',

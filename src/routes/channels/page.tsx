@@ -4,6 +4,7 @@ import {
   selectChannels,
   type ChannelType,
 } from '@/store/channels'
+import { useTranslation } from 'react-i18next'
 import {
   Switch,
   Card,
@@ -21,6 +22,7 @@ import {
 import type { ChannelConfig } from '@/lib/ipc'
 
 export default function ChannelsPage() {
+  const { t } = useTranslation('common')
   const channels = useChannelsStore(selectChannels)
   const { loadChannels, enableChannel, disableChannel, configureChannel } =
     useChannelsStore()
@@ -56,10 +58,8 @@ export default function ChannelsPage() {
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold">Channels</h1>
-          <p className="text-muted-foreground">
-            Connect messaging platforms to your AI assistant
-          </p>
+          <h1 className="text-2xl font-semibold">{t('channels.title')}</h1>
+          <p className="text-muted-foreground">{t('channels.description')}</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -70,8 +70,12 @@ export default function ChannelsPage() {
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{channel.icon}</span>
                     <div>
-                      <CardTitle className="text-lg">{channel.name}</CardTitle>
-                      <CardDescription>{channel.description}</CardDescription>
+                      <CardTitle className="text-lg">
+                        {t(`channels.items.${channel.type}.name`, { defaultValue: channel.name })}
+                      </CardTitle>
+                      <CardDescription>
+                        {t(`channels.items.${channel.type}.description`, { defaultValue: channel.description })}
+                      </CardDescription>
                     </div>
                   </div>
                   <Switch
@@ -94,7 +98,7 @@ export default function ChannelsPage() {
                         : 'text-muted-foreground'
                     }`}
                   >
-                    {channel.isConfigured ? 'Configured' : 'Not configured'}
+                    {channel.isConfigured ? t('channels.status.configured') : t('channels.status.notConfigured')}
                   </span>
                   <Button
                     variant="outline"
@@ -102,7 +106,7 @@ export default function ChannelsPage() {
                     onClick={() => handleConfigure(channel.type)}
                   >
                     <Settings className="w-4 h-4 mr-2" />
-                    Configure
+                    {t('channels.actions.configure')}
                   </Button>
                 </div>
               </CardContent>

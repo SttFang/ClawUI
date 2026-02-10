@@ -15,7 +15,9 @@ export interface InstallProgress {
 
 export type ProgressCallback = (progress: InstallProgress) => void
 
-const DEFAULT_OPENCLAW_SPEC = 'openclaw@latest'
+// Pin OpenClaw to a known-good version to avoid runtime/protocol drift.
+// Can be overridden via env `CLAWUI_OPENCLAW_SPEC`.
+const DEFAULT_OPENCLAW_SPEC = 'openclaw@2026.2.9'
 
 export class InstallerService {
   async install(onProgress: ProgressCallback): Promise<void> {

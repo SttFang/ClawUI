@@ -1,3 +1,4 @@
+import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createHashRouter } from 'react-router-dom'
 import App from './App'
@@ -38,8 +39,7 @@ const router = createHashRouter([
 ])
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  // Temporarily disable StrictMode to diagnose infinite loop issue
-  // <React.StrictMode>
+  <React.StrictMode>
     <RouterProvider router={router} />
-  // </React.StrictMode>
+  </React.StrictMode>
 )

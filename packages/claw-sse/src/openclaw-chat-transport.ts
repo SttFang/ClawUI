@@ -1,48 +1,17 @@
 import type { ChatTransport, UIMessage, UIMessageChunk } from 'ai'
 
-export type GatewayEventFrame = {
-  type: 'event'
-  event: string
-  payload?: unknown
-  seq?: number
-  stateVersion?: number
-}
+import { computeSuffixDelta } from './openclaw/delta'
+import { extractOpenClawTextFromMessage } from './openclaw/extract'
+import { extractUserText } from './openclaw/user'
+import type {
+  GatewayEventFrame,
+  OpenClawAgentEventPayload,
+  OpenClawChatEvent,
+  OpenClawLifecycleEventData,
+  OpenClawToolEventData,
+} from './openclaw/types'
 
-type OpenClawChatEvent = {
-  runId: string
-  sessionKey: string
-  seq: number
-  state: 'delta' | 'final' | 'aborted' | 'error'
-  message?: unknown
-  errorMessage?: string
-  usage?: unknown
-  stopReason?: string
-}
-
-type OpenClawAgentEventPayload = {
-  runId: string
-  seq: number
-  stream: string
-  ts: number
-  data: Record<string, unknown>
-  sessionKey?: string
-}
-
-type OpenClawToolEventData = {
-  phase: 'start' | 'update' | 'result'
-  name: string
-  toolCallId: string
-  args?: unknown
-  partialResult?: unknown
-  result?: unknown
-  meta?: unknown
-  isError?: unknown
-}
-
-type OpenClawLifecycleEventData = {
-  phase?: unknown
-  error?: unknown
-}
+export type { GatewayEventFrame } from './openclaw/types'
 
 export type OpenClawChatTransportAdapter = {
   /**
@@ -67,39 +36,6 @@ export type OpenClawChatTransportAdapter = {
    * Abort a running WebChat run (`chat.abort`). Optional in v1, but recommended.
    */
   abortChat?: (params: { sessionKey: string; runId?: string }) => Promise<void>
-}
-
-function extractOpenClawTextFromMessage(message: unknown): string | null {
-  if (!message || typeof message !== 'object') return null
-  const content = (message as { content?: unknown }).content
-  if (!Array.isArray(content) || content.length === 0) return null
-  const first = content[0] as { type?: unknown; text?: unknown } | undefined
-  if (!first || typeof first !== 'object') return null
-  const text = (first as { text?: unknown }).text
-  return typeof text === 'string' ? text : null
-}
-
-function computeSuffixDelta(prev: string, next: string): string {
-  if (!next) return ''
-  if (!prev) return next
-  if (next.length <= prev.length) return ''
-  if (next.startsWith(prev)) return next.slice(prev.length)
-  // Best-effort: fall back to longest common prefix.
-  const max = Math.min(prev.length, next.length)
-  let i = 0
-  while (i < max && prev.charCodeAt(i) === next.charCodeAt(i)) i++
-  return next.slice(i)
-}
-
-function extractUserText(message: UIMessage | undefined): string | null {
-  if (!message) return null
-  if (message.role !== 'user') return null
-  for (const part of message.parts) {
-    if (part.type === 'text' && typeof part.text === 'string') {
-      return part.text
-    }
-  }
-  return null
 }
 
 export function createOpenClawChatTransport(params: {

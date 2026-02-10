@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { initLogger, mainLog } from './lib/logger'
@@ -55,7 +55,11 @@ function createWindow(): BrowserWindow {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    if (details.url.startsWith('https://') || details.url.startsWith('http://')) {
+      shell.openExternal(details.url)
+    } else {
+      mainLog.warn('[window.blockedUrl]', details.url)
+    }
     return { action: 'deny' }
   })
 
@@ -79,6 +83,18 @@ app.whenReady().then(async () => {
   // and ignore CommandOrControl + R in production
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
+  })
+
+  // Set Content Security Policy
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* ws://127.0.0.1:*; img-src 'self' data:; font-src 'self' data:",
+        ],
+      },
+    })
   })
 
   // Register IPC handlers

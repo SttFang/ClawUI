@@ -107,6 +107,14 @@
 - Use `vi.spyOn` over `vi.mock`.
 - Test files: `*.test.ts` colocated with source.
 
+## Store 规范（Zustand）
+
+当你在 `src/store/**` 新增/重构 store（尤其是文件超过 ~300 行、actions 互相耦合明显、或需要乐观更新/复杂数据结构）时，按以下规范执行：
+
+- Action 分层（public/internal/dispatch）：参考 `.claude/rules/zustand-action-patterns.mdc`
+- Slice 组织方式（拆分 initialState/actions/selectors/reducer）：参考 `.claude/rules/zustand-slice-organization.mdc`
+- Store action 的测试写法（最小依赖 mock、重置 store、分 validation/happy/error）：参考 `.claude/rules/testing_guide/zustand-store-action-test.mdc`
+
 ## Agent Commit Log
 
 | Hash | Message | Date |

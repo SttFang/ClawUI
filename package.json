@@ -32,6 +32,8 @@
     "@clawui/claw-sse": "workspace:*",
     "@clawui/ui": "workspace:*",
     "@electron-toolkit/utils": "^4.0.0",
+    "@iconify/icons-logos": "^1.2.36",
+    "@iconify/react": "^6.0.2",
     "@lobehub/icons": "^4.4.1",
     "@streamdown/cjk": "^1.0.1",
     "@streamdown/code": "^1.0.1",

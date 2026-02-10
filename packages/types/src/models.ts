@@ -8,7 +8,8 @@ export interface ProviderAuthEffective {
 export interface OAuthProfile {
   type: "oauth";
   status: "ok" | "expired" | "missing";
-  expiresAt?: string;
+  // OpenClaw may return ms timestamp; keep it flexible for UI.
+  expiresAt?: string | number;
 }
 
 /** Per-provider OAuth status */
@@ -16,6 +17,10 @@ export interface OAuthProviderStatus {
   provider: string;
   status: "ok" | "expired" | "missing";
   profiles: OAuthProfile[];
+}
+
+export interface OAuthStatusBlock {
+  providers: OAuthProviderStatus[];
 }
 
 /** Per-provider auth info from CLI */
@@ -31,8 +36,8 @@ export interface ModelsStatus {
   fallbacks: string[];
   auth: {
     providers: ProviderAuthInfo[];
-    oauthStatus?: {
-      providers: OAuthProviderStatus[];
-    };
+    // Newer OpenClaw uses `auth.oauth`; older clients expected `auth.oauthStatus`.
+    oauth?: OAuthStatusBlock;
+    oauthStatus?: OAuthStatusBlock;
   };
 }

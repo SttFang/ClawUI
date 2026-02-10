@@ -32,10 +32,15 @@ function mapProviderToKey(provider: string): "anthropic" | "openai" | "openroute
 }
 
 function findOAuthStatus(
-  modelsStatus: { auth: { oauthStatus?: { providers: OAuthProviderStatus[] } } },
+  modelsStatus: { auth: Record<string, unknown> },
   provider: string,
 ): OAuthProviderStatus | undefined {
-  return modelsStatus.auth.oauthStatus?.providers.find((p) => p.provider === provider);
+  const auth = modelsStatus.auth as {
+    oauth?: { providers?: OAuthProviderStatus[] };
+    oauthStatus?: { providers?: OAuthProviderStatus[] };
+  };
+  const list = auth.oauth?.providers ?? auth.oauthStatus?.providers ?? [];
+  return list.find((p) => p.provider === provider);
 }
 
 export function ApiTab() {

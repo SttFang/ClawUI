@@ -17,9 +17,9 @@ function formatDuration(ms: number | undefined): string {
 }
 
 export function SessionDetail({ session }: SessionDetailProps) {
-  if (!session?.usage) return null
-
   const { t } = useTranslation('common')
+
+  if (!session?.usage) return null
   const { usage } = session
   const stats = [
     {

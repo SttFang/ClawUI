@@ -42,9 +42,9 @@ function formatTokens(n: number): string {
 }
 
 export function ProviderBreakdown({ byProvider }: ProviderBreakdownProps) {
-  if (!byProvider || byProvider.length === 0) return null
-
   const { t, i18n } = useTranslation('common')
+
+  if (!byProvider || byProvider.length === 0) return null
 
   const { pieData, chartConfig, totalTokens } = useMemo(() => {
     const config: ChartConfig = {}

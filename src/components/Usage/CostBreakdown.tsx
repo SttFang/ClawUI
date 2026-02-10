@@ -25,9 +25,9 @@ function formatTokens(n: number): string {
 }
 
 export function CostBreakdown({ totals }: CostBreakdownProps) {
-  if (!totals) return null
-
   const { t, i18n } = useTranslation('common')
+
+  if (!totals) return null
   const chartConfig = useMemo(() => ({
     output: { label: t('usage.metrics.output'), color: "var(--chart-1)" },
     input: { label: t('usage.metrics.input'), color: "var(--chart-2)" },

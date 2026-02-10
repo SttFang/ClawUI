@@ -17,7 +17,7 @@ import { Button, ScrollArea } from '@clawui/ui'
 import { useTranslation } from 'react-i18next'
 import type { ClawUISessionMetadata } from '@clawui/types/clawui'
 import { ConfigBanner } from '@/components/ConfigBanner'
-import { LifecycleEventCard, ToolEventCard, type OpenClawLifecycleData } from '@/components/A2UI'
+import { ToolEventCard } from '@/components/A2UI'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { useChatStore, selectCurrentSession, selectSessions } from '@/store/chat'
@@ -81,7 +81,7 @@ function ScrollToBottomButton() {
 
 function MessageText(props: { text: string; isAnimating: boolean }) {
   const { text, isAnimating } = props
-  const normalized = normalizeMathDelimiters(text)
+  const normalized = normalizeMathDelimiters(stripOpenClawReplyTags(text))
   return (
     <Streamdown
       plugins={STREAMDOWN_PLUGINS}
@@ -93,6 +93,16 @@ function MessageText(props: { text: string; isAnimating: boolean }) {
       {normalized}
     </Streamdown>
   )
+}
+
+function stripOpenClawReplyTags(text: string): string {
+  // OpenClaw 的 reply tag 只用于 channel 投递/回复控制，不应暴露给用户。
+  // 常见形式：
+  // - [[reply_to:<messageId>]]
+  // - [[reply_to_current]]
+  return text
+    .replaceAll(/\[\[reply_to:[^\]]+\]\]/g, '')
+    .replaceAll('[[reply_to_current]]', '')
 }
 
 function normalizeMathDelimiters(markdown: string): string {
@@ -135,9 +145,8 @@ function MessageParts(props: { message: UIMessage; streaming: boolean }) {
         if (part.type === 'dynamic-tool') {
           return <ToolEventCard key={index} part={part} />
         }
-        if (part.type === 'data-openclaw-lifecycle') {
-          return <LifecycleEventCard key={index} data={(part as unknown as { data: OpenClawLifecycleData }).data} />
-        }
+        // lifecycle 默认不占消息流位置（后续可放到独立的“运行状态/调试”面板）。
+        if (part.type === 'data-openclaw-lifecycle') return null
         // v1: ignore other parts (files, reasoning, sources, data parts, static tools).
         return null
       })}

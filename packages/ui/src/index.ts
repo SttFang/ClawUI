@@ -37,3 +37,18 @@ export {
   ChartStyle,
   type ChartConfig,
 } from "./chart";
+
+// AI Elements (local, inspired by https://elements.ai-sdk.dev)
+export {
+  Attachments,
+  type AttachmentItem,
+  PromptInput,
+  PromptInputTextarea,
+  PromptInputFooter,
+  PromptInputTools,
+  PromptInputActions,
+  PromptInputAction,
+  PromptInputSubmit,
+  type PromptInputProps,
+  type PromptInputTextareaProps,
+} from "./ai-elements";

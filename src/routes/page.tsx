@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useChat } from '@ai-sdk/react'
-import type { DynamicToolUIPart, UIMessage } from 'ai'
+import type { UIMessage } from 'ai'
 import { ArrowDown, MessageSquare, Plus, Send, Sparkles, Trash2 } from 'lucide-react'
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom'
 import { Streamdown } from 'streamdown'
@@ -8,11 +8,16 @@ import { code } from '@streamdown/code'
 import { mermaid } from '@streamdown/mermaid'
 import { createMathPlugin } from '@streamdown/math'
 import { cjk } from '@streamdown/cjk'
-import { createOpenClawChatTransport, type OpenClawChatTransportAdapter } from '@clawui/claw-sse'
+import {
+  createOpenClawChatTransport,
+  openclawTranscriptToUIMessages,
+  type OpenClawChatTransportAdapter,
+} from '@clawui/claw-sse'
 import { Button, ScrollArea } from '@clawui/ui'
 import { useTranslation } from 'react-i18next'
 import type { ClawUISessionMetadata } from '@clawui/types/clawui'
 import { ConfigBanner } from '@/components/ConfigBanner'
+import { LifecycleEventCard, ToolEventCard, type OpenClawLifecycleData } from '@/components/A2UI'
 import { ipc } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 import { useChatStore, selectCurrentSession, selectSessions } from '@/store/chat'
@@ -45,14 +50,9 @@ function createRendererOpenClawAdapter(): OpenClawChatTransportAdapter {
     sendChat: async ({ sessionKey, message }) => {
       return ipc.chat.send({ sessionId: sessionKey, message })
     },
-  }
-}
-
-function formatJson(value: unknown): string {
-  try {
-    return JSON.stringify(value, null, 2)
-  } catch {
-    return String(value)
+    abortChat: async ({ sessionKey, runId }) => {
+      await ipc.chat.request('chat.abort', { sessionKey, runId })
+    },
   }
 }
 
@@ -121,47 +121,6 @@ function normalizeMathDelimiters(markdown: string): string {
   return lines.join('\n')
 }
 
-function ToolCard(props: { part: DynamicToolUIPart }) {
-  const { part } = props
-
-  const title = part.title?.trim() ? part.title : part.toolName
-  const state = part.state
-
-  return (
-    <div className="rounded-xl border bg-card px-4 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{title}</div>
-          <div className="mt-0.5 truncate text-xs text-muted-foreground">
-            {part.toolName} · {part.toolCallId}
-          </div>
-        </div>
-        <div className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-          {state}
-        </div>
-      </div>
-
-      {state === 'input-available' || state === 'input-streaming' ? (
-        <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs">
-          {formatJson(part.input)}
-        </pre>
-      ) : null}
-
-      {state === 'output-available' ? (
-        <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs">
-          {formatJson(part.output)}
-        </pre>
-      ) : null}
-
-      {state === 'output-error' ? (
-        <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          {part.errorText}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 function MessageParts(props: { message: UIMessage; streaming: boolean }) {
   const { message, streaming } = props
 
@@ -174,7 +133,10 @@ function MessageParts(props: { message: UIMessage; streaming: boolean }) {
           return <MessageText key={index} text={part.text} isAnimating={streaming && part.state === 'streaming'} />
         }
         if (part.type === 'dynamic-tool') {
-          return <ToolCard key={index} part={part} />
+          return <ToolEventCard key={index} part={part} />
+        }
+        if (part.type === 'data-openclaw-lifecycle') {
+          return <LifecycleEventCard key={index} data={(part as unknown as { data: OpenClawLifecycleData }).data} />
         }
         // v1: ignore other parts (files, reasoning, sources, data parts, static tools).
         return null
@@ -195,6 +157,41 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
   const [input, setInput] = useState('')
 
   const isBusy = chat.status === 'submitted' || chat.status === 'streaming'
+
+  const refreshHistory = useCallback(async () => {
+    try {
+      const connected = await ipc.chat.isConnected()
+      if (!connected) {
+        const ok = await ipc.chat.connect()
+        if (!ok) return
+      }
+      const res = (await ipc.chat.request('chat.history', { sessionKey, limit: 200 })) as {
+        messages?: unknown
+      }
+      const uiMessages = openclawTranscriptToUIMessages(res?.messages)
+      chat.setMessages(uiMessages)
+    } catch {
+      // best-effort only
+    }
+  }, [sessionKey, chat])
+
+  // OpenClaw Control UI: chat.final 到达后用 history 作为权威状态刷新（避免 delta/agent 流丢字段）。
+  useEffect(() => {
+    void refreshHistory()
+  }, [refreshHistory])
+
+  useEffect(() => {
+    return ipc.gateway.onEvent((frame) => {
+      if (frame.type !== 'event') return
+      if (frame.event !== 'chat') return
+      const payload = frame.payload as { sessionKey?: unknown; state?: unknown } | undefined
+      if (!payload || typeof payload !== 'object') return
+      if (payload.sessionKey !== sessionKey) return
+      if (payload.state === 'final') {
+        void refreshHistory()
+      }
+    })
+  }, [sessionKey, refreshHistory])
 
   const handleSend = async () => {
     const text = input.trim()

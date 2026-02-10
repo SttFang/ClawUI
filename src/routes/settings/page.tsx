@@ -338,7 +338,7 @@ export default function SettingsPage() {
               <Card>
                 <CardContent className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-muted-foreground">Loading models status...</span>
+                  <span className="ml-2 text-muted-foreground">{t('settings.page.api.loading')}</span>
                 </CardContent>
               </Card>
             ) : modelsStatus ? (
@@ -367,15 +367,15 @@ export default function SettingsPage() {
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <Key className="w-5 h-5" />
-                    <CardTitle>API Keys</CardTitle>
+                    <CardTitle>{t('settings.page.api.fallback.title')}</CardTitle>
                   </div>
                   <CardDescription>
-                    Configure your AI provider API keys. Keys are stored locally and encrypted.
+                    {t('settings.page.api.fallback.description')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="anthropic-key">Anthropic API Key</Label>
+                    <Label htmlFor="anthropic-key">{t('settings.page.api.fallback.fields.anthropicKey')}</Label>
                     <Input
                       id="anthropic-key"
                       type="password"
@@ -385,7 +385,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="openai-key">OpenAI API Key</Label>
+                    <Label htmlFor="openai-key">{t('settings.page.api.fallback.fields.openaiKey')}</Label>
                     <Input
                       id="openai-key"
                       type="password"
@@ -395,7 +395,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="openrouter-key">OpenRouter API Key</Label>
+                    <Label htmlFor="openrouter-key">{t('settings.page.api.fallback.fields.openrouterKey')}</Label>
                     <Input
                       id="openrouter-key"
                       type="password"
@@ -409,16 +409,16 @@ export default function SettingsPage() {
                       {isSaving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
+                          {t('status.saving')}
                         </>
                       ) : (
-                        'Save API Keys'
+                        t('settings.page.api.fallback.actions.saveApiKeys')
                       )}
                     </Button>
                     {saveSuccess && (
                       <span className="flex items-center gap-1 text-sm text-green-500">
                         <CheckCircle2 className="h-4 w-4" />
-                        Saved!
+                        {t('settings.page.api.fallback.saved')}
                       </span>
                     )}
                     {settingsError && (

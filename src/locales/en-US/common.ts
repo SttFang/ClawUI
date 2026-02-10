@@ -330,6 +330,22 @@ const common = {
         },
         saved: 'Saved',
       },
+      api: {
+        loading: 'Loading models status...',
+        fallback: {
+          title: 'API keys',
+          description: 'Configure your AI provider API keys. Keys are stored locally and encrypted.',
+          fields: {
+            anthropicKey: 'Anthropic API key',
+            openaiKey: 'OpenAI API key',
+            openrouterKey: 'OpenRouter API key',
+          },
+          actions: {
+            saveApiKeys: 'Save API keys',
+          },
+          saved: 'Saved!',
+        },
+      },
     },
     providerCard: {
       status: {

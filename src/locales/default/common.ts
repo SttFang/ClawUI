@@ -330,6 +330,22 @@ const common = {
         },
         saved: '已保存',
       },
+      api: {
+        loading: '加载模型状态中...',
+        fallback: {
+          title: 'API Key',
+          description: '配置 AI 提供商的 API Key。密钥将本地加密存储。',
+          fields: {
+            anthropicKey: 'Anthropic API 密钥',
+            openaiKey: 'OpenAI API 密钥',
+            openrouterKey: 'OpenRouter API 密钥',
+          },
+          actions: {
+            saveApiKeys: '保存 API Key',
+          },
+          saved: '已保存',
+        },
+      },
     },
     providerCard: {
       status: {

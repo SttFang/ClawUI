@@ -678,6 +678,12 @@ const common = {
       allowAlways: "总是允许",
     },
   },
+  errorBoundary: {
+    unexpectedError: "出错了",
+    unexpectedErrorMessage: "发生了意外错误，请重试。",
+    reload: "刷新页面",
+    goHome: "返回首页",
+  },
   a2ui: {
     lifecycle: "生命周期：{{phase}}",
     seq: "序号 {{seq}}",

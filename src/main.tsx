@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider, createHashRouter } from "react-router-dom";
 import App from "./App";
+import { RouteErrorBoundary } from "./components/ErrorBoundary";
 import "./locales/i18n";
 import "katex/dist/katex.min.css";
 import "./index.css";
@@ -24,6 +25,7 @@ const router = createHashRouter([
   {
     path: "/",
     element: <App />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <ChatPage /> },
       { path: "channels", element: <ChannelsPage /> },

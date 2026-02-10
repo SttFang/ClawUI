@@ -682,6 +682,12 @@ const common = {
       allowAlways: "Always allow",
     },
   },
+  errorBoundary: {
+    unexpectedError: "Something went wrong",
+    unexpectedErrorMessage: "An unexpected error occurred. Please try again.",
+    reload: "Reload page",
+    goHome: "Go home",
+  },
   a2ui: {
     lifecycle: "Lifecycle: {{phase}}",
     seq: "seq {{seq}}",

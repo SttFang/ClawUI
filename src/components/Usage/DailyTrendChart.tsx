@@ -3,10 +3,10 @@ import { formatTokens, formatLatency } from '@/lib/format'
 import {
   ComposedChart,
   Bar,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
+  Customized,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@clawui/ui'
 import { useTranslation } from 'react-i18next'
@@ -32,6 +32,7 @@ interface DailyTrendChartProps {
 }
 
 const DATA_KEYS = ['output', 'input', 'cacheWrite', 'cacheRead'] as const
+const BAR_SIZE = 18
 
 function formatDateByGranularity(dateStr: string, granularity: Granularity): string {
   const d = new Date(dateStr)
@@ -67,6 +68,63 @@ function formatValue(value: number, mode: 'tokens' | 'cost'): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`
   return String(value)
+}
+
+function TrendEdgeConnectors(props: any & { dataKeys: readonly string[]; barSize: number }) {
+  const { xAxisMap, yAxisMap, data, dataKeys, barSize } = props ?? {}
+  if (!Array.isArray(data) || data.length < 2) return null
+
+  const xAxis = (xAxisMap ? Object.values(xAxisMap)[0] : undefined) as any
+  const yAxis = (yAxisMap ? Object.values(yAxisMap)[0] : undefined) as any
+  const xScale = xAxis?.scale
+  const yScale = yAxis?.scale
+  if (typeof xScale !== 'function' || typeof yScale !== 'function') return null
+
+  const xKey = xAxis?.dataKey ?? 'date'
+  const bandwidth = typeof xScale.bandwidth === 'function' ? xScale.bandwidth() : null
+  const halfBar = barSize / 2
+
+  const centers: Array<number | null> = data.map((d: any) => {
+    const x0 = xScale(d?.[xKey])
+    if (typeof x0 !== 'number') return null
+    return typeof bandwidth === 'number' ? x0 + bandwidth / 2 : x0
+  })
+
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      {dataKeys.flatMap((key: string) =>
+        data.slice(0, -1).map((d: any, i: number) => {
+          const c1 = centers[i]
+          const c2 = centers[i + 1]
+          if (c1 == null || c2 == null) return null
+
+          const v1 = Number(d?.[key])
+          const v2 = Number(data[i + 1]?.[key])
+          if (!Number.isFinite(v1) || !Number.isFinite(v2)) return null
+
+          const y1 = yScale(v1)
+          const y2 = yScale(v2)
+          if (typeof y1 !== 'number' || typeof y2 !== 'number') return null
+
+          const x1 = c1 + halfBar
+          const x2 = c2 - halfBar
+
+          return (
+            <path
+              key={`conn-${key}-${i}`}
+              d={`M ${x1} ${y1} L ${x2} ${y2}`}
+              stroke={`var(--color-${key})`}
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+              strokeLinecap="round"
+              fill="none"
+              opacity={0.9}
+            />
+          )
+        }),
+      )}
+    </g>
+  )
 }
 
 
@@ -212,22 +270,14 @@ export function DailyTrendChart({ data, mode, totals, aggregates, sessionCount }
                 dataKey={key}
                 stackId="stack"
                 fill={`var(--color-${key})`}
+                barSize={BAR_SIZE}
                 radius={key === 'cacheRead' ? [2, 2, 0, 0] : undefined}
               />
             ))}
-            {/* Dashed trend lines connecting bars of the same color */}
-            {DATA_KEYS.map((key) => (
-              <Line
-                key={`line-${key}`}
-                type="monotone"
-                dataKey={key}
-                stroke={`var(--color-${key})`}
-                strokeWidth={1.5}
-                strokeDasharray="4 3"
-                dot={false}
-                legendType="none"
-              />
-            ))}
+            {/* Dashed connectors: from right edge of bar -> left edge of next bar */}
+            <Customized component={(p: any) => (
+              <TrendEdgeConnectors {...p} dataKeys={DATA_KEYS} barSize={BAR_SIZE} />
+            )} />
           </ComposedChart>
         </ChartContainer>
       </CardContent>

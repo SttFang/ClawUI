@@ -11,6 +11,7 @@ import {
   Label,
 } from '@clawui/ui'
 import { Plus, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface EnvVar {
   key: string
@@ -34,6 +35,7 @@ export function AddMCPServerDialog({
   onOpenChange,
   onSubmit,
 }: AddMCPServerDialogProps) {
+  const { t } = useTranslation('common')
   const [name, setName] = useState('')
   const [command, setCommand] = useState('')
   const [args, setArgs] = useState('')
@@ -62,10 +64,10 @@ export function AddMCPServerDialog({
     const newErrors: { name?: string; command?: string } = {}
 
     if (!name.trim()) {
-      newErrors.name = 'Server name is required'
+      newErrors.name = t('mcp.form.errors.nameRequired')
     }
     if (!command.trim()) {
-      newErrors.command = 'Command is required'
+      newErrors.command = t('mcp.form.errors.commandRequired')
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -112,18 +114,18 @@ export function AddMCPServerDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent onClose={handleClose} className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add MCP Server</DialogTitle>
+          <DialogTitle>{t('mcp.form.title')}</DialogTitle>
           <DialogDescription>
-            Configure a new Model Context Protocol server
+            {t('mcp.form.description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 p-6">
           <div className="space-y-2">
-            <Label htmlFor="name">Server Name</Label>
+            <Label htmlFor="name">{t('mcp.form.serverName')}</Label>
             <Input
               id="name"
-              placeholder="e.g., filesystem, github"
+              placeholder={t('mcp.form.serverNamePlaceholder')}
               value={name}
               onChange={(e) => {
                 setName(e.target.value)
@@ -136,10 +138,10 @@ export function AddMCPServerDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="command">Command</Label>
+            <Label htmlFor="command">{t('mcp.form.command')}</Label>
             <Input
               id="command"
-              placeholder="e.g., npx, node, python"
+              placeholder={t('mcp.form.commandPlaceholder')}
               value={command}
               onChange={(e) => {
                 setCommand(e.target.value)
@@ -152,10 +154,10 @@ export function AddMCPServerDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="args">Arguments (space-separated)</Label>
+            <Label htmlFor="args">{t('mcp.form.args')}</Label>
             <Input
               id="args"
-              placeholder="e.g., -y @anthropic/mcp-server-filesystem"
+              placeholder={t('mcp.form.argsPlaceholder')}
               value={args}
               onChange={(e) => setArgs(e.target.value)}
             />
@@ -163,7 +165,7 @@ export function AddMCPServerDialog({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Environment Variables</Label>
+              <Label>{t('mcp.form.envVars')}</Label>
               <Button
                 type="button"
                 variant="outline"
@@ -171,13 +173,13 @@ export function AddMCPServerDialog({
                 onClick={handleAddEnvVar}
               >
                 <Plus className="w-3 h-3 mr-1" />
-                Add
+                {t('mcp.actions.add')}
               </Button>
             </div>
             {envVars.map((envVar, index) => (
               <div key={index} className="flex gap-2">
                 <Input
-                  placeholder="KEY"
+                  placeholder={t('mcp.form.envKeyPlaceholder')}
                   value={envVar.key}
                   onChange={(e) =>
                     handleEnvVarChange(index, 'key', e.target.value)
@@ -185,7 +187,7 @@ export function AddMCPServerDialog({
                   className="flex-1"
                 />
                 <Input
-                  placeholder="value"
+                  placeholder={t('mcp.form.envValuePlaceholder')}
                   value={envVar.value}
                   onChange={(e) =>
                     handleEnvVarChange(index, 'value', e.target.value)
@@ -198,6 +200,7 @@ export function AddMCPServerDialog({
                   size="sm"
                   onClick={() => handleRemoveEnvVar(index)}
                   className="px-2"
+                  aria-label={t('actions.delete')}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -205,7 +208,7 @@ export function AddMCPServerDialog({
             ))}
             {envVars.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No environment variables configured
+                {t('mcp.form.envEmpty')}
               </p>
             )}
           </div>
@@ -213,9 +216,9 @@ export function AddMCPServerDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            Cancel
+            {t('actions.cancel')}
           </Button>
-          <Button onClick={handleSubmit}>Add Server</Button>
+          <Button onClick={handleSubmit}>{t('mcp.actions.addServer')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

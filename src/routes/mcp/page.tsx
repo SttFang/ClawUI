@@ -18,6 +18,7 @@ import {
   Wrench,
   AlertCircle,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import {
   useMCPStore,
   selectServers,
@@ -28,6 +29,7 @@ import {
 import { AddMCPServerDialog } from './AddMCPServerDialog'
 
 export default function MCPPage() {
+  const { t } = useTranslation('common')
   const servers = useMCPStore(selectServers)
   const isLoading = useMCPStore(selectIsLoading)
   const error = useMCPStore(selectError)
@@ -83,14 +85,12 @@ export default function MCPPage() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-semibold">MCP Servers</h1>
-            <p className="text-muted-foreground">
-              Manage Model Context Protocol servers
-            </p>
+            <h1 className="text-2xl font-semibold">{t('mcp.title')}</h1>
+            <p className="text-muted-foreground">{t('mcp.description')}</p>
           </div>
           <Button onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
-            Add Server
+            {t('mcp.actions.addServer')}
           </Button>
         </div>
 
@@ -110,13 +110,13 @@ export default function MCPPage() {
             <CardContent className="py-12">
               <div className="text-center">
                 <Server className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No MCP Servers</h3>
+                <h3 className="text-lg font-medium mb-2">{t('mcp.emptyTitle')}</h3>
                 <p className="text-muted-foreground mb-4">
-                  Add your first MCP server to extend the AI capabilities
+                  {t('mcp.emptyDescription')}
                 </p>
                 <Button onClick={() => setIsAddDialogOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Server
+                  {t('mcp.actions.addServer')}
                 </Button>
               </div>
             </CardContent>
@@ -165,14 +165,14 @@ export default function MCPPage() {
                   <CardContent>
                     <div className="space-y-4">
                       {/* Environment Variables */}
-                      {server.env && Object.keys(server.env).length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">
-                            Environment Variables
-                          </h4>
-                          <div className="bg-muted rounded-lg p-3 space-y-1">
-                            {Object.entries(server.env).map(([key, value]) => (
-                              <div
+	                      {server.env && Object.keys(server.env).length > 0 && (
+	                        <div>
+	                          <h4 className="text-sm font-medium mb-2">
+	                            {t('mcp.envVarsTitle')}
+	                          </h4>
+	                          <div className="bg-muted rounded-lg p-3 space-y-1">
+	                            {Object.entries(server.env).map(([key, value]) => (
+	                              <div
                                 key={key}
                                 className="font-mono text-xs flex gap-2"
                               >
@@ -189,15 +189,15 @@ export default function MCPPage() {
                         </div>
                       )}
 
-                      {/* Tools */}
-                      <div>
-                        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                          <Wrench className="w-4 h-4" />
-                          Tools ({server.tools.length})
-                        </h4>
-                        {server.tools.length > 0 ? (
-                          <div className="grid gap-2">
-                            {server.tools.map((tool) => (
+	                      {/* Tools */}
+	                      <div>
+	                        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+	                          <Wrench className="w-4 h-4" />
+	                          {t('mcp.toolsTitle', { n: server.tools.length })}
+	                        </h4>
+	                        {server.tools.length > 0 ? (
+	                          <div className="grid gap-2">
+	                            {server.tools.map((tool) => (
                               <div
                                 key={tool.name}
                                 className="bg-muted rounded-lg p-3"
@@ -211,50 +211,50 @@ export default function MCPPage() {
                               </div>
                             ))}
                           </div>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            Tools will be discovered when the server starts
-                          </p>
-                        )}
-                      </div>
+	                        ) : (
+	                          <p className="text-sm text-muted-foreground">
+	                            {t('mcp.toolsEmpty')}
+	                          </p>
+	                        )}
+	                      </div>
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 pt-2 border-t">
-                        {deleteConfirmId === server.id ? (
-                          <>
-                            <span className="text-sm text-muted-foreground">
-                              Delete this server?
-                            </span>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteServer(server.id)}
-                            >
-                              Confirm
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setDeleteConfirmId(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteConfirmId(server.id)}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                )}
+	                        {deleteConfirmId === server.id ? (
+	                          <>
+	                            <span className="text-sm text-muted-foreground">
+	                              {t('mcp.deleteConfirm')}
+	                            </span>
+	                            <Button
+	                              variant="destructive"
+	                              size="sm"
+	                              onClick={() => handleDeleteServer(server.id)}
+	                            >
+	                              {t('actions.confirm')}
+	                            </Button>
+	                            <Button
+	                              variant="outline"
+	                              size="sm"
+	                              onClick={() => setDeleteConfirmId(null)}
+	                            >
+	                              {t('actions.cancel')}
+	                            </Button>
+	                          </>
+	                        ) : (
+	                          <Button
+	                            variant="outline"
+	                            size="sm"
+	                            className="text-destructive hover:text-destructive"
+	                            onClick={() => setDeleteConfirmId(server.id)}
+	                          >
+	                            <Trash2 className="w-4 h-4 mr-2" />
+	                            {t('mcp.actions.remove')}
+	                          </Button>
+	                        )}
+	                      </div>
+	                    </div>
+	                  </CardContent>
+	                )}
               </Card>
             ))}
           </div>

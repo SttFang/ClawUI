@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@clawui/ui'
+import { useTranslation } from 'react-i18next'
 import { useExecApprovalsStore, type ExecApprovalDecision } from '@/store/execApprovals'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +23,7 @@ function formatLine(label: string, value: string | null | undefined) {
 }
 
 export function ExecApprovalPrompt() {
+  const { t } = useTranslation('common')
   const queue = useExecApprovalsStore((s) => s.queue)
   const busyById = useExecApprovalsStore((s) => s.busyById)
   const resolve = useExecApprovalsStore((s) => s.resolve)
@@ -32,8 +34,10 @@ export function ExecApprovalPrompt() {
 
   const title = useMemo(() => {
     if (!current) return ''
-    return current.request.host ? `exec @ ${current.request.host}` : 'exec'
-  }, [current])
+    return current.request.host
+      ? t('execApproval.titleWithHost', { host: current.request.host })
+      : t('execApproval.title')
+  }, [current, t])
 
   const onDecision = async (decision: ExecApprovalDecision) => {
     if (!current || busy) return
@@ -51,17 +55,17 @@ export function ExecApprovalPrompt() {
     <Dialog open onOpenChange={() => {}}>
       <DialogContent className="max-w-2xl" onClose={() => remove(current.id)}>
         <DialogHeader>
-          <DialogTitle>需要批准：{title}</DialogTitle>
+          <DialogTitle>{t('execApproval.needsApproval', { title })}</DialogTitle>
           <DialogDescription>
-            OpenClaw 会对每条命令单独发起批准请求（id: {current.id}）。
+            {t('execApproval.description', { id: current.id })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 p-6 pt-4">
-          {formatLine('agent', current.request.agentId)}
-          {formatLine('session', current.request.sessionKey)}
-          {formatLine('cwd', current.request.cwd)}
-          {formatLine('path', current.request.resolvedPath)}
+          {formatLine(t('execApproval.fields.agent'), current.request.agentId)}
+          {formatLine(t('execApproval.fields.session'), current.request.sessionKey)}
+          {formatLine(t('execApproval.fields.cwd'), current.request.cwd)}
+          {formatLine(t('execApproval.fields.path'), current.request.resolvedPath)}
 
           {current.request.security ? (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
@@ -87,17 +91,16 @@ export function ExecApprovalPrompt() {
             onClick={() => void onDecision('deny')}
             className={cn('border-destructive/40 text-destructive hover:bg-destructive/10')}
           >
-            拒绝
+            {t('execApproval.actions.deny')}
           </Button>
           <Button variant="outline" disabled={busy} onClick={() => void onDecision('allow-once')}>
-            仅本次允许
+            {t('execApproval.actions.allowOnce')}
           </Button>
           <Button disabled={busy} onClick={() => void onDecision('allow-always')}>
-            总是允许
+            {t('execApproval.actions.allowAlways')}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
-

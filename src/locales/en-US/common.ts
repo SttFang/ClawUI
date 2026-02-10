@@ -648,6 +648,23 @@ const common = {
       unexpected: 'An unexpected error occurred',
     },
   },
+  execApproval: {
+    title: 'exec',
+    titleWithHost: 'exec @ {{host}}',
+    needsApproval: 'Approval required: {{title}}',
+    description: 'OpenClaw asks for approval for each command (id: {{id}}).',
+    fields: {
+      agent: 'agent',
+      session: 'session',
+      cwd: 'cwd',
+      path: 'path',
+    },
+    actions: {
+      deny: 'Deny',
+      allowOnce: 'Allow once',
+      allowAlways: 'Always allow',
+    },
+  },
 } as const
 
 export default common

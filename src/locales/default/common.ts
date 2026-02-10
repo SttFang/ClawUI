@@ -648,6 +648,23 @@ const common = {
       unexpected: '发生了未知错误',
     },
   },
+  execApproval: {
+    title: 'exec',
+    titleWithHost: 'exec @ {{host}}',
+    needsApproval: '需要批准：{{title}}',
+    description: 'OpenClaw 会对每条命令单独发起批准请求（id: {{id}}）。',
+    fields: {
+      agent: 'agent',
+      session: 'session',
+      cwd: 'cwd',
+      path: 'path',
+    },
+    actions: {
+      deny: '拒绝',
+      allowOnce: '仅本次允许',
+      allowAlways: '总是允许',
+    },
+  },
 } as const
 
 export default common

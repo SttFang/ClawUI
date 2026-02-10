@@ -346,6 +346,31 @@ const common = {
           saved: 'Saved!',
         },
       },
+      gateway: {
+        title: 'Gateway status',
+        description: 'OpenClaw Gateway manages AI connections',
+        status: {
+          running: 'Running',
+          starting: 'Starting',
+          error: 'Error',
+          stopped: 'Stopped',
+        },
+        actions: {
+          startGateway: 'Start Gateway',
+          stopGateway: 'Stop Gateway',
+          installService: 'Install service',
+          restartService: 'Restart service',
+          uninstallService: 'Uninstall service',
+        },
+        messages: {
+          serviceInstalled: 'Gateway service installed',
+          serviceRestarted: 'Gateway service restarted',
+          serviceUninstalled: 'Gateway service uninstalled',
+          installFailed: 'Install failed',
+          restartFailed: 'Restart failed',
+          uninstallFailed: 'Uninstall failed',
+        },
+      },
     },
     providerCard: {
       status: {

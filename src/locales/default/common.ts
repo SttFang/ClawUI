@@ -346,6 +346,31 @@ const common = {
           saved: '已保存',
         },
       },
+      gateway: {
+        title: '网关状态',
+        description: 'OpenClaw Gateway 负责管理 AI 连接',
+        status: {
+          running: '运行中',
+          starting: '启动中',
+          error: '错误',
+          stopped: '已停止',
+        },
+        actions: {
+          startGateway: '启动 Gateway',
+          stopGateway: '停止 Gateway',
+          installService: '安装服务',
+          restartService: '重启服务',
+          uninstallService: '卸载服务',
+        },
+        messages: {
+          serviceInstalled: '已安装 Gateway 服务',
+          serviceRestarted: '已重启 Gateway 服务',
+          serviceUninstalled: '已卸载 Gateway 服务',
+          installFailed: '安装失败',
+          restartFailed: '重启失败',
+          uninstallFailed: '卸载失败',
+        },
+      },
     },
     providerCard: {
       status: {

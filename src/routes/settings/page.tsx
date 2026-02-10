@@ -439,10 +439,10 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Server className="w-5 h-5" />
-                  <CardTitle>Gateway Status</CardTitle>
+                  <CardTitle>{t('settings.page.gateway.title')}</CardTitle>
                 </div>
                 <CardDescription>
-                  OpenClaw Gateway manages AI connections
+                  {t('settings.page.gateway.description')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -459,7 +459,9 @@ export default function SettingsPage() {
                               : 'bg-gray-400'
                       }`}
                     />
-                    <span className="capitalize">{gatewayStatus}</span>
+                    <span className="capitalize">
+                      {t(`settings.page.gateway.status.${gatewayStatus}`, { defaultValue: gatewayStatus })}
+                    </span>
                     {gatewayError && <span className="text-destructive"> - {gatewayError}</span>}
                   </div>
                   <Button
@@ -467,7 +469,9 @@ export default function SettingsPage() {
                     onClick={isGatewayRunning ? stopGateway : startGateway}
                     disabled={gatewayStatus === 'starting'}
                   >
-                    {isGatewayRunning ? 'Stop' : 'Start'} Gateway
+                    {isGatewayRunning
+                      ? t('settings.page.gateway.actions.stopGateway')
+                      : t('settings.page.gateway.actions.startGateway')}
                   </Button>
                 </div>
 
@@ -480,12 +484,16 @@ export default function SettingsPage() {
                       setGatewayServiceMessage(null)
                       ipc.gateway
                         .installService()
-                        .then(() => setGatewayServiceMessage('Gateway service installed'))
-                        .catch((e) => setGatewayServiceMessage(e instanceof Error ? e.message : 'Install failed'))
+                        .then(() => setGatewayServiceMessage(t('settings.page.gateway.messages.serviceInstalled')))
+                        .catch((e) =>
+                          setGatewayServiceMessage(
+                            e instanceof Error ? e.message : t('settings.page.gateway.messages.installFailed'),
+                          ),
+                        )
                         .finally(() => setGatewayServiceBusy(false))
                     }}
                   >
-                    Install Service
+                    {t('settings.page.gateway.actions.installService')}
                   </Button>
                   <Button
                     variant="outline"
@@ -495,12 +503,16 @@ export default function SettingsPage() {
                       setGatewayServiceMessage(null)
                       ipc.gateway
                         .restartService()
-                        .then(() => setGatewayServiceMessage('Gateway service restarted'))
-                        .catch((e) => setGatewayServiceMessage(e instanceof Error ? e.message : 'Restart failed'))
+                        .then(() => setGatewayServiceMessage(t('settings.page.gateway.messages.serviceRestarted')))
+                        .catch((e) =>
+                          setGatewayServiceMessage(
+                            e instanceof Error ? e.message : t('settings.page.gateway.messages.restartFailed'),
+                          ),
+                        )
                         .finally(() => setGatewayServiceBusy(false))
                     }}
                   >
-                    Restart Service
+                    {t('settings.page.gateway.actions.restartService')}
                   </Button>
                   <Button
                     variant="destructive"
@@ -510,12 +522,16 @@ export default function SettingsPage() {
                       setGatewayServiceMessage(null)
                       ipc.gateway
                         .uninstallService()
-                        .then(() => setGatewayServiceMessage('Gateway service uninstalled'))
-                        .catch((e) => setGatewayServiceMessage(e instanceof Error ? e.message : 'Uninstall failed'))
+                        .then(() => setGatewayServiceMessage(t('settings.page.gateway.messages.serviceUninstalled')))
+                        .catch((e) =>
+                          setGatewayServiceMessage(
+                            e instanceof Error ? e.message : t('settings.page.gateway.messages.uninstallFailed'),
+                          ),
+                        )
                         .finally(() => setGatewayServiceBusy(false))
                     }}
                   >
-                    Uninstall Service
+                    {t('settings.page.gateway.actions.uninstallService')}
                   </Button>
                 </div>
 

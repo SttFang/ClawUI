@@ -26,6 +26,7 @@ Validation (run/fix before PR):
 
 - `bun run type-check`
 - `pnpm lint`
+- `pnpm format:check`
 - `pnpm build`
 - `bunx vitest run --silent='passed-only' 'src/[path].test.ts'`
 

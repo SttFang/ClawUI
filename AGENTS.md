@@ -40,6 +40,8 @@
 - Build: `pnpm build`
 - Type-check: `bun run type-check`
 - Lint: `pnpm lint`
+- Format: `pnpm format`
+- Format check: `pnpm format:check`
 - Test: `bunx vitest run --silent='passed-only' 'src/[path].test.ts'`
 
 ## Electron Window Configuration

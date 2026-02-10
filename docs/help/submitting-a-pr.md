@@ -23,6 +23,7 @@ Be concise; concise review > grammar. Omit any non-applicable sections.
 
 - `bun run type-check`
 - `pnpm lint`
+- `pnpm format:check`
 - `pnpm build`
 - `bunx vitest run --silent='passed-only' 'src/[path].test.ts'`
 

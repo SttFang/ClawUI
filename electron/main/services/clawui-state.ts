@@ -144,6 +144,13 @@ export class ClawUIStateService {
     return this.state;
   }
 
+  async replace(next: Partial<ClawUIState>): Promise<ClawUIState> {
+    // Import/restore flow: keep defaults for missing keys.
+    this.state = deepMerge(DEFAULT_STATE, next as any);
+    await this.save();
+    return this.state;
+  }
+
   private async load(): Promise<void> {
     try {
       const raw = await readFile(this.getPath(), "utf-8");

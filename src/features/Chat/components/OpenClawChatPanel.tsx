@@ -140,7 +140,7 @@ export function OpenClawChatPanel(props: {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="inline-block max-w-full rounded-xl bg-muted px-4 py-3">
+                        <div className="inline-block max-w-full rounded-xl bg-transparent px-4 py-3">
                           <MessageParts message={message} streaming={streaming} />
                         </div>
                       </div>

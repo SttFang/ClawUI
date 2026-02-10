@@ -801,6 +801,11 @@ const common = {
     seq: "seq {{seq}}",
     run: "run {{runId}}",
     statePreliminary: "{{state}} (partial)",
+    toolState: {
+      waitingApproval: "Waiting for approval",
+      running: "Running",
+      runningHint: "Approved. Executing…",
+    },
   },
 } as const;
 

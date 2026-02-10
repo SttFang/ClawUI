@@ -1,7 +1,9 @@
 import type { DynamicToolUIPart } from "ai";
 import { Card, CardContent } from "@clawui/ui";
+import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
 
 function formatJson(value: unknown): string {
   try {
@@ -27,11 +29,40 @@ function StatePill(props: { state: string; preliminary?: boolean }) {
   );
 }
 
-export function ToolEventCard(props: { part: DynamicToolUIPart }) {
-  const { part } = props;
+function getExecCommand(input: unknown): string {
+  if (typeof input !== "object" || input === null) return "";
+  const cmd = (input as Record<string, unknown>)["command"];
+  return typeof cmd === "string" ? cmd.trim() : "";
+}
+
+export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: string }) {
+  const { t } = useTranslation("common");
+  const { part, sessionKey } = props;
 
   const title = part.title?.trim() ? part.title : part.toolName;
   const state = part.state;
+
+  const approvalQueue = useExecApprovalsStore((s) => s.queue);
+  const runningByKey = useExecApprovalsStore((s) => s.runningByKey);
+
+  const isExec = part.toolName === "exec";
+  const execCommand = isExec ? getExecCommand(part.input) : "";
+  const approvalRequested =
+    isExec && execCommand
+      ? approvalQueue.some(
+          (e) => e.request.sessionKey === sessionKey && e.request.command === execCommand,
+        )
+      : false;
+  const runningKey = isExec && execCommand ? makeExecApprovalKey(sessionKey, execCommand) : "";
+  const runningAtMs = runningKey ? runningByKey[runningKey] : 0;
+  const isRunning = Boolean(runningAtMs && Date.now() - runningAtMs < 2 * 60 * 1000);
+
+  const stateLabel =
+    state === "input-available" && approvalRequested
+      ? t("a2ui.toolState.waitingApproval")
+      : state === "input-available" && isRunning
+        ? t("a2ui.toolState.running")
+        : state;
 
   return (
     <Card className="rounded-xl">
@@ -44,7 +75,7 @@ export function ToolEventCard(props: { part: DynamicToolUIPart }) {
             </div>
           </div>
           <StatePill
-            state={state}
+            state={stateLabel}
             preliminary={
               state === "output-available"
                 ? (part as unknown as { preliminary?: boolean }).preliminary
@@ -52,6 +83,13 @@ export function ToolEventCard(props: { part: DynamicToolUIPart }) {
             }
           />
         </div>
+
+        {state === "input-available" && isRunning ? (
+          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span>{t("a2ui.toolState.runningHint")}</span>
+          </div>
+        ) : null}
 
         {state === "input-available" || state === "input-streaming" ? (
           <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs">

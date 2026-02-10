@@ -136,12 +136,16 @@ export function OpenClawChatPanel(props: {
                   >
                     {isUser ? (
                       <div className="inline-block max-w-full rounded-xl bg-primary px-4 py-3 text-primary-foreground">
-                        <MessageParts message={message} streaming={false} />
+                        <MessageParts message={message} streaming={false} sessionKey={sessionKey} />
                       </div>
                     ) : (
                       <div className="space-y-3">
                         <div className="inline-block max-w-full rounded-xl bg-transparent px-4 py-3">
-                          <MessageParts message={message} streaming={streaming} />
+                          <MessageParts
+                            message={message}
+                            streaming={streaming}
+                            sessionKey={sessionKey}
+                          />
                         </div>
                       </div>
                     )}

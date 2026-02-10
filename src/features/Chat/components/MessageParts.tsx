@@ -12,8 +12,12 @@ function ThinkingShimmer() {
   );
 }
 
-export function MessageParts(props: { message: UIMessage; streaming: boolean }) {
-  const { message, streaming } = props;
+export function MessageParts(props: {
+  message: UIMessage;
+  streaming: boolean;
+  sessionKey: string;
+}) {
+  const { message, streaming, sessionKey } = props;
 
   const hasVisibleText = message.parts.some(
     (p) => p.type === "text" && typeof p.text === "string" && Boolean(p.text.trim()),
@@ -37,7 +41,7 @@ export function MessageParts(props: { message: UIMessage; streaming: boolean }) 
           );
         }
         if (part.type === "dynamic-tool") {
-          return <ToolEventCard key={index} part={part} />;
+          return <ToolEventCard key={index} part={part} sessionKey={sessionKey} />;
         }
         // lifecycle 默认不占消息流位置（后续可放到独立的“运行状态/调试”面板）。
         if (part.type === "data-openclaw-lifecycle") return null;

@@ -796,6 +796,11 @@ const common = {
     seq: "序号 {{seq}}",
     run: "运行 {{runId}}",
     statePreliminary: "{{state}}（部分）",
+    toolState: {
+      waitingApproval: "等待你允许",
+      running: "执行中",
+      runningHint: "已允许，正在执行…",
+    },
   },
 } as const;
 

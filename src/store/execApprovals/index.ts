@@ -68,9 +68,19 @@ function prune(queue: ExecApprovalRequest[]): ExecApprovalRequest[] {
   return queue.filter((e) => e.expiresAtMs > now);
 }
 
+export function makeExecApprovalKey(
+  sessionKey: string | null | undefined,
+  command: string,
+): string {
+  return `${sessionKey ?? ""}::${command}`;
+}
+
+const EXEC_RUNNING_TTL_MS = 2 * 60 * 1000;
+
 interface ExecApprovalsState {
   queue: ExecApprovalRequest[];
   busyById: Record<string, boolean>;
+  runningByKey: Record<string, number>;
 }
 
 interface ExecApprovalsActions {
@@ -86,6 +96,7 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
     (set) => ({
       queue: [],
       busyById: {},
+      runningByKey: {},
 
       add: (entry) =>
         set(
@@ -108,6 +119,33 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
         ),
 
       resolve: async (id, decision) => {
+        // If user allows an exec, mark it as running immediately (tool output may arrive later).
+        if (decision === "allow-once" || decision === "allow-always") {
+          const current = useExecApprovalsStore.getState().queue.find((x) => x.id === id) ?? null;
+          if (current) {
+            const key = makeExecApprovalKey(current.request.sessionKey, current.request.command);
+            const atMs = Date.now();
+            set(
+              (s) => ({ runningByKey: { ...s.runningByKey, [key]: atMs } }),
+              false,
+              "resolve/markRunning",
+            );
+            // Best-effort TTL cleanup to avoid stale "running" states.
+            window.setTimeout(() => {
+              useExecApprovalsStore.setState(
+                (s) => {
+                  const ts = s.runningByKey[key];
+                  if (!ts) return s;
+                  if (Date.now() - ts < EXEC_RUNNING_TTL_MS) return s;
+                  const { [key]: _ignored, ...rest } = s.runningByKey;
+                  return { ...s, runningByKey: rest };
+                },
+                false,
+                "resolve/markRunning/ttl",
+              );
+            }, EXEC_RUNNING_TTL_MS + 1000);
+          }
+        }
         set((s) => ({ busyById: { ...s.busyById, [id]: true } }), false, "resolve/busy");
         try {
           await ipc.chat.request("exec.approval.resolve", { id, decision });
@@ -130,10 +168,12 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
 // Selectors
 export const selectQueue = (state: ExecApprovalsStore) => state.queue;
 export const selectBusyById = (state: ExecApprovalsStore) => state.busyById;
+export const selectRunningByKey = (state: ExecApprovalsStore) => state.runningByKey;
 
 export const execApprovalsSelectors = {
   selectQueue,
   selectBusyById,
+  selectRunningByKey,
 };
 
 let listenerInitialized = false;

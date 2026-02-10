@@ -126,14 +126,14 @@
 | `/commit` | 创建规范的 git commit |
 | `/review-pr` | 审查 Pull Request |
 | `ui-ux-pro-max` | UI/UX 设计最佳实践 |
-| `tailwind-v4-shadcn` | Tailwind CSS v4 + shadcn/ui 模式 |
+| `tailwind-design-system` | Tailwind CSS v4 设计系统与组件库规范 |
 
 ### 何时使用哪个 Skill（对标 OpenClaw 的“按场景选工具”）
 
 - 在需要设计提交拆分、commit message 规范、提交策略时：使用 `/commit`；实际提交仍使用 `scripts/committer`。
 - 在用户提供 PR 链接并要求审查时：使用 `/review-pr`（只读 review，不切分支）。
 - 在做 UI/UX 设计、布局、信息层级、动效与可用性优化时：使用 `ui-ux-pro-max`。
-- 在做 Tailwind v4 + shadcn/ui 的主题变量、`@theme inline`、class 组织、迁移与疑难排查时：使用 `tailwind-v4-shadcn`。
+- 在做 Tailwind v4 的设计系统、design tokens、组件库规范、主题与可访问性落地时：使用 `tailwind-design-system`。
 
 安装新 skill：
 ```bash

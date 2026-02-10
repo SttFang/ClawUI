@@ -22,6 +22,7 @@ export function OpenClawChatPanel(props: { sessionKey: string; wsConnected: bool
   const chat = useChat({ id: sessionKey, transport })
   const [input, setInput] = useState('')
   const historyInFlightRef = useRef(false)
+  const lastHistoryAtRef = useRef(0)
   const lastHistorySigRef = useRef<string>('')
   const setMessagesRef = useRef(chat.setMessages)
 
@@ -35,6 +36,10 @@ export function OpenClawChatPanel(props: { sessionKey: string; wsConnected: bool
 
   const refreshHistory = useCallback(async () => {
     if (historyInFlightRef.current) return
+    const now = Date.now()
+    // 防止 `chat.final`/热重载等情况下短时间内重复刷历史导致刷屏与 Gateway 压力。
+    if (now - lastHistoryAtRef.current < 800) return
+    lastHistoryAtRef.current = now
     historyInFlightRef.current = true
     try {
       const connected = await ipc.chat.isConnected()
@@ -188,4 +193,3 @@ export function OpenClawChatPanel(props: { sessionKey: string; wsConnected: bool
     </div>
   )
 }
-

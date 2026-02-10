@@ -223,7 +223,7 @@ describe('createOpenClawChatTransport', () => {
     })
 
     // lifecycle finish is delayed to avoid truncation (chat.final usually arrives after lifecycle end).
-    await vi.advanceTimersByTimeAsync(300)
+    await vi.advanceTimersByTimeAsync(1600)
 
     // Drain until finished.
     for (;;) {
@@ -237,7 +237,7 @@ describe('createOpenClawChatTransport', () => {
     vi.useRealTimers()
   })
 
-  it('should prefer agent assistant deltas when available', async () => {
+  it('should ignore agent assistant stream for text and rely on chat.delta snapshots', async () => {
     let handler: ((frame: GatewayEventFrame) => void) | null = null
 
     const transport = createOpenClawChatTransport({
@@ -281,9 +281,6 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
-    const d1 = await readNext(reader)
-    expect(d1).toEqual({ type: 'text-delta', id: 'text-1', delta: 'hello' })
-
     handler?.({
       type: 'event',
       event: 'chat',
@@ -296,8 +293,8 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
-    const d2 = await readNext(reader)
-    expect(d2).toEqual({ type: 'text-delta', id: 'text-1', delta: ' world' })
+    const d1 = await readNext(reader)
+    expect(d1).toEqual({ type: 'text-delta', id: 'text-1', delta: 'hello world' })
   })
 
   it('should wait for chat.final if lifecycle end arrives first (avoid truncation)', async () => {
@@ -428,7 +425,7 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
-    await vi.advanceTimersByTimeAsync(300)
+    await vi.advanceTimersByTimeAsync(1600)
 
     expect((await readNext(reader)).type).toBe('data-openclaw-lifecycle')
     expect((await readNext(reader)).type).toBe('text-end')

@@ -10,10 +10,10 @@ export function MessageText(props: { text: string; isAnimating: boolean }) {
       mode={isAnimating ? 'streaming' : 'static'}
       isAnimating={isAnimating}
       parseIncompleteMarkdown
-      className="break-words"
+      // Make long tokens/URLs wrap instead of expanding the bubble.
+      className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
     >
       {normalized}
     </Streamdown>
   )
 }
-

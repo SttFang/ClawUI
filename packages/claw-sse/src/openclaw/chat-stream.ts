@@ -45,6 +45,7 @@ export function createOpenClawChatStream(params: {
       let didStartText = false
       let didFinish = false
       let lifecycleFinishTimer: ReturnType<typeof setTimeout> | null = null
+      let lastChatEventAt = 0
       const textPartId = 'text-1'
       const buffered: GatewayEventFrame[] = []
       let unsubscribe: (() => void) | null = null
@@ -133,26 +134,16 @@ export function createOpenClawChatStream(params: {
         if (delta) controller.enqueue({ type: 'text-delta', id: textPartId, delta })
       }
 
-      const updateTextWithDelta = (delta: string, fullText?: string) => {
-        if (!delta && !fullText) return
-        ensureTextStarted()
-        if (fullText && fullText.length >= currentText.length) {
-          const d = computeSuffixDelta(currentText, fullText)
-          currentText = fullText
-          if (d) controller.enqueue({ type: 'text-delta', id: textPartId, delta: d })
-          return
-        }
-        if (delta) {
-          currentText += delta
-          controller.enqueue({ type: 'text-delta', id: textPartId, delta })
-        }
-      }
-
       const handleChatEvent = (evt: OpenClawChatEvent) => {
         if (evt.sessionKey !== sessionKey) return
         if (evt.runId !== runId) return
 
         if (evt.state === 'delta' || evt.state === 'final') {
+          lastChatEventAt = Date.now()
+          if (lifecycleFinishTimer) {
+            clearTimeout(lifecycleFinishTimer)
+            lifecycleFinishTimer = null
+          }
           const nextText = extractOpenClawTextFromMessage(evt.message) ?? ''
           updateTextWithSnapshot(nextText)
           if (evt.state === 'final') {
@@ -175,12 +166,12 @@ export function createOpenClawChatStream(params: {
       const handleAssistantEvent = (evt: OpenClawAgentEventPayload) => {
         if (evt.runId !== runId) return
         if (evt.stream !== 'assistant') return
-        const data = evt.data ?? {}
-        const delta = typeof (data as { delta?: unknown }).delta === 'string' ? String((data as { delta?: unknown }).delta) : ''
-        const text = typeof (data as { text?: unknown }).text === 'string' ? String((data as { text?: unknown }).text) : undefined
-        if (delta || text) {
-          updateTextWithDelta(delta, text)
-        }
+        // OpenClaw 的 `chat.delta` 是累计快照，最终也由 assistant.text 映射而来。
+        // 过去同时消费 `agent.assistant` + `chat.delta` 会出现“重复/口吃式”拼接：
+        // 两条流的粒度/节流策略不同，偶发导致 append-only 的 delta 合成失真。
+        //
+        // v1 策略：以 `chat.delta/final` 作为唯一文本来源；assistant 流只用于补充 tool/lifecycle 等结构化信息。
+        void evt
       }
 
       const handleToolEvent = (evt: OpenClawAgentEventPayload, tool: OpenClawToolEventData) => {
@@ -253,11 +244,17 @@ export function createOpenClawChatStream(params: {
           })
         }
         if (phase === 'end') {
-          // Fallback only: OpenClaw 的 WS 事件里 `agent.lifecycle=end` 往往早于 `chat.final`，
+          // Fallback only: OpenClaw 的 WS 事件顺序里 `agent.lifecycle=end` 往往早于 `chat.final`。
           // 如果这里立刻 finish，会导致尾部内容被截断（错过紧随其后的 chat.final）。
-          // 这里做一个短延迟的兜底：如果 chat.final 没来，再结束流。
+          //
+          // 这里做一个“可被 chat.delta 取消”的兜底：只要后续还有 chat.delta/final，timer 会被清掉。
           if (!lifecycleFinishTimer) {
-            lifecycleFinishTimer = setTimeout(() => finishOnce(), 250)
+            lifecycleFinishTimer = setTimeout(() => {
+              const idleForMs = Date.now() - lastChatEventAt
+              // 如果最近仍在收到 chat.delta，说明还没收敛，不要提前结束。
+              if (lastChatEventAt > 0 && idleForMs < 800) return
+              finishOnce()
+            }, 1500)
           }
           return
         }

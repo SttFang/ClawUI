@@ -6,30 +6,15 @@ import {
   type GatewayEventFrame,
 } from "../services/chat-websocket";
 import { ConfigService } from "../services/config";
+import { ensureGatewayConnected } from "../utils/ensure-connected";
 
 export function registerChatHandlers(
   mainWindow: BrowserWindow,
   configService: ConfigService,
 ): void {
-  async function ensureConnected(url?: string): Promise<void> {
-    // Get token from config
-    const config = await configService.getConfig();
-    if (config?.gateway?.auth?.token) {
-      chatWebSocket.setGatewayToken(config.gateway.auth.token);
-    }
-    if (url) {
-      chatWebSocket.setGatewayUrl(url);
-    } else if (config?.gateway?.port) {
-      chatWebSocket.setGatewayUrl(`ws://127.0.0.1:${config.gateway.port}`);
-    }
-    if (!chatWebSocket.isConnected()) {
-      await chatWebSocket.connect();
-    }
-  }
-
   // Connect to WebSocket
   ipcMain.handle("chat:connect", async (_, url?: string) => {
-    await ensureConnected(url);
+    await ensureGatewayConnected(configService, url);
     return true;
   });
 
@@ -48,7 +33,7 @@ export function registerChatHandlers(
   ipcMain.handle(
     "chat:request",
     async (_, method: string, params?: Record<string, unknown>): Promise<unknown> => {
-      await ensureConnected();
+      await ensureGatewayConnected(configService);
       return chatWebSocket.request(method, params);
     },
   );

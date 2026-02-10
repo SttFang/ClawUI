@@ -120,7 +120,7 @@ app.whenReady().then(async () => {
 
   // Register chat handlers (needs mainWindow reference)
   registerChatHandlers(mainWindow, configService);
-  registerUsageHandlers();
+  registerUsageHandlers(configService);
 
   // Initialize services
   try {

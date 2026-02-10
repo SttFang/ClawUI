@@ -6,6 +6,7 @@ import type { ConfigService } from "../services/config";
 import type { OpenClawProfilesService } from "../services/openclaw-profiles";
 import { mainLog } from "../lib/logger";
 import { chatWebSocket } from "../services/chat-websocket";
+import { ensureGatewayConnected } from "../utils/ensure-connected";
 import { resolveCommandPath } from "../utils/login-shell";
 
 const execFileAsync = promisify(execFile);
@@ -59,19 +60,6 @@ function toMetadata(now: number, obj: Record<string, unknown>): ClawUISessionMet
   };
 }
 
-async function ensureMainGatewayConnected(configService: ConfigService): Promise<void> {
-  const config = await configService.getConfig();
-  if (config?.gateway?.auth?.token) {
-    chatWebSocket.setGatewayToken(config.gateway.auth.token);
-  }
-  if (config?.gateway?.port) {
-    chatWebSocket.setGatewayUrl(`ws://127.0.0.1:${config.gateway.port}`);
-  }
-  if (!chatWebSocket.isConnected()) {
-    await chatWebSocket.connect();
-  }
-}
-
 async function runOpenClawJson(
   args: string[],
   env: NodeJS.ProcessEnv,
@@ -113,7 +101,7 @@ export function registerMetadataHandlers(
 
       // Ensure both profiles exist before we try to read env from the config-agent profile.
       await profilesService.initialize();
-      await ensureMainGatewayConnected(mainConfigService);
+      await ensureGatewayConnected(mainConfigService);
 
       const preview = await chatWebSocket.request("sessions.preview", {
         keys: [sessionKey],

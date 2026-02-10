@@ -150,5 +150,5 @@ app.on('window-all-closed', () => {
 
 // Clean up on quit
 app.on('before-quit', async () => {
-  await gatewayService.stop()
+  await gatewayService.dispose()
 })

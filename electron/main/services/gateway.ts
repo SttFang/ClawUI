@@ -219,6 +219,48 @@ export class GatewayService extends EventEmitter {
     })
   }
 
+  /**
+   * App shutdown hook.
+   *
+   * ClawUI must not stop the user's managed OpenClaw gateway service when it exits.
+   * Only terminate a gateway process that ClawUI spawned.
+   */
+  async dispose(): Promise<void> {
+    if (this.monitorTimer) {
+      clearInterval(this.monitorTimer)
+      this.monitorTimer = null
+    }
+
+    // Only stop the managed child process (if any). Do NOT call `openclaw gateway stop`.
+    if (this.process) {
+      await new Promise<void>((resolve) => {
+        const proc = this.process
+        if (!proc) return resolve()
+
+        proc.once('exit', () => resolve())
+        try {
+          proc.kill('SIGTERM')
+        } catch {
+          resolve()
+          return
+        }
+
+        setTimeout(() => {
+          if (this.process) {
+            try {
+              this.process.kill('SIGKILL')
+            } catch {
+              // ignore
+            }
+          }
+          resolve()
+        }, 1500)
+      })
+    }
+
+    this.removeAllListeners()
+  }
+
   private setStatus(status: GatewayStatus): void {
     const prev = this.status
     this.status = status

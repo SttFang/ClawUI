@@ -2,11 +2,28 @@ import type { UIMessage } from "ai";
 import { ToolEventCard } from "@/components/A2UI";
 import { MessageText } from "./MessageText";
 
+function ThinkingShimmer() {
+  return (
+    <div className="space-y-2" aria-label="thinking">
+      <div className="claw-shimmer h-3 w-40 max-w-full rounded-md" />
+      <div className="claw-shimmer h-3 w-56 max-w-full rounded-md" />
+      <div className="claw-shimmer h-3 w-32 max-w-full rounded-md" />
+    </div>
+  );
+}
+
 export function MessageParts(props: { message: UIMessage; streaming: boolean }) {
   const { message, streaming } = props;
 
+  const hasVisibleText = message.parts.some(
+    (p) => p.type === "text" && typeof p.text === "string" && Boolean(p.text.trim()),
+  );
+  const hasVisibleTool = message.parts.some((p) => p.type === "dynamic-tool");
+  const shouldShowThinking = streaming && !hasVisibleText && !hasVisibleTool;
+
   return (
     <div className="space-y-3">
+      {shouldShowThinking ? <ThinkingShimmer /> : null}
       {message.parts.map((part, index) => {
         if (part.type === "step-start") return null;
         if (part.type === "text") {

@@ -1,37 +1,37 @@
-import type { DynamicToolUIPart } from 'ai'
-import { Card, CardContent } from '@clawui/ui'
-import { cn } from '@/lib/utils'
-import { useTranslation } from 'react-i18next'
+import type { DynamicToolUIPart } from "ai";
+import { Card, CardContent } from "@clawui/ui";
+import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 function formatJson(value: unknown): string {
   try {
-    return JSON.stringify(value, null, 2)
+    return JSON.stringify(value, null, 2);
   } catch {
-    return String(value)
+    return String(value);
   }
 }
 
 function StatePill(props: { state: string; preliminary?: boolean }) {
-  const { t } = useTranslation('common')
-  const { state, preliminary } = props
+  const { t } = useTranslation("common");
+  const { state, preliminary } = props;
   return (
     <div
       className={cn(
-        'shrink-0 rounded-full px-2 py-0.5 text-[11px]',
-        'bg-muted text-muted-foreground',
-        preliminary && 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200'
+        "shrink-0 rounded-full px-2 py-0.5 text-[11px]",
+        "bg-muted text-muted-foreground",
+        preliminary && "bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200",
       )}
     >
-      {preliminary ? t('a2ui.statePreliminary', { state }) : state}
+      {preliminary ? t("a2ui.statePreliminary", { state }) : state}
     </div>
-  )
+  );
 }
 
 export function ToolEventCard(props: { part: DynamicToolUIPart }) {
-  const { part } = props
+  const { part } = props;
 
-  const title = part.title?.trim() ? part.title : part.toolName
-  const state = part.state
+  const title = part.title?.trim() ? part.title : part.toolName;
+  const state = part.state;
 
   return (
     <Card className="rounded-xl">
@@ -43,27 +43,34 @@ export function ToolEventCard(props: { part: DynamicToolUIPart }) {
               {part.toolName} · {part.toolCallId}
             </div>
           </div>
-          <StatePill state={state} preliminary={state === 'output-available' ? (part as unknown as { preliminary?: boolean }).preliminary : false} />
+          <StatePill
+            state={state}
+            preliminary={
+              state === "output-available"
+                ? (part as unknown as { preliminary?: boolean }).preliminary
+                : false
+            }
+          />
         </div>
 
-        {state === 'input-available' || state === 'input-streaming' ? (
+        {state === "input-available" || state === "input-streaming" ? (
           <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs">
             {formatJson(part.input)}
           </pre>
         ) : null}
 
-        {state === 'output-available' ? (
+        {state === "output-available" ? (
           <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs">
             {formatJson(part.output)}
           </pre>
         ) : null}
 
-        {state === 'output-error' ? (
+        {state === "output-error" ? (
           <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {part.errorText}
           </div>
         ) : null}
       </CardContent>
     </Card>
-  )
+  );
 }

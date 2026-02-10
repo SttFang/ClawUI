@@ -1,5 +1,5 @@
-import { betterAuth } from 'better-auth';
-import { Pool } from 'pg';
+import { betterAuth } from "better-auth";
+import { Pool } from "pg";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -13,12 +13,12 @@ export const auth = betterAuth({
   },
   socialProviders: {
     github: {
-      clientId: process.env.GITHUB_CLIENT_ID || '',
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+      clientId: process.env.GITHUB_CLIENT_ID || "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
     },
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     },
   },
   session: {
@@ -29,10 +29,10 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [
-    'http://localhost:5173', // Vite dev server
-    'app://.' // Electron custom protocol
+    "http://localhost:5173", // Vite dev server
+    "app://.", // Electron custom protocol
   ],
 });
 
 export type Session = typeof auth.$Infer.Session;
-export type User = typeof auth.$Infer.Session['user'];
+export type User = (typeof auth.$Infer.Session)["user"];

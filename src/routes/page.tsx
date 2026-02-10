@@ -1,27 +1,27 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useChat } from '@ai-sdk/react'
-import type { UIMessage } from 'ai'
-import { ArrowDown, MessageSquare, Plus, Send, Sparkles, Trash2 } from 'lucide-react'
-import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom'
-import { Streamdown } from 'streamdown'
-import { code } from '@streamdown/code'
-import { mermaid } from '@streamdown/mermaid'
-import { createMathPlugin } from '@streamdown/math'
-import { cjk } from '@streamdown/cjk'
+import type { ClawUISessionMetadata } from "@clawui/types/clawui";
+import type { UIMessage } from "ai";
+import { useChat } from "@ai-sdk/react";
 import {
   createOpenClawChatTransport,
   openclawTranscriptToUIMessages,
   type OpenClawChatTransportAdapter,
-} from '@clawui/claw-sse'
-import { Button, ScrollArea, Tabs, TabsList, TabsTrigger } from '@clawui/ui'
-import { useTranslation } from 'react-i18next'
-import type { ClawUISessionMetadata } from '@clawui/types/clawui'
-import { ConfigBanner } from '@/components/ConfigBanner'
-import { ToolEventCard } from '@/components/A2UI'
-import { ipc } from '@/lib/ipc'
-import { cn } from '@/lib/utils'
-import { useChatStore, selectCurrentSession, selectSessions } from '@/store/chat'
-import { useGatewayStore, selectIsGatewayRunning } from '@/store/gateway'
+} from "@clawui/claw-sse";
+import { Button, ScrollArea, Tabs, TabsList, TabsTrigger } from "@clawui/ui";
+import { cjk } from "@streamdown/cjk";
+import { code } from "@streamdown/code";
+import { createMathPlugin } from "@streamdown/math";
+import { mermaid } from "@streamdown/mermaid";
+import { ArrowDown, MessageSquare, Plus, Send, Sparkles, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Streamdown } from "streamdown";
+import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
+import { ToolEventCard } from "@/components/A2UI";
+import { ConfigBanner } from "@/components/ConfigBanner";
+import { ipc } from "@/lib/ipc";
+import { cn } from "@/lib/utils";
+import { useChatStore, selectCurrentSession, selectSessions } from "@/store/chat";
+import { useGatewayStore, selectIsGatewayRunning } from "@/store/gateway";
 
 const STREAMDOWN_PLUGINS = {
   code,
@@ -29,120 +29,120 @@ const STREAMDOWN_PLUGINS = {
   // OpenClaw 输出里经常用 `$...$` 做行内公式；这里显式开启。
   math: createMathPlugin({ singleDollarTextMath: true }),
   cjk,
-}
+};
 
 type SessionSource =
-  | 'ui'
-  | 'discord'
-  | 'telegram'
-  | 'slack'
-  | 'whatsapp'
-  | 'wechat'
-  | 'signal'
-  | 'cron'
-  | 'unknown'
+  | "ui"
+  | "discord"
+  | "telegram"
+  | "slack"
+  | "whatsapp"
+  | "wechat"
+  | "signal"
+  | "cron"
+  | "unknown";
 
-type SessionFilter = 'ui' | 'discord' | 'channels' | 'all'
+type SessionFilter = "ui" | "discord" | "channels" | "all";
 
 function classifySessionKey(sessionKey: string): { source: SessionSource; hidden: boolean } {
-  const raw = sessionKey.trim()
-  if (!raw) return { source: 'unknown', hidden: false }
+  const raw = sessionKey.trim();
+  if (!raw) return { source: "unknown", hidden: false };
 
-  const parts = raw.split(':').filter(Boolean)
-  const rest = parts[0] === 'agent' && parts.length >= 3 ? parts.slice(2) : parts
-  const head = (rest[0] ?? '').toLowerCase()
-  const head2 = (rest[1] ?? '').toLowerCase()
+  const parts = raw.split(":").filter(Boolean);
+  const rest = parts[0] === "agent" && parts.length >= 3 ? parts.slice(2) : parts;
+  const head = (rest[0] ?? "").toLowerCase();
+  const head2 = (rest[1] ?? "").toLowerCase();
 
   // Hide ClawUI internal metadata sessions by default.
   // Examples:
   // - clawui:meta:<sessionKey>
   // - agent:main:clawui:meta:<sessionKey>
-  if (head === 'clawui' && head2 === 'meta') return { source: 'unknown', hidden: true }
-  if (head === 'meta') return { source: 'unknown', hidden: true }
+  if (head === "clawui" && head2 === "meta") return { source: "unknown", hidden: true };
+  if (head === "meta") return { source: "unknown", hidden: true };
 
-  if (head === 'ui') return { source: 'ui', hidden: false }
-  if (head === 'cron') return { source: 'cron', hidden: false }
+  if (head === "ui") return { source: "ui", hidden: false };
+  if (head === "cron") return { source: "cron", hidden: false };
 
-  if (head === 'discord') return { source: 'discord', hidden: false }
-  if (head === 'telegram') return { source: 'telegram', hidden: false }
-  if (head === 'slack') return { source: 'slack', hidden: false }
-  if (head === 'whatsapp') return { source: 'whatsapp', hidden: false }
-  if (head === 'wechat') return { source: 'wechat', hidden: false }
-  if (head === 'signal') return { source: 'signal', hidden: false }
+  if (head === "discord") return { source: "discord", hidden: false };
+  if (head === "telegram") return { source: "telegram", hidden: false };
+  if (head === "slack") return { source: "slack", hidden: false };
+  if (head === "whatsapp") return { source: "whatsapp", hidden: false };
+  if (head === "wechat") return { source: "wechat", hidden: false };
+  if (head === "signal") return { source: "signal", hidden: false };
 
-  return { source: 'unknown', hidden: false }
+  return { source: "unknown", hidden: false };
 }
 
 function matchesSessionFilter(source: SessionSource, filter: SessionFilter): boolean {
-  if (filter === 'all') return true
-  if (filter === 'ui') return source === 'ui'
-  if (filter === 'discord') return source === 'discord'
+  if (filter === "all") return true;
+  if (filter === "ui") return source === "ui";
+  if (filter === "discord") return source === "discord";
   // channels: show all non-UI channel sessions (discord/telegram/...).
-  return source !== 'ui' && source !== 'cron' && source !== 'unknown'
+  return source !== "ui" && source !== "cron" && source !== "unknown";
 }
 
 function createRendererOpenClawAdapter(): OpenClawChatTransportAdapter {
-  let connectPromise: Promise<void> | null = null
+  let connectPromise: Promise<void> | null = null;
 
   return {
     onGatewayEvent: (handler) => ipc.gateway.onEvent(handler),
     isConnected: () => ipc.chat.isConnected(),
     connect: async () => {
-      if (connectPromise) return connectPromise
+      if (connectPromise) return connectPromise;
       connectPromise = (async () => {
-        const ok = await ipc.chat.connect()
-        if (!ok) throw new Error('Failed to connect gateway WebSocket')
+        const ok = await ipc.chat.connect();
+        if (!ok) throw new Error("Failed to connect gateway WebSocket");
       })().finally(() => {
-        connectPromise = null
-      })
-      return connectPromise
+        connectPromise = null;
+      });
+      return connectPromise;
     },
     sendChat: async ({ sessionKey, message }) => {
-      return ipc.chat.send({ sessionId: sessionKey, message })
+      return ipc.chat.send({ sessionId: sessionKey, message });
     },
     abortChat: async ({ sessionKey, runId }) => {
-      await ipc.chat.request('chat.abort', { sessionKey, runId })
+      await ipc.chat.request("chat.abort", { sessionKey, runId });
     },
-  }
+  };
 }
 
 function ScrollToBottomButton() {
-  const { t } = useTranslation('chat')
-  const { isAtBottom, scrollToBottom } = useStickToBottomContext()
+  const { t } = useTranslation("chat");
+  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
 
-  if (isAtBottom) return null
+  if (isAtBottom) return null;
 
   return (
     <button
       type="button"
       className={cn(
-        'absolute bottom-3 left-1/2 -translate-x-1/2',
-        'flex items-center gap-2 rounded-full border bg-background/90 px-3 py-1.5 text-xs shadow-sm',
-        'text-muted-foreground hover:text-foreground hover:bg-background'
+        "absolute bottom-3 left-1/2 -translate-x-1/2",
+        "flex items-center gap-2 rounded-full border bg-background/90 px-3 py-1.5 text-xs shadow-sm",
+        "text-muted-foreground hover:text-foreground hover:bg-background",
       )}
       onClick={() => void scrollToBottom()}
-      aria-label={t('scrollToLatestAria')}
+      aria-label={t("scrollToLatestAria")}
     >
       <ArrowDown className="h-4 w-4" />
-      <span>{t('scrollToLatest')}</span>
+      <span>{t("scrollToLatest")}</span>
     </button>
-  )
+  );
 }
 
 function MessageText(props: { text: string; isAnimating: boolean }) {
-  const { text, isAnimating } = props
-  const normalized = normalizeMathDelimiters(stripOpenClawReplyTags(text))
+  const { text, isAnimating } = props;
+  const normalized = normalizeMathDelimiters(stripOpenClawReplyTags(text));
   return (
     <Streamdown
       plugins={STREAMDOWN_PLUGINS}
-      mode={isAnimating ? 'streaming' : 'static'}
+      mode={isAnimating ? "streaming" : "static"}
       isAnimating={isAnimating}
       parseIncompleteMarkdown
       className="break-words"
     >
       {normalized}
     </Streamdown>
-  )
+  );
 }
 
 function stripOpenClawReplyTags(text: string): string {
@@ -150,182 +150,193 @@ function stripOpenClawReplyTags(text: string): string {
   // 常见形式：
   // - [[reply_to:<messageId>]]
   // - [[reply_to_current]]
-  return text
-    .replaceAll(/\[\[reply_to:[^\]]+\]\]/g, '')
-    .replaceAll('[[reply_to_current]]', '')
+  return text.replaceAll(/\[\[reply_to:[^\]]+\]\]/g, "").replaceAll("[[reply_to_current]]", "");
 }
 
 function normalizeMathDelimiters(markdown: string): string {
   // 将 `\\( ... \\)` / `\\[ ... \\]` 转成 remark-math 可解析的 `$` / `$$`。
   // 为了避免破坏 fenced code block，这里只在非 ``` fence 区域做替换。
-  const lines = markdown.split('\n')
-  let inFence = false
+  const lines = markdown.split("\n");
+  let inFence = false;
 
   for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i] ?? ''
+    const line = lines[i] ?? "";
 
-    if (line.trimStart().startsWith('```')) {
-      inFence = !inFence
-      continue
+    if (line.trimStart().startsWith("```")) {
+      inFence = !inFence;
+      continue;
     }
 
-    if (inFence) continue
+    if (inFence) continue;
 
     lines[i] = line
-      .replaceAll('\\[', '$$')
-      .replaceAll('\\]', '$$')
-      .replaceAll('\\(', '$')
-      .replaceAll('\\)', '$')
+      .replaceAll("\\[", "$$")
+      .replaceAll("\\]", "$$")
+      .replaceAll("\\(", "$")
+      .replaceAll("\\)", "$");
   }
 
-  return lines.join('\n')
+  return lines.join("\n");
 }
 
 function MessageParts(props: { message: UIMessage; streaming: boolean }) {
-  const { message, streaming } = props
+  const { message, streaming } = props;
 
   return (
     <div className="space-y-3">
       {message.parts.map((part, index) => {
-        if (part.type === 'step-start') return null
-        if (part.type === 'text') {
-          if (!part.text.trim()) return null
-          return <MessageText key={index} text={part.text} isAnimating={streaming && part.state === 'streaming'} />
+        if (part.type === "step-start") return null;
+        if (part.type === "text") {
+          if (!part.text.trim()) return null;
+          return (
+            <MessageText
+              key={index}
+              text={part.text}
+              isAnimating={streaming && part.state === "streaming"}
+            />
+          );
         }
-        if (part.type === 'dynamic-tool') {
-          return <ToolEventCard key={index} part={part} />
+        if (part.type === "dynamic-tool") {
+          return <ToolEventCard key={index} part={part} />;
         }
         // lifecycle 默认不占消息流位置（后续可放到独立的“运行状态/调试”面板）。
-        if (part.type === 'data-openclaw-lifecycle') return null
+        if (part.type === "data-openclaw-lifecycle") return null;
         // v1: ignore other parts (files, reasoning, sources, data parts, static tools).
-        return null
+        return null;
       })}
     </div>
-  )
+  );
 }
 
-function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; isGatewayRunning: boolean }) {
-  const { sessionKey, wsConnected, isGatewayRunning } = props
-  const { t } = useTranslation('chat')
-  const { t: tCommon } = useTranslation('common')
+function OpenClawChatPanel(props: {
+  sessionKey: string;
+  wsConnected: boolean;
+  isGatewayRunning: boolean;
+}) {
+  const { sessionKey, wsConnected, isGatewayRunning } = props;
+  const { t } = useTranslation("chat");
+  const { t: tCommon } = useTranslation("common");
 
-  const adapter = useMemo(() => createRendererOpenClawAdapter(), [])
-  const transport = useMemo(() => createOpenClawChatTransport({ sessionKey, adapter }), [sessionKey, adapter])
+  const adapter = useMemo(() => createRendererOpenClawAdapter(), []);
+  const transport = useMemo(
+    () => createOpenClawChatTransport({ sessionKey, adapter }),
+    [sessionKey, adapter],
+  );
 
-  const chat = useChat({ id: sessionKey, transport })
-  const [input, setInput] = useState('')
-  const historyInFlightRef = useRef(false)
-  const lastHistorySigRef = useRef<string>('')
-  const setMessagesRef = useRef(chat.setMessages)
+  const chat = useChat({ id: sessionKey, transport });
+  const [input, setInput] = useState("");
+  const historyInFlightRef = useRef(false);
+  const lastHistorySigRef = useRef<string>("");
+  const setMessagesRef = useRef(chat.setMessages);
 
   useEffect(() => {
     // `useChat().setMessages` 在某些版本/实现里可能不是稳定引用，
     // 这里用 ref 避免 `refreshHistory` 因依赖变化导致的 effect 重跑刷屏。
-    setMessagesRef.current = chat.setMessages
-  }, [chat.setMessages])
+    setMessagesRef.current = chat.setMessages;
+  }, [chat.setMessages]);
 
-  const isBusy = chat.status === 'submitted' || chat.status === 'streaming'
+  const isBusy = chat.status === "submitted" || chat.status === "streaming";
 
   const refreshHistory = useCallback(async () => {
-    if (historyInFlightRef.current) return
-    historyInFlightRef.current = true
+    if (historyInFlightRef.current) return;
+    historyInFlightRef.current = true;
     try {
-      const connected = await ipc.chat.isConnected()
+      const connected = await ipc.chat.isConnected();
       if (!connected) {
-        const ok = await ipc.chat.connect()
-        if (!ok) return
+        const ok = await ipc.chat.connect();
+        if (!ok) return;
       }
-      const res = (await ipc.chat.request('chat.history', { sessionKey, limit: 200 })) as {
-        messages?: unknown
-      }
-      const uiMessages = openclawTranscriptToUIMessages(res?.messages)
+      const res = (await ipc.chat.request("chat.history", { sessionKey, limit: 200 })) as {
+        messages?: unknown;
+      };
+      const uiMessages = openclawTranscriptToUIMessages(res?.messages);
 
       // Avoid re-render loops: only update local state if the tail signature changed.
-      const last = uiMessages[uiMessages.length - 1]
-      const tailText = last?.parts?.find((p) => p.type === 'text')?.text ?? ''
-      const sig = `${uiMessages.length}:${last?.id ?? ''}:${tailText.length}`
+      const last = uiMessages[uiMessages.length - 1];
+      const tailText = last?.parts?.find((p) => p.type === "text")?.text ?? "";
+      const sig = `${uiMessages.length}:${last?.id ?? ""}:${tailText.length}`;
       if (sig !== lastHistorySigRef.current) {
-        lastHistorySigRef.current = sig
-        setMessagesRef.current(uiMessages)
+        lastHistorySigRef.current = sig;
+        setMessagesRef.current(uiMessages);
       }
     } catch {
       // best-effort only
     } finally {
-      historyInFlightRef.current = false
+      historyInFlightRef.current = false;
     }
-  }, [sessionKey])
+  }, [sessionKey]);
 
   // OpenClaw Control UI: chat.final 到达后用 history 作为权威状态刷新（避免 delta/agent 流丢字段）。
   useEffect(() => {
-    void refreshHistory()
-  }, [sessionKey, refreshHistory])
+    void refreshHistory();
+  }, [sessionKey, refreshHistory]);
 
   useEffect(() => {
     return ipc.gateway.onEvent((frame) => {
-      if (frame.type !== 'event') return
-      if (frame.event !== 'chat') return
-      const payload = frame.payload as { sessionKey?: unknown; state?: unknown } | undefined
-      if (!payload || typeof payload !== 'object') return
-      if (payload.sessionKey !== sessionKey) return
-      if (payload.state === 'final') {
-        void refreshHistory()
+      if (frame.type !== "event") return;
+      if (frame.event !== "chat") return;
+      const payload = frame.payload as { sessionKey?: unknown; state?: unknown } | undefined;
+      if (!payload || typeof payload !== "object") return;
+      if (payload.sessionKey !== sessionKey) return;
+      if (payload.state === "final") {
+        void refreshHistory();
       }
-    })
-  }, [sessionKey, refreshHistory])
+    });
+  }, [sessionKey, refreshHistory]);
 
   const handleSend = async () => {
-    const text = input.trim()
-    if (!text || isBusy) return
-    setInput('')
-    await chat.sendMessage({ text })
-  }
+    const text = input.trim();
+    if (!text || isBusy) return;
+    setInput("");
+    await chat.sendMessage({ text });
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      void handleSend()
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSend();
     }
-  }
+  };
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* Messages */}
       <StickToBottom
         className={cn(
-          'relative min-h-0 flex-1 overflow-y-auto overscroll-contain p-4',
+          "relative min-h-0 flex-1 overflow-y-auto overscroll-contain p-4",
           // 允许触控/触控板在该区域垂直滚动
-          'touch-pan-y'
+          "touch-pan-y",
         )}
         resize="smooth"
         initial="smooth"
       >
-	        <StickToBottom.Content className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-	          {chat.messages.length === 0 ? (
-	            <div className="text-center text-muted-foreground py-12">
-	              <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-	              <p>{t('emptyTitle')}</p>
-	              <p className="text-sm mt-2">
-	                {isGatewayRunning
-	                  ? wsConnected
-	                    ? t('emptyHintConnected')
-	                    : t('emptyHintWsDisconnected')
-	                  : t('emptyHintGatewayStopped')}
-	              </p>
-	            </div>
-	          ) : (
+        <StickToBottom.Content className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+          {chat.messages.length === 0 ? (
+            <div className="text-center text-muted-foreground py-12">
+              <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>{t("emptyTitle")}</p>
+              <p className="text-sm mt-2">
+                {isGatewayRunning
+                  ? wsConnected
+                    ? t("emptyHintConnected")
+                    : t("emptyHintWsDisconnected")
+                  : t("emptyHintGatewayStopped")}
+              </p>
+            </div>
+          ) : (
             chat.messages.map((message) => {
-              const isUser = message.role === 'user'
-              const streaming = chat.status === 'streaming' && message.role === 'assistant'
+              const isUser = message.role === "user";
+              const streaming = chat.status === "streaming" && message.role === "assistant";
 
               return (
                 <div
                   key={message.id}
-                  className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}
+                  className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}
                 >
                   <div
                     className={cn(
-                      'min-w-0 max-w-[85%] sm:max-w-[75%]',
-                      isUser ? 'ml-auto text-right' : 'mr-auto text-left'
+                      "min-w-0 max-w-[85%] sm:max-w-[75%]",
+                      isUser ? "ml-auto text-right" : "mr-auto text-left",
                     )}
                   >
                     {isUser ? (
@@ -341,39 +352,39 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
                     )}
                   </div>
                 </div>
-              )
+              );
             })
           )}
 
-	          {chat.error ? (
-	            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-	              <div className="font-medium">{t('errorTitle')}</div>
-	              <div className="mt-1">{chat.error.message}</div>
-	              <div className="mt-3">
-	                <Button variant="outline" size="sm" onClick={() => chat.clearError()}>
-	                  {tCommon('actions.close')}
-	                </Button>
-	              </div>
-	            </div>
-	          ) : null}
+          {chat.error ? (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <div className="font-medium">{t("errorTitle")}</div>
+              <div className="mt-1">{chat.error.message}</div>
+              <div className="mt-3">
+                <Button variant="outline" size="sm" onClick={() => chat.clearError()}>
+                  {tCommon("actions.close")}
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </StickToBottom.Content>
 
         <ScrollToBottomButton />
       </StickToBottom>
 
       {/* Input area */}
-	      <div className="border-t p-4">
-	        <div className="mx-auto flex w-full max-w-3xl gap-2">
-	          <textarea
-	            value={input}
-	            onChange={(e) => setInput(e.target.value)}
-	            onKeyDown={handleKeyDown}
-	            placeholder={t('inputPlaceholder')}
-	            className={cn(
-	              'flex-1 resize-none rounded-lg border bg-background px-4 py-2',
-	              'min-h-[44px] max-h-32 focus:outline-none focus:ring-2 focus:ring-ring'
-	            )}
-	            rows={1}
+      <div className="border-t p-4">
+        <div className="mx-auto flex w-full max-w-3xl gap-2">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={t("inputPlaceholder")}
+            className={cn(
+              "flex-1 resize-none rounded-lg border bg-background px-4 py-2",
+              "min-h-[44px] max-h-32 focus:outline-none focus:ring-2 focus:ring-ring",
+            )}
+            rows={1}
             disabled={isBusy}
           />
           <Button onClick={() => void handleSend()} disabled={!input.trim() || isBusy} size="icon">
@@ -382,148 +393,150 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default function ChatPage() {
-  const { t } = useTranslation('chat')
-  const sessions = useChatStore(selectSessions)
-  const currentSession = useChatStore(selectCurrentSession)
-  const wsConnected = useChatStore((s) => s.wsConnected)
-  const isGatewayRunning = useGatewayStore(selectIsGatewayRunning)
+  const { t } = useTranslation("chat");
+  const sessions = useChatStore(selectSessions);
+  const currentSession = useChatStore(selectCurrentSession);
+  const wsConnected = useChatStore((s) => s.wsConnected);
+  const isGatewayRunning = useGatewayStore(selectIsGatewayRunning);
 
-  const createSession = useChatStore((s) => s.createSession)
-  const refreshSessions = useChatStore((s) => s.refreshSessions)
-  const selectSession = useChatStore((s) => s.selectSession)
-  const deleteSession = useChatStore((s) => s.deleteSession)
+  const createSession = useChatStore((s) => s.createSession);
+  const refreshSessions = useChatStore((s) => s.refreshSessions);
+  const selectSession = useChatStore((s) => s.selectSession);
+  const deleteSession = useChatStore((s) => s.deleteSession);
 
-  const [configValid, setConfigValid] = useState<boolean | null>(null)
-  const [showBanner, setShowBanner] = useState(true)
-  const [didLoadSessions, setDidLoadSessions] = useState(false)
-  const [sessionFilter, setSessionFilter] = useState<SessionFilter>('ui')
-  const [sessionMetadata, setSessionMetadata] = useState<Record<string, ClawUISessionMetadata>>({})
-  const [metaBusyByKey, setMetaBusyByKey] = useState<Record<string, boolean>>({})
+  const [configValid, setConfigValid] = useState<boolean | null>(null);
+  const [showBanner, setShowBanner] = useState(true);
+  const [didLoadSessions, setDidLoadSessions] = useState(false);
+  const [sessionFilter, setSessionFilter] = useState<SessionFilter>("ui");
+  const [sessionMetadata, setSessionMetadata] = useState<Record<string, ClawUISessionMetadata>>({});
+  const [metaBusyByKey, setMetaBusyByKey] = useState<Record<string, boolean>>({});
 
   const visibleSessions = useMemo(() => {
     return sessions.filter((s) => {
-      const { source, hidden } = classifySessionKey(s.id)
-      if (hidden) return false
-      return matchesSessionFilter(source, sessionFilter)
-    })
-  }, [sessions, sessionFilter])
+      const { source, hidden } = classifySessionKey(s.id);
+      if (hidden) return false;
+      return matchesSessionFilter(source, sessionFilter);
+    });
+  }, [sessions, sessionFilter]);
 
   useEffect(() => {
     // If the current session is hidden by the filter, select the newest visible one.
-    const currentId = currentSession?.id
-    if (!currentId) return
-    if (visibleSessions.some((s) => s.id === currentId)) return
-    const fallback = visibleSessions[0]?.id
-    if (fallback) selectSession(fallback)
-  }, [currentSession?.id, visibleSessions, selectSession])
+    const currentId = currentSession?.id;
+    if (!currentId) return;
+    if (visibleSessions.some((s) => s.id === currentId)) return;
+    const fallback = visibleSessions[0]?.id;
+    if (fallback) selectSession(fallback);
+  }, [currentSession?.id, visibleSessions, selectSession]);
 
   useEffect(() => {
-    void refreshSessions().finally(() => setDidLoadSessions(true))
-  }, [refreshSessions])
+    void refreshSessions().finally(() => setDidLoadSessions(true));
+  }, [refreshSessions]);
 
   useEffect(() => {
-    if (!didLoadSessions) return
-    if (sessions.length > 0) return
-    createSession()
-  }, [didLoadSessions, sessions.length, createSession])
+    if (!didLoadSessions) return;
+    if (sessions.length > 0) return;
+    createSession();
+  }, [didLoadSessions, sessions.length, createSession]);
 
   // Check config validity on mount
   useEffect(() => {
     async function checkConfig() {
       try {
-        const status = await ipc.onboarding.detect()
-        setConfigValid(status?.configValid ?? false)
+        const status = await ipc.onboarding.detect();
+        setConfigValid(status?.configValid ?? false);
       } catch {
-        setConfigValid(false)
+        setConfigValid(false);
       }
     }
-    void checkConfig()
-  }, [])
+    void checkConfig();
+  }, []);
 
   useEffect(() => {
     ipc.state
       .get()
       .then((state) => setSessionMetadata(state.sessions?.metadata ?? {}))
-      .catch(() => {})
-  }, [])
+      .catch(() => {});
+  }, []);
 
   const generateMetadata = async (key: string) => {
-    setMetaBusyByKey((m) => ({ ...m, [key]: true }))
+    setMetaBusyByKey((m) => ({ ...m, [key]: true }));
     try {
-      const meta = await ipc.metadata.generate(key)
-      setSessionMetadata((prev) => ({ ...prev, [key]: meta }))
+      const meta = await ipc.metadata.generate(key);
+      setSessionMetadata((prev) => ({ ...prev, [key]: meta }));
     } finally {
-      setMetaBusyByKey((m) => ({ ...m, [key]: false }))
+      setMetaBusyByKey((m) => ({ ...m, [key]: false }));
     }
-  }
+  };
 
   const handleDismissBanner = () => {
-    setShowBanner(false)
-  }
+    setShowBanner(false);
+  };
 
   return (
     <div className="flex h-full min-h-0">
-	      {/* Sessions sidebar */}
-	      <div className="flex min-h-0 w-64 flex-col border-r bg-card">
-	        <div className="p-4 border-b">
-	          <Button onClick={() => createSession()} className="w-full" variant="outline">
-	            <Plus className="w-4 h-4 mr-2" />
-	            {t('newSession')}
-	          </Button>
-            <div className="mt-3">
-              <Tabs value={sessionFilter} onValueChange={(v) => setSessionFilter(v as SessionFilter)}>
-                <TabsList className="w-full justify-between">
-                  <TabsTrigger value="ui" className="flex-1 justify-center">
-                    {t('sessionFilters.ui')}
-                  </TabsTrigger>
-                  <TabsTrigger value="discord" className="flex-1 justify-center">
-                    {t('sessionFilters.discord')}
-                  </TabsTrigger>
-                  <TabsTrigger value="all" className="flex-1 justify-center">
-                    {t('sessionFilters.all')}
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-	        </div>
+      {/* Sessions sidebar */}
+      <div className="flex min-h-0 w-64 flex-col border-r bg-card">
+        <div className="p-4 border-b">
+          <Button onClick={() => createSession()} className="w-full" variant="outline">
+            <Plus className="w-4 h-4 mr-2" />
+            {t("newSession")}
+          </Button>
+          <div className="mt-3">
+            <Tabs value={sessionFilter} onValueChange={(v) => setSessionFilter(v as SessionFilter)}>
+              <TabsList className="w-full justify-between">
+                <TabsTrigger value="ui" className="flex-1 justify-center">
+                  {t("sessionFilters.ui")}
+                </TabsTrigger>
+                <TabsTrigger value="discord" className="flex-1 justify-center">
+                  {t("sessionFilters.discord")}
+                </TabsTrigger>
+                <TabsTrigger value="all" className="flex-1 justify-center">
+                  {t("sessionFilters.all")}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
 
         <ScrollArea className="min-h-0 flex-1">
           <div className="p-2 space-y-1">
             {visibleSessions.length === 0 ? (
-              <div className="text-center text-muted-foreground text-sm py-8">{t('noSessions')}</div>
+              <div className="text-center text-muted-foreground text-sm py-8">
+                {t("noSessions")}
+              </div>
             ) : (
               visibleSessions.map((session) => {
-                const { source } = classifySessionKey(session.id)
+                const { source } = classifySessionKey(session.id);
                 const badge =
-                  source === 'ui'
-                    ? 'UI'
-                    : source === 'discord'
-                      ? 'Discord'
-                      : source === 'telegram'
-                        ? 'Telegram'
-                        : source === 'slack'
-                          ? 'Slack'
-                          : source === 'whatsapp'
-                            ? 'WhatsApp'
-                            : source === 'wechat'
-                              ? 'WeChat'
-                              : source === 'signal'
-                                ? 'Signal'
-                                : source === 'cron'
-                                  ? 'Cron'
-                                  : null
+                  source === "ui"
+                    ? "UI"
+                    : source === "discord"
+                      ? "Discord"
+                      : source === "telegram"
+                        ? "Telegram"
+                        : source === "slack"
+                          ? "Slack"
+                          : source === "whatsapp"
+                            ? "WhatsApp"
+                            : source === "wechat"
+                              ? "WeChat"
+                              : source === "signal"
+                                ? "Signal"
+                                : source === "cron"
+                                  ? "Cron"
+                                  : null;
 
                 return (
                   <div
                     key={session.id}
                     className={cn(
-                      'group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer',
-                      'hover:bg-accent transition-colors',
-                      currentSession?.id === session.id && 'bg-accent'
+                      "group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer",
+                      "hover:bg-accent transition-colors",
+                      currentSession?.id === session.id && "bg-accent",
                     )}
                     onClick={() => selectSession(session.id)}
                   >
@@ -548,28 +561,30 @@ export default function ChatPage() {
                     <button
                       type="button"
                       onClick={(e) => {
-                        e.stopPropagation()
-                        void generateMetadata(session.id)
+                        e.stopPropagation();
+                        void generateMetadata(session.id);
                       }}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:text-foreground transition-opacity"
-                      aria-label={t('generateSessionMetaAria')}
+                      aria-label={t("generateSessionMetaAria")}
                       disabled={!!metaBusyByKey[session.id]}
                     >
-                      <Sparkles className={cn('w-3 h-3', metaBusyByKey[session.id] && 'animate-pulse')} />
+                      <Sparkles
+                        className={cn("w-3 h-3", metaBusyByKey[session.id] && "animate-pulse")}
+                      />
                     </button>
                     <button
                       type="button"
                       onClick={(e) => {
-                        e.stopPropagation()
-                        deleteSession(session.id)
+                        e.stopPropagation();
+                        deleteSession(session.id);
                       }}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity"
-                      aria-label={t('deleteSessionAria')}
+                      aria-label={t("deleteSessionAria")}
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
-                )
+                );
               })
             )}
           </div>
@@ -594,10 +609,10 @@ export default function ChatPage() {
           />
         ) : (
           <div className="flex flex-1 items-center justify-center text-muted-foreground">
-            {t('createSessionHint')}
+            {t("createSessionHint")}
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }

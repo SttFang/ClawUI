@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import {
   Card,
   CardContent,
@@ -7,7 +6,7 @@ import {
   CardTitle,
   Button,
   Switch,
-} from '@clawui/ui'
+} from "@clawui/ui";
 import {
   Server,
   Plus,
@@ -17,80 +16,81 @@ import {
   Terminal,
   Wrench,
   AlertCircle,
-} from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useMCPStore,
   selectServers,
   selectIsLoading,
   selectError,
   selectExpandedServerId,
-} from '@/store/mcp'
-import { AddMCPServerDialog } from './AddMCPServerDialog'
+} from "@/store/mcp";
+import { AddMCPServerDialog } from "./AddMCPServerDialog";
 
 export default function MCPPage() {
-  const { t } = useTranslation('common')
-  const servers = useMCPStore(selectServers)
-  const isLoading = useMCPStore(selectIsLoading)
-  const error = useMCPStore(selectError)
-  const expandedServerId = useMCPStore(selectExpandedServerId)
+  const { t } = useTranslation("common");
+  const servers = useMCPStore(selectServers);
+  const isLoading = useMCPStore(selectIsLoading);
+  const error = useMCPStore(selectError);
+  const expandedServerId = useMCPStore(selectExpandedServerId);
 
   // Use stable action references to avoid infinite re-renders in React 19
-  const loadServers = useMCPStore((s) => s.loadServers)
-  const addServer = useMCPStore((s) => s.addServer)
-  const removeServer = useMCPStore((s) => s.removeServer)
-  const toggleServer = useMCPStore((s) => s.toggleServer)
-  const setExpandedServer = useMCPStore((s) => s.setExpandedServer)
+  const loadServers = useMCPStore((s) => s.loadServers);
+  const addServer = useMCPStore((s) => s.addServer);
+  const removeServer = useMCPStore((s) => s.removeServer);
+  const toggleServer = useMCPStore((s) => s.toggleServer);
+  const setExpandedServer = useMCPStore((s) => s.setExpandedServer);
 
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadServers()
-  }, [loadServers])
+    loadServers();
+  }, [loadServers]);
 
   const handleAddServer = async (serverData: {
-    name: string
-    command: string
-    args: string[]
-    env?: Record<string, string>
-    enabled: boolean
+    name: string;
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+    enabled: boolean;
   }) => {
-    await addServer(serverData)
-    setIsAddDialogOpen(false)
-  }
+    await addServer(serverData);
+    setIsAddDialogOpen(false);
+  };
 
   const handleDeleteServer = async (id: string) => {
-    await removeServer(id)
-    setDeleteConfirmId(null)
-  }
+    await removeServer(id);
+    setDeleteConfirmId(null);
+  };
 
   const handleToggleExpand = (id: string) => {
-    setExpandedServer(expandedServerId === id ? null : id)
-  }
+    setExpandedServer(expandedServerId === id ? null : id);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'running':
-        return 'bg-green-500'
-      case 'error':
-        return 'bg-red-500'
+      case "running":
+        return "bg-green-500";
+      case "error":
+        return "bg-red-500";
       default:
-        return 'bg-gray-400'
+        return "bg-gray-400";
     }
-  }
+  };
 
   return (
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-semibold">{t('mcp.title')}</h1>
-            <p className="text-muted-foreground">{t('mcp.description')}</p>
+            <h1 className="text-2xl font-semibold">{t("mcp.title")}</h1>
+            <p className="text-muted-foreground">{t("mcp.description")}</p>
           </div>
           <Button onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
-            {t('mcp.actions.addServer')}
+            {t("mcp.actions.addServer")}
           </Button>
         </div>
 
@@ -110,13 +110,11 @@ export default function MCPPage() {
             <CardContent className="py-12">
               <div className="text-center">
                 <Server className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">{t('mcp.emptyTitle')}</h3>
-                <p className="text-muted-foreground mb-4">
-                  {t('mcp.emptyDescription')}
-                </p>
+                <h3 className="text-lg font-medium mb-2">{t("mcp.emptyTitle")}</h3>
+                <p className="text-muted-foreground mb-4">{t("mcp.emptyDescription")}</p>
                 <Button onClick={() => setIsAddDialogOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
-                  {t('mcp.actions.addServer')}
+                  {t("mcp.actions.addServer")}
                 </Button>
               </div>
             </CardContent>
@@ -142,7 +140,7 @@ export default function MCPPage() {
                         <CardDescription className="flex items-center gap-2">
                           <Terminal className="w-3 h-3" />
                           <code className="text-xs">
-                            {server.command} {server.args.join(' ')}
+                            {server.command} {server.args.join(" ")}
                           </code>
                         </CardDescription>
                       </div>
@@ -165,17 +163,12 @@ export default function MCPPage() {
                   <CardContent>
                     <div className="space-y-4">
                       {/* Environment Variables */}
-	                      {server.env && Object.keys(server.env).length > 0 && (
-	                        <div>
-	                          <h4 className="text-sm font-medium mb-2">
-	                            {t('mcp.envVarsTitle')}
-	                          </h4>
-	                          <div className="bg-muted rounded-lg p-3 space-y-1">
-	                            {Object.entries(server.env).map(([key, value]) => (
-	                              <div
-                                key={key}
-                                className="font-mono text-xs flex gap-2"
-                              >
+                      {server.env && Object.keys(server.env).length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium mb-2">{t("mcp.envVarsTitle")}</h4>
+                          <div className="bg-muted rounded-lg p-3 space-y-1">
+                            {Object.entries(server.env).map(([key, value]) => (
+                              <div key={key} className="font-mono text-xs flex gap-2">
                                 <span className="text-primary">{key}</span>
                                 <span className="text-muted-foreground">=</span>
                                 <span className="text-foreground">
@@ -189,72 +182,65 @@ export default function MCPPage() {
                         </div>
                       )}
 
-	                      {/* Tools */}
-	                      <div>
-	                        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-	                          <Wrench className="w-4 h-4" />
-	                          {t('mcp.toolsTitle', { n: server.tools.length })}
-	                        </h4>
-	                        {server.tools.length > 0 ? (
-	                          <div className="grid gap-2">
-	                            {server.tools.map((tool) => (
-                              <div
-                                key={tool.name}
-                                className="bg-muted rounded-lg p-3"
-                              >
-                                <div className="font-medium text-sm">
-                                  {tool.name}
-                                </div>
+                      {/* Tools */}
+                      <div>
+                        <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                          <Wrench className="w-4 h-4" />
+                          {t("mcp.toolsTitle", { n: server.tools.length })}
+                        </h4>
+                        {server.tools.length > 0 ? (
+                          <div className="grid gap-2">
+                            {server.tools.map((tool) => (
+                              <div key={tool.name} className="bg-muted rounded-lg p-3">
+                                <div className="font-medium text-sm">{tool.name}</div>
                                 <div className="text-xs text-muted-foreground">
                                   {tool.description}
                                 </div>
                               </div>
                             ))}
                           </div>
-	                        ) : (
-	                          <p className="text-sm text-muted-foreground">
-	                            {t('mcp.toolsEmpty')}
-	                          </p>
-	                        )}
-	                      </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">{t("mcp.toolsEmpty")}</p>
+                        )}
+                      </div>
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 pt-2 border-t">
-	                        {deleteConfirmId === server.id ? (
-	                          <>
-	                            <span className="text-sm text-muted-foreground">
-	                              {t('mcp.deleteConfirm')}
-	                            </span>
-	                            <Button
-	                              variant="destructive"
-	                              size="sm"
-	                              onClick={() => handleDeleteServer(server.id)}
-	                            >
-	                              {t('actions.confirm')}
-	                            </Button>
-	                            <Button
-	                              variant="outline"
-	                              size="sm"
-	                              onClick={() => setDeleteConfirmId(null)}
-	                            >
-	                              {t('actions.cancel')}
-	                            </Button>
-	                          </>
-	                        ) : (
-	                          <Button
-	                            variant="outline"
-	                            size="sm"
-	                            className="text-destructive hover:text-destructive"
-	                            onClick={() => setDeleteConfirmId(server.id)}
-	                          >
-	                            <Trash2 className="w-4 h-4 mr-2" />
-	                            {t('mcp.actions.remove')}
-	                          </Button>
-	                        )}
-	                      </div>
-	                    </div>
-	                  </CardContent>
-	                )}
+                        {deleteConfirmId === server.id ? (
+                          <>
+                            <span className="text-sm text-muted-foreground">
+                              {t("mcp.deleteConfirm")}
+                            </span>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteServer(server.id)}
+                            >
+                              {t("actions.confirm")}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDeleteConfirmId(null)}
+                            >
+                              {t("actions.cancel")}
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteConfirmId(server.id)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            {t("mcp.actions.remove")}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                )}
               </Card>
             ))}
           </div>
@@ -267,5 +253,5 @@ export default function MCPPage() {
         onSubmit={handleAddServer}
       />
     </div>
-  )
+  );
 }

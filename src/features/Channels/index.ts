@@ -1,2 +1,2 @@
-export { TelegramConfigDialog } from './TelegramConfigDialog'
-export { DiscordConfigDialog } from './DiscordConfigDialog'
+export { TelegramConfigDialog } from "./TelegramConfigDialog";
+export { DiscordConfigDialog } from "./DiscordConfigDialog";

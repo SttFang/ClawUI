@@ -3,32 +3,32 @@
 
 /* ESBuild Font Family */
 @font-face {
-  font-family: 'ESBuild';
-  src: url('/resources/fonts/ESBuild-Regular.otf') format('opentype');
+  font-family: "ESBuild";
+  src: url("/resources/fonts/ESBuild-Regular.otf") format("opentype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'ESBuild';
-  src: url('/resources/fonts/ESBuild-Medium.otf') format('opentype');
+  font-family: "ESBuild";
+  src: url("/resources/fonts/ESBuild-Medium.otf") format("opentype");
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'ESBuild';
-  src: url('/resources/fonts/ESBuild-Semibold.otf') format('opentype');
+  font-family: "ESBuild";
+  src: url("/resources/fonts/ESBuild-Semibold.otf") format("opentype");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'ESBuild';
-  src: url('/resources/fonts/ESBuild-Bold.otf') format('opentype');
+  font-family: "ESBuild";
+  src: url("/resources/fonts/ESBuild-Bold.otf") format("opentype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -38,7 +38,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: 'ESBuild', system-ui, -apple-system, sans-serif;
+  --font-sans: "ESBuild", system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);

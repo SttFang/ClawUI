@@ -1,126 +1,131 @@
-import { execInLoginShell, resolveCommandPath } from '../utils/login-shell'
-import { installerLog } from '../lib/logger'
+import { installerLog } from "../lib/logger";
+import { execInLoginShell, resolveCommandPath } from "../utils/login-shell";
 
 export interface InstallProgress {
-  stage:
-    | 'checking-requirements'
-    | 'installing-openclaw'
-    | 'verifying'
-    | 'complete'
-    | 'error'
-  progress: number // 0-100
-  message: string
-  error?: string
+  stage: "checking-requirements" | "installing-openclaw" | "verifying" | "complete" | "error";
+  progress: number; // 0-100
+  message: string;
+  error?: string;
 }
 
-export type ProgressCallback = (progress: InstallProgress) => void
+export type ProgressCallback = (progress: InstallProgress) => void;
 
 // Pin OpenClaw to a known-good version to avoid runtime/protocol drift.
 // Can be overridden via env `CLAWUI_OPENCLAW_SPEC`.
-const DEFAULT_OPENCLAW_SPEC = 'openclaw@2026.2.9'
+const DEFAULT_OPENCLAW_SPEC = "openclaw@2026.2.9";
 
 export class InstallerService {
   async install(onProgress: ProgressCallback): Promise<void> {
-    const t0 = Date.now()
+    const t0 = Date.now();
     try {
-      installerLog.info('[install.start]')
+      installerLog.info("[install.start]");
       // Step 1: Check Node.js + npm
       onProgress({
-        stage: 'checking-requirements',
+        stage: "checking-requirements",
         progress: 0,
-        message: 'Checking Node.js/npm...',
-      })
-      await this.verifyNodeAndNpm()
+        message: "Checking Node.js/npm...",
+      });
+      await this.verifyNodeAndNpm();
 
       // Step 3: Install OpenClaw
       onProgress({
-        stage: 'installing-openclaw',
+        stage: "installing-openclaw",
         progress: 40,
         message: `Installing OpenClaw globally (${DEFAULT_OPENCLAW_SPEC})...`,
-      })
-      await this.installOpenClawGlobal(onProgress)
+      });
+      await this.installOpenClawGlobal(onProgress);
 
       // Step 4: Verify installation
       onProgress({
-        stage: 'verifying',
+        stage: "verifying",
         progress: 90,
-        message: 'Verifying installation...',
-      })
-      await this.verify()
+        message: "Verifying installation...",
+      });
+      await this.verify();
 
       onProgress({
-        stage: 'complete',
+        stage: "complete",
         progress: 100,
-        message: 'Installation complete!',
-      })
-      installerLog.info('[install.complete]', `durationMs=${Date.now() - t0}`)
+        message: "Installation complete!",
+      });
+      installerLog.info("[install.complete]", `durationMs=${Date.now() - t0}`);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error'
-      installerLog.error('[install.failed]', errorMessage, `durationMs=${Date.now() - t0}`)
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      installerLog.error("[install.failed]", errorMessage, `durationMs=${Date.now() - t0}`);
       onProgress({
-        stage: 'error',
+        stage: "error",
         progress: 0,
-        message: 'Installation failed',
+        message: "Installation failed",
         error: errorMessage,
-      })
-      throw error
+      });
+      throw error;
     }
   }
 
   private async verifyNodeAndNpm(): Promise<void> {
-    const t0 = Date.now()
-    installerLog.info('[install.check.node]')
+    const t0 = Date.now();
+    installerLog.info("[install.check.node]");
     // Require Node.js >= 22
-    const { stdout: nodeVersionOutput } = await execInLoginShell('node --version', {
+    const { stdout: nodeVersionOutput } = await execInLoginShell("node --version", {
       timeoutMs: 10_000,
-    })
-    const nodeVersion = nodeVersionOutput.trim()
-    const major = parseInt(nodeVersion.replace(/^v/, '').split('.')[0] || '0', 10)
+    });
+    const nodeVersion = nodeVersionOutput.trim();
+    const major = parseInt(nodeVersion.replace(/^v/, "").split(".")[0] || "0", 10);
     if (!Number.isFinite(major) || major < 22) {
-      throw new Error(`Node.js v22+ required (found ${nodeVersion || 'unknown'})`)
+      throw new Error(`Node.js v22+ required (found ${nodeVersion || "unknown"})`);
     }
 
     // Require npm
-    await execInLoginShell('npm --version', { timeoutMs: 10_000 })
-    installerLog.info('[install.check.node.ok]', `version=${nodeVersion}`, `durationMs=${Date.now() - t0}`)
+    await execInLoginShell("npm --version", { timeoutMs: 10_000 });
+    installerLog.info(
+      "[install.check.node.ok]",
+      `version=${nodeVersion}`,
+      `durationMs=${Date.now() - t0}`,
+    );
   }
 
   private async installOpenClawGlobal(onProgress: ProgressCallback): Promise<void> {
-    const spec = process.env.CLAWUI_OPENCLAW_SPEC || DEFAULT_OPENCLAW_SPEC
-    const t0 = Date.now()
-    installerLog.info('[install.npm]', `spec=${spec}`)
+    const spec = process.env.CLAWUI_OPENCLAW_SPEC || DEFAULT_OPENCLAW_SPEC;
+    const t0 = Date.now();
+    installerLog.info("[install.npm]", `spec=${spec}`);
     await execInLoginShell(
       // Keep it quiet-ish but still show errors
       `npm --no-fund --no-audit install -g ${spec}`,
-      { timeoutMs: 10 * 60_000 }
-    )
+      { timeoutMs: 10 * 60_000 },
+    );
 
-    installerLog.info('[install.npm.ok]', `spec=${spec}`, `durationMs=${Date.now() - t0}`)
+    installerLog.info("[install.npm.ok]", `spec=${spec}`, `durationMs=${Date.now() - t0}`);
     onProgress({
-      stage: 'installing-openclaw',
+      stage: "installing-openclaw",
       progress: 80,
-      message: 'OpenClaw installed successfully',
-    })
+      message: "OpenClaw installed successfully",
+    });
   }
 
   private async verify(): Promise<void> {
-    const t0 = Date.now()
-    installerLog.info('[install.verify]')
-    const openclawPath = await resolveCommandPath('openclaw')
-    if (!openclawPath) throw new Error('OpenClaw installation verification failed: openclaw not found in PATH')
+    const t0 = Date.now();
+    installerLog.info("[install.verify]");
+    const openclawPath = await resolveCommandPath("openclaw");
+    if (!openclawPath)
+      throw new Error("OpenClaw installation verification failed: openclaw not found in PATH");
 
-    const { stdout } = await execInLoginShell('openclaw --version', { timeoutMs: 10_000 })
-    if (!stdout.trim()) throw new Error('OpenClaw installation verification failed: could not read version')
-    installerLog.info('[install.verify.ok]', `version=${stdout.trim()}`, `path=${openclawPath}`, `durationMs=${Date.now() - t0}`)
+    const { stdout } = await execInLoginShell("openclaw --version", { timeoutMs: 10_000 });
+    if (!stdout.trim())
+      throw new Error("OpenClaw installation verification failed: could not read version");
+    installerLog.info(
+      "[install.verify.ok]",
+      `version=${stdout.trim()}`,
+      `path=${openclawPath}`,
+      `durationMs=${Date.now() - t0}`,
+    );
   }
 
   async uninstall(): Promise<void> {
-    const t0 = Date.now()
-    installerLog.info('[uninstall.start]')
-    await execInLoginShell('npm uninstall -g openclaw', { timeoutMs: 5 * 60_000 })
-    installerLog.info('[uninstall.complete]', `durationMs=${Date.now() - t0}`)
+    const t0 = Date.now();
+    installerLog.info("[uninstall.start]");
+    await execInLoginShell("npm uninstall -g openclaw", { timeoutMs: 5 * 60_000 });
+    installerLog.info("[uninstall.complete]", `durationMs=${Date.now() - t0}`);
   }
 }
 
-export const installer = new InstallerService()
+export const installer = new InstallerService();

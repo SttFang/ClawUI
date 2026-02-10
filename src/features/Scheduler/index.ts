@@ -1,1 +1,1 @@
-export { TaskDialog, cronToHumanReadable } from './TaskDialog'
+export { TaskDialog, cronToHumanReadable } from "./TaskDialog";

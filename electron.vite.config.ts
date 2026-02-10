@@ -1,6 +1,6 @@
-import { resolve } from 'path'
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
-import react from '@vitejs/plugin-react'
+import react from "@vitejs/plugin-react";
+import { defineConfig, externalizeDepsPlugin } from "electron-vite";
+import { resolve } from "path";
 
 export default defineConfig({
   main: {
@@ -8,43 +8,43 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'electron/main/index.ts')
-        }
-      }
+          index: resolve(__dirname, "electron/main/index.ts"),
+        },
+      },
     },
     resolve: {
       alias: {
-        '@main': resolve('electron/main')
-      }
-    }
+        "@main": resolve("electron/main"),
+      },
+    },
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'electron/preload/index.ts')
-        }
-      }
-    }
+          index: resolve(__dirname, "electron/preload/index.ts"),
+        },
+      },
+    },
   },
   renderer: {
-    root: '.',
+    root: ".",
     build: {
       rollupOptions: {
-        input: resolve(__dirname, 'index.html')
-      }
+        input: resolve(__dirname, "index.html"),
+      },
     },
     plugins: [react()],
     resolve: {
       alias: {
-        '@': resolve('src'),
-        '@components': resolve('src/components'),
-        '@features': resolve('src/features'),
-        '@store': resolve('src/store'),
-        '@hooks': resolve('src/hooks'),
-        '@lib': resolve('src/lib')
-      }
-    }
-  }
-})
+        "@": resolve("src"),
+        "@components": resolve("src/components"),
+        "@features": resolve("src/features"),
+        "@store": resolve("src/store"),
+        "@hooks": resolve("src/hooks"),
+        "@lib": resolve("src/lib"),
+      },
+    },
+  },
+});

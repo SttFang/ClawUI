@@ -1,20 +1,17 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { auth, User } from '../lib/auth';
-import { createSupabaseUserClient } from '../lib/supabase';
-import { Errors } from '../utils/response';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { FastifyRequest, FastifyReply } from "fastify";
+import { auth, User } from "../lib/auth";
+import { createSupabaseUserClient } from "../lib/supabase";
+import { Errors } from "../utils/response";
 
-declare module 'fastify' {
+declare module "fastify" {
   interface FastifyRequest {
     user: User;
     supabase: SupabaseClient;
   }
 }
 
-export async function authMiddleware(
-  request: FastifyRequest,
-  reply: FastifyReply
-): Promise<void> {
+export async function authMiddleware(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   try {
     const session = await auth.api.getSession({
       headers: new Headers(request.headers as Record<string, string>),

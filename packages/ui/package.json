@@ -42,10 +42,8 @@
       "default": "./src/chart.tsx"
     }
   },
-  "peerDependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "recharts": ">=2.0.0"
+  "scripts": {
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@radix-ui/react-progress": "^1.1.8",
@@ -53,7 +51,9 @@
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.5.5"
   },
-  "scripts": {
-    "type-check": "tsc --noEmit"
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": ">=2.0.0"
   }
 }

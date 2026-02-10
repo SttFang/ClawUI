@@ -5,15 +5,15 @@
 /**
  * Gateway process status
  */
-export type GatewayStatus = 'stopped' | 'starting' | 'running' | 'error'
+export type GatewayStatus = "stopped" | "starting" | "running" | "error";
 
 /**
  * Gateway state for store
  */
 export interface GatewayState {
-  status: GatewayStatus
-  port: number
-  error?: string
+  status: GatewayStatus;
+  port: number;
+  error?: string;
 }
 
 /**
@@ -23,9 +23,9 @@ export interface GatewayState {
  * In ClawUI we forward only `type="event"` frames to the renderer.
  */
 export interface GatewayEventFrame {
-  type: 'event'
-  event: string
-  payload?: unknown
-  seq?: number
-  stateVersion?: number
+  type: "event";
+  event: string;
+  payload?: unknown;
+  seq?: number;
+  stateVersion?: number;
 }

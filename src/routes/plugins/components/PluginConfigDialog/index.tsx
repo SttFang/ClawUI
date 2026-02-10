@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import {
   Button,
   Dialog,
@@ -11,55 +10,56 @@ import {
   Label,
   Select,
   Switch,
-} from '@clawui/ui'
-import { useTranslation } from 'react-i18next'
-import type { Plugin, PluginConfigSchema } from '@/store/plugins'
+} from "@clawui/ui";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { Plugin, PluginConfigSchema } from "@/store/plugins";
 
 function getDefaultConfig(schema?: PluginConfigSchema): Record<string, unknown> {
-  if (!schema) return {}
-  const defaults: Record<string, unknown> = {}
+  if (!schema) return {};
+  const defaults: Record<string, unknown> = {};
   for (const [key, field] of Object.entries(schema)) {
-    if (field.default !== undefined) defaults[key] = field.default
+    if (field.default !== undefined) defaults[key] = field.default;
   }
-  return defaults
+  return defaults;
 }
 
 export function PluginConfigDialog(props: {
-  plugin: Plugin | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSave: (id: string, config: Record<string, unknown>) => void
+  plugin: Plugin | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (id: string, config: Record<string, unknown>) => void;
 }) {
-  const { plugin, open, onOpenChange, onSave } = props
-  const { t } = useTranslation('common')
-  const [config, setConfig] = useState<Record<string, unknown>>({})
+  const { plugin, open, onOpenChange, onSave } = props;
+  const { t } = useTranslation("common");
+  const [config, setConfig] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
-    if (!plugin) return
-    const defaults = getDefaultConfig(plugin.configSchema)
-    setConfig({ ...defaults, ...(plugin.config ?? {}) })
-  }, [plugin, open])
+    if (!plugin) return;
+    const defaults = getDefaultConfig(plugin.configSchema);
+    setConfig({ ...defaults, ...(plugin.config ?? {}) });
+  }, [plugin, open]);
 
   const handleSave = () => {
-    if (!plugin) return
-    onSave(plugin.id, config)
-    onOpenChange(false)
-  }
+    if (!plugin) return;
+    onSave(plugin.id, config);
+    onOpenChange(false);
+  };
 
-  if (!plugin?.configSchema) return null
+  if (!plugin?.configSchema) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onClose={() => onOpenChange(false)}>
         <DialogHeader>
-          <DialogTitle>{t('plugins.config.title', { name: plugin.name })}</DialogTitle>
-          <DialogDescription>{t('plugins.config.description')}</DialogDescription>
+          <DialogTitle>{t("plugins.config.title", { name: plugin.name })}</DialogTitle>
+          <DialogDescription>{t("plugins.config.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="p-6 space-y-4">
           {Object.entries(plugin.configSchema).map(([key, field]) => {
-            const rawValue = config[key]
-            const showDescription = field.description && field.type !== 'boolean'
+            const rawValue = config[key];
+            const showDescription = field.description && field.type !== "boolean";
 
             return (
               <div key={key} className="space-y-2">
@@ -68,32 +68,36 @@ export function PluginConfigDialog(props: {
                   {field.required ? <span className="text-destructive ml-1">*</span> : null}
                 </Label>
 
-                {field.type === 'string' ? (
+                {field.type === "string" ? (
                   <Input
                     id={key}
-                    value={typeof rawValue === 'string' ? rawValue : ''}
+                    value={typeof rawValue === "string" ? rawValue : ""}
                     onChange={(e) => setConfig((prev) => ({ ...prev, [key]: e.target.value }))}
                     placeholder={field.description}
                   />
                 ) : null}
 
-                {field.type === 'number' ? (
+                {field.type === "number" ? (
                   <Input
                     id={key}
                     type="number"
-                    value={typeof rawValue === 'number' && Number.isFinite(rawValue) ? String(rawValue) : ''}
+                    value={
+                      typeof rawValue === "number" && Number.isFinite(rawValue)
+                        ? String(rawValue)
+                        : ""
+                    }
                     onChange={(e) => {
-                      const next = e.target.value.trim()
+                      const next = e.target.value.trim();
                       setConfig((prev) => ({
                         ...prev,
-                        [key]: next === '' ? undefined : Number(next),
-                      }))
+                        [key]: next === "" ? undefined : Number(next),
+                      }));
                     }}
                     placeholder={field.description}
                   />
                 ) : null}
 
-                {field.type === 'boolean' ? (
+                {field.type === "boolean" ? (
                   <div className="flex items-center gap-2">
                     <Switch
                       checked={rawValue === true}
@@ -107,13 +111,11 @@ export function PluginConfigDialog(props: {
                   </div>
                 ) : null}
 
-                {field.type === 'select' && field.options ? (
+                {field.type === "select" && field.options ? (
                   <Select
                     id={key}
-                    value={typeof rawValue === 'string' ? rawValue : ''}
-                    onChange={(e) =>
-                      setConfig((prev) => ({ ...prev, [key]: e.target.value }))
-                    }
+                    value={typeof rawValue === "string" ? rawValue : ""}
+                    onChange={(e) => setConfig((prev) => ({ ...prev, [key]: e.target.value }))}
                   >
                     {field.options.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -127,17 +129,17 @@ export function PluginConfigDialog(props: {
                   <p className="text-xs text-muted-foreground">{field.description}</p>
                 ) : null}
               </div>
-            )
+            );
           })}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t('actions.cancel')}
+            {t("actions.cancel")}
           </Button>
-          <Button onClick={handleSave}>{t('actions.save')}</Button>
+          <Button onClick={handleSave}>{t("actions.save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -1,7 +1,14 @@
-import { useEffect, useCallback } from 'react'
-import { Loader2 } from 'lucide-react'
-import { Alert, AlertDescription } from '@clawui/ui'
-import { useTranslation } from 'react-i18next'
+import { Alert, AlertDescription } from "@clawui/ui";
+import { Loader2 } from "lucide-react";
+import { useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { CostBreakdown } from "@/components/Usage/CostBreakdown";
+import { DailyTrendChart } from "@/components/Usage/DailyTrendChart";
+import { ProviderBreakdown } from "@/components/Usage/ProviderBreakdown";
+import { SessionDetail } from "@/components/Usage/SessionDetail";
+import { SessionList } from "@/components/Usage/SessionList";
+import { SessionTimeline } from "@/components/Usage/SessionTimeline";
+import { UsageHeader } from "@/components/Usage/UsageHeader";
 import {
   useUsageStore,
   selectUsageLoading,
@@ -16,55 +23,48 @@ import {
   selectChartMode,
   selectTimeSeries,
   selectTimeSeriesLoading,
-} from '@/store/usage'
-import { UsageHeader } from '@/components/Usage/UsageHeader'
-import { DailyTrendChart } from '@/components/Usage/DailyTrendChart'
-import { CostBreakdown } from '@/components/Usage/CostBreakdown'
-import { ProviderBreakdown } from '@/components/Usage/ProviderBreakdown'
-import { SessionList } from '@/components/Usage/SessionList'
-import { SessionDetail } from '@/components/Usage/SessionDetail'
-import { SessionTimeline } from '@/components/Usage/SessionTimeline'
+} from "@/store/usage";
 
 export default function UsagePage() {
-  const { t } = useTranslation('common')
-  const loading = useUsageStore(selectUsageLoading)
-  const error = useUsageStore(selectUsageError)
-  const sessions = useUsageStore(selectSessions)
-  const totals = useUsageStore(selectTotals)
-  const aggregates = useUsageStore(selectAggregates)
-  const costDaily = useUsageStore(selectCostDaily)
+  const { t } = useTranslation("common");
+  const loading = useUsageStore(selectUsageLoading);
+  const error = useUsageStore(selectUsageError);
+  const sessions = useUsageStore(selectSessions);
+  const totals = useUsageStore(selectTotals);
+  const aggregates = useUsageStore(selectAggregates);
+  const costDaily = useUsageStore(selectCostDaily);
   // Use individual primitive selectors to avoid Object.is re-render loops
-  const startDate = useUsageStore(selectStartDate)
-  const endDate = useUsageStore(selectEndDate)
-  const selectedSessionKey = useUsageStore(selectSelectedSessionKey)
-  const chartMode = useUsageStore(selectChartMode)
-  const timeSeries = useUsageStore(selectTimeSeries)
-  const timeSeriesLoading = useUsageStore(selectTimeSeriesLoading)
+  const startDate = useUsageStore(selectStartDate);
+  const endDate = useUsageStore(selectEndDate);
+  const selectedSessionKey = useUsageStore(selectSelectedSessionKey);
+  const chartMode = useUsageStore(selectChartMode);
+  const timeSeries = useUsageStore(selectTimeSeries);
+  const timeSeriesLoading = useUsageStore(selectTimeSeriesLoading);
 
-  const loadUsage = useUsageStore((s) => s.loadUsage)
-  const setDateRange = useUsageStore((s) => s.setDateRange)
-  const doSelectSession = useUsageStore((s) => s.selectSession)
-  const setChartMode = useUsageStore((s) => s.setChartMode)
+  const loadUsage = useUsageStore((s) => s.loadUsage);
+  const setDateRange = useUsageStore((s) => s.setDateRange);
+  const doSelectSession = useUsageStore((s) => s.selectSession);
+  const setChartMode = useUsageStore((s) => s.setChartMode);
 
   // Stable callback that reads date range from store via get()
   const handleLoad = useCallback(() => {
-    loadUsage()
-  }, [loadUsage])
+    loadUsage();
+  }, [loadUsage]);
 
   // Load on mount and when date range changes
   useEffect(() => {
-    handleLoad()
-  }, [handleLoad, startDate, endDate])
+    handleLoad();
+  }, [handleLoad, startDate, endDate]);
 
-  const selectedSession = sessions.find((s) => s.key === selectedSessionKey)
+  const selectedSession = sessions.find((s) => s.key === selectedSessionKey);
 
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         {/* Title */}
         <div>
-          <h1 className="text-2xl font-semibold">{t('usage.title')}</h1>
-          <p className="text-muted-foreground">{t('usage.description')}</p>
+          <h1 className="text-2xl font-semibold">{t("usage.title")}</h1>
+          <p className="text-muted-foreground">{t("usage.description")}</p>
         </div>
 
         {/* Header: date range + mode + refresh */}
@@ -131,5 +131,5 @@ export default function UsagePage() {
         )}
       </div>
     </div>
-  )
+  );
 }

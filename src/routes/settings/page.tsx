@@ -1,4 +1,4 @@
-import { useEffect, useCallback, type ChangeEvent } from 'react'
+import type { OAuthProviderStatus } from "@clawui/types/models";
 import {
   Card,
   CardContent,
@@ -14,10 +14,38 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '@clawui/ui'
-import { useTranslation } from 'react-i18next'
-import { useGatewayStore, selectGatewayStatus, selectGatewayError, selectIsGatewayRunning } from '@/store/gateway'
-import { useUIStore, selectTheme, type Theme } from '@/store/ui'
+} from "@clawui/ui";
+import {
+  Key,
+  Server,
+  Info,
+  CheckCircle2,
+  Loader2,
+  Moon,
+  Sun,
+  Monitor,
+  AlertCircle,
+} from "lucide-react";
+import { useEffect, useCallback, type ChangeEvent } from "react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ModelConfig } from "@/components/Settings/ModelConfig";
+import { ProviderCard } from "@/components/Settings/ProviderCard";
+import { Subscription } from "@/features/Subscription";
+import { ipc } from "@/lib/ipc";
+import {
+  useGatewayStore,
+  selectGatewayStatus,
+  selectGatewayError,
+  selectIsGatewayRunning,
+} from "@/store/gateway";
+import {
+  useSecretsStore,
+  selectSecretsLoading,
+  selectSecretsSaving,
+  selectSecretsError,
+  selectSecretsSaveSuccess,
+} from "@/store/secrets";
 import {
   useSettingsStore,
   selectApiKeys,
@@ -28,168 +56,159 @@ import {
   selectError,
   selectModelsStatus,
   selectModelsLoading,
-} from '@/store/settings'
-import {
-  useSecretsStore,
-  selectSecretsLoading,
-  selectSecretsSaving,
-  selectSecretsError,
-  selectSecretsSaveSuccess,
-} from '@/store/secrets'
-import { Key, Server, Info, CheckCircle2, Loader2, Moon, Sun, Monitor, AlertCircle } from 'lucide-react'
-import { ipc } from '@/lib/ipc'
-import { useState } from 'react'
-import { Subscription } from '@/features/Subscription'
-import { ProviderCard } from '@/components/Settings/ProviderCard'
-import { ModelConfig } from '@/components/Settings/ModelConfig'
-import type { OAuthProviderStatus } from '@clawui/types/models'
+} from "@/store/settings";
+import { useUIStore, selectTheme, type Theme } from "@/store/ui";
 
 /** Map provider name to apiKeys store key */
-function mapProviderToKey(provider: string): 'anthropic' | 'openai' | 'openrouter' {
-  if (provider === 'openai-codex') return 'openai'
-  if (provider === 'anthropic') return 'anthropic'
-  if (provider === 'openrouter') return 'openrouter'
-  return 'openai'
+function mapProviderToKey(provider: string): "anthropic" | "openai" | "openrouter" {
+  if (provider === "openai-codex") return "openai";
+  if (provider === "anthropic") return "anthropic";
+  if (provider === "openrouter") return "openrouter";
+  return "openai";
 }
 
 function findOAuthStatus(
   modelsStatus: { auth: { oauthStatus?: { providers: OAuthProviderStatus[] } } },
   provider: string,
 ): OAuthProviderStatus | undefined {
-  return modelsStatus.auth.oauthStatus?.providers.find((p) => p.provider === provider)
+  return modelsStatus.auth.oauthStatus?.providers.find((p) => p.provider === provider);
 }
 
 export default function SettingsPage() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation("common");
 
   // Gateway store
-  const gatewayStatus = useGatewayStore(selectGatewayStatus)
-  const gatewayError = useGatewayStore(selectGatewayError)
-  const isGatewayRunning = useGatewayStore(selectIsGatewayRunning)
-  const startGateway = useGatewayStore((s) => s.start)
-  const stopGateway = useGatewayStore((s) => s.stop)
+  const gatewayStatus = useGatewayStore(selectGatewayStatus);
+  const gatewayError = useGatewayStore(selectGatewayError);
+  const isGatewayRunning = useGatewayStore(selectIsGatewayRunning);
+  const startGateway = useGatewayStore((s) => s.start);
+  const stopGateway = useGatewayStore((s) => s.stop);
 
   // UI store
-  const theme = useUIStore(selectTheme)
-  const setTheme = useUIStore((s) => s.setTheme)
+  const theme = useUIStore(selectTheme);
+  const setTheme = useUIStore((s) => s.setTheme);
   const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
-    { value: 'light', label: t('settings.page.theme.light'), icon: <Sun className="h-4 w-4" /> },
-    { value: 'dark', label: t('settings.page.theme.dark'), icon: <Moon className="h-4 w-4" /> },
-    { value: 'system', label: t('settings.page.theme.system'), icon: <Monitor className="h-4 w-4" /> },
-  ]
+    { value: "light", label: t("settings.page.theme.light"), icon: <Sun className="h-4 w-4" /> },
+    { value: "dark", label: t("settings.page.theme.dark"), icon: <Moon className="h-4 w-4" /> },
+    {
+      value: "system",
+      label: t("settings.page.theme.system"),
+      icon: <Monitor className="h-4 w-4" />,
+    },
+  ];
 
   // Settings store
-  const apiKeys = useSettingsStore(selectApiKeys)
-  const autoStartGateway = useSettingsStore(selectAutoStartGateway)
-  const autoCheckUpdates = useSettingsStore(selectAutoCheckUpdates)
-  const isSaving = useSettingsStore(selectIsSaving)
-  const saveSuccess = useSettingsStore(selectSaveSuccess)
-  const settingsError = useSettingsStore(selectError)
-  const modelsStatus = useSettingsStore(selectModelsStatus)
-  const modelsLoading = useSettingsStore(selectModelsLoading)
-  const loadSettings = useSettingsStore((s) => s.loadSettings)
-  const setApiKey = useSettingsStore((s) => s.setApiKey)
-  const saveApiKeys = useSettingsStore((s) => s.saveApiKeys)
-  const setAutoStartGateway = useSettingsStore((s) => s.setAutoStartGateway)
-  const setAutoCheckUpdates = useSettingsStore((s) => s.setAutoCheckUpdates)
-  const loadModelsStatus = useSettingsStore((s) => s.loadModelsStatus)
-  const loadPreferences = useSettingsStore((s) => s.loadPreferences)
+  const apiKeys = useSettingsStore(selectApiKeys);
+  const autoStartGateway = useSettingsStore(selectAutoStartGateway);
+  const autoCheckUpdates = useSettingsStore(selectAutoCheckUpdates);
+  const isSaving = useSettingsStore(selectIsSaving);
+  const saveSuccess = useSettingsStore(selectSaveSuccess);
+  const settingsError = useSettingsStore(selectError);
+  const modelsStatus = useSettingsStore(selectModelsStatus);
+  const modelsLoading = useSettingsStore(selectModelsLoading);
+  const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const setApiKey = useSettingsStore((s) => s.setApiKey);
+  const saveApiKeys = useSettingsStore((s) => s.saveApiKeys);
+  const setAutoStartGateway = useSettingsStore((s) => s.setAutoStartGateway);
+  const setAutoCheckUpdates = useSettingsStore((s) => s.setAutoCheckUpdates);
+  const loadModelsStatus = useSettingsStore((s) => s.loadModelsStatus);
+  const loadPreferences = useSettingsStore((s) => s.loadPreferences);
 
   // Secrets store (non-model tokens/keys; managed via allowlisted env vars)
-  const secretsLoading = useSecretsStore(selectSecretsLoading)
-  const secretsSaving = useSecretsStore(selectSecretsSaving)
-  const secretsError = useSecretsStore(selectSecretsError)
-  const secretsSaveSuccess = useSecretsStore(selectSecretsSaveSuccess)
-  const discordBotToken = useSecretsStore((s) => s.discordBotToken)
-  const discordAppToken = useSecretsStore((s) => s.discordAppToken)
-  const telegramBotToken = useSecretsStore((s) => s.telegramBotToken)
-  const slackBotToken = useSecretsStore((s) => s.slackBotToken)
-  const slackAppToken = useSecretsStore((s) => s.slackAppToken)
-  const loadSecrets = useSecretsStore((s) => s.load)
-  const setSecretValue = useSecretsStore((s) => s.setValue)
-  const saveSecrets = useSecretsStore((s) => s.save)
+  const secretsLoading = useSecretsStore(selectSecretsLoading);
+  const secretsSaving = useSecretsStore(selectSecretsSaving);
+  const secretsError = useSecretsStore(selectSecretsError);
+  const secretsSaveSuccess = useSecretsStore(selectSecretsSaveSuccess);
+  const discordBotToken = useSecretsStore((s) => s.discordBotToken);
+  const discordAppToken = useSecretsStore((s) => s.discordAppToken);
+  const telegramBotToken = useSecretsStore((s) => s.telegramBotToken);
+  const slackBotToken = useSecretsStore((s) => s.slackBotToken);
+  const slackAppToken = useSecretsStore((s) => s.slackAppToken);
+  const loadSecrets = useSecretsStore((s) => s.load);
+  const setSecretValue = useSecretsStore((s) => s.setValue);
+  const saveSecrets = useSecretsStore((s) => s.save);
 
-  const [version, setVersion] = useState('0.0.0')
-  const [gatewayServiceBusy, setGatewayServiceBusy] = useState(false)
-  const [gatewayServiceMessage, setGatewayServiceMessage] = useState<string | null>(null)
-  const [securityLoading, setSecurityLoading] = useState(false)
-  const [securityMessage, setSecurityMessage] = useState<string | null>(null)
-  const [allowElevatedWebchat, setAllowElevatedWebchat] = useState(false)
-  const [allowElevatedDiscord, setAllowElevatedDiscord] = useState(false)
-  const [sandboxMode, setSandboxMode] = useState<'off' | 'docker' | 'native' | string>('off')
-  const [workspaceAccess, setWorkspaceAccess] = useState<'none' | 'ro' | 'rw' | string>('rw')
-
-  useEffect(() => {
-    loadSettings()
-    loadPreferences()
-    loadModelsStatus()
-    loadSecrets()
-    ipc.app.getVersion().then(setVersion)
-  }, [loadSettings, loadPreferences, loadModelsStatus, loadSecrets])
+  const [version, setVersion] = useState("0.0.0");
+  const [gatewayServiceBusy, setGatewayServiceBusy] = useState(false);
+  const [gatewayServiceMessage, setGatewayServiceMessage] = useState<string | null>(null);
+  const [securityLoading, setSecurityLoading] = useState(false);
+  const [securityMessage, setSecurityMessage] = useState<string | null>(null);
+  const [allowElevatedWebchat, setAllowElevatedWebchat] = useState(false);
+  const [allowElevatedDiscord, setAllowElevatedDiscord] = useState(false);
+  const [sandboxMode, setSandboxMode] = useState<"off" | "docker" | "native" | string>("off");
+  const [workspaceAccess, setWorkspaceAccess] = useState<"none" | "ro" | "rw" | string>("rw");
 
   useEffect(() => {
-    setSecurityLoading(true)
+    loadSettings();
+    loadPreferences();
+    loadModelsStatus();
+    loadSecrets();
+    ipc.app.getVersion().then(setVersion);
+  }, [loadSettings, loadPreferences, loadModelsStatus, loadSecrets]);
+
+  useEffect(() => {
+    setSecurityLoading(true);
     ipc.security
       .get([
-        'tools.elevated.allowFrom.webchat',
-        'tools.elevated.allowFrom.discord',
-        'agents.defaults.sandbox.mode',
-        'agents.defaults.sandbox.workspaceAccess',
+        "tools.elevated.allowFrom.webchat",
+        "tools.elevated.allowFrom.discord",
+        "agents.defaults.sandbox.mode",
+        "agents.defaults.sandbox.workspaceAccess",
       ])
       .then((values) => {
-        setAllowElevatedWebchat(values['tools.elevated.allowFrom.webchat'] === true)
-        setAllowElevatedDiscord(values['tools.elevated.allowFrom.discord'] === true)
-        const sm = values['agents.defaults.sandbox.mode']
-        if (typeof sm === 'string') setSandboxMode(sm)
-        const wa = values['agents.defaults.sandbox.workspaceAccess']
-        if (typeof wa === 'string') setWorkspaceAccess(wa)
+        setAllowElevatedWebchat(values["tools.elevated.allowFrom.webchat"] === true);
+        setAllowElevatedDiscord(values["tools.elevated.allowFrom.discord"] === true);
+        const sm = values["agents.defaults.sandbox.mode"];
+        if (typeof sm === "string") setSandboxMode(sm);
+        const wa = values["agents.defaults.sandbox.workspaceAccess"];
+        if (typeof wa === "string") setWorkspaceAccess(wa);
       })
       .catch((e) =>
         setSecurityMessage(
-          e instanceof Error ? e.message : t('settings.page.security.messages.loadFailed'),
+          e instanceof Error ? e.message : t("settings.page.security.messages.loadFailed"),
         ),
       )
-      .finally(() => setSecurityLoading(false))
-  }, [t])
+      .finally(() => setSecurityLoading(false));
+  }, [t]);
 
   const handleApiKeyChange = useCallback(
     (provider: string) => (value: string) => {
-      setApiKey(mapProviderToKey(provider), value)
+      setApiKey(mapProviderToKey(provider), value);
     },
     [setApiKey],
-  )
+  );
 
   return (
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold">{t('settings.page.title')}</h1>
-          <p className="text-muted-foreground">
-            {t('settings.page.description')}
-          </p>
+          <h1 className="text-2xl font-semibold">{t("settings.page.title")}</h1>
+          <p className="text-muted-foreground">{t("settings.page.description")}</p>
         </div>
 
         <Tabs defaultValue="general">
           <TabsList className="mb-4">
-            <TabsTrigger value="general">{t('settings.page.tabs.general')}</TabsTrigger>
-            <TabsTrigger value="api">{t('settings.page.tabs.api')}</TabsTrigger>
-            <TabsTrigger value="tokens">{t('settings.page.tabs.tokens')}</TabsTrigger>
-            <TabsTrigger value="gateway">{t('settings.page.tabs.gateway')}</TabsTrigger>
-            <TabsTrigger value="security">{t('settings.page.tabs.security')}</TabsTrigger>
-            <TabsTrigger value="subscription">{t('settings.page.tabs.subscription')}</TabsTrigger>
-            <TabsTrigger value="about">{t('settings.page.tabs.about')}</TabsTrigger>
+            <TabsTrigger value="general">{t("settings.page.tabs.general")}</TabsTrigger>
+            <TabsTrigger value="api">{t("settings.page.tabs.api")}</TabsTrigger>
+            <TabsTrigger value="tokens">{t("settings.page.tabs.tokens")}</TabsTrigger>
+            <TabsTrigger value="gateway">{t("settings.page.tabs.gateway")}</TabsTrigger>
+            <TabsTrigger value="security">{t("settings.page.tabs.security")}</TabsTrigger>
+            <TabsTrigger value="subscription">{t("settings.page.tabs.subscription")}</TabsTrigger>
+            <TabsTrigger value="about">{t("settings.page.tabs.about")}</TabsTrigger>
           </TabsList>
 
           {/* General Tab */}
           <TabsContent value="general">
             <Card>
               <CardHeader>
-                <CardTitle>{t('settings.page.general.appearance.title')}</CardTitle>
-                <CardDescription>{t('settings.page.general.appearance.description')}</CardDescription>
+                <CardTitle>{t("settings.page.general.appearance.title")}</CardTitle>
+                <CardDescription>
+                  {t("settings.page.general.appearance.description")}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>{t('settings.page.general.appearance.theme')}</Label>
+                  <Label>{t("settings.page.general.appearance.theme")}</Label>
                   <div className="flex gap-2">
                     {themeOptions.map((option) => (
                       <button
@@ -197,8 +216,8 @@ export default function SettingsPage() {
                         onClick={() => setTheme(option.value)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
                           theme === option.value
-                            ? 'border-primary bg-primary/5'
-                            : 'hover:border-primary/50'
+                            ? "border-primary bg-primary/5"
+                            : "hover:border-primary/50"
                         }`}
                       >
                         {option.icon}
@@ -212,33 +231,27 @@ export default function SettingsPage() {
 
             <Card className="mt-4">
               <CardHeader>
-                <CardTitle>{t('settings.page.general.startup.title')}</CardTitle>
-                <CardDescription>{t('settings.page.general.startup.description')}</CardDescription>
+                <CardTitle>{t("settings.page.general.startup.title")}</CardTitle>
+                <CardDescription>{t("settings.page.general.startup.description")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>{t('settings.page.general.startup.autoStartGateway')}</Label>
+                    <Label>{t("settings.page.general.startup.autoStartGateway")}</Label>
                     <p className="text-sm text-muted-foreground">
-                      {t('settings.page.general.startup.autoStartGatewayHint')}
+                      {t("settings.page.general.startup.autoStartGatewayHint")}
                     </p>
                   </div>
-                  <Switch
-                    checked={autoStartGateway}
-                    onCheckedChange={setAutoStartGateway}
-                  />
+                  <Switch checked={autoStartGateway} onCheckedChange={setAutoStartGateway} />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>{t('settings.page.general.startup.autoCheckUpdates')}</Label>
+                    <Label>{t("settings.page.general.startup.autoCheckUpdates")}</Label>
                     <p className="text-sm text-muted-foreground">
-                      {t('settings.page.general.startup.autoCheckUpdatesHint')}
+                      {t("settings.page.general.startup.autoCheckUpdatesHint")}
                     </p>
                   </div>
-                  <Switch
-                    checked={autoCheckUpdates}
-                    onCheckedChange={setAutoCheckUpdates}
-                  />
+                  <Switch checked={autoCheckUpdates} onCheckedChange={setAutoCheckUpdates} />
                 </div>
               </CardContent>
             </Card>
@@ -248,10 +261,8 @@ export default function SettingsPage() {
           <TabsContent value="tokens">
             <Card>
               <CardHeader>
-                <CardTitle>{t('settings.page.tokens.title')}</CardTitle>
-                <CardDescription>
-                  {t('settings.page.tokens.description')}
-                </CardDescription>
+                <CardTitle>{t("settings.page.tokens.title")}</CardTitle>
+                <CardDescription>{t("settings.page.tokens.description")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {secretsError ? (
@@ -261,60 +272,70 @@ export default function SettingsPage() {
                 ) : null}
 
                 <div className="space-y-2">
-                  <Label htmlFor="discord-bot-token">{t('settings.page.tokens.fields.discordBotToken')}</Label>
+                  <Label htmlFor="discord-bot-token">
+                    {t("settings.page.tokens.fields.discordBotToken")}
+                  </Label>
                   <Input
                     id="discord-bot-token"
                     type="password"
                     value={discordBotToken}
-                    onChange={(e) => setSecretValue('discordBotToken', e.target.value)}
+                    onChange={(e) => setSecretValue("discordBotToken", e.target.value)}
                     placeholder="..."
                     disabled={secretsLoading}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="discord-app-token">{t('settings.page.tokens.fields.discordAppToken')}</Label>
+                  <Label htmlFor="discord-app-token">
+                    {t("settings.page.tokens.fields.discordAppToken")}
+                  </Label>
                   <Input
                     id="discord-app-token"
                     type="password"
                     value={discordAppToken}
-                    onChange={(e) => setSecretValue('discordAppToken', e.target.value)}
+                    onChange={(e) => setSecretValue("discordAppToken", e.target.value)}
                     placeholder="..."
                     disabled={secretsLoading}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="telegram-bot-token">{t('settings.page.tokens.fields.telegramBotToken')}</Label>
+                  <Label htmlFor="telegram-bot-token">
+                    {t("settings.page.tokens.fields.telegramBotToken")}
+                  </Label>
                   <Input
                     id="telegram-bot-token"
                     type="password"
                     value={telegramBotToken}
-                    onChange={(e) => setSecretValue('telegramBotToken', e.target.value)}
+                    onChange={(e) => setSecretValue("telegramBotToken", e.target.value)}
                     placeholder="..."
                     disabled={secretsLoading}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="slack-bot-token">{t('settings.page.tokens.fields.slackBotToken')}</Label>
+                  <Label htmlFor="slack-bot-token">
+                    {t("settings.page.tokens.fields.slackBotToken")}
+                  </Label>
                   <Input
                     id="slack-bot-token"
                     type="password"
                     value={slackBotToken}
-                    onChange={(e) => setSecretValue('slackBotToken', e.target.value)}
+                    onChange={(e) => setSecretValue("slackBotToken", e.target.value)}
                     placeholder="..."
                     disabled={secretsLoading}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="slack-app-token">{t('settings.page.tokens.fields.slackAppToken')}</Label>
+                  <Label htmlFor="slack-app-token">
+                    {t("settings.page.tokens.fields.slackAppToken")}
+                  </Label>
                   <Input
                     id="slack-app-token"
                     type="password"
                     value={slackAppToken}
-                    onChange={(e) => setSecretValue('slackAppToken', e.target.value)}
+                    onChange={(e) => setSecretValue("slackAppToken", e.target.value)}
                     placeholder="..."
                     disabled={secretsLoading}
                   />
@@ -323,12 +344,12 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2">
                   <Button onClick={saveSecrets} disabled={secretsSaving || secretsLoading}>
                     {secretsSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {t('actions.save')}
+                    {t("actions.save")}
                   </Button>
                   {secretsSaveSuccess ? (
                     <span className="flex items-center gap-1 text-sm text-green-600">
                       <CheckCircle2 className="h-4 w-4" />
-                      {t('settings.page.tokens.saved')}
+                      {t("settings.page.tokens.saved")}
                     </span>
                   ) : null}
                 </div>
@@ -342,7 +363,9 @@ export default function SettingsPage() {
               <Card>
                 <CardContent className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-muted-foreground">{t('settings.page.api.loading')}</span>
+                  <span className="ml-2 text-muted-foreground">
+                    {t("settings.page.api.loading")}
+                  </span>
                 </CardContent>
               </Card>
             ) : modelsStatus ? (
@@ -371,41 +394,45 @@ export default function SettingsPage() {
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <Key className="w-5 h-5" />
-                    <CardTitle>{t('settings.page.api.fallback.title')}</CardTitle>
+                    <CardTitle>{t("settings.page.api.fallback.title")}</CardTitle>
                   </div>
-                  <CardDescription>
-                    {t('settings.page.api.fallback.description')}
-                  </CardDescription>
+                  <CardDescription>{t("settings.page.api.fallback.description")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="anthropic-key">{t('settings.page.api.fallback.fields.anthropicKey')}</Label>
+                    <Label htmlFor="anthropic-key">
+                      {t("settings.page.api.fallback.fields.anthropicKey")}
+                    </Label>
                     <Input
                       id="anthropic-key"
                       type="password"
                       placeholder="sk-ant-..."
                       value={apiKeys.anthropic}
-                      onChange={(e) => setApiKey('anthropic', e.target.value)}
+                      onChange={(e) => setApiKey("anthropic", e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="openai-key">{t('settings.page.api.fallback.fields.openaiKey')}</Label>
+                    <Label htmlFor="openai-key">
+                      {t("settings.page.api.fallback.fields.openaiKey")}
+                    </Label>
                     <Input
                       id="openai-key"
                       type="password"
                       placeholder="sk-..."
                       value={apiKeys.openai}
-                      onChange={(e) => setApiKey('openai', e.target.value)}
+                      onChange={(e) => setApiKey("openai", e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="openrouter-key">{t('settings.page.api.fallback.fields.openrouterKey')}</Label>
+                    <Label htmlFor="openrouter-key">
+                      {t("settings.page.api.fallback.fields.openrouterKey")}
+                    </Label>
                     <Input
                       id="openrouter-key"
                       type="password"
                       placeholder="sk-or-..."
                       value={apiKeys.openrouter}
-                      onChange={(e) => setApiKey('openrouter', e.target.value)}
+                      onChange={(e) => setApiKey("openrouter", e.target.value)}
                     />
                   </div>
                   <div className="flex items-center gap-2">
@@ -413,16 +440,16 @@ export default function SettingsPage() {
                       {isSaving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {t('status.saving')}
+                          {t("status.saving")}
                         </>
                       ) : (
-                        t('settings.page.api.fallback.actions.saveApiKeys')
+                        t("settings.page.api.fallback.actions.saveApiKeys")
                       )}
                     </Button>
                     {saveSuccess && (
                       <span className="flex items-center gap-1 text-sm text-green-500">
                         <CheckCircle2 className="h-4 w-4" />
-                        {t('settings.page.api.fallback.saved')}
+                        {t("settings.page.api.fallback.saved")}
                       </span>
                     )}
                     {settingsError && (
@@ -443,39 +470,39 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Server className="w-5 h-5" />
-                  <CardTitle>{t('settings.page.gateway.title')}</CardTitle>
+                  <CardTitle>{t("settings.page.gateway.title")}</CardTitle>
                 </div>
-                <CardDescription>
-                  {t('settings.page.gateway.description')}
-                </CardDescription>
+                <CardDescription>{t("settings.page.gateway.description")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div
                       className={`w-2 h-2 rounded-full ${
-                        gatewayStatus === 'running'
-                          ? 'bg-green-500'
-                          : gatewayStatus === 'starting'
-                            ? 'bg-amber-500 animate-pulse'
-                            : gatewayStatus === 'error'
-                              ? 'bg-red-500'
-                              : 'bg-gray-400'
+                        gatewayStatus === "running"
+                          ? "bg-green-500"
+                          : gatewayStatus === "starting"
+                            ? "bg-amber-500 animate-pulse"
+                            : gatewayStatus === "error"
+                              ? "bg-red-500"
+                              : "bg-gray-400"
                       }`}
                     />
                     <span className="capitalize">
-                      {t(`settings.page.gateway.status.${gatewayStatus}`, { defaultValue: gatewayStatus })}
+                      {t(`settings.page.gateway.status.${gatewayStatus}`, {
+                        defaultValue: gatewayStatus,
+                      })}
                     </span>
                     {gatewayError && <span className="text-destructive"> - {gatewayError}</span>}
                   </div>
                   <Button
-                    variant={isGatewayRunning ? 'destructive' : 'default'}
+                    variant={isGatewayRunning ? "destructive" : "default"}
                     onClick={isGatewayRunning ? stopGateway : startGateway}
-                    disabled={gatewayStatus === 'starting'}
+                    disabled={gatewayStatus === "starting"}
                   >
                     {isGatewayRunning
-                      ? t('settings.page.gateway.actions.stopGateway')
-                      : t('settings.page.gateway.actions.startGateway')}
+                      ? t("settings.page.gateway.actions.stopGateway")
+                      : t("settings.page.gateway.actions.startGateway")}
                   </Button>
                 </div>
 
@@ -484,58 +511,76 @@ export default function SettingsPage() {
                     variant="outline"
                     disabled={gatewayServiceBusy}
                     onClick={() => {
-                      setGatewayServiceBusy(true)
-                      setGatewayServiceMessage(null)
+                      setGatewayServiceBusy(true);
+                      setGatewayServiceMessage(null);
                       ipc.gateway
                         .installService()
-                        .then(() => setGatewayServiceMessage(t('settings.page.gateway.messages.serviceInstalled')))
-                        .catch((e) =>
+                        .then(() =>
                           setGatewayServiceMessage(
-                            e instanceof Error ? e.message : t('settings.page.gateway.messages.installFailed'),
+                            t("settings.page.gateway.messages.serviceInstalled"),
                           ),
                         )
-                        .finally(() => setGatewayServiceBusy(false))
+                        .catch((e) =>
+                          setGatewayServiceMessage(
+                            e instanceof Error
+                              ? e.message
+                              : t("settings.page.gateway.messages.installFailed"),
+                          ),
+                        )
+                        .finally(() => setGatewayServiceBusy(false));
                     }}
                   >
-                    {t('settings.page.gateway.actions.installService')}
+                    {t("settings.page.gateway.actions.installService")}
                   </Button>
                   <Button
                     variant="outline"
                     disabled={gatewayServiceBusy}
                     onClick={() => {
-                      setGatewayServiceBusy(true)
-                      setGatewayServiceMessage(null)
+                      setGatewayServiceBusy(true);
+                      setGatewayServiceMessage(null);
                       ipc.gateway
                         .restartService()
-                        .then(() => setGatewayServiceMessage(t('settings.page.gateway.messages.serviceRestarted')))
-                        .catch((e) =>
+                        .then(() =>
                           setGatewayServiceMessage(
-                            e instanceof Error ? e.message : t('settings.page.gateway.messages.restartFailed'),
+                            t("settings.page.gateway.messages.serviceRestarted"),
                           ),
                         )
-                        .finally(() => setGatewayServiceBusy(false))
+                        .catch((e) =>
+                          setGatewayServiceMessage(
+                            e instanceof Error
+                              ? e.message
+                              : t("settings.page.gateway.messages.restartFailed"),
+                          ),
+                        )
+                        .finally(() => setGatewayServiceBusy(false));
                     }}
                   >
-                    {t('settings.page.gateway.actions.restartService')}
+                    {t("settings.page.gateway.actions.restartService")}
                   </Button>
                   <Button
                     variant="destructive"
                     disabled={gatewayServiceBusy}
                     onClick={() => {
-                      setGatewayServiceBusy(true)
-                      setGatewayServiceMessage(null)
+                      setGatewayServiceBusy(true);
+                      setGatewayServiceMessage(null);
                       ipc.gateway
                         .uninstallService()
-                        .then(() => setGatewayServiceMessage(t('settings.page.gateway.messages.serviceUninstalled')))
-                        .catch((e) =>
+                        .then(() =>
                           setGatewayServiceMessage(
-                            e instanceof Error ? e.message : t('settings.page.gateway.messages.uninstallFailed'),
+                            t("settings.page.gateway.messages.serviceUninstalled"),
                           ),
                         )
-                        .finally(() => setGatewayServiceBusy(false))
+                        .catch((e) =>
+                          setGatewayServiceMessage(
+                            e instanceof Error
+                              ? e.message
+                              : t("settings.page.gateway.messages.uninstallFailed"),
+                          ),
+                        )
+                        .finally(() => setGatewayServiceBusy(false));
                     }}
                   >
-                    {t('settings.page.gateway.actions.uninstallService')}
+                    {t("settings.page.gateway.actions.uninstallService")}
                   </Button>
                 </div>
 
@@ -550,10 +595,8 @@ export default function SettingsPage() {
           <TabsContent value="security">
             <Card>
               <CardHeader>
-                <CardTitle>{t('settings.page.security.title')}</CardTitle>
-                <CardDescription>
-                  {t('settings.page.security.description')}
-                </CardDescription>
+                <CardTitle>{t("settings.page.security.title")}</CardTitle>
+                <CardDescription>{t("settings.page.security.description")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {securityMessage ? (
@@ -564,9 +607,9 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>{t('settings.page.security.allowElevatedWebchat')}</Label>
+                    <Label>{t("settings.page.security.allowElevatedWebchat")}</Label>
                     <p className="text-sm text-muted-foreground">
-                      {t('settings.page.security.allowElevatedWebchatHint')}
+                      {t("settings.page.security.allowElevatedWebchatHint")}
                     </p>
                   </div>
                   <Switch
@@ -578,9 +621,9 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>{t('settings.page.security.allowElevatedDiscord')}</Label>
+                    <Label>{t("settings.page.security.allowElevatedDiscord")}</Label>
                     <p className="text-sm text-muted-foreground">
-                      {t('settings.page.security.allowElevatedDiscordHint')}
+                      {t("settings.page.security.allowElevatedDiscordHint")}
                     </p>
                   </div>
                   <Switch
@@ -591,28 +634,42 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>{t('settings.page.security.sandboxMode')}</Label>
+                  <Label>{t("settings.page.security.sandboxMode")}</Label>
                   <Select
                     value={sandboxMode}
                     onChange={(e: ChangeEvent<HTMLSelectElement>) => setSandboxMode(e.target.value)}
                     disabled={securityLoading}
                   >
-                    <option value="off">{t('settings.page.security.sandboxModeOptions.off')}</option>
-                    <option value="docker">{t('settings.page.security.sandboxModeOptions.docker')}</option>
-                    <option value="native">{t('settings.page.security.sandboxModeOptions.native')}</option>
+                    <option value="off">
+                      {t("settings.page.security.sandboxModeOptions.off")}
+                    </option>
+                    <option value="docker">
+                      {t("settings.page.security.sandboxModeOptions.docker")}
+                    </option>
+                    <option value="native">
+                      {t("settings.page.security.sandboxModeOptions.native")}
+                    </option>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>{t('settings.page.security.workspaceAccess')}</Label>
+                  <Label>{t("settings.page.security.workspaceAccess")}</Label>
                   <Select
                     value={workspaceAccess}
-                    onChange={(e: ChangeEvent<HTMLSelectElement>) => setWorkspaceAccess(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                      setWorkspaceAccess(e.target.value)
+                    }
                     disabled={securityLoading}
                   >
-                    <option value="none">{t('settings.page.security.workspaceAccessOptions.none')}</option>
-                    <option value="ro">{t('settings.page.security.workspaceAccessOptions.ro')}</option>
-                    <option value="rw">{t('settings.page.security.workspaceAccessOptions.rw')}</option>
+                    <option value="none">
+                      {t("settings.page.security.workspaceAccessOptions.none")}
+                    </option>
+                    <option value="ro">
+                      {t("settings.page.security.workspaceAccessOptions.ro")}
+                    </option>
+                    <option value="rw">
+                      {t("settings.page.security.workspaceAccessOptions.rw")}
+                    </option>
                   </Select>
                 </div>
 
@@ -620,25 +677,32 @@ export default function SettingsPage() {
                   <Button
                     disabled={securityLoading}
                     onClick={() => {
-                      setSecurityLoading(true)
-                      setSecurityMessage(null)
+                      setSecurityLoading(true);
+                      setSecurityMessage(null);
                       ipc.security
                         .apply([
-                          { path: 'tools.elevated.allowFrom.webchat', value: allowElevatedWebchat },
-                          { path: 'tools.elevated.allowFrom.discord', value: allowElevatedDiscord },
-                          { path: 'agents.defaults.sandbox.mode', value: sandboxMode },
-                          { path: 'agents.defaults.sandbox.workspaceAccess', value: workspaceAccess },
+                          { path: "tools.elevated.allowFrom.webchat", value: allowElevatedWebchat },
+                          { path: "tools.elevated.allowFrom.discord", value: allowElevatedDiscord },
+                          { path: "agents.defaults.sandbox.mode", value: sandboxMode },
+                          {
+                            path: "agents.defaults.sandbox.workspaceAccess",
+                            value: workspaceAccess,
+                          },
                         ])
-                        .then(() => setSecurityMessage(t('settings.page.security.messages.updated')))
+                        .then(() =>
+                          setSecurityMessage(t("settings.page.security.messages.updated")),
+                        )
                         .catch((e) =>
                           setSecurityMessage(
-                            e instanceof Error ? e.message : t('settings.page.security.messages.applyFailed'),
+                            e instanceof Error
+                              ? e.message
+                              : t("settings.page.security.messages.applyFailed"),
                           ),
                         )
-                        .finally(() => setSecurityLoading(false))
+                        .finally(() => setSecurityLoading(false));
                     }}
                   >
-                    {t('settings.page.security.actions.apply')}
+                    {t("settings.page.security.actions.apply")}
                   </Button>
                 </div>
               </CardContent>
@@ -656,25 +720,25 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Info className="w-5 h-5" />
-                  <CardTitle>{t('settings.page.about.title')}</CardTitle>
+                  <CardTitle>{t("settings.page.about.title")}</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <p className="font-medium">ClawUI</p>
                   <p className="text-sm text-muted-foreground">
-                    {t('settings.page.about.version', { version })}
+                    {t("settings.page.about.version", { version })}
                   </p>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {t('settings.page.about.description')}
+                  {t("settings.page.about.description")}
                 </p>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => ipc.app.checkForUpdates()}>
-                    {t('settings.page.about.actions.checkForUpdates')}
+                    {t("settings.page.about.actions.checkForUpdates")}
                   </Button>
                   <Button variant="outline" size="sm">
-                    {t('settings.page.about.actions.viewLicense')}
+                    {t("settings.page.about.actions.viewLicense")}
                   </Button>
                 </div>
               </CardContent>
@@ -683,5 +747,5 @@ export default function SettingsPage() {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }

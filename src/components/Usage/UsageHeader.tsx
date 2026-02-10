@@ -1,25 +1,25 @@
-import { Button, Select } from '@clawui/ui'
-import { RefreshCw } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Button, Select } from "@clawui/ui";
+import { RefreshCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface UsageHeaderProps {
-  startDate: string
-  endDate: string
-  chartMode: 'tokens' | 'cost'
-  loading: boolean
-  onDateRangeChange: (start: string, end: string) => void
-  onChartModeChange: (mode: 'tokens' | 'cost') => void
-  onRefresh: () => void
+  startDate: string;
+  endDate: string;
+  chartMode: "tokens" | "cost";
+  loading: boolean;
+  onDateRangeChange: (start: string, end: string) => void;
+  onChartModeChange: (mode: "tokens" | "cost") => void;
+  onRefresh: () => void;
 }
 
 function daysAgoStr(days: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - days)
-  return d.toISOString().slice(0, 10)
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
 }
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
+  return new Date().toISOString().slice(0, 10);
 }
 
 export function UsageHeader({
@@ -31,19 +31,17 @@ export function UsageHeader({
   onChartModeChange,
   onRefresh,
 }: UsageHeaderProps) {
-  const { t } = useTranslation('common')
-  const today = todayStr()
+  const { t } = useTranslation("common");
+  const today = todayStr();
   const presets = [
-    { key: 'today', label: t('usage.presets.today'), days: 0 },
-    { key: 'last7d', label: t('usage.presets.last7d'), days: 7 },
-    { key: 'last30d', label: t('usage.presets.last30d'), days: 30 },
-  ]
+    { key: "today", label: t("usage.presets.today"), days: 0 },
+    { key: "last7d", label: t("usage.presets.last7d"), days: 7 },
+    { key: "last30d", label: t("usage.presets.last30d"), days: 30 },
+  ];
 
   const activePreset = presets.find(
-    (p) =>
-      endDate === today &&
-      startDate === (p.days === 0 ? today : daysAgoStr(p.days))
-  )
+    (p) => endDate === today && startDate === (p.days === 0 ? today : daysAgoStr(p.days)),
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -52,14 +50,9 @@ export function UsageHeader({
         {presets.map((p) => (
           <Button
             key={p.key}
-            variant={activePreset?.days === p.days ? 'default' : 'outline'}
+            variant={activePreset?.days === p.days ? "default" : "outline"}
             size="sm"
-            onClick={() =>
-              onDateRangeChange(
-                p.days === 0 ? today : daysAgoStr(p.days),
-                today
-              )
-            }
+            onClick={() => onDateRangeChange(p.days === 0 ? today : daysAgoStr(p.days), today)}
           >
             {p.label}
           </Button>
@@ -87,13 +80,11 @@ export function UsageHeader({
         {/* Chart mode toggle */}
         <Select
           value={chartMode}
-          onChange={(e) =>
-            onChartModeChange(e.target.value as 'tokens' | 'cost')
-          }
+          onChange={(e) => onChartModeChange(e.target.value as "tokens" | "cost")}
           className="h-8 w-24 text-xs"
         >
-          <option value="tokens">{t('usage.modes.tokens')}</option>
-          <option value="cost">{t('usage.modes.cost')}</option>
+          <option value="tokens">{t("usage.modes.tokens")}</option>
+          <option value="cost">{t("usage.modes.cost")}</option>
         </Select>
 
         {/* Refresh */}
@@ -102,11 +93,11 @@ export function UsageHeader({
           size="sm"
           onClick={onRefresh}
           disabled={loading}
-          aria-label={t('usage.actions.refresh')}
+          aria-label={t("usage.actions.refresh")}
         >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
         </Button>
       </div>
     </div>
-  )
+  );
 }

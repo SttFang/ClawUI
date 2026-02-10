@@ -17,11 +17,11 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "drizzle-orm": "^0.38.0",
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "drizzle-orm": "^0.38.0"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.30.0",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "drizzle-kit": "^0.30.0"
   }
 }

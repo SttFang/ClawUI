@@ -1,87 +1,89 @@
-import type { IpcMain } from 'electron'
-import { execFile } from 'child_process'
-import { promisify } from 'util'
-import { resolveCommandPath } from '../utils/login-shell'
+import type { IpcMain } from "electron";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { resolveCommandPath } from "../utils/login-shell";
 
-const execFileAsync = promisify(execFile)
+const execFileAsync = promisify(execFile);
 
 type AllowedPath =
-  | 'tools.elevated.enabled'
-  | 'tools.elevated.allowFrom.webchat'
-  | 'tools.elevated.allowFrom.discord'
-  | 'tools.allow'
-  | 'tools.deny'
-  | 'agents.defaults.sandbox.mode'
-  | 'agents.defaults.sandbox.workspaceAccess'
-  | 'agents.defaults.sandbox.docker.binds'
+  | "tools.elevated.enabled"
+  | "tools.elevated.allowFrom.webchat"
+  | "tools.elevated.allowFrom.discord"
+  | "tools.allow"
+  | "tools.deny"
+  | "agents.defaults.sandbox.mode"
+  | "agents.defaults.sandbox.workspaceAccess"
+  | "agents.defaults.sandbox.docker.binds";
 
 const ALLOWED_PATHS = new Set<AllowedPath>([
-  'tools.elevated.enabled',
-  'tools.elevated.allowFrom.webchat',
-  'tools.elevated.allowFrom.discord',
-  'tools.allow',
-  'tools.deny',
-  'agents.defaults.sandbox.mode',
-  'agents.defaults.sandbox.workspaceAccess',
-  'agents.defaults.sandbox.docker.binds',
-])
+  "tools.elevated.enabled",
+  "tools.elevated.allowFrom.webchat",
+  "tools.elevated.allowFrom.discord",
+  "tools.allow",
+  "tools.deny",
+  "agents.defaults.sandbox.mode",
+  "agents.defaults.sandbox.workspaceAccess",
+  "agents.defaults.sandbox.docker.binds",
+]);
 
 function assertAllowedPath(path: string): asserts path is AllowedPath {
   if (!ALLOWED_PATHS.has(path as AllowedPath)) {
-    throw new Error(`Config path not allowed: ${path}`)
+    throw new Error(`Config path not allowed: ${path}`);
   }
 }
 
 async function resolveOpenClawPath(): Promise<string> {
-  const openclawPath = await resolveCommandPath('openclaw')
-  if (!openclawPath) throw new Error('openclaw not found in PATH')
-  return openclawPath
+  const openclawPath = await resolveCommandPath("openclaw");
+  if (!openclawPath) throw new Error("openclaw not found in PATH");
+  return openclawPath;
 }
 
 export interface SecurityOp {
-  path: string
-  value: unknown
+  path: string;
+  value: unknown;
 }
 
 export function registerSecurityHandlers(ipcMain: IpcMain): void {
-  ipcMain.handle('security:get', async (_event, paths: string[]): Promise<Record<string, unknown>> => {
-    if (!Array.isArray(paths)) throw new Error('paths must be an array')
-    const openclawPath = await resolveOpenClawPath()
+  ipcMain.handle(
+    "security:get",
+    async (_event, paths: string[]): Promise<Record<string, unknown>> => {
+      if (!Array.isArray(paths)) throw new Error("paths must be an array");
+      const openclawPath = await resolveOpenClawPath();
 
-    const out: Record<string, unknown> = {}
-    for (const p of paths) {
-      if (typeof p !== 'string') continue
-      assertAllowedPath(p)
-      const res = await execFileAsync(openclawPath, ['config', 'get', '--json', p], {
-        timeout: 30_000,
-        maxBuffer: 2 * 1024 * 1024,
-        encoding: 'utf8',
-      })
-      const raw = String(res.stdout ?? '').trim()
-      out[p] = raw ? JSON.parse(raw) : null
-    }
-    return out
-  })
+      const out: Record<string, unknown> = {};
+      for (const p of paths) {
+        if (typeof p !== "string") continue;
+        assertAllowedPath(p);
+        const res = await execFileAsync(openclawPath, ["config", "get", "--json", p], {
+          timeout: 30_000,
+          maxBuffer: 2 * 1024 * 1024,
+          encoding: "utf8",
+        });
+        const raw = String(res.stdout ?? "").trim();
+        out[p] = raw ? JSON.parse(raw) : null;
+      }
+      return out;
+    },
+  );
 
-  ipcMain.handle('security:apply', async (_event, ops: SecurityOp[]): Promise<void> => {
-    if (!Array.isArray(ops)) throw new Error('ops must be an array')
-    const openclawPath = await resolveOpenClawPath()
+  ipcMain.handle("security:apply", async (_event, ops: SecurityOp[]): Promise<void> => {
+    if (!Array.isArray(ops)) throw new Error("ops must be an array");
+    const openclawPath = await resolveOpenClawPath();
 
     for (const op of ops) {
-      if (!op || typeof op !== 'object') continue
-      const path = (op as { path?: unknown }).path
-      if (typeof path !== 'string') continue
-      assertAllowedPath(path)
+      if (!op || typeof op !== "object") continue;
+      const path = (op as { path?: unknown }).path;
+      if (typeof path !== "string") continue;
+      assertAllowedPath(path);
 
-      const value = (op as { value?: unknown }).value
-      const jsonValue = JSON.stringify(value)
+      const value = (op as { value?: unknown }).value;
+      const jsonValue = JSON.stringify(value);
 
-      await execFileAsync(openclawPath, ['config', 'set', '--json', path, jsonValue], {
+      await execFileAsync(openclawPath, ["config", "set", "--json", path, jsonValue], {
         timeout: 60_000,
         maxBuffer: 2 * 1024 * 1024,
-        encoding: 'utf8',
-      })
+        encoding: "utf8",
+      });
     }
-  })
+  });
 }
-

@@ -6,7 +6,7 @@
  * Update information
  */
 export interface UpdateInfo {
-  version: string
-  releaseNotes?: string
-  releaseDate?: string
+  version: string;
+  releaseNotes?: string;
+  releaseDate?: string;
 }

@@ -1,10 +1,10 @@
-import type { ReactNode } from 'react'
-import { NavRail } from '@/components/NavRail'
-import { TitleBar } from '@/components/TitleBar'
-import { ExecApprovalPrompt } from '@/components/ExecApprovalPrompt'
+import type { ReactNode } from "react";
+import { ExecApprovalPrompt } from "@/components/ExecApprovalPrompt";
+import { NavRail } from "@/components/NavRail";
+import { TitleBar } from "@/components/TitleBar";
 
 interface AppShellProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 /**
@@ -40,5 +40,5 @@ export function AppShell({ children }: AppShellProps) {
         </main>
       </div>
     </div>
-  )
+  );
 }

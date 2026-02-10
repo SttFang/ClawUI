@@ -80,7 +80,7 @@ interface ExecApprovalsActions {
 
 type ExecApprovalsStore = ExecApprovalsState & ExecApprovalsActions
 
-export const useExecApprovalsStore = create<ExecApprovalsStore>((set, get) => ({
+export const useExecApprovalsStore = create<ExecApprovalsStore>((set) => ({
   queue: [],
   busyById: {},
 
@@ -136,4 +136,3 @@ export function initExecApprovalsListener() {
     }
   })
 }
-

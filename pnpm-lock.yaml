@@ -102,9 +102,6 @@ importers:
         specifier: ^5.0.1
         version: 5.0.11(@types/react@19.2.13)(immer@11.1.3)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
     devDependencies:
-      '@electron-toolkit/eslint-config-ts':
-        specifier: ^3.0.0
-        version: 3.1.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       '@electron-toolkit/tsconfig':
         specifier: ^1.0.1
         version: 1.0.1(@types/node@22.19.10)
@@ -150,9 +147,6 @@ importers:
       electron-vite:
         specifier: ^2.3.0
         version: 2.3.0(vite@6.4.1(@types/node@22.19.10)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))
-      eslint:
-        specifier: ^9.14.0
-        version: 9.39.2(jiti@2.6.1)
       jsdom:
         specifier: ^28.0.0
         version: 28.0.0(@noble/hashes@2.0.1)
@@ -725,15 +719,6 @@ packages:
 
   '@dual-bundle/import-meta-resolve@4.2.1':
     resolution: {integrity: sha512-id+7YRUgoUX6CgV0DtuhirQWodeeA7Lf4i2x71JS/vtA5pRb/hIGWlw+G6MeXvsM+MXrz0VAydTGElX1rAfgPg==}
-
-  '@electron-toolkit/eslint-config-ts@3.1.0':
-    resolution: {integrity: sha512-MowZQKd3yxXSDLack5QvjQwYHhpOJFoWBGBwJ/k+DCd7NUSendplECbQGFp86tPQYPUrPBPceR/hdsSAnaY5ZQ==}
-    peerDependencies:
-      eslint: '>=9.0.0'
-      typescript: '*'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
 
   '@electron-toolkit/tsconfig@1.0.1':
     resolution: {integrity: sha512-M0Mol3odspvtCuheyujLNAW7bXq7KFNYVMRtpjFa4ZfES4MuklXBC7Nli/omvc+PRKlrklgAGx3l4VakjNo8jg==}
@@ -10425,17 +10410,6 @@ snapshots:
   '@drizzle-team/brocli@0.10.2': {}
 
   '@dual-bundle/import-meta-resolve@4.2.1': {}
-
-  '@electron-toolkit/eslint-config-ts@3.1.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)':
-    dependencies:
-      '@eslint/js': 9.39.2
-      eslint: 9.39.2(jiti@2.6.1)
-      globals: 16.5.0
-      typescript-eslint: 8.54.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
-    optionalDependencies:
-      typescript: 5.9.3
-    transitivePeerDependencies:
-      - supports-color
 
   '@electron-toolkit/tsconfig@1.0.1(@types/node@22.19.10)':
     dependencies:

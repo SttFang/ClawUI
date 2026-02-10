@@ -190,6 +190,8 @@ export function createOpenClawChatStream(params: {
             toolName,
             input: tool.args,
             providerExecuted: true,
+            // ClawUI doesn't ship a static tool registry; treat OpenClaw tool events as dynamic tools.
+            dynamic: true,
             title: meta,
           })
           return
@@ -201,6 +203,7 @@ export function createOpenClawChatStream(params: {
             toolCallId,
             output: tool.partialResult,
             providerExecuted: true,
+            dynamic: true,
             preliminary: true,
           })
           return
@@ -214,6 +217,7 @@ export function createOpenClawChatStream(params: {
               toolCallId,
               errorText: 'tool error',
               providerExecuted: true,
+              dynamic: true,
             })
             return
           }
@@ -222,6 +226,7 @@ export function createOpenClawChatStream(params: {
             toolCallId,
             output: tool.result,
             providerExecuted: true,
+            dynamic: true,
           })
         }
       }

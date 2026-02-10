@@ -403,7 +403,10 @@ function parseSessionsListPayload(
 
     const derivedTitle = (item as { derivedTitle?: unknown }).derivedTitle;
     const updatedAt = (item as { updatedAt?: unknown }).updatedAt;
-    const surface = (item as { surface?: unknown }).surface;
+    // OpenClaw `sessions.list` rows don't have a generic `surface` field.
+    // Use `channel` as the best-effort "recent source" so session filters can show Discord/UI buckets.
+    const surface =
+      (item as { surface?: unknown }).surface ?? (item as { channel?: unknown }).channel;
 
     out.push({
       id: key,

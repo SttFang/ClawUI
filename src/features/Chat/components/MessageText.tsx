@@ -15,7 +15,7 @@ export function MessageText(props: { text: string; isAnimating: boolean }) {
       isAnimating={isAnimating}
       parseIncompleteMarkdown
       // Make long tokens/URLs wrap instead of expanding the bubble.
-      className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+      className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
     >
       {normalized}
     </Streamdown>

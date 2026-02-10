@@ -10,3 +10,4 @@ export const toolsLog = log.scope("tools");
 export const channelsLog = log.scope("channels");
 export const subscriptionLog = log.scope("subscription");
 export const uiLog = log.scope("ui");
+export const agentsLog = log.scope("agents");

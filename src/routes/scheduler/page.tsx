@@ -9,35 +9,37 @@ import {
   Switch,
 } from '@clawui/ui'
 import { Clock, Plus, Play, Trash2, Edit, CalendarClock } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useSchedulerStore, selectTasks, selectIsLoading } from '@/store/scheduler'
 import { TaskDialog, cronToHumanReadable } from '@/features/Scheduler'
 import type { ScheduledTask } from '@/store/scheduler'
 
-function formatNextRun(timestamp?: number): string {
-  if (!timestamp) return 'Not scheduled'
+function formatNextRun(timestamp: number | undefined, t: (key: string, params?: Record<string, unknown>) => string): string {
+  if (!timestamp) return t('scheduler.meta.notScheduled')
   const date = new Date(timestamp)
   const now = new Date()
   const diff = timestamp - now.getTime()
 
-  if (diff < 0) return 'Overdue'
+  if (diff < 0) return t('scheduler.meta.overdue')
   if (diff < 60 * 60 * 1000) {
     const minutes = Math.round(diff / (60 * 1000))
-    return `In ${minutes} minute${minutes === 1 ? '' : 's'}`
+    return t('scheduler.meta.inMinutes', { n: minutes, plural: minutes === 1 ? '' : 's' })
   }
   if (diff < 24 * 60 * 60 * 1000) {
     const hours = Math.round(diff / (60 * 60 * 1000))
-    return `In ${hours} hour${hours === 1 ? '' : 's'}`
+    return t('scheduler.meta.inHours', { n: hours, plural: hours === 1 ? '' : 's' })
   }
   return date.toLocaleString()
 }
 
-function formatLastRun(timestamp?: number): string {
-  if (!timestamp) return 'Never'
+function formatLastRun(timestamp: number | undefined, t: (key: string) => string): string {
+  if (!timestamp) return t('scheduler.meta.never')
   const date = new Date(timestamp)
   return date.toLocaleString()
 }
 
 export default function SchedulerPage() {
+  const { t } = useTranslation('common')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null)
 
@@ -65,7 +67,7 @@ export default function SchedulerPage() {
   }
 
   const handleDeleteTask = async (id: string) => {
-    if (confirm('Are you sure you want to delete this task?')) {
+    if (confirm(t('scheduler.confirmDelete'))) {
       await deleteTask(id)
     }
   }
@@ -75,14 +77,14 @@ export default function SchedulerPage() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-semibold">Scheduler</h1>
+            <h1 className="text-2xl font-semibold">{t('scheduler.title')}</h1>
             <p className="text-muted-foreground">
-              Schedule automated tasks for your AI assistant
+              {t('scheduler.description')}
             </p>
           </div>
           <Button onClick={handleCreateTask}>
             <Plus className="w-4 h-4 mr-2" />
-            New Task
+            {t('scheduler.newTask')}
           </Button>
         </div>
 
@@ -92,18 +94,18 @@ export default function SchedulerPage() {
           </div>
         ) : tasks.length === 0 ? (
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <CalendarClock className="w-12 h-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No scheduled tasks</h3>
-              <p className="text-muted-foreground text-center mb-4">
-                Create your first scheduled task to automate repetitive actions.
-              </p>
-              <Button onClick={handleCreateTask}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Task
-              </Button>
-            </CardContent>
-          </Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <CalendarClock className="w-12 h-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">{t('scheduler.emptyTitle')}</h3>
+                <p className="text-muted-foreground text-center mb-4">
+                  {t('scheduler.emptyDescription')}
+                </p>
+                <Button onClick={handleCreateTask}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t('scheduler.createTask')}
+                </Button>
+              </CardContent>
+            </Card>
         ) : (
           <div className="space-y-4">
             {tasks.map((task) => (
@@ -128,14 +130,14 @@ export default function SchedulerPage() {
                     <div className="text-sm text-muted-foreground space-y-1">
                       <div>
                         <code className="bg-muted px-2 py-1 rounded">{task.cron}</code>
-                        <span className="ml-2">{cronToHumanReadable(task.cron)}</span>
+                        <span className="ml-2">{cronToHumanReadable(task.cron, t)}</span>
                       </div>
                       <div className="flex gap-4">
                         <span>
-                          Next: {task.enabled ? formatNextRun(task.nextRun) : 'Disabled'}
+                          {t('scheduler.meta.next')}: {task.enabled ? formatNextRun(task.nextRun, t) : t('scheduler.meta.disabled')}
                         </span>
-                        <span>Last run: {formatLastRun(task.lastRun)}</span>
-                        <span>Runs: {task.runCount}</span>
+                        <span>{t('scheduler.meta.lastRun')}: {formatLastRun(task.lastRun, t)}</span>
+                        <span>{t('scheduler.meta.runs')}: {task.runCount}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -145,7 +147,7 @@ export default function SchedulerPage() {
                         onClick={() => runTask(task.id)}
                       >
                         <Play className="w-4 h-4 mr-2" />
-                        Run Now
+                        {t('scheduler.actions.runNow')}
                       </Button>
                       <Button
                         variant="outline"
@@ -153,13 +155,14 @@ export default function SchedulerPage() {
                         onClick={() => handleEditTask(task)}
                       >
                         <Edit className="w-4 h-4 mr-2" />
-                        Edit
+                        {t('scheduler.actions.edit')}
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         className="text-destructive"
                         onClick={() => handleDeleteTask(task.id)}
+                        aria-label={t('scheduler.actions.delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

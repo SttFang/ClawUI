@@ -12,6 +12,7 @@ import {
   DialogFooter,
 } from '@clawui/ui'
 import { Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { schedulerLog } from '@/lib/logger'
 import type { ScheduledTask } from '@/store/scheduler'
 
@@ -25,38 +26,43 @@ interface TaskDialogProps {
   onUpdate?: (id: string, updates: Partial<ScheduledTask>) => Promise<void>
 }
 
-const CRON_PRESETS = [
-  { label: 'Every hour', value: '0 * * * *' },
-  { label: 'Every day at 9:00', value: '0 9 * * *' },
-  { label: 'Every day at 18:00', value: '0 18 * * *' },
-  { label: 'Every Monday at 9:00', value: '0 9 * * 1' },
-  { label: 'Every Friday at 18:00', value: '0 18 * * 5' },
-  { label: 'First day of month', value: '0 0 1 * *' },
-  { label: 'Custom', value: 'custom' },
-]
-
-function cronToHumanReadable(cron: string): string {
+function cronToHumanReadable(cron: string, t?: (key: string, params?: Record<string, unknown>) => string): string {
   const parts = cron.split(' ')
   if (parts.length !== 5) return cron
 
   const [minute, hour, dayOfMonth, , dayOfWeek] = parts
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const dayKey = (n: number): string => {
+    switch (n) {
+      case 0: return 'sunday'
+      case 1: return 'monday'
+      case 2: return 'tuesday'
+      case 3: return 'wednesday'
+      case 4: return 'thursday'
+      case 5: return 'friday'
+      case 6: return 'saturday'
+      default: return 'sunday'
+    }
+  }
 
   if (minute !== '*' && hour === '*') {
-    return `Every hour at minute ${minute}`
+    return t ? t('scheduler.taskDialog.cronReadable.everyHourAtMinute', { minute }) : `Every hour at minute ${minute}`
   }
 
   if (minute !== '*' && hour !== '*' && dayOfMonth === '*' && dayOfWeek === '*') {
-    return `Every day at ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+    const time = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+    return t ? t('scheduler.taskDialog.cronReadable.everyDayAtTime', { time }) : `Every day at ${time}`
   }
 
   if (minute !== '*' && hour !== '*' && dayOfMonth === '*' && dayOfWeek !== '*') {
-    const dayName = days[parseInt(dayOfWeek, 10)] || dayOfWeek
-    return `Every ${dayName} at ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+    const dayNum = parseInt(dayOfWeek, 10)
+    const day = t ? t(`scheduler.taskDialog.weekdays.${dayKey(dayNum)}`) : String(dayOfWeek)
+    const time = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+    return t ? t('scheduler.taskDialog.cronReadable.everyWeekdayAtTime', { day, time }) : `Every ${day} at ${time}`
   }
 
   if (minute !== '*' && hour !== '*' && dayOfMonth !== '*') {
-    return `Day ${dayOfMonth} of each month at ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+    const time = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+    return t ? t('scheduler.taskDialog.cronReadable.everyMonthDayAtTime', { dayOfMonth, time }) : `Day ${dayOfMonth} of each month at ${time}`
   }
 
   return cron
@@ -69,6 +75,7 @@ export function TaskDialog({
   onSave,
   onUpdate,
 }: TaskDialogProps) {
+  const { t } = useTranslation('common')
   const [isLoading, setIsLoading] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -155,43 +162,51 @@ export function TaskDialog({
   }
 
   const cronValue = cronPreset === 'custom' ? customCron : cronPreset
-  const cronReadable = cronValue ? cronToHumanReadable(cronValue) : ''
+  const cronReadable = cronValue ? cronToHumanReadable(cronValue, t) : ''
+
+  const CRON_PRESETS = [
+    { label: t('scheduler.taskDialog.cronPresets.everyHour'), value: '0 * * * *' },
+    { label: t('scheduler.taskDialog.cronPresets.everyDay0900'), value: '0 9 * * *' },
+    { label: t('scheduler.taskDialog.cronPresets.everyDay1800'), value: '0 18 * * *' },
+    { label: t('scheduler.taskDialog.cronPresets.everyMonday0900'), value: '0 9 * * 1' },
+    { label: t('scheduler.taskDialog.cronPresets.everyFriday1800'), value: '0 18 * * 5' },
+    { label: t('scheduler.taskDialog.cronPresets.firstDayOfMonth'), value: '0 0 1 * *' },
+    { label: t('scheduler.taskDialog.cronPresets.custom'), value: 'custom' },
+  ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onClose={() => onOpenChange(false)}>
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Task' : 'Create Task'}</DialogTitle>
+          <DialogTitle>{isEditing ? t('scheduler.taskDialog.titleEdit') : t('scheduler.taskDialog.titleCreate')}</DialogTitle>
           <DialogDescription>
-            {isEditing
-              ? 'Update the scheduled task configuration'
-              : 'Set up a new scheduled task'}
+            {isEditing ? t('scheduler.taskDialog.descEdit') : t('scheduler.taskDialog.descCreate')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="p-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Task Name</Label>
+            <Label htmlFor="name">{t('scheduler.taskDialog.fields.name')}</Label>
             <Input
               id="name"
-              placeholder="Daily Summary"
+              placeholder={t('scheduler.taskDialog.placeholders.name')}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{t('scheduler.taskDialog.fields.description')}</Label>
             <Input
               id="description"
-              placeholder="Generate a daily work summary"
+              placeholder={t('scheduler.taskDialog.placeholders.description')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="schedule">Schedule</Label>
+            <Label htmlFor="schedule">{t('scheduler.taskDialog.fields.schedule')}</Label>
             <Select
               id="schedule"
               value={cronPreset}
@@ -205,7 +220,7 @@ export function TaskDialog({
             </Select>
             {cronPreset === 'custom' && (
               <Input
-                placeholder="0 9 * * *"
+                placeholder={t('scheduler.taskDialog.placeholders.customCron')}
                 value={customCron}
                 onChange={(e) => setCustomCron(e.target.value)}
                 className="mt-2"
@@ -217,25 +232,25 @@ export function TaskDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="actionType">Action Type</Label>
+            <Label htmlFor="actionType">{t('scheduler.taskDialog.fields.actionType')}</Label>
             <Select
               id="actionType"
               value={actionType}
               onChange={(e) => setActionType(e.target.value as typeof actionType)}
             >
-              <option value="message">Send Message</option>
-              <option value="command">Run Command</option>
-              <option value="webhook">Call Webhook</option>
+              <option value="message">{t('scheduler.taskDialog.actionTypes.message')}</option>
+              <option value="command">{t('scheduler.taskDialog.actionTypes.command')}</option>
+              <option value="webhook">{t('scheduler.taskDialog.actionTypes.webhook')}</option>
             </Select>
           </div>
 
           {actionType === 'webhook' && (
             <div className="space-y-2">
-              <Label htmlFor="target">Webhook URL</Label>
+              <Label htmlFor="target">{t('scheduler.taskDialog.fields.webhookUrl')}</Label>
               <Input
                 id="target"
                 type="url"
-                placeholder="https://example.com/webhook"
+                placeholder={t('scheduler.taskDialog.placeholders.webhookUrl')}
                 value={actionTarget}
                 onChange={(e) => setActionTarget(e.target.value)}
               />
@@ -244,10 +259,10 @@ export function TaskDialog({
 
           {actionType === 'message' && (
             <div className="space-y-2">
-              <Label htmlFor="target">Channel ID (optional)</Label>
+              <Label htmlFor="target">{t('scheduler.taskDialog.fields.channelIdOptional')}</Label>
               <Input
                 id="target"
-                placeholder="Leave empty for default channel"
+                placeholder={t('scheduler.taskDialog.placeholders.channelIdOptional')}
                 value={actionTarget}
                 onChange={(e) => setActionTarget(e.target.value)}
               />
@@ -257,19 +272,19 @@ export function TaskDialog({
           <div className="space-y-2">
             <Label htmlFor="content">
               {actionType === 'message'
-                ? 'Message Content'
+                ? t('scheduler.taskDialog.fields.messageContent')
                 : actionType === 'command'
-                  ? 'Command'
-                  : 'Webhook Body'}
+                  ? t('scheduler.taskDialog.fields.command')
+                  : t('scheduler.taskDialog.fields.webhookPayload')}
             </Label>
             <Input
               id="content"
               placeholder={
                 actionType === 'message'
-                  ? 'Generate my daily summary'
+                  ? t('scheduler.taskDialog.placeholders.messageContent')
                   : actionType === 'command'
-                    ? 'npm run build'
-                    : '{"event": "scheduled"}'
+                    ? t('scheduler.taskDialog.placeholders.command')
+                    : t('scheduler.taskDialog.placeholders.webhookPayload')
               }
               value={actionContent}
               onChange={(e) => setActionContent(e.target.value)}
@@ -279,7 +294,7 @@ export function TaskDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('actions.cancel')}
           </Button>
           <Button
             onClick={handleSave}
@@ -288,12 +303,12 @@ export function TaskDialog({
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {t('status.saving')}
               </>
             ) : isEditing ? (
-              'Update'
+              t('actions.save')
             ) : (
-              'Create'
+              t('actions.save')
             )}
           </Button>
         </DialogFooter>

@@ -39,6 +39,8 @@ interface ToolsActions {
   addToDenyList: (toolId: string) => Promise<void>;
   removeFromAllowList: (toolId: string) => Promise<void>;
   removeFromDenyList: (toolId: string) => Promise<void>;
+  /** @internal Persist current config to IPC */
+  internal_persistConfig: () => Promise<void>;
 }
 
 type ToolsStore = ToolsState & ToolsActions;
@@ -133,20 +135,24 @@ export const useToolsStore = create<ToolsStore>()(
         }
       },
 
-      setAccessMode: async (mode) => {
+      internal_persistConfig: async () => {
         const { config } = get();
-        const newConfig = { ...config, accessMode: mode };
+        await ipc.config.set({
+          tools: {
+            access: config.accessMode,
+            allow: config.allowList,
+            deny: config.denyList,
+            sandbox: { enabled: config.sandboxEnabled },
+          },
+        });
+      },
+
+      setAccessMode: async (mode) => {
+        const newConfig = { ...get().config, accessMode: mode };
         set({ config: newConfig }, false, "setAccessMode");
 
         try {
-          await ipc.config.set({
-            tools: {
-              access: mode,
-              allow: config.allowList,
-              deny: config.denyList,
-              sandbox: { enabled: config.sandboxEnabled },
-            },
-          });
+          await get().internal_persistConfig();
         } catch (error) {
           toolsLog.error("Failed to save access mode:", error);
         }
@@ -170,14 +176,7 @@ export const useToolsStore = create<ToolsStore>()(
         );
 
         try {
-          await ipc.config.set({
-            tools: {
-              access: config.accessMode,
-              allow: newAllowList,
-              deny: newDenyList,
-              sandbox: { enabled: config.sandboxEnabled },
-            },
-          });
+          await get().internal_persistConfig();
         } catch (error) {
           toolsLog.error("Failed to enable tool:", error);
         }
@@ -201,14 +200,7 @@ export const useToolsStore = create<ToolsStore>()(
         );
 
         try {
-          await ipc.config.set({
-            tools: {
-              access: config.accessMode,
-              allow: newAllowList,
-              deny: newDenyList,
-              sandbox: { enabled: config.sandboxEnabled },
-            },
-          });
+          await get().internal_persistConfig();
         } catch (error) {
           toolsLog.error("Failed to disable tool:", error);
         }
@@ -219,14 +211,7 @@ export const useToolsStore = create<ToolsStore>()(
         set({ config: { ...config, sandboxEnabled: enabled } }, false, "toggleSandbox");
 
         try {
-          await ipc.config.set({
-            tools: {
-              access: config.accessMode,
-              allow: config.allowList,
-              deny: config.denyList,
-              sandbox: { enabled },
-            },
-          });
+          await get().internal_persistConfig();
         } catch (error) {
           toolsLog.error("Failed to toggle sandbox:", error);
         }
@@ -245,14 +230,7 @@ export const useToolsStore = create<ToolsStore>()(
         );
 
         try {
-          await ipc.config.set({
-            tools: {
-              access: config.accessMode,
-              allow: newAllowList,
-              deny: newDenyList,
-              sandbox: { enabled: config.sandboxEnabled },
-            },
-          });
+          await get().internal_persistConfig();
         } catch (error) {
           toolsLog.error("Failed to add to allow list:", error);
         }
@@ -271,14 +249,7 @@ export const useToolsStore = create<ToolsStore>()(
         );
 
         try {
-          await ipc.config.set({
-            tools: {
-              access: config.accessMode,
-              allow: newAllowList,
-              deny: newDenyList,
-              sandbox: { enabled: config.sandboxEnabled },
-            },
-          });
+          await get().internal_persistConfig();
         } catch (error) {
           toolsLog.error("Failed to add to deny list:", error);
         }
@@ -290,14 +261,7 @@ export const useToolsStore = create<ToolsStore>()(
         set({ config: { ...config, allowList: newAllowList } }, false, "removeFromAllowList");
 
         try {
-          await ipc.config.set({
-            tools: {
-              access: config.accessMode,
-              allow: newAllowList,
-              deny: config.denyList,
-              sandbox: { enabled: config.sandboxEnabled },
-            },
-          });
+          await get().internal_persistConfig();
         } catch (error) {
           toolsLog.error("Failed to remove from allow list:", error);
         }
@@ -309,14 +273,7 @@ export const useToolsStore = create<ToolsStore>()(
         set({ config: { ...config, denyList: newDenyList } }, false, "removeFromDenyList");
 
         try {
-          await ipc.config.set({
-            tools: {
-              access: config.accessMode,
-              allow: config.allowList,
-              deny: newDenyList,
-              sandbox: { enabled: config.sandboxEnabled },
-            },
-          });
+          await get().internal_persistConfig();
         } catch (error) {
           toolsLog.error("Failed to remove from deny list:", error);
         }

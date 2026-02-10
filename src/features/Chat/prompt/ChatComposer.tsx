@@ -43,15 +43,20 @@ export function ChatComposer(props: {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
+  const attachmentsRef = useRef<LocalAttachment[]>([]);
+
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
 
   // Cleanup object URLs when unmounting.
   useEffect(() => {
     return () => {
-      for (const a of attachments) {
+      for (const a of attachmentsRef.current) {
         if (a.objectUrl) URL.revokeObjectURL(a.objectUrl);
       }
     };
-  }, [attachments]);
+  }, []);
 
   const attachmentItems: AttachmentItem[] = useMemo(
     () => attachments.map((a) => a.item),

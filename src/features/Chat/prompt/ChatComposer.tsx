@@ -142,30 +142,29 @@ export function ChatComposer(props: {
           onKeyDown={onKeyDown}
         />
 
-        <PromptInputFooter className="flex-col items-stretch gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <PromptInputTools>
-              <PromptInputAction
-                type="button"
-                onClick={openFilePicker}
-                disabled={disabled}
-                aria-label={t("attachFile")}
-              >
-                {t("attachFile")}
-              </PromptInputAction>
-            </PromptInputTools>
-            <PromptInputActions>
-              <PromptInputSubmit disabled={disabled || !value.trim()}>
-                {t("sendMessage")}
-              </PromptInputSubmit>
-            </PromptInputActions>
-          </div>
+        <PromptInputFooter className="flex flex-wrap items-end gap-2">
+          <PromptInputTools className="min-w-0 flex-1 flex-wrap items-end gap-2">
+            <PromptInputAction
+              type="button"
+              onClick={openFilePicker}
+              disabled={disabled}
+              aria-label={t("attachFile")}
+            >
+              {t("attachFile")}
+            </PromptInputAction>
 
-          <SessionControlStrip
-            sessionKey={sessionKey}
-            disabled={sessionControlsDisabled}
-            className="mt-0"
-          />
+            <SessionControlStrip
+              sessionKey={sessionKey}
+              disabled={sessionControlsDisabled}
+              className="mt-0"
+            />
+          </PromptInputTools>
+
+          <PromptInputActions className="ml-auto">
+            <PromptInputSubmit disabled={disabled || !value.trim()}>
+              {t("sendMessage")}
+            </PromptInputSubmit>
+          </PromptInputActions>
         </PromptInputFooter>
       </PromptInput>
     </div>

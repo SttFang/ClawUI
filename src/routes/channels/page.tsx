@@ -11,6 +11,7 @@ import { Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChannelConfig } from "@/lib/ipc";
+import { getChannelBrandIcon } from "@/lib/channelBrandIcons";
 import { TelegramConfigDialog, DiscordConfigDialog } from "@/features/Channels";
 import { useChannelsStore, selectChannels, type ChannelType } from "@/store/channels";
 
@@ -52,12 +53,15 @@ export default function ChannelsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {channels.map((channel) => (
-            <Card key={channel.type}>
+          {channels.map((channel) => {
+            const Icon = getChannelBrandIcon(channel.type);
+
+            return (
+              <Card key={channel.type}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{channel.icon}</span>
+                    {Icon ? <Icon size={22} /> : <span className="text-2xl">{channel.icon}</span>}
                     <div>
                       <CardTitle className="text-lg">
                         {t(`channels.items.${channel.type}.name`, { defaultValue: channel.name })}
@@ -96,7 +100,8 @@ export default function ChannelsPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       </div>
 

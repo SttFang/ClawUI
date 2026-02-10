@@ -167,13 +167,18 @@ export class GatewayService extends EventEmitter {
         this.process = null;
       });
 
-      // Wait a bit for the process to start
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // If not already running or errored, assume it's running
-      const currentStatus = this.getStatus();
-      if (currentStatus !== "running" && currentStatus !== "error" && currentStatus !== "stopped") {
-        this.setStatus("running");
+      // Poll until the gateway becomes reachable or a terminal status is reached.
+      const maxWait = 5000;
+      const interval = 250;
+      let waited = 0;
+      while (waited < maxWait) {
+        if (this.status === "running" || this.status === "error" || this.status === "stopped") break;
+        if (await this.isGatewayReachable()) {
+          this.setStatus("running");
+          break;
+        }
+        await new Promise((r) => setTimeout(r, interval));
+        waited += interval;
       }
     } catch (error) {
       gatewayLog.error("[gateway.start.failed]", error, `durationMs=${Date.now() - t0}`);

@@ -116,3 +116,30 @@ ClawUI v1 的落地建议：
   - main session 的 reset（清空会话）
   - main session 的 model/thinking/verbose 选择（如果你想让 UI 可控）
 
+## 6. ClawUI 如何区分 Discord session 和 UI session（避免混淆）
+
+OpenClaw 的 sessionKey 允许自由扩展，但它在“渠道会话”上有一套稳定的命名约定（见 `buildAgentPeerSessionKey` 相关逻辑）：
+
+- 渠道会话通常形如：
+  - `agent:<agentId>:<channel>:<peerKind>:<peerId>`
+  - 或带 accountId 的变体：`agent:<agentId>:<channel>:<accountId>:<peerKind>:<peerId>`
+- 其中 `<channel>` 常见取值：`discord` / `telegram` / `slack` / `wechat` / `whatsapp` / `signal`
+- `<peerKind>` 常见取值：`direct` / `group` / `channel`
+
+这对 ClawUI 的含义：
+
+1. **用 sessionKey 前缀做来源隔离（推荐）**
+   - ClawUI 自己创建的会话统一使用固定前缀，例如：`agent:main:ui:<uuid>`
+   - 这样在 `sessions.list` 里可以 100% 准确地按前缀过滤 UI 会话，避免与 Discord/Telegram 等渠道会话混在一起。
+
+2. **把 ClawUI 内部“系统会话”隐藏**
+   - 例如本项目 metadata 生成用到的：`clawui:meta:<sessionKey>`（落到 store 里往往会成为 `agent:main:clawui:meta:...`）
+   - 这种会话只是 ClawUI 内部用途，不应出现在普通会话列表里（否则用户会误以为是“真实对话”）。
+
+3. **不要把 `agent:main:main` 当作 UI 会话**
+   - OpenClaw 的 DM scope 在一些配置下会折叠到 main sessionKey（`agent:main:main`）。
+   - 如果把它当作 UI 会话展示，会导致“Discord 私聊”和“UI 对话”混写到同一个 bucket。
+
+源码参考：
+- sessionKey 结构与派生：`/Users/fanghanjun/openclaw/src/routing/session-key.ts`
+- 解析工具：`/Users/fanghanjun/openclaw/src/sessions/session-key-utils.ts`

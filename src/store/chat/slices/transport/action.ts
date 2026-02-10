@@ -48,19 +48,26 @@ export const transportSlice: StateCreator<
   },
 
   sendMessage: async (content) => {
-    const { addMessage, setLoading, updateMessage, currentSessionId, createSession, wsConnected } =
-      get();
+    const {
+      addMessage,
+      addLoadingMessage,
+      removeLoadingMessage,
+      updateMessage,
+      currentSessionId,
+      createSession,
+      wsConnected,
+    } = get();
 
     let sessionId = currentSessionId;
     if (!sessionId) {
       sessionId = createSession();
     }
 
+    const runId = generateChatRunId();
+
     addMessage({ role: "user", content });
     set({ input: "" }, false, "sendMessage/clearInput");
-    setLoading(true);
-
-    const runId = generateChatRunId();
+    addLoadingMessage(runId);
     set(
       (state) => {
         const sid = state.currentSessionId;
@@ -101,12 +108,12 @@ export const transportSlice: StateCreator<
       } else {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         updateMessage(runId, "WebSocket not connected. Please connect to the gateway first.");
-        setLoading(false);
+        removeLoadingMessage(runId);
       }
     } catch (error) {
       chatLog.error("Failed to send message:", error);
       updateMessage(runId, "Error: Failed to send message to gateway.");
-      setLoading(false);
+      removeLoadingMessage(runId);
     }
   },
 });

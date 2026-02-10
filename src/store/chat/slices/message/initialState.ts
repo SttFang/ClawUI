@@ -1,7 +1,7 @@
 export interface MessageState {
-  isLoading: boolean;
+  loadingMessageIds: string[];
 }
 
 export const initialMessageState: MessageState = {
-  isLoading: false,
+  loadingMessageIds: [],
 };

@@ -8,7 +8,8 @@ export interface MessageAction {
   updateStreamingMessage: (id: string, content: string) => void;
   appendMessageContent: (id: string, content: string) => void;
   setMessageStreaming: (id: string, isStreaming: boolean) => void;
-  setLoading: (loading: boolean) => void;
+  addLoadingMessage: (id: string) => void;
+  removeLoadingMessage: (id: string) => void;
 }
 
 export const messageSlice: StateCreator<
@@ -106,5 +107,23 @@ export const messageSlice: StateCreator<
       "setMessageStreaming",
     ),
 
-  setLoading: (isLoading) => set({ isLoading }, false, "setLoading"),
+  addLoadingMessage: (id) =>
+    set(
+      (state) => ({
+        loadingMessageIds: state.loadingMessageIds.includes(id)
+          ? state.loadingMessageIds
+          : [...state.loadingMessageIds, id],
+      }),
+      false,
+      "addLoadingMessage",
+    ),
+
+  removeLoadingMessage: (id) =>
+    set(
+      (state) => ({
+        loadingMessageIds: state.loadingMessageIds.filter((mid) => mid !== id),
+      }),
+      false,
+      "removeLoadingMessage",
+    ),
 });

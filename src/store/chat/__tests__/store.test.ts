@@ -30,7 +30,7 @@ let useChatStore: typeof import("../index").useChatStore;
 const initialState = {
   sessions: [] as Session[],
   currentSessionId: null as string | null,
-  isLoading: false,
+  loadingMessageIds: [] as string[],
   input: "",
   wsConnected: false,
 };
@@ -284,15 +284,29 @@ describe("ChatStore", () => {
     });
   });
 
-  describe("setLoading", () => {
-    it("should update loading state", () => {
-      const { setLoading } = useChatStore.getState();
+  describe("addLoadingMessage / removeLoadingMessage", () => {
+    it("should add and remove loading message ids", () => {
+      const { addLoadingMessage, removeLoadingMessage } = useChatStore.getState();
 
-      setLoading(true);
-      expect(useChatStore.getState().isLoading).toBe(true);
+      addLoadingMessage("msg_1");
+      expect(useChatStore.getState().loadingMessageIds).toEqual(["msg_1"]);
 
-      setLoading(false);
-      expect(useChatStore.getState().isLoading).toBe(false);
+      addLoadingMessage("msg_2");
+      expect(useChatStore.getState().loadingMessageIds).toEqual(["msg_1", "msg_2"]);
+
+      removeLoadingMessage("msg_1");
+      expect(useChatStore.getState().loadingMessageIds).toEqual(["msg_2"]);
+
+      removeLoadingMessage("msg_2");
+      expect(useChatStore.getState().loadingMessageIds).toEqual([]);
+    });
+
+    it("should not duplicate ids on repeated add", () => {
+      const { addLoadingMessage } = useChatStore.getState();
+
+      addLoadingMessage("msg_1");
+      addLoadingMessage("msg_1");
+      expect(useChatStore.getState().loadingMessageIds).toEqual(["msg_1"]);
     });
   });
 
@@ -422,7 +436,7 @@ describe("ChatStore", () => {
 
       const messages = useChatStore.getState().sessions[0].messages;
       expect(messages[1].content).toContain("Error");
-      expect(useChatStore.getState().isLoading).toBe(false);
+      expect(useChatStore.getState().loadingMessageIds).toEqual([]);
 
       consoleSpy.mockRestore();
     });
@@ -501,11 +515,18 @@ describe("ChatStore", () => {
       expect(sessions).toHaveLength(2);
     });
 
-    it("selectIsLoading should return loading state", async () => {
+    it("selectIsLoading should return true when loadingMessageIds is non-empty", async () => {
       const { selectIsLoading } = await import("../index");
-      useChatStore.setState({ isLoading: true });
+      useChatStore.setState({ loadingMessageIds: ["msg_1"] });
 
       expect(selectIsLoading(useChatStore.getState())).toBe(true);
+    });
+
+    it("selectIsLoading should return false when loadingMessageIds is empty", async () => {
+      const { selectIsLoading } = await import("../index");
+      useChatStore.setState({ loadingMessageIds: [] });
+
+      expect(selectIsLoading(useChatStore.getState())).toBe(false);
     });
 
     it("selectInput should return input value", async () => {

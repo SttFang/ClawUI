@@ -9,7 +9,8 @@ export function initChatStreamListener() {
   chatStreamListenerInitialized = true;
 
   ipc.chat.onStream((event: ChatStreamEvent) => {
-    const { updateStreamingMessage, setMessageStreaming, setLoading } = useChatStore.getState();
+    const { updateStreamingMessage, setMessageStreaming, removeLoadingMessage } =
+      useChatStore.getState();
 
     if (event.type === "start") {
       // Stream started
@@ -19,11 +20,11 @@ export function initChatStreamListener() {
       }
     } else if (event.type === "end") {
       setMessageStreaming(event.messageId, false);
-      setLoading(false);
+      removeLoadingMessage(event.messageId);
     } else if (event.type === "error") {
       const { updateMessage } = useChatStore.getState();
       updateMessage(event.messageId, `Error: ${event.error || "Unknown error"}`);
-      setLoading(false);
+      removeLoadingMessage(event.messageId);
     }
   });
 

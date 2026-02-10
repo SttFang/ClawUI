@@ -6,6 +6,7 @@ export {
   selectCurrentSession,
   selectMessages,
   selectSessions,
+  selectLoadingMessageIds,
   selectIsLoading,
   selectInput,
   selectWsConnected,

@@ -11,7 +11,8 @@ export const selectMessages = (state: ChatStore): Message[] => {
 };
 
 export const selectSessions = (state: ChatStore) => state.sessions;
-export const selectIsLoading = (state: ChatStore) => state.isLoading;
+export const selectLoadingMessageIds = (state: ChatStore) => state.loadingMessageIds;
+export const selectIsLoading = (state: ChatStore) => state.loadingMessageIds.length > 0;
 export const selectInput = (state: ChatStore) => state.input;
 export const selectWsConnected = (state: ChatStore) => state.wsConnected;
 
@@ -19,6 +20,7 @@ export const chatSelectors = {
   selectCurrentSession,
   selectMessages,
   selectSessions,
+  selectLoadingMessageIds,
   selectIsLoading,
   selectInput,
   selectWsConnected,

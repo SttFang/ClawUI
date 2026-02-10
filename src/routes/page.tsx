@@ -166,7 +166,13 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
   const [input, setInput] = useState('')
   const historyInFlightRef = useRef(false)
   const lastHistorySigRef = useRef<string>('')
-  const setMessages = chat.setMessages
+  const setMessagesRef = useRef(chat.setMessages)
+
+  useEffect(() => {
+    // `useChat().setMessages` 在某些版本/实现里可能不是稳定引用，
+    // 这里用 ref 避免 `refreshHistory` 因依赖变化导致的 effect 重跑刷屏。
+    setMessagesRef.current = chat.setMessages
+  }, [chat.setMessages])
 
   const isBusy = chat.status === 'submitted' || chat.status === 'streaming'
 
@@ -190,19 +196,19 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
       const sig = `${uiMessages.length}:${last?.id ?? ''}:${tailText.length}`
       if (sig !== lastHistorySigRef.current) {
         lastHistorySigRef.current = sig
-        setMessages(uiMessages)
+        setMessagesRef.current(uiMessages)
       }
     } catch {
       // best-effort only
     } finally {
       historyInFlightRef.current = false
     }
-  }, [sessionKey, setMessages])
+  }, [sessionKey])
 
   // OpenClaw Control UI: chat.final 到达后用 history 作为权威状态刷新（避免 delta/agent 流丢字段）。
   useEffect(() => {
     void refreshHistory()
-  }, [refreshHistory])
+  }, [sessionKey, refreshHistory])
 
   useEffect(() => {
     return ipc.gateway.onEvent((frame) => {

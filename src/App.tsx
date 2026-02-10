@@ -4,10 +4,12 @@ import { StartupGuard } from '@/components/StartupGuard'
 import { initGatewayIpcListener } from '@/store/gateway'
 import { initChatStreamListener } from '@/store/chat'
 import { initTheme } from '@/store/ui'
+import { initExecApprovalsListener } from '@/store/execApprovals'
 
 // Initialize IPC listeners and theme once
 initGatewayIpcListener()
 initChatStreamListener()
+initExecApprovalsListener()
 initTheme()
 
 function App() {

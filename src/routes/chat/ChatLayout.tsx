@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ClawUISessionMetadata } from '@clawui/types/clawui'
 import { useChatStore, selectCurrentSession, selectSessions } from '@/store/chat'
 import { useGatewayStore, selectIsGatewayRunning } from '@/store/gateway'
 import { ipc } from '@/lib/ipc'
-import { ChatFeature, matchesSessionFilter, classifySessionKey, type SessionFilter, type SessionListItem } from '@/features/Chat'
+import { ChatFeature, matchesSessionFilter, classifySession, type SessionFilter, type SessionListItem } from '@/features/Chat'
 
 export default function ChatLayout() {
   const sessions = useChatStore(selectSessions)
@@ -11,7 +11,6 @@ export default function ChatLayout() {
   const wsConnected = useChatStore((s) => s.wsConnected)
   const isGatewayRunning = useGatewayStore(selectIsGatewayRunning)
 
-  const createSession = useChatStore((s) => s.createSession)
   const refreshSessions = useChatStore((s) => s.refreshSessions)
   const selectSession = useChatStore((s) => s.selectSession)
   const deleteSession = useChatStore((s) => s.deleteSession)
@@ -26,12 +25,16 @@ export default function ChatLayout() {
   const visibleSessions: SessionListItem[] = useMemo(() => {
     return sessions
       .filter((s) => {
-        const { source, hidden } = classifySessionKey(s.id)
+        const { source, hidden } = classifySession({ sessionKey: s.id, surface: s.surface })
         if (hidden) return false
         return matchesSessionFilter(source, sessionFilter)
       })
-      .map((s) => ({ id: s.id, name: s.name, updatedAt: s.updatedAt }))
+      .map((s) => ({ id: s.id, name: s.name, updatedAt: s.updatedAt, surface: s.surface }))
   }, [sessions, sessionFilter])
+
+  const hasAnyUiSession = useMemo(() => {
+    return sessions.some((s) => classifySession({ sessionKey: s.id, surface: s.surface }).source === 'ui')
+  }, [sessions])
 
   useEffect(() => {
     // If the current session is hidden by the filter, select the newest visible one.
@@ -46,11 +49,29 @@ export default function ChatLayout() {
     void refreshSessions().finally(() => setDidLoadSessions(true))
   }, [refreshSessions])
 
+  const createGatewayUiSession = useCallback(async (): Promise<string> => {
+    const cryptoObj = (globalThis as unknown as { crypto?: Crypto }).crypto
+    const uuid = cryptoObj?.randomUUID ? cryptoObj.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    const key = `agent:main:ui:${uuid}`
+
+    const connected = await ipc.chat.isConnected()
+    if (!connected) {
+      const ok = await ipc.chat.connect()
+      if (!ok) throw new Error('Failed to connect gateway WebSocket')
+    }
+
+    await ipc.chat.request('sessions.reset', { key })
+    await refreshSessions()
+    selectSession(key)
+    return key
+  }, [refreshSessions, selectSession])
+
   useEffect(() => {
     if (!didLoadSessions) return
-    if (sessions.length > 0) return
-    createSession()
-  }, [didLoadSessions, sessions.length, createSession])
+    // Ensure at least one UI session exists, even if the gateway already has other sessions (discord/cron/etc).
+    if (hasAnyUiSession) return
+    void createGatewayUiSession().catch(() => {})
+  }, [didLoadSessions, hasAnyUiSession, createGatewayUiSession])
 
   useEffect(() => {
     async function checkConfig() {
@@ -92,7 +113,10 @@ export default function ChatLayout() {
       onDismissBanner={() => setShowBanner(false)}
       sessionFilter={sessionFilter}
       onSessionFilterChange={setSessionFilter}
-      onCreateSession={() => void createSession()}
+      onCreateSession={() => {
+        setSessionFilter('ui')
+        void createGatewayUiSession().catch(() => {})
+      }}
       onSelectSession={(id) => selectSession(id)}
       onDeleteSession={(id) => deleteSession(id)}
       onGenerateMetadata={(id) => void generateMetadata(id)}
@@ -101,4 +125,3 @@ export default function ChatLayout() {
     />
   )
 }
-

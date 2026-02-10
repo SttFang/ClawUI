@@ -29,6 +29,19 @@ export function classifySessionKey(sessionKey: string): { source: SessionSource;
   return { source: 'unknown', hidden: false }
 }
 
+export function classifySession(params: { sessionKey: string; surface?: string | null }): { source: SessionSource; hidden: boolean } {
+  const surface = (params.surface ?? '').trim().toLowerCase()
+  if (surface === 'discord') return { source: 'discord', hidden: false }
+  if (surface === 'telegram') return { source: 'telegram', hidden: false }
+  if (surface === 'slack') return { source: 'slack', hidden: false }
+  if (surface === 'whatsapp') return { source: 'whatsapp', hidden: false }
+  if (surface === 'wechat') return { source: 'wechat', hidden: false }
+  if (surface === 'signal') return { source: 'signal', hidden: false }
+  if (surface === 'cron') return { source: 'cron', hidden: false }
+
+  return classifySessionKey(params.sessionKey)
+}
+
 export function matchesSessionFilter(source: SessionSource, filter: SessionFilter): boolean {
   if (filter === 'all') return true
   if (filter === 'ui') return source === 'ui'
@@ -56,4 +69,3 @@ export function getSessionSourceBadge(source: SessionSource): string | null {
                   ? 'Cron'
                   : null
 }
-

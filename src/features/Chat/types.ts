@@ -18,6 +18,7 @@ export type SessionListItem = {
   id: string
   name: string
   updatedAt: number
+  surface?: string | null
 }
 
 export type ChatFeatureProps = {
@@ -42,4 +43,3 @@ export type ChatFeatureProps = {
 }
 
 export type MessagePartsProps = { message: UIMessage; streaming: boolean }
-

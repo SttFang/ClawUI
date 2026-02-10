@@ -16,6 +16,7 @@ export interface Session {
   messages: Message[];
   createdAt: number;
   updatedAt: number;
+  surface?: string | null;
 }
 
 interface ChatState {
@@ -378,12 +379,12 @@ export function initChatStreamListener() {
 
 function parseSessionsListPayload(
   payload: unknown,
-): Array<Pick<Session, "id" | "name" | "createdAt" | "updatedAt">> {
+): Array<Pick<Session, "id" | "name" | "createdAt" | "updatedAt" | "surface">> {
   if (!payload || typeof payload !== "object") return [];
   const sessionsValue = (payload as { sessions?: unknown }).sessions;
   if (!Array.isArray(sessionsValue)) return [];
 
-  const out: Array<Pick<Session, "id" | "name" | "createdAt" | "updatedAt">> = [];
+  const out: Array<Pick<Session, "id" | "name" | "createdAt" | "updatedAt" | "surface">> = [];
   for (const item of sessionsValue) {
     if (!item || typeof item !== "object") continue;
     const key = (item as { key?: unknown }).key;
@@ -391,12 +392,14 @@ function parseSessionsListPayload(
 
     const derivedTitle = (item as { derivedTitle?: unknown }).derivedTitle;
     const updatedAt = (item as { updatedAt?: unknown }).updatedAt;
+    const surface = (item as { surface?: unknown }).surface;
 
     out.push({
       id: key,
       name: typeof derivedTitle === "string" && derivedTitle.trim() ? derivedTitle : key,
       createdAt: typeof updatedAt === "number" ? updatedAt : Date.now(),
       updatedAt: typeof updatedAt === "number" ? updatedAt : Date.now(),
+      surface: typeof surface === "string" ? surface : null,
     });
   }
 

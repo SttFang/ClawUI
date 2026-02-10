@@ -5,7 +5,7 @@ import { ConfigBanner } from '@/components/ConfigBanner'
 import { cn } from '@/lib/utils'
 import { OpenClawChatPanel } from './components/OpenClawChatPanel'
 import type { ChatFeatureProps } from './types'
-import { classifySessionKey, getSessionSourceBadge } from './utils/sessionKey'
+import { classifySession, getSessionSourceBadge } from './utils/sessionKey'
 
 export function ChatFeature(props: ChatFeatureProps) {
   const {
@@ -60,7 +60,7 @@ export function ChatFeature(props: ChatFeatureProps) {
               <div className="text-center text-muted-foreground text-sm py-8">{t('noSessions')}</div>
             ) : (
               sessions.map((session) => {
-                const { source } = classifySessionKey(session.id)
+                const { source } = classifySession({ sessionKey: session.id, surface: session.surface })
                 const badge = getSessionSourceBadge(source)
                 return (
                   <div
@@ -141,4 +141,3 @@ export function ChatFeature(props: ChatFeatureProps) {
     </div>
   )
 }
-

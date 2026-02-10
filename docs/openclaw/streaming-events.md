@@ -78,3 +78,34 @@ OpenClaw 的 `chat` delta 并不是“增量片段”，而是“累计文本快
 - `chat`：用户主视图（答案流），覆盖式更新
 - `agent.tool/lifecycle/...`：折叠的“过程/调试”面板（可选），展示工具参数与输出，利于排错与可观测性
 
+## 4. OpenClaw Dashboard（Control UI）是怎么渲染的
+
+OpenClaw 自带的 dashboard 并不是 React，而是 Lit（SPA），它对流式事件的处理策略非常值得参考：
+
+- `chat.delta`：把 `message` 当成“累计快照”，覆盖式更新正在流式的 `chatStream`。
+- `chat.final`：**清空 stream**，然后立刻调用 `chat.history` 拉“权威历史”来重建完整消息（补齐工具块、usage、stopReason 等）。
+- `agent.tool`：用独立的 tool stream 控制器渲染工具卡片，包含 `start/update/result`，并且会对频繁 update 做节流与截断展示。
+
+关键源码（OpenClaw repo）：
+- `ui/src/ui/controllers/chat.ts`（chat stream + final 后 history 刷新）
+- `ui/src/ui/app-tool-stream.ts`（tool 卡片渲染与 update 策略）
+- `ui/src/ui/app-gateway.ts`（Gateway 连接与事件路由）
+
+## 5. ClawUI v1 的落地映射（claw-sse）
+
+ClawUI 侧推荐把 OpenClaw 的事件语义转成 AI SDK 的 UI parts（方便后续接 A2UI）：
+
+- 主文本：
+  - 优先消费 `event=agent stream=assistant` 的 `data.delta/data.text`（更像 token 流）
+  - 用 `event=chat state=delta/final` 的累计快照作为补齐/收敛来源（suffix diff）
+- 工具：
+  - `agent.tool phase=start` -> `tool-input-available`
+  - `agent.tool phase=update` -> `tool-output-available (preliminary)`（partialResult）
+  - `agent.tool phase=result` -> `tool-output-available` / `tool-output-error`
+- 生命周期：
+  - `agent.lifecycle` -> `data-openclaw-lifecycle`（供 UI 做状态条/诊断展示）
+
+注意一个真实语义坑：
+- OpenClaw 的 WS 事件顺序里，`agent.lifecycle=end` 往往会早于 `chat.final`。
+- 如果 UI 看到 lifecycle end 就立刻结束流，可能会错过紧随其后的 `chat.final`，导致尾部被截断。
+- v1 的建议策略：以 `chat.final` 作为“结束信号”，`lifecycle=end` 只作为兜底（短延迟）。

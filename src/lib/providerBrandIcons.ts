@@ -1,22 +1,25 @@
-import type { ComponentType } from "react";
 import OpenRouter from "@lobehub/icons/es/OpenRouter";
-import { FaAws, FaMicrosoft } from "react-icons/fa";
-import { SiAnthropic, SiGooglegemini, SiGoogle, SiMeta, SiOpenai } from "react-icons/si";
-
-export type BrandIcon = ComponentType<{ size?: number; className?: string }>;
+import azureIcon from "@iconify/icons-logos/azure-icon";
+import aws from "@iconify/icons-logos/aws";
+import googleBardIcon from "@iconify/icons-logos/google-bard-icon";
+import googleIcon from "@iconify/icons-logos/google-icon";
+import microsoftIcon from "@iconify/icons-logos/microsoft-icon";
+import openaiIcon from "@iconify/icons-logos/openai-icon";
+import { createIconifyBrandIcon, type BrandIcon } from "@/lib/iconifyBrandIcon";
+import { SiAnthropic, SiMeta } from "react-icons/si";
 
 const PROVIDER_ICONS: Record<string, BrandIcon> = {
-  anthropic: SiAnthropic,
-  openai: SiOpenai,
-  "openai-codex": SiOpenai,
+  anthropic: SiAnthropic, // no multi-color logo in @iconify/icons-logos right now
+  openai: createIconifyBrandIcon(openaiIcon),
+  "openai-codex": createIconifyBrandIcon(openaiIcon),
   openrouter: OpenRouter, // no SimpleIcons logo in react-icons (as of 2026-02-10)
-  google: SiGoogle,
-  gemini: SiGooglegemini,
-  meta: SiMeta,
-  aws: FaAws,
-  amazon: FaAws,
-  microsoft: FaMicrosoft,
-  azure: FaMicrosoft,
+  google: createIconifyBrandIcon(googleIcon),
+  gemini: createIconifyBrandIcon(googleBardIcon),
+  meta: SiMeta, // Meta logo is typically monochrome/1-color
+  aws: createIconifyBrandIcon(aws),
+  amazon: createIconifyBrandIcon(aws),
+  microsoft: createIconifyBrandIcon(microsoftIcon),
+  azure: createIconifyBrandIcon(azureIcon),
 };
 
 export function normalizeProviderKey(input: string): string {

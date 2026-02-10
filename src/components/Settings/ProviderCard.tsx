@@ -1,18 +1,9 @@
 import type { ProviderAuthInfo, OAuthProviderStatus } from "@clawui/types/models";
 import { Card, CardContent, Button, Input } from "@clawui/ui";
-import Anthropic from "@lobehub/icons/es/Anthropic";
-import OpenAI from "@lobehub/icons/es/OpenAI";
-import OpenRouter from "@lobehub/icons/es/OpenRouter";
 import { CheckCircle2, Loader2, Clock, Edit3, Eye, EyeOff } from "lucide-react";
-import { type ComponentType, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-
-const PROVIDER_ICONS: Record<string, ComponentType<{ size?: number }>> = {
-  anthropic: Anthropic,
-  openai: OpenAI,
-  "openai-codex": OpenAI,
-  openrouter: OpenRouter,
-};
+import { getProviderBrandIcon } from "@/lib/providerBrandIcons";
 
 const PROVIDER_LABELS: Record<string, string> = {
   anthropic: "Anthropic",
@@ -65,7 +56,7 @@ export function ProviderCard({
   const { t } = useTranslation("common");
   const [isEditing, setIsEditing] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const Icon = PROVIDER_ICONS[provider];
+  const Icon = getProviderBrandIcon(provider);
   const label = PROVIDER_LABELS[provider] ?? provider;
   const status = getAuthStatus(authInfo, oauthStatus);
   const authDesc = (() => {

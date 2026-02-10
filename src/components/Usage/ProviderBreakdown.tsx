@@ -6,11 +6,11 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@clawui/ui/chart";
-import { Anthropic, OpenAI, OpenRouter } from "@lobehub/icons";
-import { useMemo, type ComponentType } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PieChart, Pie, Cell, Label } from "recharts";
 import { formatTokens } from "@/lib/format";
+import { getProviderBrandIcon } from "@/lib/providerBrandIcons";
 
 interface ProviderBreakdownProps {
   byProvider: SessionModelUsage[];
@@ -23,18 +23,6 @@ const CHART_COLORS = [
   "var(--chart-4)",
   "var(--chart-5)",
 ];
-
-// Provider icon mapping — matches openclaw onboard providers
-const PROVIDER_ICONS: Record<string, ComponentType<{ size?: number }>> = {
-  anthropic: Anthropic,
-  openai: OpenAI,
-  openrouter: OpenRouter,
-};
-
-function getProviderIcon(provider: string): ComponentType<{ size?: number }> | null {
-  const key = provider.toLowerCase().replace(/[^a-z]/g, "");
-  return PROVIDER_ICONS[key] ?? null;
-}
 
 export function ProviderBreakdown({ byProvider }: ProviderBreakdownProps) {
   const { t, i18n } = useTranslation("common");
@@ -120,7 +108,7 @@ export function ProviderBreakdown({ byProvider }: ProviderBreakdownProps) {
         {/* Provider legend with icons */}
         <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2">
           {pieData.map((entry, i) => {
-            const Icon = getProviderIcon(entry.name);
+            const Icon = getProviderBrandIcon(entry.name);
             const pct = totalTokens > 0 ? ((entry.value / totalTokens) * 100).toFixed(0) : "0";
             return (
               <div key={entry.key} className="flex items-center gap-1.5 text-sm">

@@ -16,6 +16,8 @@ export function ChatFeature(props: ChatFeatureProps) {
     configValid,
     showBanner,
     onDismissBanner,
+    onOneClickConfig,
+    onManualConfig,
     sessionFilter,
     onSessionFilterChange,
     onCreateSession,
@@ -123,7 +125,7 @@ export function ChatFeature(props: ChatFeatureProps) {
         {/* Config Banner */}
         {configValid === false && showBanner ? (
           <div className="p-4 pb-0">
-            <ConfigBanner onDismiss={onDismissBanner} />
+            <ConfigBanner onDismiss={onDismissBanner} onOneClick={onOneClickConfig} onManualConfig={onManualConfig} />
           </div>
         ) : null}
 

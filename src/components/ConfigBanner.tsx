@@ -1,10 +1,11 @@
 import { Button, Alert, AlertDescription, AlertTitle } from "@clawui/ui";
 import { AlertCircle, Key, Settings, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 
 interface ConfigBannerProps {
   onDismiss?: () => void;
+  onOneClick?: () => void;
+  onManualConfig?: () => void;
 }
 
 /**
@@ -13,19 +14,8 @@ interface ConfigBannerProps {
  * - One-click config (login) - not yet implemented
  * - Manual config (settings page)
  */
-export function ConfigBanner({ onDismiss }: ConfigBannerProps) {
-  const navigate = useNavigate();
+export function ConfigBanner({ onDismiss, onOneClick, onManualConfig }: ConfigBannerProps) {
   const { t } = useTranslation("common");
-
-  const handleOneClickConfig = () => {
-    // TODO: Implement one-click config with login
-    // For now, redirect to settings
-    navigate("/settings");
-  };
-
-  const handleManualConfig = () => {
-    navigate("/settings");
-  };
 
   return (
     <Alert className="mb-4 border-warning bg-warning/10">
@@ -45,11 +35,11 @@ export function ConfigBanner({ onDismiss }: ConfigBannerProps) {
       <AlertDescription className="mt-2">
         <p className="text-sm text-muted-foreground mb-3">{t("configBanner.description")}</p>
         <div className="flex gap-2">
-          <Button size="sm" onClick={handleOneClickConfig}>
+          <Button size="sm" onClick={onOneClick}>
             <Key className="mr-2 h-3 w-3" />
             {t("configBanner.oneClick")}
           </Button>
-          <Button size="sm" variant="outline" onClick={handleManualConfig}>
+          <Button size="sm" variant="outline" onClick={onManualConfig}>
             <Settings className="mr-2 h-3 w-3" />
             {t("configBanner.manual")}
           </Button>

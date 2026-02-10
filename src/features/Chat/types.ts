@@ -30,6 +30,8 @@ export type ChatFeatureProps = {
   configValid: boolean | null
   showBanner: boolean
   onDismissBanner: () => void
+  onOneClickConfig: () => void
+  onManualConfig: () => void
 
   sessionFilter: SessionFilter
   onSessionFilterChange: (filter: SessionFilter) => void

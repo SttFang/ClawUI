@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { ClawUISessionMetadata } from '@clawui/types/clawui'
 import { useChatStore, selectCurrentSession, selectSessions } from '@/store/chat'
 import { useGatewayStore, selectIsGatewayRunning } from '@/store/gateway'
@@ -6,6 +7,7 @@ import { ipc } from '@/lib/ipc'
 import { ChatFeature, matchesSessionFilter, classifySession, type SessionFilter, type SessionListItem } from '@/features/Chat'
 
 export default function ChatLayout() {
+  const navigate = useNavigate()
   const sessions = useChatStore(selectSessions)
   const currentSession = useChatStore(selectCurrentSession)
   const wsConnected = useChatStore((s) => s.wsConnected)
@@ -111,6 +113,8 @@ export default function ChatLayout() {
       configValid={configValid}
       showBanner={showBanner}
       onDismissBanner={() => setShowBanner(false)}
+      onOneClickConfig={() => navigate('/settings')}
+      onManualConfig={() => navigate('/settings')}
       sessionFilter={sessionFilter}
       onSessionFilterChange={setSessionFilter}
       onCreateSession={() => {

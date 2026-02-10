@@ -44,7 +44,8 @@ function createWindow(): BrowserWindow {
     // h-11 = 44px, 红绿灯高度 = 14px, y = 44/2 - 14/2 = 22 - 7 = 15
     trafficLightPosition: { x: 20, y: 15 },
     webPreferences: {
-      preload: join(__dirname, "../preload/index.mjs"),
+      // Sandbox preload runs as a script; use CJS bundle output (no ESM `import`).
+      preload: join(__dirname, "../preload/index.cjs"),
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,

@@ -25,6 +25,12 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, "electron/preload/index.ts"),
         },
+        // Electron sandbox preload runs as a classic script (not ESM module).
+        // Ensure the bundled output contains no top-level `import` statements.
+        output: {
+          format: "cjs",
+          entryFileNames: "[name].cjs",
+        },
       },
     },
   },

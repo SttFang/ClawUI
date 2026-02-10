@@ -75,7 +75,17 @@ export class ChatWebSocketService extends EventEmitter {
     this.gatewayToken = token;
   }
 
+  private cleanupSocket(): void {
+    if (this.ws) {
+      this.ws.removeAllListeners();
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
   async connect(): Promise<void> {
+    this.cleanupSocket();
+
     return new Promise((resolve, reject) => {
       try {
         const t0 = Date.now();
@@ -426,10 +436,7 @@ export class ChatWebSocketService extends EventEmitter {
 
   disconnect(): void {
     this.connected = false;
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
+    this.cleanupSocket();
   }
 
   isConnected(): boolean {

@@ -182,4 +182,7 @@ contextBridge.exposeInMainWorld("electron", {
     apply: (ops: Array<{ path: string; value: unknown }>) =>
       ipcRenderer.invoke("security:apply", ops),
   },
+  skills: {
+    list: () => ipcRenderer.invoke("skills:list"),
+  },
 });

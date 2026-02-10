@@ -11,6 +11,7 @@ import { registerOnboardingHandlers } from "./ipc/onboarding";
 import { registerProfilesHandlers } from "./ipc/profiles";
 import { registerSecretsHandlers } from "./ipc/secrets";
 import { registerSecurityHandlers } from "./ipc/security";
+import { registerSkillsHandlers } from "./ipc/skills";
 import { registerStateHandlers } from "./ipc/state";
 import { registerUsageHandlers } from "./ipc/usage";
 import { initLogger, mainLog } from "./lib/logger";
@@ -114,6 +115,7 @@ app.whenReady().then(async () => {
   });
   registerSecretsHandlers(ipcMain, profilesService);
   registerSecurityHandlers(ipcMain);
+  registerSkillsHandlers(ipcMain, profilesService);
 
   // Create the main window
   const mainWindow = createWindow();

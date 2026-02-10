@@ -38,6 +38,17 @@ export type {
 // Alias for backward compatibility
 export type OnboardingSubscriptionConfig = SubscriptionConfig;
 
+export type OpenClawProfileId = "main" | "configAgent";
+
+export type SkillsProfileList = {
+  dir: string;
+  skills: string[];
+};
+
+export type SkillsListResult = {
+  profiles: Record<OpenClawProfileId, SkillsProfileList>;
+};
+
 export interface ElectronAPI {
   gateway: {
     start: () => Promise<void>;
@@ -116,6 +127,9 @@ export interface ElectronAPI {
   security: {
     get: (paths: string[]) => Promise<Record<string, unknown>>;
     apply: (ops: Array<{ path: string; value: unknown }>) => Promise<void>;
+  };
+  skills?: {
+    list: () => Promise<SkillsListResult>;
   };
 }
 
@@ -402,6 +416,13 @@ export const ipc = {
       const api = getElectronAPI();
       if (!api?.security) throw new Error("Security API not available — restart the app");
       await api.security.apply(ops);
+    },
+  },
+  skills: {
+    async list(): Promise<SkillsListResult> {
+      const api = getElectronAPI();
+      if (!api?.skills) throw new Error("Skills API not available — restart the app");
+      return api.skills.list();
     },
   },
 };

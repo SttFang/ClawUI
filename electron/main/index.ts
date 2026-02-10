@@ -86,12 +86,14 @@ app.whenReady().then(async () => {
   });
 
   // Set Content Security Policy
+  // Dev mode needs 'unsafe-inline' for Vite HMR / React Fast Refresh preamble
+  const scriptSrc = is.dev ? "'self' 'unsafe-inline'" : "'self'";
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
         "Content-Security-Policy": [
-          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* ws://127.0.0.1:*; img-src 'self' data:; font-src 'self' data:",
+          `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* ws://127.0.0.1:*; img-src 'self' data:; font-src 'self' data:`,
         ],
       },
     });

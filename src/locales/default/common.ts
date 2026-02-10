@@ -19,6 +19,9 @@ const common = {
     error: '出错了',
     success: '成功',
   },
+  startup: {
+    checkingOpenClaw: '正在检查 OpenClaw 安装...',
+  },
   connection: {
     error: '错误',
     offline: '离线',
@@ -598,6 +601,51 @@ const common = {
           adminDashboard: '管理面板',
         },
       },
+    },
+  },
+  onboarding: {
+    subtitle: 'OpenClaw 桌面客户端',
+    checking: '正在检查环境...',
+    install: {
+      title: '安装 OpenClaw',
+      description: '系统未检测到 OpenClaw。点击下方按钮自动安装。',
+      actions: {
+        oneClickInstall: '一键安装',
+      },
+    },
+    requirements: {
+      node: 'Node.js',
+      openclaw: 'OpenClaw',
+      notFound: '未找到',
+    },
+    installing: {
+      title: '安装中...',
+      starting: '正在开始安装...',
+      percentComplete: '{{percent}}% 已完成',
+    },
+    stages: {
+      idle: '准备中...',
+      checkingRequirements: '检查 Node.js/npm...',
+      installingOpenclaw: '安装 OpenClaw...',
+      verifying: '验证安装...',
+      complete: '安装完成！',
+      error: '安装失败',
+    },
+    complete: {
+      title: '准备就绪！',
+      description: 'OpenClaw 已安装完成，正在跳转到对话页...',
+    },
+    error: {
+      title: '安装失败',
+      actions: {
+        retry: '重试',
+      },
+    },
+    errors: {
+      runtimeDetectFailed: '运行环境检测失败',
+      detectionFailed: '环境检测失败',
+      installFailed: '安装失败',
+      unexpected: '发生了未知错误',
     },
   },
 } as const

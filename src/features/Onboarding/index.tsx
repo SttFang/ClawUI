@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, Download, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import {
   useOnboardingStore,
   selectOnboardingStep,
@@ -20,17 +21,17 @@ function DraggableTitleBar() {
   )
 }
 
-// Stage labels for user-friendly display
-const stageLabels: Record<string, string> = {
-  'idle': 'Preparing...',
-  'checking-requirements': 'Checking Node.js/npm...',
-  'installing-openclaw': 'Installing OpenClaw...',
-  'verifying': 'Verifying installation...',
-  'complete': 'Installation complete!',
-  'error': 'Installation failed',
+const stageLabelKeys: Record<string, string> = {
+  'idle': 'onboarding.stages.idle',
+  'checking-requirements': 'onboarding.stages.checkingRequirements',
+  'installing-openclaw': 'onboarding.stages.installingOpenclaw',
+  'verifying': 'onboarding.stages.verifying',
+  'complete': 'onboarding.stages.complete',
+  'error': 'onboarding.stages.error',
 }
 
 export function Onboarding() {
+  const { t } = useTranslation('common')
   const navigate = useNavigate()
 
   const step = useOnboardingStore(selectOnboardingStep)
@@ -67,6 +68,11 @@ export function Onboarding() {
     detectRuntime()
   }
 
+  const errorText = (() => {
+    if (!error) return t('onboarding.errors.unexpected')
+    return error.startsWith('onboarding.') ? t(error) : error
+  })()
+
   return (
     <>
       <DraggableTitleBar />
@@ -75,7 +81,7 @@ export function Onboarding() {
           {/* Logo/Title */}
           <div className="space-y-2">
             <h1 className="text-3xl font-bold">ClawUI</h1>
-            <p className="text-muted-foreground">OpenClaw Desktop Client</p>
+            <p className="text-muted-foreground">{t('onboarding.subtitle')}</p>
           </div>
 
           {/* Step Content */}
@@ -83,7 +89,7 @@ export function Onboarding() {
             {step === 'checking' && (
               <div className="space-y-4">
                 <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-                <p className="text-muted-foreground">Checking environment...</p>
+                <p className="text-muted-foreground">{t('onboarding.checking')}</p>
               </div>
             )}
 
@@ -92,22 +98,31 @@ export function Onboarding() {
                 <div className="p-6 rounded-lg bg-card border space-y-4">
                   <Download className="h-12 w-12 mx-auto text-primary" />
                   <div className="space-y-2">
-                    <h2 className="text-xl font-semibold">Install OpenClaw</h2>
+                    <h2 className="text-xl font-semibold">{t('onboarding.install.title')}</h2>
                     <p className="text-sm text-muted-foreground">
-                      OpenClaw is not installed on your system.
-                      Click below to install it automatically.
+                      {t('onboarding.install.description')}
                     </p>
                   </div>
                   {runtimeStatus && (
                     <div className="text-xs text-muted-foreground space-y-1">
-                      <p>Node.js: {runtimeStatus.nodeInstalled ? '✓ ' + runtimeStatus.nodeVersion : '✗ Not found'}</p>
-                      <p>OpenClaw: {runtimeStatus.openclawInstalled ? '✓ ' + runtimeStatus.openclawVersion : '✗ Not found'}</p>
+                      <p>
+                        {t('onboarding.requirements.node')}:{' '}
+                        {runtimeStatus.nodeInstalled
+                          ? `✓ ${runtimeStatus.nodeVersion}`
+                          : `✗ ${t('onboarding.requirements.notFound')}`}
+                      </p>
+                      <p>
+                        {t('onboarding.requirements.openclaw')}:{' '}
+                        {runtimeStatus.openclawInstalled
+                          ? `✓ ${runtimeStatus.openclawVersion}`
+                          : `✗ ${t('onboarding.requirements.notFound')}`}
+                      </p>
                     </div>
                   )}
                 </div>
                 <Button onClick={handleInstall} className="w-full" size="lg">
                   <Download className="mr-2 h-4 w-4" />
-                  One-Click Install
+                  {t('onboarding.install.actions.oneClickInstall')}
                 </Button>
               </div>
             )}
@@ -117,16 +132,18 @@ export function Onboarding() {
                 <div className="p-6 rounded-lg bg-card border space-y-4">
                   <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
                   <div className="space-y-2">
-                    <h2 className="text-xl font-semibold">Installing...</h2>
+                    <h2 className="text-xl font-semibold">{t('onboarding.installing.title')}</h2>
                     <p className="text-sm text-muted-foreground">
-                      {installProgress ? stageLabels[installProgress.stage] : 'Starting installation...'}
+                      {installProgress
+                        ? t(stageLabelKeys[installProgress.stage] ?? 'onboarding.stages.idle')
+                        : t('onboarding.installing.starting')}
                     </p>
                   </div>
                   {installProgress && (
                     <div className="space-y-2">
                       <Progress value={installProgress.progress} className="h-2" />
                       <p className="text-xs text-muted-foreground">
-                        {installProgress.progress}% complete
+                        {t('onboarding.installing.percentComplete', { percent: installProgress.progress })}
                       </p>
                     </div>
                   )}
@@ -139,9 +156,9 @@ export function Onboarding() {
                 <div className="p-6 rounded-lg bg-card border space-y-4">
                   <CheckCircle2 className="h-12 w-12 mx-auto text-green-500" />
                   <div className="space-y-2">
-                    <h2 className="text-xl font-semibold">Ready to Go!</h2>
+                    <h2 className="text-xl font-semibold">{t('onboarding.complete.title')}</h2>
                     <p className="text-sm text-muted-foreground">
-                      OpenClaw is installed. Redirecting to chat...
+                      {t('onboarding.complete.description')}
                     </p>
                   </div>
                 </div>
@@ -153,15 +170,15 @@ export function Onboarding() {
                 <div className="p-6 rounded-lg bg-card border space-y-4">
                   <AlertCircle className="h-12 w-12 mx-auto text-destructive" />
                   <div className="space-y-2">
-                    <h2 className="text-xl font-semibold">Installation Failed</h2>
+                    <h2 className="text-xl font-semibold">{t('onboarding.error.title')}</h2>
                     <p className="text-sm text-destructive">
-                      {error || 'An unexpected error occurred'}
+                      {errorText}
                     </p>
                   </div>
                 </div>
                 <Button onClick={handleRetry} variant="outline" className="w-full">
                   <RefreshCw className="mr-2 h-4 w-4" />
-                  Retry
+                  {t('onboarding.error.actions.retry')}
                 </Button>
               </div>
             )}

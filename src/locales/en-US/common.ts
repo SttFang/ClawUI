@@ -19,6 +19,9 @@ const common = {
     error: 'Something went wrong',
     success: 'Success',
   },
+  startup: {
+    checkingOpenClaw: 'Checking OpenClaw installation...',
+  },
   connection: {
     error: 'Error',
     offline: 'Offline',
@@ -598,6 +601,51 @@ const common = {
           adminDashboard: 'Admin dashboard',
         },
       },
+    },
+  },
+  onboarding: {
+    subtitle: 'OpenClaw desktop client',
+    checking: 'Checking environment...',
+    install: {
+      title: 'Install OpenClaw',
+      description: 'OpenClaw is not installed on your system. Click below to install it automatically.',
+      actions: {
+        oneClickInstall: 'One-click install',
+      },
+    },
+    requirements: {
+      node: 'Node.js',
+      openclaw: 'OpenClaw',
+      notFound: 'Not found',
+    },
+    installing: {
+      title: 'Installing...',
+      starting: 'Starting installation...',
+      percentComplete: '{{percent}}% complete',
+    },
+    stages: {
+      idle: 'Preparing...',
+      checkingRequirements: 'Checking Node.js/npm...',
+      installingOpenclaw: 'Installing OpenClaw...',
+      verifying: 'Verifying installation...',
+      complete: 'Installation complete!',
+      error: 'Installation failed',
+    },
+    complete: {
+      title: 'Ready to go!',
+      description: 'OpenClaw is installed. Redirecting to chat...',
+    },
+    error: {
+      title: 'Installation failed',
+      actions: {
+        retry: 'Retry',
+      },
+    },
+    errors: {
+      runtimeDetectFailed: 'Failed to detect runtime',
+      detectionFailed: 'Detection failed',
+      installFailed: 'Installation failed',
+      unexpected: 'An unexpected error occurred',
     },
   },
 } as const

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ipc, RuntimeStatus } from '@/lib/ipc'
 import { Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useGatewayStore, selectGatewayStatus } from '@/store/gateway'
 import { useChatStore } from '@/store/chat'
 import { useUIStore } from '@/store/ui'
@@ -24,6 +25,7 @@ export interface StartupState {
  * - If installed → start Gateway, connect WebSocket, allow access to main app
  */
 export function StartupGuard({ children }: StartupGuardProps) {
+  const { t } = useTranslation('common')
   const navigate = useNavigate()
   const location = useLocation()
   const [state, setState] = useState<StartupState>({
@@ -123,7 +125,7 @@ export function StartupGuard({ children }: StartupGuardProps) {
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Checking OpenClaw installation...</p>
+          <p className="text-muted-foreground">{t('startup.checkingOpenClaw')}</p>
         </div>
       </div>
     )

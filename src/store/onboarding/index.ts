@@ -26,6 +26,10 @@ interface OnboardingActions {
 
 type OnboardingStore = OnboardingState & OnboardingActions
 
+const ERR_RUNTIME_DETECT_FAILED = 'onboarding.errors.runtimeDetectFailed'
+const ERR_DETECTION_FAILED = 'onboarding.errors.detectionFailed'
+const ERR_INSTALL_FAILED = 'onboarding.errors.installFailed'
+
 const initialState: OnboardingState = {
   step: 'checking',
   runtimeStatus: null,
@@ -48,7 +52,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
     try {
       const status = await ipc.onboarding.detect()
       if (!status) {
-        throw new Error('Failed to detect runtime')
+        throw new Error(ERR_RUNTIME_DETECT_FAILED)
       }
       set({ runtimeStatus: status, isLoading: false })
 
@@ -61,7 +65,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
         set({ step: 'complete' })
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Detection failed'
+      const message = error instanceof Error ? error.message : ERR_DETECTION_FAILED
       set({ error: message, isLoading: false, step: 'error' })
     }
   },
@@ -80,7 +84,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
         set({
           isLoading: false,
           step: 'error',
-          error: progress.error || 'Installation failed'
+          error: progress.error || ERR_INSTALL_FAILED,
         })
         removeListener()
       }
@@ -89,7 +93,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
     try {
       await ipc.onboarding.install()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Installation failed'
+      const message = error instanceof Error ? error.message : ERR_INSTALL_FAILED
       set({ error: message, isLoading: false, step: 'error' })
       removeListener()
     }

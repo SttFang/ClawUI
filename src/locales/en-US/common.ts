@@ -288,6 +288,17 @@ const common = {
     sessionTimeline: {
       title: "Session timeline",
     },
+    dailySignals: {
+      title: "Daily signals",
+      day: "Day",
+      tokens: "Tokens",
+      cost: "Cost",
+      messages: "Messages",
+      health: "Health",
+      toolCallsShort: "Tools",
+      errorsShort: "Err",
+      hint: "Quick compare daily spend, activity, and errors (last 14 days).",
+    },
   },
   settings: {
     page: {

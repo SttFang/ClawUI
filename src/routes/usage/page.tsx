@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { CostBreakdown } from "@/components/Usage/CostBreakdown";
 import { DailyTrendChart } from "@/components/Usage/DailyTrendChart";
 import { ProviderBreakdown } from "@/components/Usage/ProviderBreakdown";
+import { DailySignalsTable } from "@/components/Usage/DailySignalsTable";
 import { SessionDetail } from "@/components/Usage/SessionDetail";
 import { SessionList } from "@/components/Usage/SessionList";
 import { SessionTimeline } from "@/components/Usage/SessionTimeline";
@@ -102,6 +103,9 @@ export default function UsagePage() {
                 sessionCount={sessions.length}
               />
             )}
+
+            {/* Compact daily signal table (tokens/cost/messages/tool calls/errors) */}
+            {aggregates?.daily?.length ? <DailySignalsTable daily={aggregates.daily} /> : null}
 
             {/* Cost Breakdown + Provider Distribution */}
             <div className="grid gap-4 md:grid-cols-2">

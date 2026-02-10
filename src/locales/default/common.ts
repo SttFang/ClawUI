@@ -287,6 +287,17 @@ const common = {
     sessionTimeline: {
       title: "会话时间线",
     },
+    dailySignals: {
+      title: "每日信号",
+      day: "日期",
+      tokens: "Tokens",
+      cost: "成本",
+      messages: "消息",
+      health: "健康",
+      toolCallsShort: "工具",
+      errorsShort: "错",
+      hint: "用于快速对比每天的消耗、活跃度与异常情况（最近 14 天）。",
+    },
   },
   settings: {
     page: {

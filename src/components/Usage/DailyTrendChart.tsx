@@ -25,6 +25,7 @@ interface DailyTrendChartProps {
 }
 
 const DATA_KEYS = ["output", "input", "cacheWrite", "cacheRead"] as const;
+const BAR_SIZE = 26;
 
 function formatDateByGranularity(dateStr: string, granularity: Granularity): string {
   const d = new Date(dateStr);
@@ -73,6 +74,53 @@ function formatValue(value: number, mode: "tokens" | "cost"): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
   return String(value);
+}
+
+function BarEdgeConnectorShape(props: any & { barSize: number }) {
+  const { points, stroke, strokeWidth, strokeDasharray, barSize } = props ?? {};
+  if (!Array.isArray(points) || points.length < 2) return null;
+
+  const halfBar = (typeof barSize === "number" ? barSize : 0) / 2;
+  const dash = strokeDasharray ?? "4 3";
+  const width = strokeWidth ?? 1.5;
+
+  return (
+    <g style={{ pointerEvents: "none" }}>
+      {points.slice(0, -1).map((p1: any, i: number) => {
+        const p2 = points[i + 1];
+        if (!p1 || !p2) return null;
+        if (p1.x == null || p1.y == null || p2.x == null || p2.y == null) return null;
+
+        // Recharts line points are centered on each category tick.
+        // Shift endpoints to connect bar edges instead of center-to-center.
+        const x1 = Number(p1.x) + halfBar;
+        const y1 = Number(p1.y);
+        const x2 = Number(p2.x) - halfBar;
+        const y2 = Number(p2.y);
+        if (
+          !Number.isFinite(x1) ||
+          !Number.isFinite(y1) ||
+          !Number.isFinite(x2) ||
+          !Number.isFinite(y2)
+        ) {
+          return null;
+        }
+
+        return (
+          <path
+            key={i}
+            d={`M ${x1} ${y1} L ${x2} ${y2}`}
+            stroke={stroke}
+            strokeWidth={width}
+            strokeDasharray={dash}
+            strokeLinecap="round"
+            fill="none"
+            opacity={0.95}
+          />
+        );
+      })}
+    </g>
+  );
 }
 
 function aggregateByMonth(
@@ -233,10 +281,11 @@ export function DailyTrendChart({
                 dataKey={key}
                 stackId="stack"
                 fill={`var(--color-${key})`}
+                barSize={BAR_SIZE}
                 radius={key === "cacheRead" ? [2, 2, 0, 0] : undefined}
               />
             ))}
-            {/* Dashed trend lines connecting bars of the same color */}
+            {/* Dashed connectors: from right edge of current bar -> left edge of next bar */}
             {DATA_KEYS.map((key) => (
               <Line
                 key={`line-${key}`}
@@ -247,6 +296,8 @@ export function DailyTrendChart({
                 strokeDasharray="4 3"
                 dot={false}
                 legendType="none"
+                isAnimationActive={false}
+                shape={(p: any) => <BarEdgeConnectorShape {...p} barSize={BAR_SIZE} />}
               />
             ))}
           </ComposedChart>

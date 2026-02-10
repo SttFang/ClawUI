@@ -124,6 +124,63 @@ const common = {
       applicationHelpSuffix: '获取凭据',
     },
   },
+  tools: {
+    title: '工具',
+    description: '配置你的 AI 助手可以使用哪些工具',
+    accessControl: {
+      title: '访问控制',
+      description: '选择 AI 如何请求工具权限',
+    },
+    accessModes: {
+      auto: {
+        label: '自动',
+        description: '自动允许安全工具',
+      },
+      ask: {
+        label: '询问',
+        description: '每次使用工具前都询问',
+      },
+      deny: {
+        label: '拒绝',
+        description: '默认拒绝所有工具访问',
+      },
+    },
+    sandbox: {
+      title: '沙盒模式',
+      description: '在隔离环境中运行工具以提高安全性',
+      enableTitle: '启用沙盒',
+      enableDescription: '建议用于不可信的操作',
+    },
+    list: {
+      title: '可用工具',
+      description: '启用或禁用单个工具',
+    },
+    badge: {
+      requiresConfirmation: '需要确认',
+    },
+    builtins: {
+      fs: {
+        name: '文件系统',
+        description: '读取、写入并管理系统中的文件',
+      },
+      web: {
+        name: '网页访问',
+        description: '浏览网站并获取网页内容',
+      },
+      bash: {
+        name: '命令执行',
+        description: '执行 shell 命令与脚本',
+      },
+      database: {
+        name: '数据库',
+        description: '查询并管理数据库连接',
+      },
+      media: {
+        name: '媒体处理',
+        description: '处理图片、音频和视频文件',
+      },
+    },
+  },
   language: {
     manage: '语言',
     current: '当前语言',

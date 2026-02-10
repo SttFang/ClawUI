@@ -26,31 +26,12 @@ import {
   selectIsLoading,
   type ToolAccessMode,
 } from '@/store/tools'
+import { useTranslation } from 'react-i18next'
 
-const accessModes: {
-  value: ToolAccessMode
-  label: string
-  description: string
-  icon: React.ReactNode
-}[] = [
-  {
-    value: 'auto',
-    label: 'Auto',
-    description: 'Automatically allow safe tools',
-    icon: <ShieldCheck className="h-5 w-5" />,
-  },
-  {
-    value: 'ask',
-    label: 'Ask',
-    description: 'Ask before using any tool',
-    icon: <ShieldQuestion className="h-5 w-5" />,
-  },
-  {
-    value: 'deny',
-    label: 'Deny',
-    description: 'Deny all tool access by default',
-    icon: <ShieldX className="h-5 w-5" />,
-  },
+const accessModes: { value: ToolAccessMode; icon: React.ReactNode }[] = [
+  { value: 'auto', icon: <ShieldCheck className="h-5 w-5" /> },
+  { value: 'ask', icon: <ShieldQuestion className="h-5 w-5" /> },
+  { value: 'deny', icon: <ShieldX className="h-5 w-5" /> },
 ]
 
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -62,6 +43,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
 }
 
 export default function ToolsPage() {
+  const { t } = useTranslation('common')
   const tools = useToolsStore(selectTools)
   const accessMode = useToolsStore(selectAccessMode)
   const config = useToolsStore(selectToolsConfig)
@@ -85,14 +67,25 @@ export default function ToolsPage() {
     }
   }
 
+  const resolveToolI18nKey = (toolId: string) => {
+    switch (toolId) {
+      case 'fs':
+      case 'web':
+      case 'bash':
+      case 'database':
+      case 'media':
+        return toolId
+      default:
+        return null
+    }
+  }
+
   return (
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold">Tools</h1>
-          <p className="text-muted-foreground">
-            Configure which tools your AI assistant can use
-          </p>
+          <h1 className="text-2xl font-semibold">{t('tools.title')}</h1>
+          <p className="text-muted-foreground">{t('tools.description')}</p>
         </div>
 
         {/* Access Mode */}
@@ -100,15 +93,16 @@ export default function ToolsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Shield className="w-5 h-5" />
-              <CardTitle>Access Control</CardTitle>
+              <CardTitle>{t('tools.accessControl.title')}</CardTitle>
             </div>
-            <CardDescription>
-              Choose how the AI should request tool permissions
-            </CardDescription>
+            <CardDescription>{t('tools.accessControl.description')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4">
-              {accessModes.map((mode) => (
+              {accessModes.map((mode) => {
+                const labelKey = `tools.accessModes.${mode.value}.label` as const
+                const descKey = `tools.accessModes.${mode.value}.description` as const
+                return (
                 <button
                   key={mode.value}
                   onClick={() => setAccessMode(mode.value)}
@@ -120,11 +114,12 @@ export default function ToolsPage() {
                 >
                   <div className="flex items-center gap-2 mb-2">
                     {mode.icon}
-                    <span className="font-medium">{mode.label}</span>
+                    <span className="font-medium">{t(labelKey)}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{mode.description}</p>
+                  <p className="text-sm text-muted-foreground">{t(descKey)}</p>
                 </button>
-              ))}
+                )
+              })}
             </div>
           </CardContent>
         </Card>
@@ -132,17 +127,15 @@ export default function ToolsPage() {
         {/* Sandbox Mode */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Sandbox Mode</CardTitle>
-            <CardDescription>
-              Run tools in an isolated environment for added security
-            </CardDescription>
+            <CardTitle>{t('tools.sandbox.title')}</CardTitle>
+            <CardDescription>{t('tools.sandbox.description')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">Enable Sandbox</p>
+                <p className="font-medium">{t('tools.sandbox.enableTitle')}</p>
                 <p className="text-sm text-muted-foreground">
-                  Recommended for untrusted operations
+                  {t('tools.sandbox.enableDescription')}
                 </p>
               </div>
               <Switch checked={config.sandboxEnabled} onCheckedChange={toggleSandbox} />
@@ -153,8 +146,8 @@ export default function ToolsPage() {
         {/* Tool List */}
         <Card>
           <CardHeader>
-            <CardTitle>Available Tools</CardTitle>
-            <CardDescription>Enable or disable individual tools</CardDescription>
+            <CardTitle>{t('tools.list.title')}</CardTitle>
+            <CardDescription>{t('tools.list.description')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {tools.map((tool) => (
@@ -168,14 +161,24 @@ export default function ToolsPage() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{tool.name}</span>
+                      <span className="font-medium">
+                        {(() => {
+                          const key = resolveToolI18nKey(tool.id)
+                          return key ? t(`tools.builtins.${key}.name`) : tool.name
+                        })()}
+                      </span>
                       {tool.requiresConfirmation && (
                         <span className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-500">
-                          Requires confirmation
+                          {t('tools.badge.requiresConfirmation')}
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{tool.description}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {(() => {
+                        const key = resolveToolI18nKey(tool.id)
+                        return key ? t(`tools.builtins.${key}.description`) : tool.description
+                      })()}
+                    </p>
                   </div>
                 </div>
                 <Switch

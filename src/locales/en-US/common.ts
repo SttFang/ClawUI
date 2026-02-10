@@ -124,6 +124,63 @@ const common = {
       applicationHelpSuffix: '',
     },
   },
+  tools: {
+    title: 'Tools',
+    description: 'Configure which tools your AI assistant can use',
+    accessControl: {
+      title: 'Access control',
+      description: 'Choose how the AI should request tool permissions',
+    },
+    accessModes: {
+      auto: {
+        label: 'Auto',
+        description: 'Automatically allow safe tools',
+      },
+      ask: {
+        label: 'Ask',
+        description: 'Ask before using any tool',
+      },
+      deny: {
+        label: 'Deny',
+        description: 'Deny all tool access by default',
+      },
+    },
+    sandbox: {
+      title: 'Sandbox mode',
+      description: 'Run tools in an isolated environment for added security',
+      enableTitle: 'Enable sandbox',
+      enableDescription: 'Recommended for untrusted operations',
+    },
+    list: {
+      title: 'Available tools',
+      description: 'Enable or disable individual tools',
+    },
+    badge: {
+      requiresConfirmation: 'Requires confirmation',
+    },
+    builtins: {
+      fs: {
+        name: 'File system',
+        description: 'Read, write, and manage files on the system',
+      },
+      web: {
+        name: 'Web access',
+        description: 'Browse websites and fetch web content',
+      },
+      bash: {
+        name: 'Command execution',
+        description: 'Execute shell commands and scripts',
+      },
+      database: {
+        name: 'Database',
+        description: 'Query and manage database connections',
+      },
+      media: {
+        name: 'Media processing',
+        description: 'Process images, audio, and video files',
+      },
+    },
+  },
   language: {
     manage: 'Language',
     current: 'Current language',

@@ -85,7 +85,7 @@ export default function AgentsPage() {
   const enabledChannels = channels.filter((c) => c.isEnabled);
 
   return (
-    <div className="p-6">
+    <div className="h-full overflow-y-auto p-6">
       <div className="max-w-5xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold">{t("agents.title")}</h1>

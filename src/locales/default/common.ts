@@ -286,6 +286,39 @@ const common = {
     },
   },
   settings: {
+    page: {
+      title: '设置',
+      description: '配置你的 ClawUI 偏好',
+      tabs: {
+        general: '通用',
+        api: '模型与认证',
+        tokens: '渠道与 Token',
+        gateway: '网关',
+        security: '安全',
+        subscription: '订阅',
+        about: '关于',
+      },
+      theme: {
+        light: '浅色',
+        dark: '深色',
+        system: '跟随系统',
+      },
+      general: {
+        appearance: {
+          title: '外观',
+          description: '自定义 ClawUI 的外观',
+          theme: '主题',
+        },
+        startup: {
+          title: '启动',
+          description: '配置启动行为',
+          autoStartGateway: '自动启动 Gateway',
+          autoStartGatewayHint: '应用启动时自动启动 Gateway',
+          autoCheckUpdates: '自动检查更新',
+          autoCheckUpdatesHint: '启动时检查更新',
+        },
+      },
+    },
     providerCard: {
       status: {
         ok: '正常',

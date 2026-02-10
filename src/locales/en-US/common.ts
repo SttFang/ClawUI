@@ -286,6 +286,39 @@ const common = {
     },
   },
   settings: {
+    page: {
+      title: 'Settings',
+      description: 'Configure your ClawUI preferences',
+      tabs: {
+        general: 'General',
+        api: 'Models & Auth',
+        tokens: 'Channels & Tokens',
+        gateway: 'Gateway',
+        security: 'Security',
+        subscription: 'Subscription',
+        about: 'About',
+      },
+      theme: {
+        light: 'Light',
+        dark: 'Dark',
+        system: 'System',
+      },
+      general: {
+        appearance: {
+          title: 'Appearance',
+          description: 'Customize how ClawUI looks',
+          theme: 'Theme',
+        },
+        startup: {
+          title: 'Startup',
+          description: 'Configure startup behavior',
+          autoStartGateway: 'Auto-start Gateway',
+          autoStartGatewayHint: 'Start Gateway automatically when app launches',
+          autoCheckUpdates: 'Auto-check updates',
+          autoCheckUpdatesHint: 'Check for updates on startup',
+        },
+      },
+    },
     providerCard: {
       status: {
         ok: 'OK',

@@ -15,6 +15,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@clawui/ui'
+import { useTranslation } from 'react-i18next'
 import { useGatewayStore, selectGatewayStatus, selectGatewayError, selectIsGatewayRunning } from '@/store/gateway'
 import { useUIStore, selectTheme, type Theme } from '@/store/ui'
 import {
@@ -43,12 +44,6 @@ import { ProviderCard } from '@/components/Settings/ProviderCard'
 import { ModelConfig } from '@/components/Settings/ModelConfig'
 import type { OAuthProviderStatus } from '@clawui/types/models'
 
-const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
-  { value: 'light', label: 'Light', icon: <Sun className="h-4 w-4" /> },
-  { value: 'dark', label: 'Dark', icon: <Moon className="h-4 w-4" /> },
-  { value: 'system', label: 'System', icon: <Monitor className="h-4 w-4" /> },
-]
-
 /** Map provider name to apiKeys store key */
 function mapProviderToKey(provider: string): 'anthropic' | 'openai' | 'openrouter' {
   if (provider === 'openai-codex') return 'openai'
@@ -65,6 +60,8 @@ function findOAuthStatus(
 }
 
 export default function SettingsPage() {
+  const { t } = useTranslation('common')
+
   // Gateway store
   const gatewayStatus = useGatewayStore(selectGatewayStatus)
   const gatewayError = useGatewayStore(selectGatewayError)
@@ -75,6 +72,11 @@ export default function SettingsPage() {
   // UI store
   const theme = useUIStore(selectTheme)
   const setTheme = useUIStore((s) => s.setTheme)
+  const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
+    { value: 'light', label: t('settings.page.theme.light'), icon: <Sun className="h-4 w-4" /> },
+    { value: 'dark', label: t('settings.page.theme.dark'), icon: <Moon className="h-4 w-4" /> },
+    { value: 'system', label: t('settings.page.theme.system'), icon: <Monitor className="h-4 w-4" /> },
+  ]
 
   // Settings store
   const apiKeys = useSettingsStore(selectApiKeys)
@@ -157,33 +159,33 @@ export default function SettingsPage() {
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold">Settings</h1>
+          <h1 className="text-2xl font-semibold">{t('settings.page.title')}</h1>
           <p className="text-muted-foreground">
-            Configure your ClawUI preferences
+            {t('settings.page.description')}
           </p>
         </div>
 
         <Tabs defaultValue="general">
           <TabsList className="mb-4">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="api">Models & Auth</TabsTrigger>
-            <TabsTrigger value="tokens">Channels & Tokens</TabsTrigger>
-            <TabsTrigger value="gateway">Gateway</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="subscription">Subscription</TabsTrigger>
-            <TabsTrigger value="about">About</TabsTrigger>
+            <TabsTrigger value="general">{t('settings.page.tabs.general')}</TabsTrigger>
+            <TabsTrigger value="api">{t('settings.page.tabs.api')}</TabsTrigger>
+            <TabsTrigger value="tokens">{t('settings.page.tabs.tokens')}</TabsTrigger>
+            <TabsTrigger value="gateway">{t('settings.page.tabs.gateway')}</TabsTrigger>
+            <TabsTrigger value="security">{t('settings.page.tabs.security')}</TabsTrigger>
+            <TabsTrigger value="subscription">{t('settings.page.tabs.subscription')}</TabsTrigger>
+            <TabsTrigger value="about">{t('settings.page.tabs.about')}</TabsTrigger>
           </TabsList>
 
           {/* General Tab */}
           <TabsContent value="general">
             <Card>
               <CardHeader>
-                <CardTitle>Appearance</CardTitle>
-                <CardDescription>Customize how ClawUI looks</CardDescription>
+                <CardTitle>{t('settings.page.general.appearance.title')}</CardTitle>
+                <CardDescription>{t('settings.page.general.appearance.description')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Theme</Label>
+                  <Label>{t('settings.page.general.appearance.theme')}</Label>
                   <div className="flex gap-2">
                     {themeOptions.map((option) => (
                       <button
@@ -206,15 +208,15 @@ export default function SettingsPage() {
 
             <Card className="mt-4">
               <CardHeader>
-                <CardTitle>Startup</CardTitle>
-                <CardDescription>Configure startup behavior</CardDescription>
+                <CardTitle>{t('settings.page.general.startup.title')}</CardTitle>
+                <CardDescription>{t('settings.page.general.startup.description')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Auto-start Gateway</Label>
+                    <Label>{t('settings.page.general.startup.autoStartGateway')}</Label>
                     <p className="text-sm text-muted-foreground">
-                      Start Gateway automatically when app launches
+                      {t('settings.page.general.startup.autoStartGatewayHint')}
                     </p>
                   </div>
                   <Switch
@@ -224,9 +226,9 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Auto-check Updates</Label>
+                    <Label>{t('settings.page.general.startup.autoCheckUpdates')}</Label>
                     <p className="text-sm text-muted-foreground">
-                      Check for updates on startup
+                      {t('settings.page.general.startup.autoCheckUpdatesHint')}
                     </p>
                   </div>
                   <Switch

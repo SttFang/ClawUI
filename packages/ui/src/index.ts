@@ -37,6 +37,18 @@ export {
   ChartStyle,
   type ChartConfig,
 } from "./chart";
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuPortal,
+  DropdownMenuGroup,
+  DropdownMenuSub,
+  DropdownMenuRadioGroup,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "./dropdown-menu";
 
 // AI Elements (local, inspired by https://elements.ai-sdk.dev)
 export {

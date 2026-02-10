@@ -35,6 +35,32 @@ function toPatchValue(value: string): string | null {
   return value === "inherit" ? null : value;
 }
 
+function formatOptionLabel(t: (key: string) => string, v: string): string {
+  if (v === "inherit") return t("sessionStrip.inherit");
+  switch (v) {
+    case "off":
+      return t("sessionStrip.option.off");
+    case "on":
+      return t("sessionStrip.option.on");
+    case "stream":
+      return t("sessionStrip.option.stream");
+    case "full":
+      return t("sessionStrip.option.full");
+    case "minimal":
+      return t("sessionStrip.option.minimal");
+    case "low":
+      return t("sessionStrip.option.low");
+    case "medium":
+      return t("sessionStrip.option.medium");
+    case "high":
+      return t("sessionStrip.option.high");
+    case "xhigh":
+      return t("sessionStrip.option.xhigh");
+    default:
+      return v;
+  }
+}
+
 export function SessionControlStrip(props: {
   sessionKey: string;
   disabled: boolean;
@@ -97,52 +123,57 @@ export function SessionControlStrip(props: {
   const verboseValue = toSelectValue(row?.verboseLevel);
   const reasoningValue = toSelectValue(row?.reasoningLevel);
 
-  // Keep the strip usable on narrow windows: wrap instead of forcing horizontal scrolling.
   return (
-    <div className={cn("flex flex-wrap items-end gap-2", disabled && "opacity-60", className)}>
-      <div className="min-w-[140px]">
+    <div
+      className={cn(
+        "flex min-w-0 flex-nowrap items-center gap-2",
+        disabled && "opacity-60",
+        className,
+      )}
+    >
+      <div className="flex items-center gap-1">
         <div className="text-[11px] text-muted-foreground">{t("sessionStrip.thinking")}</div>
         <Select
           value={thinkingValue}
           onChange={(e) => void patch({ thinkingLevel: toPatchValue(e.target.value) })}
           disabled={disabled || saving}
-          className="h-8 px-2 text-xs"
+          className="h-8 w-[108px] px-2 text-xs"
         >
           {THINKING_OPTIONS.map((v) => (
             <option key={v} value={v}>
-              {v === "inherit" ? t("sessionStrip.inherit") : v}
+              {formatOptionLabel(t, v)}
             </option>
           ))}
         </Select>
       </div>
 
-      <div className="min-w-[120px]">
+      <div className="flex items-center gap-1">
         <div className="text-[11px] text-muted-foreground">{t("sessionStrip.verbose")}</div>
         <Select
           value={verboseValue}
           onChange={(e) => void patch({ verboseLevel: toPatchValue(e.target.value) })}
           disabled={disabled || saving}
-          className="h-8 px-2 text-xs"
+          className="h-8 w-[96px] px-2 text-xs"
         >
           {VERBOSE_OPTIONS.map((v) => (
             <option key={v} value={v}>
-              {v === "inherit" ? t("sessionStrip.inherit") : v}
+              {formatOptionLabel(t, v)}
             </option>
           ))}
         </Select>
       </div>
 
-      <div className="min-w-[130px]">
+      <div className="flex items-center gap-1">
         <div className="text-[11px] text-muted-foreground">{t("sessionStrip.reasoning")}</div>
         <Select
           value={reasoningValue}
           onChange={(e) => void patch({ reasoningLevel: toPatchValue(e.target.value) })}
           disabled={disabled || saving}
-          className="h-8 px-2 text-xs"
+          className="h-8 w-[96px] px-2 text-xs"
         >
           {REASONING_OPTIONS.map((v) => (
             <option key={v} value={v}>
-              {v === "inherit" ? t("sessionStrip.inherit") : v}
+              {formatOptionLabel(t, v)}
             </option>
           ))}
         </Select>

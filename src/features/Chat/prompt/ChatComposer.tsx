@@ -142,8 +142,8 @@ export function ChatComposer(props: {
           onKeyDown={onKeyDown}
         />
 
-        <PromptInputFooter className="flex flex-wrap items-end gap-2">
-          <PromptInputTools className="min-w-0 flex-1 flex-wrap items-end gap-2">
+        <PromptInputFooter className="flex-nowrap items-center">
+          <PromptInputTools className="min-w-0 flex-1 flex-nowrap items-center">
             <PromptInputAction
               type="button"
               onClick={openFilePicker}

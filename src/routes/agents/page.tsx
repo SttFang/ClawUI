@@ -125,7 +125,9 @@ export default function AgentsPage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-medium">{agent.id}</div>
-                      <span className="text-xs text-muted-foreground">default</span>
+                      <span className="text-xs text-muted-foreground">
+                        {t("agents.list.defaultTag")}
+                      </span>
                     </div>
                     <div className="text-xs text-muted-foreground truncate">
                       {agent.modelPrimary ?? t("agents.list.unknownModel")}

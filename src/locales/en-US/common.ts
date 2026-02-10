@@ -68,6 +68,7 @@ const common = {
       title: "Agent List",
       description: "Select an agent to inspect its inputs, capabilities, and extensions.",
       empty: "No agents found.",
+      defaultTag: "Default",
       unknownModel: "Model not configured",
     },
     sections: {

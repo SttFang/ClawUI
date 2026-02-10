@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { SessionsUsageEntry } from '@clawui/types/usage'
+import { formatTokens, formatCost } from '@/lib/format'
 
 interface SessionListProps {
   sessions: SessionsUsageEntry[]
@@ -12,16 +13,6 @@ interface SessionListProps {
 }
 
 type SortField = 'cost' | 'tokens' | 'key'
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
-}
-
-function formatCost(n: number): string {
-  return `$${n.toFixed(4)}`
-}
 
 export function SessionList({ sessions, selectedKey, onSelect }: SessionListProps) {
   const { t } = useTranslation('common')
@@ -75,7 +66,7 @@ export function SessionList({ sessions, selectedKey, onSelect }: SessionListProp
                   </div>
                   <div className="text-right text-xs text-muted-foreground whitespace-nowrap">
                     <p>{formatTokens(s.usage?.totalTokens ?? 0)}</p>
-                    <p>{formatCost(s.usage?.totalCost ?? 0)}</p>
+                    <p>{formatCost(s.usage?.totalCost ?? 0, 4)}</p>
                   </div>
                   <ChevronRight
                     size={14}

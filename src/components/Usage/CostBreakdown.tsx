@@ -11,18 +11,13 @@ import {
   type ChartConfig,
 } from '@clawui/ui/chart'
 import type { UsageTotals } from '@clawui/types/usage'
+import { formatTokens } from '@/lib/format'
 
 interface CostBreakdownProps {
   totals: UsageTotals | null
 }
 
 const PIE_KEYS = ["output", "input", "cacheWrite", "cacheRead"] as const
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
-}
 
 export function CostBreakdown({ totals }: CostBreakdownProps) {
   const { t, i18n } = useTranslation('common')

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { formatTokens, formatLatency } from '@/lib/format'
 import {
   ComposedChart,
   Bar,
@@ -68,17 +69,6 @@ function formatValue(value: number, mode: 'tokens' | 'cost'): string {
   return String(value)
 }
 
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
-}
-
-function formatLatency(ms: number | undefined): string {
-  if (ms == null || ms === 0) return '-'
-  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`
-  return `${Math.round(ms)}ms`
-}
 
 function aggregateByMonth(
   data: CostDailyEntry[],

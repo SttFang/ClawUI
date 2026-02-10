@@ -3,27 +3,12 @@ import { Coins, Hash, MessageSquare, Timer } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { UsageTotals, UsageAggregates } from '@clawui/types/usage'
+import { formatTokens, formatCost, formatLatency } from '@/lib/format'
 
 interface UsageSummaryCardsProps {
   totals: UsageTotals | null
   aggregates: UsageAggregates | null
   sessionCount: number
-}
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
-}
-
-function formatCost(n: number): string {
-  return `$${n.toFixed(2)}`
-}
-
-function formatLatency(ms: number | undefined): string {
-  if (ms == null || ms === 0) return '-'
-  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`
-  return `${Math.round(ms)}ms`
 }
 
 export function UsageSummaryCards({ totals, aggregates, sessionCount }: UsageSummaryCardsProps) {

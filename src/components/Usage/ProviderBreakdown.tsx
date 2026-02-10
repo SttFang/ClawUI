@@ -10,6 +10,7 @@ import {
 } from '@clawui/ui/chart'
 import { Anthropic, OpenAI, OpenRouter } from '@lobehub/icons'
 import type { SessionModelUsage } from '@clawui/types/usage'
+import { formatTokens } from '@/lib/format'
 
 interface ProviderBreakdownProps {
   byProvider: SessionModelUsage[]
@@ -33,12 +34,6 @@ const PROVIDER_ICONS: Record<string, ComponentType<{ size?: number }>> = {
 function getProviderIcon(provider: string): ComponentType<{ size?: number }> | null {
   const key = provider.toLowerCase().replace(/[^a-z]/g, '')
   return PROVIDER_ICONS[key] ?? null
-}
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
 }
 
 export function ProviderBreakdown({ byProvider }: ProviderBreakdownProps) {

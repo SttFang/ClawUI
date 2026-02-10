@@ -26,7 +26,7 @@
 
 - **Electron**: 33 + electron-vite
 - **Frontend**: React 19 + React Router 7 + Tailwind CSS 4
-- **UI**: shadcn/ui (pure React, no Radix)
+- **UI**: shadcn/ui
 - **State**: Zustand 5
 - **Icons**: Lucide React
 - **i18n**: i18next + react-i18next

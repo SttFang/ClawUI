@@ -665,6 +665,12 @@ const common = {
       allowAlways: '总是允许',
     },
   },
+  a2ui: {
+    lifecycle: '生命周期：{{phase}}',
+    seq: '序号 {{seq}}',
+    run: '运行 {{runId}}',
+    statePreliminary: '{{state}}（部分）',
+  },
 } as const
 
 export default common

@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@clawui/ui'
 import { cn } from '@/lib/utils'
+import { useTranslation } from 'react-i18next'
 
 export type OpenClawLifecycleData = {
   runId?: string
@@ -19,6 +20,7 @@ function phaseColor(phase: string | undefined): string {
 }
 
 export function LifecycleEventCard(props: { data: OpenClawLifecycleData }) {
+  const { t } = useTranslation('common')
   const { data } = props
   const phase = typeof data.phase === 'string' ? data.phase : 'unknown'
   const ts = typeof data.ts === 'number' ? data.ts : null
@@ -32,13 +34,17 @@ export function LifecycleEventCard(props: { data: OpenClawLifecycleData }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className={cn('rounded-full px-2 py-0.5 text-[11px]', phaseColor(phase))}>
-                lifecycle:{phase}
+                {t('a2ui.lifecycle', { phase })}
               </span>
-              {seq != null ? <span className="text-xs text-muted-foreground">seq {seq}</span> : null}
+              {seq != null ? (
+                <span className="text-xs text-muted-foreground">{t('a2ui.seq', { seq })}</span>
+              ) : null}
               {time ? <span className="text-xs text-muted-foreground">{time}</span> : null}
             </div>
             {typeof data.runId === 'string' && data.runId.trim() ? (
-              <div className="mt-1 truncate text-xs text-muted-foreground">run {data.runId}</div>
+              <div className="mt-1 truncate text-xs text-muted-foreground">
+                {t('a2ui.run', { runId: data.runId })}
+              </div>
             ) : null}
           </div>
         </div>
@@ -52,4 +58,3 @@ export function LifecycleEventCard(props: { data: OpenClawLifecycleData }) {
     </Card>
   )
 }
-

@@ -665,6 +665,12 @@ const common = {
       allowAlways: 'Always allow',
     },
   },
+  a2ui: {
+    lifecycle: 'Lifecycle: {{phase}}',
+    seq: 'seq {{seq}}',
+    run: 'run {{runId}}',
+    statePreliminary: '{{state}} (partial)',
+  },
 } as const
 
 export default common

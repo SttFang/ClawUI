@@ -1,6 +1,7 @@
 import type { DynamicToolUIPart } from 'ai'
 import { Card, CardContent } from '@clawui/ui'
 import { cn } from '@/lib/utils'
+import { useTranslation } from 'react-i18next'
 
 function formatJson(value: unknown): string {
   try {
@@ -11,6 +12,7 @@ function formatJson(value: unknown): string {
 }
 
 function StatePill(props: { state: string; preliminary?: boolean }) {
+  const { t } = useTranslation('common')
   const { state, preliminary } = props
   return (
     <div
@@ -20,7 +22,7 @@ function StatePill(props: { state: string; preliminary?: boolean }) {
         preliminary && 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200'
       )}
     >
-      {preliminary ? `${state} (partial)` : state}
+      {preliminary ? t('a2ui.statePreliminary', { state }) : state}
     </div>
   )
 }
@@ -65,4 +67,3 @@ export function ToolEventCard(props: { part: DynamicToolUIPart }) {
     </Card>
   )
 }
-

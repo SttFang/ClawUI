@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { ipc } from '@/lib/ipc'
 import { schedulerLog } from '@/lib/logger'
+import { createWeakCachedSelector } from '@/store/utils/createWeakCachedSelector'
 
 export interface ScheduledTask {
   id: string
@@ -250,8 +251,9 @@ function coerceTask(value: unknown): ScheduledTask | null {
 
 // Selectors
 export const selectTasks = (state: SchedulerStore) => state.tasks
-export const selectEnabledTasks = (state: SchedulerStore) =>
+export const selectEnabledTasks = createWeakCachedSelector((state: SchedulerStore) =>
   state.tasks.filter((t) => t.enabled)
+)
 export const selectTaskById = (id: string) => (state: SchedulerStore) =>
   state.tasks.find((t) => t.id === id)
 export const selectIsLoading = (state: SchedulerStore) => state.isLoading

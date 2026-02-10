@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { ipc } from '@/lib/ipc'
 import { toolsLog } from '@/lib/logger'
+import { createWeakCachedSelector } from '@/store/utils/createWeakCachedSelector'
 
 export type ToolAccessMode = 'auto' | 'ask' | 'deny'
 
@@ -308,7 +309,9 @@ export const useToolsStore = create<ToolsStore>((set, get) => ({
 export const selectTools = (state: ToolsStore) => state.tools
 export const selectToolsConfig = (state: ToolsStore) => state.config
 export const selectAccessMode = (state: ToolsStore) => state.config.accessMode
-export const selectEnabledTools = (state: ToolsStore) => state.tools.filter((t) => t.enabled)
+export const selectEnabledTools = createWeakCachedSelector((state: ToolsStore) =>
+  state.tools.filter((t) => t.enabled)
+)
 export const selectToolById = (id: string) => (state: ToolsStore) =>
   state.tools.find((t) => t.id === id)
 export const selectIsLoading = (state: ToolsStore) => state.isLoading

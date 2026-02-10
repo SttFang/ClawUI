@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { ipc, ChannelConfig } from '@/lib/ipc'
+import { createWeakCachedSelector } from '@/store/utils/createWeakCachedSelector'
 
 export type ChannelType = 'telegram' | 'discord' | 'whatsapp' | 'slack' | 'wechat' | 'signal'
 
@@ -189,9 +190,11 @@ export const useChannelsStore = create<ChannelsStore>((set, get) => ({
 
 // Selectors
 export const selectChannels = (state: ChannelsStore) => state.channels
-export const selectEnabledChannels = (state: ChannelsStore) =>
+export const selectEnabledChannels = createWeakCachedSelector((state: ChannelsStore) =>
   state.channels.filter((c) => c.isEnabled)
-export const selectConfiguredChannels = (state: ChannelsStore) =>
+)
+export const selectConfiguredChannels = createWeakCachedSelector((state: ChannelsStore) =>
   state.channels.filter((c) => c.isConfigured)
+)
 export const selectChannelByType = (type: ChannelType) => (state: ChannelsStore) =>
   state.channels.find((c) => c.type === type)

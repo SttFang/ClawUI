@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { subscriptionLog } from '@/lib/logger'
+import { createWeakCachedSelector } from '@/store/utils/createWeakCachedSelector'
 
 export type PlanType = 'free' | 'pro' | 'team'
 
@@ -176,10 +177,10 @@ export const selectIsLoading = (state: SubscriptionStore) => state.isLoading
 export const selectIsUpgrading = (state: SubscriptionStore) => state.isUpgrading
 export const selectError = (state: SubscriptionStore) => state.error
 
-export const selectUsagePercentage = (state: SubscriptionStore) => {
+export const selectUsagePercentage = createWeakCachedSelector((state: SubscriptionStore) => {
   if (!state.usage) return { tokens: 0, apiCalls: 0 }
   return {
     tokens: Math.round((state.usage.tokensUsed / state.usage.tokensLimit) * 100),
     apiCalls: Math.round((state.usage.apiCallsToday / state.usage.apiCallsLimit) * 100),
   }
-}
+})

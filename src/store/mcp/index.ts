@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { ipc } from '@/lib/ipc'
+import { createWeakCachedSelector } from '@/store/utils/createWeakCachedSelector'
 
 export interface MCPTool {
   name: string
@@ -211,4 +212,6 @@ export const selectError = (state: MCPStore) => state.error
 export const selectExpandedServerId = (state: MCPStore) => state.expandedServerId
 export const selectServerById = (id: string) => (state: MCPStore) =>
   state.servers.find((s) => s.id === id)
-export const selectEnabledServers = (state: MCPStore) => state.servers.filter((s) => s.enabled)
+export const selectEnabledServers = createWeakCachedSelector((state: MCPStore) =>
+  state.servers.filter((s) => s.enabled)
+)

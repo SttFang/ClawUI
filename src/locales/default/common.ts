@@ -371,6 +371,34 @@ const common = {
           uninstallFailed: '卸载失败',
         },
       },
+      security: {
+        title: '安全',
+        description: '仅影响 OpenClaw 权限（minmax）的受限配置项。更改将通过 allowlist 的 `openclaw config set` 路径应用。',
+        allowElevatedWebchat: '允许提权（WebChat）',
+        allowElevatedWebchatHint: '允许 WebChat 使用提权工具（谨慎开启）',
+        allowElevatedDiscord: '允许提权（Discord）',
+        allowElevatedDiscordHint: '允许 Discord 使用提权工具（谨慎开启）',
+        sandboxMode: '沙盒模式',
+        sandboxModeOptions: {
+          off: '关闭',
+          docker: 'Docker',
+          native: '本地',
+        },
+        workspaceAccess: '工作区访问权限',
+        workspaceAccessOptions: {
+          none: '无',
+          ro: '只读',
+          rw: '读写',
+        },
+        actions: {
+          apply: '应用',
+        },
+        messages: {
+          loadFailed: '加载安全设置失败',
+          updated: '安全设置已更新',
+          applyFailed: '应用失败',
+        },
+      },
     },
     providerCard: {
       status: {

@@ -371,6 +371,34 @@ const common = {
           uninstallFailed: 'Uninstall failed',
         },
       },
+      security: {
+        title: 'Security',
+        description: 'Restricted controls that only touch OpenClaw permissions (minmax). These changes are applied via allowlisted `openclaw config set` paths.',
+        allowElevatedWebchat: 'Allow elevated (WebChat)',
+        allowElevatedWebchatHint: 'Enable elevated tools from webchat (use with care)',
+        allowElevatedDiscord: 'Allow elevated (Discord)',
+        allowElevatedDiscordHint: 'Enable elevated tools from Discord (use with care)',
+        sandboxMode: 'Sandbox mode',
+        sandboxModeOptions: {
+          off: 'off',
+          docker: 'docker',
+          native: 'native',
+        },
+        workspaceAccess: 'Workspace access',
+        workspaceAccessOptions: {
+          none: 'none',
+          ro: 'ro',
+          rw: 'rw',
+        },
+        actions: {
+          apply: 'Apply',
+        },
+        messages: {
+          loadFailed: 'Failed to load security settings',
+          updated: 'Security settings updated',
+          applyFailed: 'Apply failed',
+        },
+      },
     },
     providerCard: {
       status: {

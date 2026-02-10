@@ -144,9 +144,13 @@ export default function SettingsPage() {
         const wa = values['agents.defaults.sandbox.workspaceAccess']
         if (typeof wa === 'string') setWorkspaceAccess(wa)
       })
-      .catch((e) => setSecurityMessage(e instanceof Error ? e.message : 'Failed to load security settings'))
+      .catch((e) =>
+        setSecurityMessage(
+          e instanceof Error ? e.message : t('settings.page.security.messages.loadFailed'),
+        ),
+      )
       .finally(() => setSecurityLoading(false))
-  }, [])
+  }, [t])
 
   const handleApiKeyChange = useCallback(
     (provider: string) => (value: string) => {
@@ -546,9 +550,9 @@ export default function SettingsPage() {
           <TabsContent value="security">
             <Card>
               <CardHeader>
-                <CardTitle>Security</CardTitle>
+                <CardTitle>{t('settings.page.security.title')}</CardTitle>
                 <CardDescription>
-                  Restricted controls that only touch OpenClaw permissions (minmax). These changes are applied via allowlisted `openclaw config set` paths.
+                  {t('settings.page.security.description')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -560,9 +564,9 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Allow Elevated (WebChat)</Label>
+                    <Label>{t('settings.page.security.allowElevatedWebchat')}</Label>
                     <p className="text-sm text-muted-foreground">
-                      Enable elevated tools from webchat (use with care)
+                      {t('settings.page.security.allowElevatedWebchatHint')}
                     </p>
                   </div>
                   <Switch
@@ -574,9 +578,9 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Allow Elevated (Discord)</Label>
+                    <Label>{t('settings.page.security.allowElevatedDiscord')}</Label>
                     <p className="text-sm text-muted-foreground">
-                      Enable elevated tools from Discord (use with care)
+                      {t('settings.page.security.allowElevatedDiscordHint')}
                     </p>
                   </div>
                   <Switch
@@ -587,28 +591,28 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Sandbox Mode</Label>
+                  <Label>{t('settings.page.security.sandboxMode')}</Label>
                   <Select
                     value={sandboxMode}
                     onChange={(e: ChangeEvent<HTMLSelectElement>) => setSandboxMode(e.target.value)}
                     disabled={securityLoading}
                   >
-                    <option value="off">off</option>
-                    <option value="docker">docker</option>
-                    <option value="native">native</option>
+                    <option value="off">{t('settings.page.security.sandboxModeOptions.off')}</option>
+                    <option value="docker">{t('settings.page.security.sandboxModeOptions.docker')}</option>
+                    <option value="native">{t('settings.page.security.sandboxModeOptions.native')}</option>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Workspace Access</Label>
+                  <Label>{t('settings.page.security.workspaceAccess')}</Label>
                   <Select
                     value={workspaceAccess}
                     onChange={(e: ChangeEvent<HTMLSelectElement>) => setWorkspaceAccess(e.target.value)}
                     disabled={securityLoading}
                   >
-                    <option value="none">none</option>
-                    <option value="ro">ro</option>
-                    <option value="rw">rw</option>
+                    <option value="none">{t('settings.page.security.workspaceAccessOptions.none')}</option>
+                    <option value="ro">{t('settings.page.security.workspaceAccessOptions.ro')}</option>
+                    <option value="rw">{t('settings.page.security.workspaceAccessOptions.rw')}</option>
                   </Select>
                 </div>
 
@@ -625,12 +629,16 @@ export default function SettingsPage() {
                           { path: 'agents.defaults.sandbox.mode', value: sandboxMode },
                           { path: 'agents.defaults.sandbox.workspaceAccess', value: workspaceAccess },
                         ])
-                        .then(() => setSecurityMessage('Security settings updated'))
-                        .catch((e) => setSecurityMessage(e instanceof Error ? e.message : 'Apply failed'))
+                        .then(() => setSecurityMessage(t('settings.page.security.messages.updated')))
+                        .catch((e) =>
+                          setSecurityMessage(
+                            e instanceof Error ? e.message : t('settings.page.security.messages.applyFailed'),
+                          ),
+                        )
                         .finally(() => setSecurityLoading(false))
                     }}
                   >
-                    Apply
+                    {t('settings.page.security.actions.apply')}
                   </Button>
                 </div>
               </CardContent>

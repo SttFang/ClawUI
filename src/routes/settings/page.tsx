@@ -656,27 +656,25 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Info className="w-5 h-5" />
-                  <CardTitle>About ClawUI</CardTitle>
+                  <CardTitle>{t('settings.page.about.title')}</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <p className="font-medium">ClawUI</p>
                   <p className="text-sm text-muted-foreground">
-                    Version {version}
+                    {t('settings.page.about.version', { version })}
                   </p>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  A desktop application for OpenClaw, providing an easy-to-use
-                  interface for managing AI assistants across multiple messaging
-                  platforms.
+                  {t('settings.page.about.description')}
                 </p>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => ipc.app.checkForUpdates()}>
-                    Check for Updates
+                    {t('settings.page.about.actions.checkForUpdates')}
                   </Button>
                   <Button variant="outline" size="sm">
-                    View License
+                    {t('settings.page.about.actions.viewLicense')}
                   </Button>
                 </div>
               </CardContent>

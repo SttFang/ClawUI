@@ -399,6 +399,15 @@ const common = {
           applyFailed: 'Apply failed',
         },
       },
+      about: {
+        title: 'About ClawUI',
+        version: 'Version {{version}}',
+        description: 'A desktop application for OpenClaw, providing an easy-to-use interface for managing AI assistants across multiple messaging platforms.',
+        actions: {
+          checkForUpdates: 'Check for updates',
+          viewLicense: 'View license',
+        },
+      },
     },
     providerCard: {
       status: {

@@ -399,6 +399,15 @@ const common = {
           applyFailed: '应用失败',
         },
       },
+      about: {
+        title: '关于 ClawUI',
+        version: '版本 {{version}}',
+        description: 'OpenClaw 的桌面客户端，用于跨多个消息平台管理 AI 助手。',
+        actions: {
+          checkForUpdates: '检查更新',
+          viewLicense: '查看许可',
+        },
+      },
     },
     providerCard: {
       status: {

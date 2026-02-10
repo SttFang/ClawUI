@@ -139,6 +139,8 @@ export class ChatWebSocketService extends EventEmitter {
           platform: process.platform,
           mode: 'cli',
         },
+        // Required for exec approval events + resolve calls.
+        scopes: ['operator.admin', 'operator.approvals'],
         // Enable enhanced streaming features (e.g. tool call events).
         caps: ['tool-events'],
         auth: {

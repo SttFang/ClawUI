@@ -3,6 +3,11 @@ const chat = {
   newSession: 'New session',
   sessionList: 'Sessions',
   noSessions: 'No sessions yet',
+  sessionFilters: {
+    ui: 'UI',
+    discord: 'Discord',
+    all: 'All',
+  },
   scrollToLatest: 'Jump to latest',
   scrollToLatestAria: 'Scroll to latest message',
   deleteSessionAria: 'Delete session',

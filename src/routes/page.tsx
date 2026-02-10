@@ -13,7 +13,7 @@ import {
   openclawTranscriptToUIMessages,
   type OpenClawChatTransportAdapter,
 } from '@clawui/claw-sse'
-import { Button, ScrollArea } from '@clawui/ui'
+import { Button, ScrollArea, Tabs, TabsList, TabsTrigger } from '@clawui/ui'
 import { useTranslation } from 'react-i18next'
 import type { ClawUISessionMetadata } from '@clawui/types/clawui'
 import { ConfigBanner } from '@/components/ConfigBanner'
@@ -29,6 +29,56 @@ const STREAMDOWN_PLUGINS = {
   // OpenClaw 输出里经常用 `$...$` 做行内公式；这里显式开启。
   math: createMathPlugin({ singleDollarTextMath: true }),
   cjk,
+}
+
+type SessionSource =
+  | 'ui'
+  | 'discord'
+  | 'telegram'
+  | 'slack'
+  | 'whatsapp'
+  | 'wechat'
+  | 'signal'
+  | 'cron'
+  | 'unknown'
+
+type SessionFilter = 'ui' | 'discord' | 'channels' | 'all'
+
+function classifySessionKey(sessionKey: string): { source: SessionSource; hidden: boolean } {
+  const raw = sessionKey.trim()
+  if (!raw) return { source: 'unknown', hidden: false }
+
+  const parts = raw.split(':').filter(Boolean)
+  const rest = parts[0] === 'agent' && parts.length >= 3 ? parts.slice(2) : parts
+  const head = (rest[0] ?? '').toLowerCase()
+  const head2 = (rest[1] ?? '').toLowerCase()
+
+  // Hide ClawUI internal metadata sessions by default.
+  // Examples:
+  // - clawui:meta:<sessionKey>
+  // - agent:main:clawui:meta:<sessionKey>
+  if (head === 'clawui' && head2 === 'meta') return { source: 'unknown', hidden: true }
+  if (head === 'meta') return { source: 'unknown', hidden: true }
+
+  if (head === 'ui') return { source: 'ui', hidden: false }
+  if (head === 'cron') return { source: 'cron', hidden: false }
+
+  if (head === 'discord') return { source: 'discord', hidden: false }
+  if (head === 'telegram') return { source: 'telegram', hidden: false }
+  if (head === 'slack') return { source: 'slack', hidden: false }
+  if (head === 'whatsapp') return { source: 'whatsapp', hidden: false }
+  if (head === 'wechat') return { source: 'wechat', hidden: false }
+  if (head === 'signal') return { source: 'signal', hidden: false }
+
+  return { source: 'unknown', hidden: false }
+}
+
+function matchesSessionFilter(source: SessionSource, filter: SessionFilter): boolean {
+  if (filter === 'all') return true
+  if (filter === 'ui') return source === 'ui'
+  if (filter === 'discord') return source === 'discord'
+  // channels: show all non-UI channel sessions (discord/telegram/...).
+  return source !== 'ui' && source !== 'cron' && source !== 'unknown'
 }
 
 function createRendererOpenClawAdapter(): OpenClawChatTransportAdapter {
@@ -350,8 +400,26 @@ export default function ChatPage() {
   const [configValid, setConfigValid] = useState<boolean | null>(null)
   const [showBanner, setShowBanner] = useState(true)
   const [didLoadSessions, setDidLoadSessions] = useState(false)
+  const [sessionFilter, setSessionFilter] = useState<SessionFilter>('ui')
   const [sessionMetadata, setSessionMetadata] = useState<Record<string, ClawUISessionMetadata>>({})
   const [metaBusyByKey, setMetaBusyByKey] = useState<Record<string, boolean>>({})
+
+  const visibleSessions = useMemo(() => {
+    return sessions.filter((s) => {
+      const { source, hidden } = classifySessionKey(s.id)
+      if (hidden) return false
+      return matchesSessionFilter(source, sessionFilter)
+    })
+  }, [sessions, sessionFilter])
+
+  useEffect(() => {
+    // If the current session is hidden by the filter, select the newest visible one.
+    const currentId = currentSession?.id
+    if (!currentId) return
+    if (visibleSessions.some((s) => s.id === currentId)) return
+    const fallback = visibleSessions[0]?.id
+    if (fallback) selectSession(fallback)
+  }, [currentSession?.id, visibleSessions, selectSession])
 
   useEffect(() => {
     void refreshSessions().finally(() => setDidLoadSessions(true))
@@ -406,56 +474,104 @@ export default function ChatPage() {
 	            <Plus className="w-4 h-4 mr-2" />
 	            {t('newSession')}
 	          </Button>
+            <div className="mt-3">
+              <Tabs value={sessionFilter} onValueChange={(v) => setSessionFilter(v as SessionFilter)}>
+                <TabsList className="w-full justify-between">
+                  <TabsTrigger value="ui" className="flex-1 justify-center">
+                    {t('sessionFilters.ui')}
+                  </TabsTrigger>
+                  <TabsTrigger value="discord" className="flex-1 justify-center">
+                    {t('sessionFilters.discord')}
+                  </TabsTrigger>
+                  <TabsTrigger value="all" className="flex-1 justify-center">
+                    {t('sessionFilters.all')}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
 	        </div>
 
         <ScrollArea className="min-h-0 flex-1">
           <div className="p-2 space-y-1">
-            {sessions.map((session) => (
-              <div
-                key={session.id}
-                className={cn(
-                  'group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer',
-                  'hover:bg-accent transition-colors',
-                  currentSession?.id === session.id && 'bg-accent'
-                )}
-                onClick={() => selectSession(session.id)}
-              >
-                <MessageSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm">
-                    {sessionMetadata[session.id]?.title ?? session.name}
-                  </div>
-                  {sessionMetadata[session.id]?.summary ? (
-                    <div className="truncate text-xs text-muted-foreground">
-                      {sessionMetadata[session.id]?.summary}
+            {visibleSessions.length === 0 ? (
+              <div className="text-center text-muted-foreground text-sm py-8">{t('noSessions')}</div>
+            ) : (
+              visibleSessions.map((session) => {
+                const { source } = classifySessionKey(session.id)
+                const badge =
+                  source === 'ui'
+                    ? 'UI'
+                    : source === 'discord'
+                      ? 'Discord'
+                      : source === 'telegram'
+                        ? 'Telegram'
+                        : source === 'slack'
+                          ? 'Slack'
+                          : source === 'whatsapp'
+                            ? 'WhatsApp'
+                            : source === 'wechat'
+                              ? 'WeChat'
+                              : source === 'signal'
+                                ? 'Signal'
+                                : source === 'cron'
+                                  ? 'Cron'
+                                  : null
+
+                return (
+                  <div
+                    key={session.id}
+                    className={cn(
+                      'group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer',
+                      'hover:bg-accent transition-colors',
+                      currentSession?.id === session.id && 'bg-accent'
+                    )}
+                    onClick={() => selectSession(session.id)}
+                  >
+                    <MessageSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm">
+                        {sessionMetadata[session.id]?.title ?? session.name}
+                      </div>
+                      {sessionMetadata[session.id]?.summary ? (
+                        <div className="truncate text-xs text-muted-foreground">
+                          {sessionMetadata[session.id]?.summary}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    void generateMetadata(session.id)
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:text-foreground transition-opacity"
-                  aria-label={t('generateSessionMetaAria')}
-                  disabled={!!metaBusyByKey[session.id]}
-                >
-                  <Sparkles className={cn('w-3 h-3', metaBusyByKey[session.id] && 'animate-pulse')} />
-                </button>
-	                <button
-	                  type="button"
-	                  onClick={(e) => {
-	                    e.stopPropagation()
-	                    deleteSession(session.id)
-	                  }}
-	                  className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity"
-	                  aria-label={t('deleteSessionAria')}
-	                >
-	                  <Trash2 className="w-3 h-3" />
-	                </button>
-	              </div>
-	            ))}
+
+                    {badge ? (
+                      <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        {badge}
+                      </span>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void generateMetadata(session.id)
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-foreground transition-opacity"
+                      aria-label={t('generateSessionMetaAria')}
+                      disabled={!!metaBusyByKey[session.id]}
+                    >
+                      <Sparkles className={cn('w-3 h-3', metaBusyByKey[session.id] && 'animate-pulse')} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteSession(session.id)
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity"
+                      aria-label={t('deleteSessionAria')}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )
+              })
+            )}
           </div>
         </ScrollArea>
       </div>

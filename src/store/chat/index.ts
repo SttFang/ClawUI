@@ -59,8 +59,8 @@ const initialState: ChatState = {
 let messageIdCounter = 0
 const generateMessageId = () => `msg_${Date.now()}_${messageIdCounter++}`
 
-let sessionIdCounter = 0
-const generateSessionId = () => `session_${Date.now()}_${sessionIdCounter++}`
+const DEFAULT_UI_SESSION_PREFIX = 'agent:main:ui'
+const generateUiSessionKey = () => `${DEFAULT_UI_SESSION_PREFIX}:${generateChatRunId()}`
 
 let chatRunIdCounter = 0
 const generateChatRunId = (): string => {
@@ -129,7 +129,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   createSession: (name) => {
-    const id = generateSessionId()
+    const id = generateUiSessionKey()
     const now = Date.now()
     const session: Session = {
       id,

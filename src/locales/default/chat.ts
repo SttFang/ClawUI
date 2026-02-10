@@ -3,6 +3,11 @@ const chat = {
   newSession: '新建会话',
   sessionList: '会话列表',
   noSessions: '暂无会话',
+  sessionFilters: {
+    ui: 'UI',
+    discord: 'Discord',
+    all: '全部',
+  },
   scrollToLatest: '跳到最新',
   scrollToLatestAria: '滚动到最新消息',
   deleteSessionAria: '删除会话',

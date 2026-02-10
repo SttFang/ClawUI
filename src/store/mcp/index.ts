@@ -236,3 +236,12 @@ export const selectServerById = (id: string) => (state: MCPStore) =>
 export const selectEnabledServers = createWeakCachedSelector((state: MCPStore) =>
   state.servers.filter((s) => s.enabled),
 );
+
+export const mcpSelectors = {
+  selectServers,
+  selectIsLoading,
+  selectError,
+  selectExpandedServerId,
+  selectServerById,
+  selectEnabledServers,
+};

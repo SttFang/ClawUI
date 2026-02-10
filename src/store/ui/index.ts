@@ -120,3 +120,9 @@ export function initTheme() {
 export const selectTheme = (state: UIStore) => state.theme;
 export const selectLocale = (state: UIStore) => state.locale;
 export const selectSidebarCollapsed = (state: UIStore) => state.sidebarCollapsed;
+
+export const uiSelectors = {
+  selectTheme,
+  selectLocale,
+  selectSidebarCollapsed,
+};

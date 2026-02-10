@@ -260,3 +260,11 @@ export const selectTaskById = (id: string) => (state: SchedulerStore) =>
   state.tasks.find((t) => t.id === id);
 export const selectIsLoading = (state: SchedulerStore) => state.isLoading;
 export const selectError = (state: SchedulerStore) => state.error;
+
+export const schedulerSelectors = {
+  selectTasks,
+  selectEnabledTasks,
+  selectTaskById,
+  selectIsLoading,
+  selectError,
+};

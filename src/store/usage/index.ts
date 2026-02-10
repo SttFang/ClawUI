@@ -130,3 +130,18 @@ export const selectSelectedSessionKey = (s: UsageStore) => s.selectedSessionKey;
 export const selectChartMode = (s: UsageStore) => s.chartMode;
 export const selectTimeSeries = (s: UsageStore) => s.timeSeries;
 export const selectTimeSeriesLoading = (s: UsageStore) => s.timeSeriesLoading;
+
+export const usageSelectors = {
+  selectUsageLoading,
+  selectUsageError,
+  selectStartDate,
+  selectEndDate,
+  selectSessions,
+  selectTotals,
+  selectAggregates,
+  selectCostDaily,
+  selectSelectedSessionKey,
+  selectChartMode,
+  selectTimeSeries,
+  selectTimeSeriesLoading,
+};

@@ -236,3 +236,10 @@ export const selectConfiguredChannels = createWeakCachedSelector((state: Channel
 );
 export const selectChannelByType = (type: ChannelType) => (state: ChannelsStore) =>
   state.channels.find((c) => c.type === type);
+
+export const channelsSelectors = {
+  selectChannels,
+  selectEnabledChannels,
+  selectConfiguredChannels,
+  selectChannelByType,
+};

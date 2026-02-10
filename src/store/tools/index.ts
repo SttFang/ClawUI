@@ -294,3 +294,13 @@ export const selectToolById = (id: string) => (state: ToolsStore) =>
   state.tools.find((t) => t.id === id);
 export const selectIsLoading = (state: ToolsStore) => state.isLoading;
 export const selectError = (state: ToolsStore) => state.error;
+
+export const toolsSelectors = {
+  selectTools,
+  selectToolsConfig,
+  selectAccessMode,
+  selectEnabledTools,
+  selectToolById,
+  selectIsLoading,
+  selectError,
+};

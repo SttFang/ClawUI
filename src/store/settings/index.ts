@@ -180,3 +180,15 @@ export const selectError = (state: SettingsStore) => state.error;
 export const selectSaveSuccess = (state: SettingsStore) => state.saveSuccess;
 export const selectModelsStatus = (state: SettingsStore) => state.modelsStatus;
 export const selectModelsLoading = (state: SettingsStore) => state.modelsLoading;
+
+export const settingsSelectors = {
+  selectApiKeys,
+  selectAutoStartGateway,
+  selectAutoCheckUpdates,
+  selectIsLoading,
+  selectIsSaving,
+  selectError,
+  selectSaveSuccess,
+  selectModelsStatus,
+  selectModelsLoading,
+};

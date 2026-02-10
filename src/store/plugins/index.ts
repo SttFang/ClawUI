@@ -395,3 +395,15 @@ export const selectEnabledPlugins = createWeakCachedSelector((state: PluginsStor
 
 export const selectPluginById = (id: string) => (state: PluginsStore) =>
   state.plugins.find((p) => p.id === id);
+
+export const pluginsSelectors = {
+  selectPlugins,
+  selectIsLoading,
+  selectError,
+  selectSearchQuery,
+  selectCategoryFilter,
+  selectFilteredPlugins,
+  selectInstalledPlugins,
+  selectEnabledPlugins,
+  selectPluginById,
+};

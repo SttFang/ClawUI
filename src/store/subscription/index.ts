@@ -195,3 +195,13 @@ export const selectUsagePercentage = createWeakCachedSelector((state: Subscripti
     apiCalls: Math.round((state.usage.apiCallsToday / state.usage.apiCallsLimit) * 100),
   };
 });
+
+export const subscriptionSelectors = {
+  selectCurrentPlan,
+  selectUsage,
+  selectPlans,
+  selectIsLoading,
+  selectIsUpgrading,
+  selectError,
+  selectUsagePercentage,
+};

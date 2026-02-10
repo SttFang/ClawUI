@@ -115,3 +115,11 @@ export const selectRuntimeStatus = (state: OnboardingStore) => state.runtimeStat
 export const selectInstallProgress = (state: OnboardingStore) => state.installProgress;
 export const selectIsLoading = (state: OnboardingStore) => state.isLoading;
 export const selectError = (state: OnboardingStore) => state.error;
+
+export const onboardingSelectors = {
+  selectOnboardingStep,
+  selectRuntimeStatus,
+  selectInstallProgress,
+  selectIsLoading,
+  selectError,
+};

@@ -127,6 +127,15 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
   ),
 );
 
+// Selectors
+export const selectQueue = (state: ExecApprovalsStore) => state.queue;
+export const selectBusyById = (state: ExecApprovalsStore) => state.busyById;
+
+export const execApprovalsSelectors = {
+  selectQueue,
+  selectBusyById,
+};
+
 let listenerInitialized = false;
 export function initExecApprovalsListener() {
   if (listenerInitialized || typeof window === "undefined") return;

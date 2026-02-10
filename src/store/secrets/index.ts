@@ -104,3 +104,10 @@ export const selectSecretsLoading = (state: SecretsStore) => state.isLoading;
 export const selectSecretsSaving = (state: SecretsStore) => state.isSaving;
 export const selectSecretsError = (state: SecretsStore) => state.error;
 export const selectSecretsSaveSuccess = (state: SecretsStore) => state.saveSuccess;
+
+export const secretsSelectors = {
+  selectSecretsLoading,
+  selectSecretsSaving,
+  selectSecretsError,
+  selectSecretsSaveSuccess,
+};

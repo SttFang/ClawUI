@@ -65,6 +65,13 @@ export const selectGatewayError = (state: GatewayStore) => state.error;
 export const selectWebsocketUrl = (state: GatewayStore) => state.websocketUrl;
 export const selectIsGatewayRunning = (state: GatewayStore) => state.status === "running";
 
+export const gatewaySelectors = {
+  selectGatewayStatus,
+  selectGatewayError,
+  selectWebsocketUrl,
+  selectIsGatewayRunning,
+};
+
 // Initialize IPC listener lazily to avoid issues during SSR/initial load
 let ipcListenerInitialized = false;
 export function initGatewayIpcListener() {

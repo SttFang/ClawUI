@@ -172,7 +172,9 @@ export class GatewayService extends EventEmitter {
       const interval = 250;
       let waited = 0;
       while (waited < maxWait) {
-        if (this.status === "running" || this.status === "error" || this.status === "stopped") break;
+        // Use getter to avoid TS narrowing — async callbacks (stdout) can mutate this.status.
+        const s = this.getStatus();
+        if (s === "running" || s === "error" || s === "stopped") break;
         if (await this.isGatewayReachable()) {
           this.setStatus("running");
           break;

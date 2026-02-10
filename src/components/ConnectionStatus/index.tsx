@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
 import { useChatStore, selectWsConnected } from "@/store/chat";
 import { useGatewayStore, selectGatewayStatus } from "@/store/gateway";
@@ -19,23 +18,13 @@ export function ConnectionStatus() {
   const { t } = useTranslation("common");
   const gatewayStatus = useGatewayStore(selectGatewayStatus);
   const wsConnected = useChatStore(selectWsConnected);
-  const setWsConnected = useChatStore((s) => s.setWsConnected);
+  const syncWsStatus = useChatStore((s) => s.syncWsStatus);
 
   // If the main process connected before the renderer subscribed to `chat:connected`,
   // the event can be missed and the UI will get stuck at "Connecting". Sync once.
   useEffect(() => {
-    let alive = true;
-    void ipc.chat
-      .isConnected()
-      .then((ok) => {
-        if (!alive) return;
-        setWsConnected(ok);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [gatewayStatus, setWsConnected]);
+    syncWsStatus();
+  }, [gatewayStatus, syncWsStatus]);
 
   const { color, labelKey } = getStatusDisplay(gatewayStatus, wsConnected);
   const label = t(labelKey);

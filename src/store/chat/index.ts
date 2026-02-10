@@ -41,6 +41,7 @@ interface ChatActions {
   setInput: (input: string) => void;
   setLoading: (loading: boolean) => void;
   setWsConnected: (connected: boolean) => void;
+  syncWsStatus: () => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   clearCurrentSession: () => void;
   connectWebSocket: (url?: string) => Promise<void>;
@@ -111,6 +112,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             ...prev,
             name: remote.name,
             updatedAt: remote.updatedAt,
+            surface: remote.surface ?? prev.surface ?? null,
           };
         }
         return {
@@ -231,6 +233,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   setInput: (input) => set({ input }),
   setLoading: (isLoading) => set({ isLoading }),
   setWsConnected: (wsConnected) => set({ wsConnected }),
+
+  syncWsStatus: async () => {
+    try {
+      const ok = await ipc.chat.isConnected();
+      set({ wsConnected: ok });
+    } catch {
+      // ignore – best-effort sync
+    }
+  },
 
   connectWebSocket: async (url) => {
     try {

@@ -1,6 +1,7 @@
 import { IpcMain, BrowserWindow } from "electron";
 import type { ConfigService } from "../services/config";
 import { GatewayService } from "../services/gateway";
+import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { execInLoginShell } from "../utils/login-shell";
 
 function shEscape(value: string): string {
@@ -40,7 +41,10 @@ export function registerGatewayHandlers(
 
   ipcMain.handle("gateway:install-service", async () => {
     const cfg = await configService.getConfig();
-    const port = cfg?.gateway?.port ?? 18789;
+    const port = cfg?.gateway?.port ?? DEFAULT_GATEWAY_PORT;
+    if (typeof port !== "number" || port < 1 || port > 65535) {
+      throw new Error(`Invalid gateway port: ${port}`);
+    }
     const token = cfg?.gateway?.auth?.token;
     const cmd = [
       "openclaw gateway install --force",

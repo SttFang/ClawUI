@@ -5,6 +5,7 @@ import JSON5 from "json5";
 import { homedir } from "os";
 import { join, dirname } from "path";
 import { configLog } from "../lib/logger";
+import { DEFAULT_GATEWAY_PORT } from "../constants";
 
 export interface OpenClawConfig {
   gateway: {
@@ -103,7 +104,7 @@ export class ConfigService {
 
   constructor(options?: { configPath?: string; defaultConfig?: OpenClawConfig }) {
     this.configPath = options?.configPath ?? join(homedir(), ".openclaw", "openclaw.json");
-    this.defaultConfig = options?.defaultConfig ?? createDefaultConfig(18789);
+    this.defaultConfig = options?.defaultConfig ?? createDefaultConfig(DEFAULT_GATEWAY_PORT);
   }
 
   async initialize(): Promise<void> {

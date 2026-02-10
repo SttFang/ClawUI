@@ -2,6 +2,7 @@ import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import net from "net";
 import { gatewayLog } from "../lib/logger";
+import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { buildLoginShellInvocation, execInLoginShell } from "../utils/login-shell";
 
 export type GatewayStatus = "stopped" | "starting" | "running" | "error";
@@ -23,7 +24,7 @@ export class GatewayService extends EventEmitter {
   private process: ChildProcess | null = null;
   private status: GatewayStatus = "stopped";
   private config: OpenClawConfig | null = null;
-  private port = 18789;
+  private port = DEFAULT_GATEWAY_PORT;
   private monitorTimer: NodeJS.Timeout | null = null;
 
   setConfig(config: OpenClawConfig): void {

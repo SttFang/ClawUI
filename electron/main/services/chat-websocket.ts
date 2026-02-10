@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { EventEmitter } from "events";
 import WebSocket from "ws";
 import { chatLog } from "../lib/logger";
+import { DEFAULT_GATEWAY_PORT } from "../constants";
 
 export interface ChatMessage {
   id: string;
@@ -56,7 +57,7 @@ type ACPMessage = ACPRequest | ACPResponse | GatewayEventFrame;
 
 export class ChatWebSocketService extends EventEmitter {
   private ws: WebSocket | null = null;
-  private gatewayUrl: string = "ws://127.0.0.1:18789";
+  private gatewayUrl: string = `ws://127.0.0.1:${DEFAULT_GATEWAY_PORT}`;
   private gatewayToken: string = "";
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;

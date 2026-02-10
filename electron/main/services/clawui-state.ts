@@ -2,6 +2,7 @@ import { app } from "electron";
 import { existsSync } from "fs";
 import { chmod, mkdir, readFile, rename, writeFile } from "fs/promises";
 import { dirname, join } from "path";
+import { DEFAULT_GATEWAY_PORT } from "../constants";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -74,7 +75,7 @@ const DEFAULT_STATE: ClawUIState = {
   },
   openclaw: {
     profiles: {
-      main: { port: 18789 },
+      main: { port: DEFAULT_GATEWAY_PORT },
       configAgent: { port: 19789 },
     },
     autoStart: {

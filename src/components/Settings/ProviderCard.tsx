@@ -1,4 +1,5 @@
 import { type ComponentType, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent, Button, Input } from '@clawui/ui'
 import { CheckCircle2, Loader2, Clock, Edit3, Eye, EyeOff } from 'lucide-react'
 import Anthropic from '@lobehub/icons/es/Anthropic'
@@ -24,40 +25,20 @@ function getAuthStatus(authInfo: ProviderAuthInfo, oauthStatus?: OAuthProviderSt
   const { effective } = authInfo
 
   if (effective.kind === 'env' && effective.detail) {
-    return { color: 'text-green-500', bg: 'bg-green-500', label: 'OK' } as const
+    return { color: 'text-green-500', bg: 'bg-green-500', kind: 'ok' as const }
   }
   if (effective.kind === 'profiles') {
     if (oauthStatus?.status === 'ok') {
-      return { color: 'text-green-500', bg: 'bg-green-500', label: 'OK' } as const
+      return { color: 'text-green-500', bg: 'bg-green-500', kind: 'ok' as const }
     }
     if (oauthStatus?.status === 'expired') {
-      return { color: 'text-amber-500', bg: 'bg-amber-500', label: 'Expired' } as const
+      return { color: 'text-amber-500', bg: 'bg-amber-500', kind: 'expired' as const }
     }
   }
   if (effective.kind === 'token' && effective.detail) {
-    return { color: 'text-green-500', bg: 'bg-green-500', label: 'OK' } as const
+    return { color: 'text-green-500', bg: 'bg-green-500', kind: 'ok' as const }
   }
-  return { color: 'text-red-500', bg: 'bg-red-500', label: 'Missing' } as const
-}
-
-function getAuthDescription(authInfo: ProviderAuthInfo, oauthStatus?: OAuthProviderStatus): string {
-  const { effective } = authInfo
-
-  if (effective.kind === 'env') {
-    return effective.detail ? `env var  ${effective.detail}` : 'env var (not set)'
-  }
-  if (effective.kind === 'profiles') {
-    const profile = oauthStatus?.profiles?.[0]
-    if (profile?.expiresAt) {
-      const date = new Date(profile.expiresAt)
-      return `OAuth   expires ${date.toLocaleDateString()}`
-    }
-    return 'OAuth'
-  }
-  if (effective.kind === 'token') {
-    return effective.detail ? `token  ${effective.detail}` : 'token'
-  }
-  return 'not configured'
+  return { color: 'text-red-500', bg: 'bg-red-500', kind: 'missing' as const }
 }
 
 interface ProviderCardProps {
@@ -81,15 +62,39 @@ export function ProviderCard({
   isSaving,
   saveSuccess,
 }: ProviderCardProps) {
+  const { t } = useTranslation('common')
   const [isEditing, setIsEditing] = useState(false)
   const [showKey, setShowKey] = useState(false)
   const Icon = PROVIDER_ICONS[provider]
   const label = PROVIDER_LABELS[provider] ?? provider
   const status = getAuthStatus(authInfo, oauthStatus)
-  const authDesc = getAuthDescription(authInfo, oauthStatus)
+  const authDesc = (() => {
+    const { effective } = authInfo
+
+    if (effective.kind === 'env') {
+      return effective.detail
+        ? t('settings.providerCard.auth.envVar', { name: effective.detail })
+        : t('settings.providerCard.auth.envVarNotSet')
+    }
+    if (effective.kind === 'profiles') {
+      const profile = oauthStatus?.profiles?.[0]
+      if (profile?.expiresAt) {
+        const date = new Date(profile.expiresAt).toLocaleDateString()
+        return t('settings.providerCard.auth.oauthExpires', { date })
+      }
+      return t('settings.providerCard.auth.oauth')
+    }
+    if (effective.kind === 'token') {
+      return effective.detail
+        ? t('settings.providerCard.auth.token', { name: effective.detail })
+        : t('settings.providerCard.auth.tokenShort')
+    }
+    return t('settings.providerCard.auth.notConfigured')
+  })()
   const isEnvAuth = authInfo.effective.kind === 'env' || authInfo.effective.kind === 'none'
   const isOAuthAuth = authInfo.effective.kind === 'profiles'
-  const isMissing = status.label === 'Missing'
+  const isMissing = status.kind === 'missing'
+  const statusLabel = t(`settings.providerCard.status.${status.kind}`)
 
   return (
     <Card>
@@ -106,16 +111,16 @@ export function ProviderCard({
           </div>
           <div className="flex items-center gap-1.5">
             <div className={`w-2 h-2 rounded-full ${status.bg}`} />
-            <span className={`text-sm ${status.color}`}>{status.label}</span>
+            <span className={`text-sm ${status.color}`}>{statusLabel}</span>
           </div>
         </div>
 
         {/* Auth description */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          {status.label === 'Expired' ? (
+          {status.kind === 'expired' ? (
             <Clock className="h-3.5 w-3.5" />
           ) : (
-            <span className="text-xs">Auth:</span>
+            <span className="text-xs">{t('settings.providerCard.authLabel')}</span>
           )}
           <span className="font-mono text-xs">{authDesc}</span>
         </div>
@@ -123,7 +128,7 @@ export function ProviderCard({
         {/* OAuth provider: show refresh button */}
         {isOAuthAuth && (
           <Button variant="outline" size="sm" disabled>
-            Refresh OAuth
+            {t('settings.providerCard.refreshOAuth')}
           </Button>
         )}
 
@@ -135,7 +140,7 @@ export function ProviderCard({
                 <div className="relative flex-1">
                   <Input
                     type={showKey ? 'text' : 'password'}
-                    placeholder={`Enter ${label} API key...`}
+                    placeholder={t('settings.providerCard.apiKeyPlaceholder', { provider: label })}
                     value={apiKeyValue}
                     onChange={(e) => onApiKeyChange(e.target.value)}
                     className="pr-8"
@@ -159,7 +164,7 @@ export function ProviderCard({
                   {isSaving ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    'Save'
+                    t('actions.save')
                   )}
                 </Button>
                 {!isMissing && (
@@ -168,7 +173,7 @@ export function ProviderCard({
                     size="sm"
                     onClick={() => setIsEditing(false)}
                   >
-                    Cancel
+                    {t('actions.cancel')}
                   </Button>
                 )}
               </div>
@@ -180,13 +185,13 @@ export function ProviderCard({
                 className="gap-1.5"
               >
                 <Edit3 className="h-3.5 w-3.5" />
-                Edit Key
+                {t('settings.providerCard.editKey')}
               </Button>
             )}
             {saveSuccess && (
               <span className="flex items-center gap-1 text-sm text-green-500">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Saved
+                {t('settings.providerCard.saved')}
               </span>
             )}
           </div>

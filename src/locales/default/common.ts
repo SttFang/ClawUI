@@ -285,6 +285,35 @@ const common = {
       title: '会话时间线',
     },
   },
+  settings: {
+    providerCard: {
+      status: {
+        ok: '正常',
+        expired: '已过期',
+        missing: '缺失',
+      },
+      authLabel: '认证：',
+      refreshOAuth: '刷新 OAuth',
+      apiKeyPlaceholder: '输入 {{provider}} API Key...',
+      editKey: '编辑 Key',
+      saved: '已保存',
+      auth: {
+        envVar: '环境变量 {{name}}',
+        envVarNotSet: '环境变量（未设置）',
+        oauth: 'OAuth',
+        oauthExpires: 'OAuth（{{date}} 过期）',
+        token: 'Token {{name}}',
+        tokenShort: 'Token',
+        notConfigured: '未配置',
+      },
+    },
+    modelConfig: {
+      title: '模型配置',
+      defaultModel: '默认模型',
+      fallbacks: '回退模型',
+      fallbackHint: '当默认模型不可用时使用',
+    },
+  },
   scheduler: {
     title: '计划任务',
     description: '为你的 AI 助手安排自动化任务',

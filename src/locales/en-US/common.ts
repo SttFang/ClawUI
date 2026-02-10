@@ -285,6 +285,35 @@ const common = {
       title: 'Session timeline',
     },
   },
+  settings: {
+    providerCard: {
+      status: {
+        ok: 'OK',
+        expired: 'Expired',
+        missing: 'Missing',
+      },
+      authLabel: 'Auth:',
+      refreshOAuth: 'Refresh OAuth',
+      apiKeyPlaceholder: 'Enter {{provider}} API key...',
+      editKey: 'Edit key',
+      saved: 'Saved',
+      auth: {
+        envVar: 'env var {{name}}',
+        envVarNotSet: 'env var (not set)',
+        oauth: 'OAuth',
+        oauthExpires: 'OAuth expires {{date}}',
+        token: 'token {{name}}',
+        tokenShort: 'token',
+        notConfigured: 'not configured',
+      },
+    },
+    modelConfig: {
+      title: 'Model configuration',
+      defaultModel: 'Default model',
+      fallbacks: 'Fallbacks',
+      fallbackHint: 'Used when the default model is unavailable',
+    },
+  },
   scheduler: {
     title: 'Scheduler',
     description: 'Schedule automated tasks for your AI assistant',

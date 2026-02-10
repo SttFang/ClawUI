@@ -22,6 +22,20 @@ const chat = {
   attachFile: "Attach file",
   removeAttachment: "Remove attachment",
   createSessionHint: "Create a session to start chatting.",
+  sessionStrip: {
+    label: "Label",
+    optional: "(optional)",
+    kind: "Kind",
+    updated: "Updated",
+    tokens: "Tokens",
+    thinking: "Thinking",
+    verbose: "Verbose",
+    reasoning: "Reasoning",
+    actions: "Actions",
+    inherit: "inherit",
+    delete: "Delete",
+    confirmDelete: "Delete this session? (Will only remove the session entry; transcript is kept by default.)",
+  },
 } as const;
 
 export default chat;

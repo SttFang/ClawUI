@@ -22,6 +22,20 @@ const chat = {
   attachFile: "添加附件",
   removeAttachment: "移除附件",
   createSessionHint: "创建会话以开始对话。",
+  sessionStrip: {
+    label: "Label",
+    optional: "(可选)",
+    kind: "Kind",
+    updated: "Updated",
+    tokens: "Tokens",
+    thinking: "Thinking",
+    verbose: "Verbose",
+    reasoning: "Reasoning",
+    actions: "Actions",
+    inherit: "inherit",
+    delete: "Delete",
+    confirmDelete: "确定要删除这个会话吗？（默认只删除会话条目，不删除 transcript）",
+  },
 } as const;
 
 export default chat;

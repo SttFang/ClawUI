@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
 import { MessageParts } from "./MessageParts";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
+import { SessionControlStrip } from "./SessionControlStrip";
 
 export function OpenClawChatPanel(props: {
   sessionKey: string;
@@ -198,6 +199,10 @@ export function OpenClawChatPanel(props: {
           <Button onClick={() => void handleSend()} disabled={!input.trim() || isBusy} size="icon">
             <Send className="w-4 h-4" />
           </Button>
+        </div>
+
+        <div className="mx-auto w-full max-w-3xl">
+          <SessionControlStrip sessionKey={sessionKey} disabled={!isGatewayRunning || !wsConnected} />
         </div>
       </div>
     </div>

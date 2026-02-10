@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChat } from '@ai-sdk/react'
 import type { UIMessage } from 'ai'
 import { ArrowDown, MessageSquare, Plus, Send, Sparkles, Trash2 } from 'lucide-react'
@@ -155,10 +155,15 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
 
   const chat = useChat({ id: sessionKey, transport })
   const [input, setInput] = useState('')
+  const historyInFlightRef = useRef(false)
+  const lastHistorySigRef = useRef<string>('')
+  const setMessages = chat.setMessages
 
   const isBusy = chat.status === 'submitted' || chat.status === 'streaming'
 
   const refreshHistory = useCallback(async () => {
+    if (historyInFlightRef.current) return
+    historyInFlightRef.current = true
     try {
       const connected = await ipc.chat.isConnected()
       if (!connected) {
@@ -169,11 +174,21 @@ function OpenClawChatPanel(props: { sessionKey: string; wsConnected: boolean; is
         messages?: unknown
       }
       const uiMessages = openclawTranscriptToUIMessages(res?.messages)
-      chat.setMessages(uiMessages)
+
+      // Avoid re-render loops: only update local state if the tail signature changed.
+      const last = uiMessages[uiMessages.length - 1]
+      const tailText = last?.parts?.find((p) => p.type === 'text')?.text ?? ''
+      const sig = `${uiMessages.length}:${last?.id ?? ''}:${tailText.length}`
+      if (sig !== lastHistorySigRef.current) {
+        lastHistorySigRef.current = sig
+        setMessages(uiMessages)
+      }
     } catch {
       // best-effort only
+    } finally {
+      historyInFlightRef.current = false
     }
-  }, [sessionKey, chat])
+  }, [sessionKey, setMessages])
 
   // OpenClaw Control UI: chat.final 到达后用 history 作为权威状态刷新（避免 delta/agent 流丢字段）。
   useEffect(() => {

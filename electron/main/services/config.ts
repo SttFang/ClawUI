@@ -91,7 +91,7 @@ export function createDefaultConfig(port: number): OpenClawConfig {
     },
     hooks: {
       enabled: true,
-      token: "webhook-secret",
+      token: randomBytes(16).toString("base64url"),
       path: "/hooks",
     },
   };

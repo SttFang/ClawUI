@@ -126,7 +126,7 @@ export function registerMetadataHandlers(
       ].join("\n");
 
       const configAgentConfig = await profilesService.getConfig("configAgent");
-      const env = (configAgentConfig as { env?: Record<string, string> })?.env ?? {};
+      const env = configAgentConfig?.env ?? {};
 
       // Run the config-agent locally so it never needs direct access to the main gateway.
       const result = await runOpenClawJson(

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { ipc } from "@/lib/ipc";
 import { schedulerLog } from "@/lib/logger";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
@@ -113,111 +114,111 @@ function calculateNextRun(cron: string): number | undefined {
   return undefined;
 }
 
-export const useSchedulerStore = create<SchedulerStore>((set, get) => ({
-  ...initialState,
+export const useSchedulerStore = create<SchedulerStore>()(
+  devtools(
+    (set, get) => ({
+      ...initialState,
 
-  loadTasks: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      // Check if cron is enabled in config
-      const config = await ipc.config.get();
-      if (config?.cron?.enabled === false) {
-        set({ isLoading: false });
-        return;
-      }
-      const clawuiState = await ipc.state.get();
-      const rawTasks = clawuiState.scheduler?.tasks;
-      const tasks = Array.isArray(rawTasks)
-        ? rawTasks.map(coerceTask).filter((t): t is ScheduledTask => t !== null)
-        : [];
+      loadTasks: async () => {
+        set({ isLoading: true, error: null }, false, "loadTasks");
+        try {
+          const config = await ipc.config.get();
+          if (config?.cron?.enabled === false) {
+            set({ isLoading: false }, false, "loadTasks/disabled");
+            return;
+          }
+          const clawuiState = await ipc.state.get();
+          const rawTasks = clawuiState.scheduler?.tasks;
+          const tasks = Array.isArray(rawTasks)
+            ? rawTasks.map(coerceTask).filter((t): t is ScheduledTask => t !== null)
+            : [];
 
-      // Recalculate next run times
-      const updatedTasks = tasks.map((task) => ({
-        ...task,
-        nextRun: task.enabled ? calculateNextRun(task.cron) : undefined,
-      }));
-      set({ tasks: updatedTasks, isLoading: false });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load tasks";
-      set({ error: message, isLoading: false });
-    }
-  },
+          const updatedTasks = tasks.map((task) => ({
+            ...task,
+            nextRun: task.enabled ? calculateNextRun(task.cron) : undefined,
+          }));
+          set({ tasks: updatedTasks, isLoading: false }, false, "loadTasks/success");
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to load tasks";
+          set({ error: message, isLoading: false }, false, "loadTasks/error");
+        }
+      },
 
-  addTask: async (taskData) => {
-    const { tasks } = get();
-    const newTask: ScheduledTask = {
-      ...taskData,
-      id: generateId(),
-      runCount: 0,
-      nextRun: taskData.enabled ? calculateNextRun(taskData.cron) : undefined,
-    };
+      addTask: async (taskData) => {
+        const { tasks } = get();
+        const newTask: ScheduledTask = {
+          ...taskData,
+          id: generateId(),
+          runCount: 0,
+          nextRun: taskData.enabled ? calculateNextRun(taskData.cron) : undefined,
+        };
 
-    const newTasks = [...tasks, newTask];
-    set({ tasks: newTasks });
+        const newTasks = [...tasks, newTask];
+        set({ tasks: newTasks }, false, "addTask");
 
-    try {
-      await ipc.state.patch({ scheduler: { tasks: newTasks } });
-    } catch (error) {
-      schedulerLog.error("Failed to save task:", error);
-    }
-  },
+        try {
+          await ipc.state.patch({ scheduler: { tasks: newTasks } });
+        } catch (error) {
+          schedulerLog.error("Failed to save task:", error);
+        }
+      },
 
-  updateTask: async (id, updates) => {
-    const { tasks } = get();
-    const newTasks = tasks.map((task) => {
-      if (task.id !== id) return task;
-      const updated = { ...task, ...updates };
-      // Recalculate next run if cron or enabled changed
-      if ("cron" in updates || "enabled" in updates) {
-        updated.nextRun = updated.enabled ? calculateNextRun(updated.cron) : undefined;
-      }
-      return updated;
-    });
+      updateTask: async (id, updates) => {
+        const { tasks } = get();
+        const newTasks = tasks.map((task) => {
+          if (task.id !== id) return task;
+          const updated = { ...task, ...updates };
+          if ("cron" in updates || "enabled" in updates) {
+            updated.nextRun = updated.enabled ? calculateNextRun(updated.cron) : undefined;
+          }
+          return updated;
+        });
 
-    set({ tasks: newTasks });
+        set({ tasks: newTasks }, false, "updateTask");
 
-    try {
-      await ipc.state.patch({ scheduler: { tasks: newTasks } });
-    } catch (error) {
-      schedulerLog.error("Failed to update task:", error);
-    }
-  },
+        try {
+          await ipc.state.patch({ scheduler: { tasks: newTasks } });
+        } catch (error) {
+          schedulerLog.error("Failed to update task:", error);
+        }
+      },
 
-  deleteTask: async (id) => {
-    const { tasks } = get();
-    const newTasks = tasks.filter((task) => task.id !== id);
-    set({ tasks: newTasks });
+      deleteTask: async (id) => {
+        const { tasks } = get();
+        const newTasks = tasks.filter((task) => task.id !== id);
+        set({ tasks: newTasks }, false, "deleteTask");
 
-    try {
-      await ipc.state.patch({ scheduler: { tasks: newTasks } });
-    } catch (error) {
-      schedulerLog.error("Failed to delete task:", error);
-    }
-  },
+        try {
+          await ipc.state.patch({ scheduler: { tasks: newTasks } });
+        } catch (error) {
+          schedulerLog.error("Failed to delete task:", error);
+        }
+      },
 
-  toggleTask: async (id) => {
-    const { tasks, updateTask } = get();
-    const task = tasks.find((t) => t.id === id);
-    if (task) {
-      await updateTask(id, { enabled: !task.enabled });
-    }
-  },
+      toggleTask: async (id) => {
+        const { tasks, updateTask } = get();
+        const task = tasks.find((t) => t.id === id);
+        if (task) {
+          await updateTask(id, { enabled: !task.enabled });
+        }
+      },
 
-  runTask: async (id) => {
-    const { tasks, updateTask } = get();
-    const task = tasks.find((t) => t.id === id);
-    if (task) {
-      // Update last run and run count
-      await updateTask(id, {
-        lastRun: Date.now(),
-        runCount: task.runCount + 1,
-        nextRun: calculateNextRun(task.cron),
-      });
-      // TODO: Actually execute the task action via IPC
-      schedulerLog.info("Running task:", task.name, task.action);
-    }
-  },
-}));
+      runTask: async (id) => {
+        const { tasks, updateTask } = get();
+        const task = tasks.find((t) => t.id === id);
+        if (task) {
+          await updateTask(id, {
+            lastRun: Date.now(),
+            runCount: task.runCount + 1,
+            nextRun: calculateNextRun(task.cron),
+          });
+          schedulerLog.info("Running task:", task.name, task.action);
+        }
+      },
+    }),
+    { name: "SchedulerStore" },
+  ),
+);
 
 function coerceTask(value: unknown): ScheduledTask | null {
   if (!value || typeof value !== "object") return null;

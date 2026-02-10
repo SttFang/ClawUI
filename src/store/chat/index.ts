@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { ipc, ChatStreamEvent } from "@/lib/ipc";
 import { chatLog } from "@/lib/logger";
 
@@ -89,246 +90,298 @@ const generateChatRunId = (): string => {
   return `00000000-0000-4000-8000-${t.slice(-12)}${c.slice(-12)}`.slice(0, 36);
 };
 
-export const useChatStore = create<ChatStore>((set, get) => ({
-  ...initialState,
+export const useChatStore = create<ChatStore>()(
+  devtools(
+    (set, get) => ({
+      ...initialState,
 
-  refreshSessions: async () => {
-    try {
-      const payload = await ipc.chat.request("sessions.list", {
-        limit: 50,
-        includeDerivedTitles: true,
-        includeLastMessage: true,
-      });
+      refreshSessions: async () => {
+        try {
+          const payload = await ipc.chat.request("sessions.list", {
+            limit: 50,
+            includeDerivedTitles: true,
+            includeLastMessage: true,
+          });
 
-      const sessions = parseSessionsListPayload(payload);
-      if (sessions.length === 0) return;
+          const sessions = parseSessionsListPayload(payload);
+          if (sessions.length === 0) return;
 
-      // Merge into existing sessions to preserve any local UI state (e.g. in-memory messages).
-      const prevById = new Map(get().sessions.map((s) => [s.id, s]));
-      const merged = sessions.map((remote, idx) => {
-        const prev = prevById.get(remote.id);
-        if (prev) {
-          return {
-            ...prev,
-            name: remote.name,
-            updatedAt: remote.updatedAt,
-            surface: remote.surface ?? prev.surface ?? null,
-          };
-        }
-        return {
-          ...remote,
-          name: remote.name || `Session ${idx + 1}`,
-          messages: [],
-        } satisfies Session;
-      });
-
-      set((state) => ({
-        sessions: merged,
-        currentSessionId: state.currentSessionId ?? merged[0]?.id ?? null,
-      }));
-    } catch (error) {
-      chatLog.warn("Failed to refresh sessions from gateway:", error);
-    }
-  },
-
-  createSession: (name) => {
-    const id = generateUiSessionKey();
-    const now = Date.now();
-    const session: Session = {
-      id,
-      name: name || `Session ${get().sessions.length + 1}`,
-      messages: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    set((state) => ({
-      sessions: [...state.sessions, session],
-      currentSessionId: id,
-    }));
-    return id;
-  },
-
-  selectSession: (id) => set({ currentSessionId: id }),
-
-  deleteSession: (id) =>
-    set((state) => ({
-      sessions: state.sessions.filter((s) => s.id !== id),
-      currentSessionId: state.currentSessionId === id ? null : state.currentSessionId,
-    })),
-
-  renameSession: (id, name) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
-        s.id === id ? { ...s, name, updatedAt: Date.now() } : s,
-      ),
-    })),
-
-  addMessage: (message) => {
-    const { currentSessionId, createSession } = get();
-    let sessionId = currentSessionId;
-
-    // Create a new session if none exists
-    if (!sessionId) {
-      sessionId = createSession();
-    }
-
-    const newMessage: Message = {
-      ...message,
-      id: generateMessageId(),
-      timestamp: Date.now(),
-    };
-
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
-        s.id === sessionId
-          ? {
-              ...s,
-              messages: [...s.messages, newMessage],
-              updatedAt: Date.now(),
+          const prevById = new Map(get().sessions.map((s) => [s.id, s]));
+          const merged = sessions.map((remote, idx) => {
+            const prev = prevById.get(remote.id);
+            if (prev) {
+              return {
+                ...prev,
+                name: remote.name,
+                updatedAt: remote.updatedAt,
+                surface: remote.surface ?? prev.surface ?? null,
+              };
             }
-          : s,
-      ),
-    }));
-  },
+            return {
+              ...remote,
+              name: remote.name || `Session ${idx + 1}`,
+              messages: [],
+            } satisfies Session;
+          });
 
-  updateMessage: (id, content) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) => ({
-        ...s,
-        messages: s.messages.map((m) => (m.id === id ? { ...m, content, isStreaming: false } : m)),
-      })),
-    })),
+          set(
+            (state) => ({
+              sessions: merged,
+              currentSessionId: state.currentSessionId ?? merged[0]?.id ?? null,
+            }),
+            false,
+            "refreshSessions",
+          );
+        } catch (error) {
+          chatLog.warn("Failed to refresh sessions from gateway:", error);
+        }
+      },
 
-  updateStreamingMessage: (id, content) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) => ({
-        ...s,
-        messages: s.messages.map((m) => {
-          if (m.id !== id) return m;
-          // OpenClaw chat delta payloads are cumulative; avoid regressing to shorter snapshots.
-          if (!m.content || content.length >= m.content.length) {
-            return { ...m, content };
-          }
-          return m;
-        }),
-      })),
-    })),
+      createSession: (name) => {
+        const id = generateUiSessionKey();
+        const now = Date.now();
+        const session: Session = {
+          id,
+          name: name || `Session ${get().sessions.length + 1}`,
+          messages: [],
+          createdAt: now,
+          updatedAt: now,
+        };
+        set(
+          (state) => ({
+            sessions: [...state.sessions, session],
+            currentSessionId: id,
+          }),
+          false,
+          "createSession",
+        );
+        return id;
+      },
 
-  appendMessageContent: (id, content) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) => ({
-        ...s,
-        messages: s.messages.map((m) => (m.id === id ? { ...m, content: m.content + content } : m)),
-      })),
-    })),
+      selectSession: (id) => set({ currentSessionId: id }, false, "selectSession"),
 
-  setMessageStreaming: (id, isStreaming) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) => ({
-        ...s,
-        messages: s.messages.map((m) => (m.id === id ? { ...m, isStreaming } : m)),
-      })),
-    })),
-
-  setInput: (input) => set({ input }),
-  setLoading: (isLoading) => set({ isLoading }),
-  setWsConnected: (wsConnected) => set({ wsConnected }),
-
-  syncWsStatus: async () => {
-    try {
-      const ok = await ipc.chat.isConnected();
-      set({ wsConnected: ok });
-    } catch {
-      // ignore – best-effort sync
-    }
-  },
-
-  connectWebSocket: async (url) => {
-    try {
-      await ipc.chat.connect(url);
-    } catch (error) {
-      chatLog.error("Failed to connect WebSocket:", error);
-    }
-  },
-
-  disconnectWebSocket: async () => {
-    try {
-      await ipc.chat.disconnect();
-    } catch (error) {
-      chatLog.error("Failed to disconnect WebSocket:", error);
-    }
-  },
-
-  sendMessage: async (content) => {
-    const { addMessage, setLoading, updateMessage, currentSessionId, createSession, wsConnected } =
-      get();
-
-    // Create session if needed
-    let sessionId = currentSessionId;
-    if (!sessionId) {
-      sessionId = createSession();
-    }
-
-    // Add user message
-    addMessage({ role: "user", content });
-    set({ input: "" });
-    setLoading(true);
-
-    // Add placeholder assistant message
-    const runId = generateChatRunId();
-    set((state) => {
-      const sid = state.currentSessionId;
-      if (!sid) return state;
-
-      return {
-        sessions: state.sessions.map((s) =>
-          s.id === sid
-            ? {
-                ...s,
-                messages: [
-                  ...s.messages,
-                  {
-                    id: runId,
-                    role: "assistant" as const,
-                    content: "",
-                    timestamp: Date.now(),
-                    isStreaming: true,
-                  },
-                ],
-                updatedAt: Date.now(),
-              }
-            : s,
+      deleteSession: (id) =>
+        set(
+          (state) => ({
+            sessions: state.sessions.filter((s) => s.id !== id),
+            currentSessionId: state.currentSessionId === id ? null : state.currentSessionId,
+          }),
+          false,
+          "deleteSession",
         ),
-      };
-    });
 
-    try {
-      if (wsConnected) {
-        await ipc.chat.send({
-          sessionId: sessionId!,
-          message: content,
-          messageId: runId,
-        });
-      } else {
-        // Fallback to simulated response when WebSocket is not connected
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        updateMessage(runId, "WebSocket not connected. Please connect to the gateway first.");
-        setLoading(false);
-      }
-    } catch (error) {
-      chatLog.error("Failed to send message:", error);
-      updateMessage(runId, "Error: Failed to send message to gateway.");
-      setLoading(false);
-    }
-  },
+      renameSession: (id, name) =>
+        set(
+          (state) => ({
+            sessions: state.sessions.map((s) =>
+              s.id === id ? { ...s, name, updatedAt: Date.now() } : s,
+            ),
+          }),
+          false,
+          "renameSession",
+        ),
 
-  clearCurrentSession: () =>
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
-        s.id === state.currentSessionId ? { ...s, messages: [], updatedAt: Date.now() } : s,
-      ),
-    })),
-}));
+      addMessage: (message) => {
+        const { currentSessionId, createSession } = get();
+        let sessionId = currentSessionId;
+
+        if (!sessionId) {
+          sessionId = createSession();
+        }
+
+        const newMessage: Message = {
+          ...message,
+          id: generateMessageId(),
+          timestamp: Date.now(),
+        };
+
+        set(
+          (state) => ({
+            sessions: state.sessions.map((s) =>
+              s.id === sessionId
+                ? {
+                    ...s,
+                    messages: [...s.messages, newMessage],
+                    updatedAt: Date.now(),
+                  }
+                : s,
+            ),
+          }),
+          false,
+          "addMessage",
+        );
+      },
+
+      updateMessage: (id, content) =>
+        set(
+          (state) => ({
+            sessions: state.sessions.map((s) => ({
+              ...s,
+              messages: s.messages.map((m) =>
+                m.id === id ? { ...m, content, isStreaming: false } : m,
+              ),
+            })),
+          }),
+          false,
+          "updateMessage",
+        ),
+
+      updateStreamingMessage: (id, content) =>
+        set(
+          (state) => ({
+            sessions: state.sessions.map((s) => ({
+              ...s,
+              messages: s.messages.map((m) => {
+                if (m.id !== id) return m;
+                if (!m.content || content.length >= m.content.length) {
+                  return { ...m, content };
+                }
+                return m;
+              }),
+            })),
+          }),
+          false,
+          "updateStreamingMessage",
+        ),
+
+      appendMessageContent: (id, content) =>
+        set(
+          (state) => ({
+            sessions: state.sessions.map((s) => ({
+              ...s,
+              messages: s.messages.map((m) =>
+                m.id === id ? { ...m, content: m.content + content } : m,
+              ),
+            })),
+          }),
+          false,
+          "appendMessageContent",
+        ),
+
+      setMessageStreaming: (id, isStreaming) =>
+        set(
+          (state) => ({
+            sessions: state.sessions.map((s) => ({
+              ...s,
+              messages: s.messages.map((m) => (m.id === id ? { ...m, isStreaming } : m)),
+            })),
+          }),
+          false,
+          "setMessageStreaming",
+        ),
+
+      setInput: (input) => set({ input }, false, "setInput"),
+      setLoading: (isLoading) => set({ isLoading }, false, "setLoading"),
+      setWsConnected: (wsConnected) => set({ wsConnected }, false, "setWsConnected"),
+
+      syncWsStatus: async () => {
+        try {
+          const ok = await ipc.chat.isConnected();
+          set({ wsConnected: ok }, false, "syncWsStatus");
+        } catch {
+          // ignore – best-effort sync
+        }
+      },
+
+      connectWebSocket: async (url) => {
+        try {
+          await ipc.chat.connect(url);
+        } catch (error) {
+          chatLog.error("Failed to connect WebSocket:", error);
+        }
+      },
+
+      disconnectWebSocket: async () => {
+        try {
+          await ipc.chat.disconnect();
+        } catch (error) {
+          chatLog.error("Failed to disconnect WebSocket:", error);
+        }
+      },
+
+      sendMessage: async (content) => {
+        const {
+          addMessage,
+          setLoading,
+          updateMessage,
+          currentSessionId,
+          createSession,
+          wsConnected,
+        } = get();
+
+        let sessionId = currentSessionId;
+        if (!sessionId) {
+          sessionId = createSession();
+        }
+
+        addMessage({ role: "user", content });
+        set({ input: "" }, false, "sendMessage/clearInput");
+        setLoading(true);
+
+        const runId = generateChatRunId();
+        set(
+          (state) => {
+            const sid = state.currentSessionId;
+            if (!sid) return state;
+
+            return {
+              sessions: state.sessions.map((s) =>
+                s.id === sid
+                  ? {
+                      ...s,
+                      messages: [
+                        ...s.messages,
+                        {
+                          id: runId,
+                          role: "assistant" as const,
+                          content: "",
+                          timestamp: Date.now(),
+                          isStreaming: true,
+                        },
+                      ],
+                      updatedAt: Date.now(),
+                    }
+                  : s,
+              ),
+            };
+          },
+          false,
+          "sendMessage/placeholder",
+        );
+
+        try {
+          if (wsConnected) {
+            await ipc.chat.send({
+              sessionId: sessionId!,
+              message: content,
+              messageId: runId,
+            });
+          } else {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            updateMessage(runId, "WebSocket not connected. Please connect to the gateway first.");
+            setLoading(false);
+          }
+        } catch (error) {
+          chatLog.error("Failed to send message:", error);
+          updateMessage(runId, "Error: Failed to send message to gateway.");
+          setLoading(false);
+        }
+      },
+
+      clearCurrentSession: () =>
+        set(
+          (state) => ({
+            sessions: state.sessions.map((s) =>
+              s.id === state.currentSessionId ? { ...s, messages: [], updatedAt: Date.now() } : s,
+            ),
+          }),
+          false,
+          "clearCurrentSession",
+        ),
+    }),
+    { name: "ChatStore" },
+  ),
+);
 
 // Selectors - use stable references to prevent infinite re-renders in React 19
 export const selectCurrentSession = (state: ChatStore): Session | undefined =>

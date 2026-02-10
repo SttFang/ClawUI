@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { ipc, GatewayStatus } from "@/lib/ipc";
 
 interface GatewayState {
@@ -24,35 +25,39 @@ const initialState: GatewayState = {
   websocketUrl: "ws://localhost:18789",
 };
 
-export const useGatewayStore = create<GatewayStore>((set) => ({
-  ...initialState,
+export const useGatewayStore = create<GatewayStore>()(
+  devtools(
+    (set) => ({
+      ...initialState,
 
-  start: async () => {
-    set({ status: "starting", error: null });
-    try {
-      await ipc.gateway.start();
-      // Sync actual status from main process in case the IPC event was missed
-      const actual = await ipc.gateway.getStatus();
-      set({ status: actual });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to start gateway";
-      set({ status: "error", error: message });
-    }
-  },
+      start: async () => {
+        set({ status: "starting", error: null }, false, "start");
+        try {
+          await ipc.gateway.start();
+          const actual = await ipc.gateway.getStatus();
+          set({ status: actual }, false, "start/success");
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to start gateway";
+          set({ status: "error", error: message }, false, "start/error");
+        }
+      },
 
-  stop: async () => {
-    try {
-      await ipc.gateway.stop();
-      set({ status: "stopped" });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to stop gateway";
-      set({ error: message });
-    }
-  },
+      stop: async () => {
+        try {
+          await ipc.gateway.stop();
+          set({ status: "stopped" }, false, "stop/success");
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to stop gateway";
+          set({ error: message }, false, "stop/error");
+        }
+      },
 
-  setStatus: (status) => set({ status }),
-  setError: (error) => set({ error }),
-}));
+      setStatus: (status) => set({ status }, false, "setStatus"),
+      setError: (error) => set({ error }, false, "setError"),
+    }),
+    { name: "GatewayStore" },
+  ),
+);
 
 // Selectors
 export const selectGatewayStatus = (state: GatewayStore) => state.status;

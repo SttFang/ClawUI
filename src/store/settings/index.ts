@@ -1,5 +1,6 @@
 import type { ModelsStatus } from "@clawui/types/models";
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { ipc, getElectronAPI } from "@/lib/ipc";
 
 interface ApiKeys {
@@ -49,113 +50,125 @@ const initialState: SettingsState = {
   modelsLoading: false,
 };
 
-export const useSettingsStore = create<SettingsStore>((set, get) => ({
-  ...initialState,
+export const useSettingsStore = create<SettingsStore>()(
+  devtools(
+    (set, get) => ({
+      ...initialState,
 
-  loadSettings: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const config = await ipc.config.get();
-      if (config) {
-        // OpenClaw 2026 uses env vars for API keys
-        const env = (config as { env?: Record<string, string> }).env || {};
-        set({
-          apiKeys: {
-            anthropic: env.ANTHROPIC_API_KEY || "",
-            openai: env.OPENAI_API_KEY || "",
-            openrouter: env.OPENROUTER_API_KEY || "",
-          },
-          isLoading: false,
-        });
-      } else {
-        set({ isLoading: false });
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load settings";
-      set({ error: message, isLoading: false });
-    }
-  },
+      loadSettings: async () => {
+        set({ isLoading: true, error: null }, false, "loadSettings");
+        try {
+          const config = await ipc.config.get();
+          if (config) {
+            const env = (config as { env?: Record<string, string> }).env || {};
+            set(
+              {
+                apiKeys: {
+                  anthropic: env.ANTHROPIC_API_KEY || "",
+                  openai: env.OPENAI_API_KEY || "",
+                  openrouter: env.OPENROUTER_API_KEY || "",
+                },
+                isLoading: false,
+              },
+              false,
+              "loadSettings/success",
+            );
+          } else {
+            set({ isLoading: false }, false, "loadSettings/empty");
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to load settings";
+          set({ error: message, isLoading: false }, false, "loadSettings/error");
+        }
+      },
 
-  loadModelsStatus: async () => {
-    set({ modelsLoading: true });
-    try {
-      const status = await ipc.models.status();
-      set({ modelsStatus: status, modelsLoading: false });
-    } catch {
-      set({ modelsStatus: null, modelsLoading: false });
-    }
-  },
+      loadModelsStatus: async () => {
+        set({ modelsLoading: true }, false, "loadModelsStatus");
+        try {
+          const status = await ipc.models.status();
+          set({ modelsStatus: status, modelsLoading: false }, false, "loadModelsStatus/success");
+        } catch {
+          set({ modelsStatus: null, modelsLoading: false }, false, "loadModelsStatus/error");
+        }
+      },
 
-  loadPreferences: async () => {
-    try {
-      const state = await ipc.state.get();
-      set({
-        autoStartGateway: state.openclaw?.autoStart?.main ?? true,
-        autoCheckUpdates: state.app?.autoCheckUpdates ?? true,
-      });
-    } catch {
-      // Best-effort: keep defaults.
-    }
-  },
+      loadPreferences: async () => {
+        try {
+          const state = await ipc.state.get();
+          set(
+            {
+              autoStartGateway: state.openclaw?.autoStart?.main ?? true,
+              autoCheckUpdates: state.app?.autoCheckUpdates ?? true,
+            },
+            false,
+            "loadPreferences",
+          );
+        } catch {
+          // Best-effort: keep defaults.
+        }
+      },
 
-  setApiKey: (provider, key) => {
-    set((state) => ({
-      apiKeys: { ...state.apiKeys, [provider]: key },
-      saveSuccess: false,
-    }));
-  },
+      setApiKey: (provider, key) => {
+        set(
+          (state) => ({
+            apiKeys: { ...state.apiKeys, [provider]: key },
+            saveSuccess: false,
+          }),
+          false,
+          "setApiKey",
+        );
+      },
 
-  saveApiKeys: async () => {
-    const { apiKeys } = get();
-    set({ isSaving: true, error: null, saveSuccess: false });
+      saveApiKeys: async () => {
+        const { apiKeys } = get();
+        set({ isSaving: true, error: null, saveSuccess: false }, false, "saveApiKeys");
 
-    try {
-      // OpenClaw 2026 uses environment variables for API keys, not "providers" key
-      const patch: Record<string, string | null> = {};
+        try {
+          const patch: Record<string, string | null> = {};
 
-      if (apiKeys.anthropic) {
-        patch.ANTHROPIC_API_KEY = apiKeys.anthropic;
-      }
-      if (apiKeys.openai) {
-        patch.OPENAI_API_KEY = apiKeys.openai;
-      }
-      if (apiKeys.openrouter) {
-        patch.OPENROUTER_API_KEY = apiKeys.openrouter;
-      }
+          if (apiKeys.anthropic) {
+            patch.ANTHROPIC_API_KEY = apiKeys.anthropic;
+          }
+          if (apiKeys.openai) {
+            patch.OPENAI_API_KEY = apiKeys.openai;
+          }
+          if (apiKeys.openrouter) {
+            patch.OPENROUTER_API_KEY = apiKeys.openrouter;
+          }
 
-      // Check if Electron API is available
-      if (!getElectronAPI()) {
-        throw new Error("Electron API not available. Are you running in Electron?");
-      }
+          if (!getElectronAPI()) {
+            throw new Error("Electron API not available. Are you running in Electron?");
+          }
 
-      // Double-write into both OpenClaw profiles (18789 + 19789).
-      await ipc.profiles.patchEnvBoth(patch);
-      set({ isSaving: false, saveSuccess: true });
+          await ipc.profiles.patchEnvBoth(patch);
+          set({ isSaving: false, saveSuccess: true }, false, "saveApiKeys/success");
 
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        set({ saveSuccess: false });
-      }, 3000);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to save API keys";
-      set({ error: message, isSaving: false });
-    }
-  },
+          setTimeout(() => {
+            set({ saveSuccess: false }, false, "saveApiKeys/clearSuccess");
+          }, 3000);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to save API keys";
+          set({ error: message, isSaving: false }, false, "saveApiKeys/error");
+        }
+      },
 
-  setAutoStartGateway: async (enabled) => {
-    set({ autoStartGateway: enabled });
-    await ipc.state.patch({ openclaw: { autoStart: { main: enabled } } });
-  },
+      setAutoStartGateway: async (enabled) => {
+        set({ autoStartGateway: enabled }, false, "setAutoStartGateway");
+        await ipc.state.patch({ openclaw: { autoStart: { main: enabled } } });
+      },
 
-  setAutoCheckUpdates: async (enabled) => {
-    set({ autoCheckUpdates: enabled });
-    await ipc.state.patch({ app: { autoCheckUpdates: enabled } });
-  },
+      setAutoCheckUpdates: async (enabled) => {
+        set({ autoCheckUpdates: enabled }, false, "setAutoCheckUpdates");
+        await ipc.state.patch({ app: { autoCheckUpdates: enabled } });
+      },
 
-  clearSaveSuccess: () => {
-    set({ saveSuccess: false });
-  },
-}));
+      clearSaveSuccess: () => {
+        set({ saveSuccess: false }, false, "clearSaveSuccess");
+      },
+    }),
+    { name: "SettingsStore" },
+  ),
+);
 
 // Selectors
 export const selectApiKeys = (state: SettingsStore) => state.apiKeys;

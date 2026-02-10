@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { ipc } from "@/lib/ipc";
 import { toolsLog } from "@/lib/logger";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
@@ -98,212 +99,232 @@ const initialState: ToolsState = {
   error: null,
 };
 
-export const useToolsStore = create<ToolsStore>((set, get) => ({
-  ...initialState,
+export const useToolsStore = create<ToolsStore>()(
+  devtools(
+    (set, get) => ({
+      ...initialState,
 
-  loadTools: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const config = await ipc.config.get();
-      if (config?.tools) {
-        const toolsConfig: ToolsConfig = {
-          accessMode: config.tools.access || "auto",
-          allowList: config.tools.allow || [],
-          denyList: config.tools.deny || [],
-          sandboxEnabled: config.tools.sandbox?.enabled ?? true,
-        };
+      loadTools: async () => {
+        set({ isLoading: true, error: null }, false, "loadTools");
+        try {
+          const config = await ipc.config.get();
+          if (config?.tools) {
+            const toolsConfig: ToolsConfig = {
+              accessMode: config.tools.access || "auto",
+              allowList: config.tools.allow || [],
+              denyList: config.tools.deny || [],
+              sandboxEnabled: config.tools.sandbox?.enabled ?? true,
+            };
 
-        // Update tools enabled status based on allow/deny lists
-        const tools = get().tools.map((tool) => ({
-          ...tool,
-          enabled: toolsConfig.denyList.includes(tool.id)
-            ? false
-            : toolsConfig.allowList.includes(tool.id) || tool.enabled,
-        }));
+            const tools = get().tools.map((tool) => ({
+              ...tool,
+              enabled: toolsConfig.denyList.includes(tool.id)
+                ? false
+                : toolsConfig.allowList.includes(tool.id) || tool.enabled,
+            }));
 
-        set({ config: toolsConfig, tools, isLoading: false });
-      } else {
-        set({ isLoading: false });
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load tools config";
-      set({ error: message, isLoading: false });
-    }
-  },
+            set({ config: toolsConfig, tools, isLoading: false }, false, "loadTools/success");
+          } else {
+            set({ isLoading: false }, false, "loadTools/empty");
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to load tools config";
+          set({ error: message, isLoading: false }, false, "loadTools/error");
+        }
+      },
 
-  setAccessMode: async (mode) => {
-    const { config } = get();
-    const newConfig = { ...config, accessMode: mode };
-    set({ config: newConfig });
+      setAccessMode: async (mode) => {
+        const { config } = get();
+        const newConfig = { ...config, accessMode: mode };
+        set({ config: newConfig }, false, "setAccessMode");
 
-    try {
-      await ipc.config.set({
-        tools: {
-          access: mode,
-          allow: config.allowList,
-          deny: config.denyList,
-          sandbox: { enabled: config.sandboxEnabled },
-        },
-      });
-    } catch (error) {
-      toolsLog.error("Failed to save access mode:", error);
-    }
-  },
+        try {
+          await ipc.config.set({
+            tools: {
+              access: mode,
+              allow: config.allowList,
+              deny: config.denyList,
+              sandbox: { enabled: config.sandboxEnabled },
+            },
+          });
+        } catch (error) {
+          toolsLog.error("Failed to save access mode:", error);
+        }
+      },
 
-  enableTool: async (toolId) => {
-    const { tools, config } = get();
-    const newTools = tools.map((t) => (t.id === toolId ? { ...t, enabled: true } : t));
-    const newDenyList = config.denyList.filter((id) => id !== toolId);
-    const newAllowList = config.allowList.includes(toolId)
-      ? config.allowList
-      : [...config.allowList, toolId];
+      enableTool: async (toolId) => {
+        const { tools, config } = get();
+        const newTools = tools.map((t) => (t.id === toolId ? { ...t, enabled: true } : t));
+        const newDenyList = config.denyList.filter((id) => id !== toolId);
+        const newAllowList = config.allowList.includes(toolId)
+          ? config.allowList
+          : [...config.allowList, toolId];
 
-    set({
-      tools: newTools,
-      config: { ...config, allowList: newAllowList, denyList: newDenyList },
-    });
+        set(
+          {
+            tools: newTools,
+            config: { ...config, allowList: newAllowList, denyList: newDenyList },
+          },
+          false,
+          "enableTool",
+        );
 
-    try {
-      await ipc.config.set({
-        tools: {
-          access: config.accessMode,
-          allow: newAllowList,
-          deny: newDenyList,
-          sandbox: { enabled: config.sandboxEnabled },
-        },
-      });
-    } catch (error) {
-      toolsLog.error("Failed to enable tool:", error);
-    }
-  },
+        try {
+          await ipc.config.set({
+            tools: {
+              access: config.accessMode,
+              allow: newAllowList,
+              deny: newDenyList,
+              sandbox: { enabled: config.sandboxEnabled },
+            },
+          });
+        } catch (error) {
+          toolsLog.error("Failed to enable tool:", error);
+        }
+      },
 
-  disableTool: async (toolId) => {
-    const { tools, config } = get();
-    const newTools = tools.map((t) => (t.id === toolId ? { ...t, enabled: false } : t));
-    const newAllowList = config.allowList.filter((id) => id !== toolId);
-    const newDenyList = config.denyList.includes(toolId)
-      ? config.denyList
-      : [...config.denyList, toolId];
+      disableTool: async (toolId) => {
+        const { tools, config } = get();
+        const newTools = tools.map((t) => (t.id === toolId ? { ...t, enabled: false } : t));
+        const newAllowList = config.allowList.filter((id) => id !== toolId);
+        const newDenyList = config.denyList.includes(toolId)
+          ? config.denyList
+          : [...config.denyList, toolId];
 
-    set({
-      tools: newTools,
-      config: { ...config, allowList: newAllowList, denyList: newDenyList },
-    });
+        set(
+          {
+            tools: newTools,
+            config: { ...config, allowList: newAllowList, denyList: newDenyList },
+          },
+          false,
+          "disableTool",
+        );
 
-    try {
-      await ipc.config.set({
-        tools: {
-          access: config.accessMode,
-          allow: newAllowList,
-          deny: newDenyList,
-          sandbox: { enabled: config.sandboxEnabled },
-        },
-      });
-    } catch (error) {
-      toolsLog.error("Failed to disable tool:", error);
-    }
-  },
+        try {
+          await ipc.config.set({
+            tools: {
+              access: config.accessMode,
+              allow: newAllowList,
+              deny: newDenyList,
+              sandbox: { enabled: config.sandboxEnabled },
+            },
+          });
+        } catch (error) {
+          toolsLog.error("Failed to disable tool:", error);
+        }
+      },
 
-  toggleSandbox: async (enabled) => {
-    const { config } = get();
-    set({ config: { ...config, sandboxEnabled: enabled } });
+      toggleSandbox: async (enabled) => {
+        const { config } = get();
+        set({ config: { ...config, sandboxEnabled: enabled } }, false, "toggleSandbox");
 
-    try {
-      await ipc.config.set({
-        tools: {
-          access: config.accessMode,
-          allow: config.allowList,
-          deny: config.denyList,
-          sandbox: { enabled },
-        },
-      });
-    } catch (error) {
-      toolsLog.error("Failed to toggle sandbox:", error);
-    }
-  },
+        try {
+          await ipc.config.set({
+            tools: {
+              access: config.accessMode,
+              allow: config.allowList,
+              deny: config.denyList,
+              sandbox: { enabled },
+            },
+          });
+        } catch (error) {
+          toolsLog.error("Failed to toggle sandbox:", error);
+        }
+      },
 
-  addToAllowList: async (toolId) => {
-    const { config } = get();
-    if (config.allowList.includes(toolId)) return;
+      addToAllowList: async (toolId) => {
+        const { config } = get();
+        if (config.allowList.includes(toolId)) return;
 
-    const newAllowList = [...config.allowList, toolId];
-    const newDenyList = config.denyList.filter((id) => id !== toolId);
-    set({ config: { ...config, allowList: newAllowList, denyList: newDenyList } });
+        const newAllowList = [...config.allowList, toolId];
+        const newDenyList = config.denyList.filter((id) => id !== toolId);
+        set(
+          { config: { ...config, allowList: newAllowList, denyList: newDenyList } },
+          false,
+          "addToAllowList",
+        );
 
-    try {
-      await ipc.config.set({
-        tools: {
-          access: config.accessMode,
-          allow: newAllowList,
-          deny: newDenyList,
-          sandbox: { enabled: config.sandboxEnabled },
-        },
-      });
-    } catch (error) {
-      toolsLog.error("Failed to add to allow list:", error);
-    }
-  },
+        try {
+          await ipc.config.set({
+            tools: {
+              access: config.accessMode,
+              allow: newAllowList,
+              deny: newDenyList,
+              sandbox: { enabled: config.sandboxEnabled },
+            },
+          });
+        } catch (error) {
+          toolsLog.error("Failed to add to allow list:", error);
+        }
+      },
 
-  addToDenyList: async (toolId) => {
-    const { config } = get();
-    if (config.denyList.includes(toolId)) return;
+      addToDenyList: async (toolId) => {
+        const { config } = get();
+        if (config.denyList.includes(toolId)) return;
 
-    const newDenyList = [...config.denyList, toolId];
-    const newAllowList = config.allowList.filter((id) => id !== toolId);
-    set({ config: { ...config, allowList: newAllowList, denyList: newDenyList } });
+        const newDenyList = [...config.denyList, toolId];
+        const newAllowList = config.allowList.filter((id) => id !== toolId);
+        set(
+          { config: { ...config, allowList: newAllowList, denyList: newDenyList } },
+          false,
+          "addToDenyList",
+        );
 
-    try {
-      await ipc.config.set({
-        tools: {
-          access: config.accessMode,
-          allow: newAllowList,
-          deny: newDenyList,
-          sandbox: { enabled: config.sandboxEnabled },
-        },
-      });
-    } catch (error) {
-      toolsLog.error("Failed to add to deny list:", error);
-    }
-  },
+        try {
+          await ipc.config.set({
+            tools: {
+              access: config.accessMode,
+              allow: newAllowList,
+              deny: newDenyList,
+              sandbox: { enabled: config.sandboxEnabled },
+            },
+          });
+        } catch (error) {
+          toolsLog.error("Failed to add to deny list:", error);
+        }
+      },
 
-  removeFromAllowList: async (toolId) => {
-    const { config } = get();
-    const newAllowList = config.allowList.filter((id) => id !== toolId);
-    set({ config: { ...config, allowList: newAllowList } });
+      removeFromAllowList: async (toolId) => {
+        const { config } = get();
+        const newAllowList = config.allowList.filter((id) => id !== toolId);
+        set({ config: { ...config, allowList: newAllowList } }, false, "removeFromAllowList");
 
-    try {
-      await ipc.config.set({
-        tools: {
-          access: config.accessMode,
-          allow: newAllowList,
-          deny: config.denyList,
-          sandbox: { enabled: config.sandboxEnabled },
-        },
-      });
-    } catch (error) {
-      toolsLog.error("Failed to remove from allow list:", error);
-    }
-  },
+        try {
+          await ipc.config.set({
+            tools: {
+              access: config.accessMode,
+              allow: newAllowList,
+              deny: config.denyList,
+              sandbox: { enabled: config.sandboxEnabled },
+            },
+          });
+        } catch (error) {
+          toolsLog.error("Failed to remove from allow list:", error);
+        }
+      },
 
-  removeFromDenyList: async (toolId) => {
-    const { config } = get();
-    const newDenyList = config.denyList.filter((id) => id !== toolId);
-    set({ config: { ...config, denyList: newDenyList } });
+      removeFromDenyList: async (toolId) => {
+        const { config } = get();
+        const newDenyList = config.denyList.filter((id) => id !== toolId);
+        set({ config: { ...config, denyList: newDenyList } }, false, "removeFromDenyList");
 
-    try {
-      await ipc.config.set({
-        tools: {
-          access: config.accessMode,
-          allow: config.allowList,
-          deny: newDenyList,
-          sandbox: { enabled: config.sandboxEnabled },
-        },
-      });
-    } catch (error) {
-      toolsLog.error("Failed to remove from deny list:", error);
-    }
-  },
-}));
+        try {
+          await ipc.config.set({
+            tools: {
+              access: config.accessMode,
+              allow: config.allowList,
+              deny: newDenyList,
+              sandbox: { enabled: config.sandboxEnabled },
+            },
+          });
+        } catch (error) {
+          toolsLog.error("Failed to remove from deny list:", error);
+        }
+      },
+    }),
+    { name: "ToolsStore" },
+  ),
+);
 
 // Selectors
 export const selectTools = (state: ToolsStore) => state.tools;

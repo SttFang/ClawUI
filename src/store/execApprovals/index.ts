@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { ipc, type GatewayEventFrame } from "@/lib/ipc";
 
 export type ExecApprovalDecision = "allow-once" | "allow-always" | "deny";
@@ -80,34 +81,51 @@ interface ExecApprovalsActions {
 
 type ExecApprovalsStore = ExecApprovalsState & ExecApprovalsActions;
 
-export const useExecApprovalsStore = create<ExecApprovalsStore>((set) => ({
-  queue: [],
-  busyById: {},
+export const useExecApprovalsStore = create<ExecApprovalsStore>()(
+  devtools(
+    (set) => ({
+      queue: [],
+      busyById: {},
 
-  add: (entry) =>
-    set((s) => {
-      const next = prune(s.queue).filter((x) => x.id !== entry.id);
-      next.push(entry);
-      return { queue: next };
+      add: (entry) =>
+        set(
+          (s) => {
+            const next = prune(s.queue).filter((x) => x.id !== entry.id);
+            next.push(entry);
+            return { queue: next };
+          },
+          false,
+          "add",
+        ),
+
+      remove: (id) =>
+        set(
+          (s) => ({
+            queue: prune(s.queue).filter((x) => x.id !== id),
+          }),
+          false,
+          "remove",
+        ),
+
+      resolve: async (id, decision) => {
+        set((s) => ({ busyById: { ...s.busyById, [id]: true } }), false, "resolve/busy");
+        try {
+          await ipc.chat.request("exec.approval.resolve", { id, decision });
+        } finally {
+          set(
+            (s) => {
+              const { [id]: _ignored, ...rest } = s.busyById;
+              return { busyById: rest };
+            },
+            false,
+            "resolve/done",
+          );
+        }
+      },
     }),
-
-  remove: (id) =>
-    set((s) => ({
-      queue: prune(s.queue).filter((x) => x.id !== id),
-    })),
-
-  resolve: async (id, decision) => {
-    set((s) => ({ busyById: { ...s.busyById, [id]: true } }));
-    try {
-      await ipc.chat.request("exec.approval.resolve", { id, decision });
-    } finally {
-      set((s) => {
-        const { [id]: _ignored, ...rest } = s.busyById;
-        return { busyById: rest };
-      });
-    }
-  },
-}));
+    { name: "ExecApprovalsStore" },
+  ),
+);
 
 let listenerInitialized = false;
 export function initExecApprovalsListener() {

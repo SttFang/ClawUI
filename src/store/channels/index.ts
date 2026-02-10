@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { ipc, ChannelConfig } from "@/lib/ipc";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
 
@@ -93,96 +94,137 @@ const initialState: ChannelsState = {
   error: null,
 };
 
-export const useChannelsStore = create<ChannelsStore>((set, get) => ({
-  ...initialState,
+export const useChannelsStore = create<ChannelsStore>()(
+  devtools(
+    (set, get) => ({
+      ...initialState,
 
-  loadChannels: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const config = await ipc.config.get();
-      if (config?.channels) {
-        set((state) => ({
-          channels: state.channels.map((channel) => {
-            const channelConfig = config.channels[channel.type];
-            return {
-              ...channel,
-              isConfigured: !!channelConfig,
-              isEnabled: channelConfig?.enabled ?? false,
-              config: channelConfig ?? null,
-            };
-          }),
-          isLoading: false,
-        }));
-      } else {
-        set({ isLoading: false });
-      }
-    } catch (error) {
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : "Failed to load channels",
-      });
-    }
-  },
+      loadChannels: async () => {
+        set({ isLoading: true, error: null }, false, "loadChannels");
+        try {
+          const config = await ipc.config.get();
+          if (config?.channels) {
+            set(
+              (state) => ({
+                channels: state.channels.map((channel) => {
+                  const channelConfig = config.channels[channel.type];
+                  return {
+                    ...channel,
+                    isConfigured: !!channelConfig,
+                    isEnabled: channelConfig?.enabled ?? false,
+                    config: channelConfig ?? null,
+                  };
+                }),
+                isLoading: false,
+              }),
+              false,
+              "loadChannels/success",
+            );
+          } else {
+            set({ isLoading: false }, false, "loadChannels/empty");
+          }
+        } catch (error) {
+          set(
+            {
+              isLoading: false,
+              error: error instanceof Error ? error.message : "Failed to load channels",
+            },
+            false,
+            "loadChannels/error",
+          );
+        }
+      },
 
-  enableChannel: async (type) => {
-    const channel = get().channels.find((c) => c.type === type);
-    if (!channel?.config) return;
+      enableChannel: async (type) => {
+        const channel = get().channels.find((c) => c.type === type);
+        if (!channel?.config) return;
 
-    try {
-      await ipc.config.set({
-        channels: {
-          [type]: { ...channel.config, enabled: true },
-        },
-      });
-      set((state) => ({
-        channels: state.channels.map((c) => (c.type === type ? { ...c, isEnabled: true } : c)),
-      }));
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to enable channel" });
-    }
-  },
+        try {
+          await ipc.config.set({
+            channels: {
+              [type]: { ...channel.config, enabled: true },
+            },
+          });
+          set(
+            (state) => ({
+              channels: state.channels.map((c) =>
+                c.type === type ? { ...c, isEnabled: true } : c,
+              ),
+            }),
+            false,
+            "enableChannel",
+          );
+        } catch (error) {
+          set(
+            { error: error instanceof Error ? error.message : "Failed to enable channel" },
+            false,
+            "enableChannel/error",
+          );
+        }
+      },
 
-  disableChannel: async (type) => {
-    try {
-      await ipc.config.set({
-        channels: {
-          [type]: { enabled: false },
-        },
-      });
-      set((state) => ({
-        channels: state.channels.map((c) => (c.type === type ? { ...c, isEnabled: false } : c)),
-      }));
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to disable channel" });
-    }
-  },
+      disableChannel: async (type) => {
+        try {
+          await ipc.config.set({
+            channels: {
+              [type]: { enabled: false },
+            },
+          });
+          set(
+            (state) => ({
+              channels: state.channels.map((c) =>
+                c.type === type ? { ...c, isEnabled: false } : c,
+              ),
+            }),
+            false,
+            "disableChannel",
+          );
+        } catch (error) {
+          set(
+            { error: error instanceof Error ? error.message : "Failed to disable channel" },
+            false,
+            "disableChannel/error",
+          );
+        }
+      },
 
-  configureChannel: async (type, config) => {
-    try {
-      await ipc.config.set({
-        channels: {
-          [type]: config,
-        },
-      });
-      set((state) => ({
-        channels: state.channels.map((c) =>
-          c.type === type
-            ? {
-                ...c,
-                isConfigured: true,
-                isEnabled: config.enabled,
-                config,
-              }
-            : c,
-        ),
-      }));
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to configure channel" });
-    }
-  },
+      configureChannel: async (type, config) => {
+        try {
+          await ipc.config.set({
+            channels: {
+              [type]: config,
+            },
+          });
+          set(
+            (state) => ({
+              channels: state.channels.map((c) =>
+                c.type === type
+                  ? {
+                      ...c,
+                      isConfigured: true,
+                      isEnabled: config.enabled,
+                      config,
+                    }
+                  : c,
+              ),
+            }),
+            false,
+            "configureChannel",
+          );
+        } catch (error) {
+          set(
+            { error: error instanceof Error ? error.message : "Failed to configure channel" },
+            false,
+            "configureChannel/error",
+          );
+        }
+      },
 
-  setError: (error) => set({ error }),
-}));
+      setError: (error) => set({ error }, false, "setError"),
+    }),
+    { name: "ChannelsStore" },
+  ),
+);
 
 // Selectors
 export const selectChannels = (state: ChannelsStore) => state.channels;

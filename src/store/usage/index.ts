@@ -6,6 +6,7 @@ import type {
   UsageTimeSeries,
 } from "@clawui/types/usage";
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { ipc } from "@/lib/ipc";
 
 function todayStr(): string {
@@ -57,53 +58,62 @@ const initialState: UsageState = {
   timeSeriesLoading: false,
 };
 
-export const useUsageStore = create<UsageStore>((set, get) => ({
-  ...initialState,
+export const useUsageStore = create<UsageStore>()(
+  devtools(
+    (set, get) => ({
+      ...initialState,
 
-  loadUsage: async () => {
-    const { startDate, endDate } = get();
-    set({ loading: true, error: null });
-    try {
-      const [sessionsResult, costResult] = await Promise.all([
-        ipc.usage.sessions({ startDate, endDate }),
-        ipc.usage.cost({ startDate, endDate }),
-      ]);
-      set({
-        sessions: sessionsResult.sessions,
-        totals: sessionsResult.totals,
-        aggregates: sessionsResult.aggregates,
-        costDaily: costResult.daily,
-        loading: false,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load usage";
-      set({ loading: false, error: message });
-    }
-  },
+      loadUsage: async () => {
+        const { startDate, endDate } = get();
+        set({ loading: true, error: null }, false, "loadUsage");
+        try {
+          const [sessionsResult, costResult] = await Promise.all([
+            ipc.usage.sessions({ startDate, endDate }),
+            ipc.usage.cost({ startDate, endDate }),
+          ]);
+          set(
+            {
+              sessions: sessionsResult.sessions,
+              totals: sessionsResult.totals,
+              aggregates: sessionsResult.aggregates,
+              costDaily: costResult.daily,
+              loading: false,
+            },
+            false,
+            "loadUsage/success",
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to load usage";
+          set({ loading: false, error: message }, false, "loadUsage/error");
+        }
+      },
 
-  setDateRange: (start, end) => {
-    set({ startDate: start, endDate: end });
-  },
+      setDateRange: (start, end) => {
+        set({ startDate: start, endDate: end }, false, "setDateRange");
+      },
 
-  selectSession: async (key) => {
-    set({ selectedSessionKey: key, timeSeries: null });
-    if (!key) return;
-    const { startDate, endDate } = get();
-    set({ timeSeriesLoading: true });
-    try {
-      const result = await ipc.usage.timeseries({
-        key,
-        startDate,
-        endDate,
-      });
-      set({ timeSeries: result, timeSeriesLoading: false });
-    } catch {
-      set({ timeSeriesLoading: false });
-    }
-  },
+      selectSession: async (key) => {
+        set({ selectedSessionKey: key, timeSeries: null }, false, "selectSession");
+        if (!key) return;
+        const { startDate, endDate } = get();
+        set({ timeSeriesLoading: true }, false, "selectSession/loading");
+        try {
+          const result = await ipc.usage.timeseries({
+            key,
+            startDate,
+            endDate,
+          });
+          set({ timeSeries: result, timeSeriesLoading: false }, false, "selectSession/success");
+        } catch {
+          set({ timeSeriesLoading: false }, false, "selectSession/error");
+        }
+      },
 
-  setChartMode: (mode) => set({ chartMode: mode }),
-}));
+      setChartMode: (mode) => set({ chartMode: mode }, false, "setChartMode"),
+    }),
+    { name: "UsageStore" },
+  ),
+);
 
 // Selectors — IMPORTANT: only return primitives or stable references.
 // Never return a new object literal (e.g. { startDate, endDate }) as Zustand

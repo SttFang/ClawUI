@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
 
 export type PluginCategory = "ai" | "productivity" | "integration" | "utility";
@@ -252,90 +253,114 @@ const initialState: PluginsState = {
   categoryFilter: "all",
 };
 
-export const usePluginsStore = create<PluginsStore>((set, get) => ({
-  ...initialState,
+export const usePluginsStore = create<PluginsStore>()(
+  devtools(
+    (set, get) => ({
+      ...initialState,
 
-  loadPlugins: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      // In a real implementation, this would load from storage/API
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      set({ isLoading: false });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load plugins";
-      set({ error: message, isLoading: false });
-    }
-  },
+      loadPlugins: async () => {
+        set({ isLoading: true, error: null }, false, "loadPlugins");
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          set({ isLoading: false }, false, "loadPlugins/success");
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to load plugins";
+          set({ error: message, isLoading: false }, false, "loadPlugins/error");
+        }
+      },
 
-  installPlugin: async (id) => {
-    const { plugins } = get();
-    const plugin = plugins.find((p) => p.id === id);
-    if (!plugin || plugin.installed) return;
+      installPlugin: async (id) => {
+        const { plugins } = get();
+        const plugin = plugins.find((p) => p.id === id);
+        if (!plugin || plugin.installed) return;
 
-    set({ isLoading: true });
-    try {
-      // Simulate installation
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      set({
-        plugins: plugins.map((p) => (p.id === id ? { ...p, installed: true, enabled: true } : p)),
-        isLoading: false,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to install plugin";
-      set({ error: message, isLoading: false });
-    }
-  },
+        set({ isLoading: true }, false, "installPlugin");
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          set(
+            {
+              plugins: plugins.map((p) =>
+                p.id === id ? { ...p, installed: true, enabled: true } : p,
+              ),
+              isLoading: false,
+            },
+            false,
+            "installPlugin/success",
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to install plugin";
+          set({ error: message, isLoading: false }, false, "installPlugin/error");
+        }
+      },
 
-  uninstallPlugin: async (id) => {
-    const { plugins } = get();
-    const plugin = plugins.find((p) => p.id === id);
-    if (!plugin || !plugin.installed) return;
+      uninstallPlugin: async (id) => {
+        const { plugins } = get();
+        const plugin = plugins.find((p) => p.id === id);
+        if (!plugin || !plugin.installed) return;
 
-    set({ isLoading: true });
-    try {
-      // Simulate uninstallation
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      set({
-        plugins: plugins.map((p) =>
-          p.id === id ? { ...p, installed: false, enabled: false, config: undefined } : p,
-        ),
-        isLoading: false,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to uninstall plugin";
-      set({ error: message, isLoading: false });
-    }
-  },
+        set({ isLoading: true }, false, "uninstallPlugin");
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          set(
+            {
+              plugins: plugins.map((p) =>
+                p.id === id ? { ...p, installed: false, enabled: false, config: undefined } : p,
+              ),
+              isLoading: false,
+            },
+            false,
+            "uninstallPlugin/success",
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to uninstall plugin";
+          set({ error: message, isLoading: false }, false, "uninstallPlugin/error");
+        }
+      },
 
-  enablePlugin: async (id) => {
-    const { plugins } = get();
-    set({
-      plugins: plugins.map((p) => (p.id === id ? { ...p, enabled: true } : p)),
-    });
-  },
+      enablePlugin: async (id) => {
+        const { plugins } = get();
+        set(
+          {
+            plugins: plugins.map((p) => (p.id === id ? { ...p, enabled: true } : p)),
+          },
+          false,
+          "enablePlugin",
+        );
+      },
 
-  disablePlugin: async (id) => {
-    const { plugins } = get();
-    set({
-      plugins: plugins.map((p) => (p.id === id ? { ...p, enabled: false } : p)),
-    });
-  },
+      disablePlugin: async (id) => {
+        const { plugins } = get();
+        set(
+          {
+            plugins: plugins.map((p) => (p.id === id ? { ...p, enabled: false } : p)),
+          },
+          false,
+          "disablePlugin",
+        );
+      },
 
-  updatePluginConfig: async (id, config) => {
-    const { plugins } = get();
-    set({
-      plugins: plugins.map((p) => (p.id === id ? { ...p, config } : p)),
-    });
-  },
+      updatePluginConfig: async (id, config) => {
+        const { plugins } = get();
+        set(
+          {
+            plugins: plugins.map((p) => (p.id === id ? { ...p, config } : p)),
+          },
+          false,
+          "updatePluginConfig",
+        );
+      },
 
-  setSearchQuery: (query) => {
-    set({ searchQuery: query });
-  },
+      setSearchQuery: (query) => {
+        set({ searchQuery: query }, false, "setSearchQuery");
+      },
 
-  setCategoryFilter: (category) => {
-    set({ categoryFilter: category });
-  },
-}));
+      setCategoryFilter: (category) => {
+        set({ categoryFilter: category }, false, "setCategoryFilter");
+      },
+    }),
+    { name: "PluginsStore" },
+  ),
+);
 
 // Selectors
 export const selectPlugins = (state: PluginsStore) => state.plugins;

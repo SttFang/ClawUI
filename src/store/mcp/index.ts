@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { ipc } from "@/lib/ipc";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
 
@@ -44,166 +45,186 @@ const initialState: MCPState = {
   expandedServerId: null,
 };
 
-export const useMCPStore = create<MCPStore>((set, get) => ({
-  ...initialState,
+export const useMCPStore = create<MCPStore>()(
+  devtools(
+    (set, get) => ({
+      ...initialState,
 
-  loadServers: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const config = await ipc.config.get();
-      if (config?.mcp?.servers) {
-        const servers: MCPServer[] = Object.entries(config.mcp.servers).map(
-          ([id, serverConfig]) => {
-            const server = serverConfig as {
-              command: string;
-              args?: string[];
-              env?: Record<string, string>;
-              enabled?: boolean;
-            };
-            return {
-              id,
-              name: id,
-              command: server.command,
-              args: server.args || [],
-              env: server.env,
-              enabled: server.enabled ?? true,
-              status: "stopped" as const,
-              tools: [],
-            };
-          },
-        );
-        set({ servers, isLoading: false });
-      } else {
-        set({ servers: [], isLoading: false });
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load MCP servers";
-      set({ error: message, isLoading: false });
-    }
-  },
+      loadServers: async () => {
+        set({ isLoading: true, error: null }, false, "loadServers");
+        try {
+          const config = await ipc.config.get();
+          if (config?.mcp?.servers) {
+            const servers: MCPServer[] = Object.entries(config.mcp.servers).map(
+              ([id, serverConfig]) => {
+                const server = serverConfig as {
+                  command: string;
+                  args?: string[];
+                  env?: Record<string, string>;
+                  enabled?: boolean;
+                };
+                return {
+                  id,
+                  name: id,
+                  command: server.command,
+                  args: server.args || [],
+                  env: server.env,
+                  enabled: server.enabled ?? true,
+                  status: "stopped" as const,
+                  tools: [],
+                };
+              },
+            );
+            set({ servers, isLoading: false }, false, "loadServers/success");
+          } else {
+            set({ servers: [], isLoading: false }, false, "loadServers/empty");
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to load MCP servers";
+          set({ error: message, isLoading: false }, false, "loadServers/error");
+        }
+      },
 
-  addServer: async (serverData) => {
-    const { servers } = get();
-    const id = serverData.name.toLowerCase().replace(/\s+/g, "-");
+      addServer: async (serverData) => {
+        const { servers } = get();
+        const id = serverData.name.toLowerCase().replace(/\s+/g, "-");
 
-    // Check for duplicate
-    if (servers.some((s) => s.id === id)) {
-      set({ error: `Server "${serverData.name}" already exists` });
-      return;
-    }
+        if (servers.some((s) => s.id === id)) {
+          set(
+            { error: `Server "${serverData.name}" already exists` },
+            false,
+            "addServer/duplicate",
+          );
+          return;
+        }
 
-    const newServer: MCPServer = {
-      ...serverData,
-      id,
-      status: "stopped",
-      tools: [],
-    };
+        const newServer: MCPServer = {
+          ...serverData,
+          id,
+          status: "stopped",
+          tools: [],
+        };
 
-    // Optimistic update
-    set({ servers: [...servers, newServer], error: null });
+        set({ servers: [...servers, newServer], error: null }, false, "addServer/optimistic");
 
-    try {
-      const config = await ipc.config.get();
-      const mcpServers = config?.mcp?.servers || {};
-      await ipc.config.set({
-        mcp: {
-          ...config?.mcp,
-          servers: {
-            ...mcpServers,
-            [id]: {
-              command: serverData.command,
-              args: serverData.args,
-              env: serverData.env,
-              enabled: serverData.enabled,
+        try {
+          const config = await ipc.config.get();
+          const mcpServers = config?.mcp?.servers || {};
+          await ipc.config.set({
+            mcp: {
+              ...config?.mcp,
+              servers: {
+                ...mcpServers,
+                [id]: {
+                  command: serverData.command,
+                  args: serverData.args,
+                  env: serverData.env,
+                  enabled: serverData.enabled,
+                },
+              },
             },
-          },
-        },
-      });
-    } catch (error) {
-      // Rollback on error
-      set({ servers, error: error instanceof Error ? error.message : "Failed to add server" });
-    }
-  },
+          });
+        } catch (error) {
+          set(
+            { servers, error: error instanceof Error ? error.message : "Failed to add server" },
+            false,
+            "addServer/rollback",
+          );
+        }
+      },
 
-  removeServer: async (id) => {
-    const { servers } = get();
-    const serverToRemove = servers.find((s) => s.id === id);
-    if (!serverToRemove) return;
+      removeServer: async (id) => {
+        const { servers } = get();
+        const serverToRemove = servers.find((s) => s.id === id);
+        if (!serverToRemove) return;
 
-    set({ isLoading: true, error: null });
+        set({ isLoading: true, error: null }, false, "removeServer");
 
-    try {
-      const config = await ipc.config.get();
-      const mcpServers = { ...config?.mcp?.servers };
-      delete mcpServers[id];
+        try {
+          const config = await ipc.config.get();
+          const mcpServers = { ...config?.mcp?.servers };
+          delete mcpServers[id];
 
-      await ipc.config.set({
-        mcp: {
-          ...config?.mcp,
-          servers: mcpServers,
-        },
-      });
-
-      set({
-        servers: servers.filter((s) => s.id !== id),
-        isLoading: false,
-        expandedServerId: get().expandedServerId === id ? null : get().expandedServerId,
-      });
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Failed to remove server",
-        isLoading: false,
-      });
-    }
-  },
-
-  updateServer: async (id, updates) => {
-    const { servers } = get();
-    const serverIndex = servers.findIndex((s) => s.id === id);
-    if (serverIndex === -1) return;
-
-    const updatedServer = { ...servers[serverIndex], ...updates };
-    const newServers = [...servers];
-    newServers[serverIndex] = updatedServer;
-
-    // Optimistic update
-    set({ servers: newServers, error: null });
-
-    try {
-      const config = await ipc.config.get();
-      const mcpServers = config?.mcp?.servers || {};
-      await ipc.config.set({
-        mcp: {
-          ...config?.mcp,
-          servers: {
-            ...mcpServers,
-            [id]: {
-              command: updatedServer.command,
-              args: updatedServer.args,
-              env: updatedServer.env,
-              enabled: updatedServer.enabled,
+          await ipc.config.set({
+            mcp: {
+              ...config?.mcp,
+              servers: mcpServers,
             },
-          },
-        },
-      });
-    } catch (error) {
-      // Rollback on error
-      set({ servers, error: error instanceof Error ? error.message : "Failed to update server" });
-    }
-  },
+          });
 
-  toggleServer: async (id) => {
-    const { servers } = get();
-    const server = servers.find((s) => s.id === id);
-    if (!server) return;
+          set(
+            {
+              servers: servers.filter((s) => s.id !== id),
+              isLoading: false,
+              expandedServerId: get().expandedServerId === id ? null : get().expandedServerId,
+            },
+            false,
+            "removeServer/success",
+          );
+        } catch (error) {
+          set(
+            {
+              error: error instanceof Error ? error.message : "Failed to remove server",
+              isLoading: false,
+            },
+            false,
+            "removeServer/error",
+          );
+        }
+      },
 
-    await get().updateServer(id, { enabled: !server.enabled });
-  },
+      updateServer: async (id, updates) => {
+        const { servers } = get();
+        const serverIndex = servers.findIndex((s) => s.id === id);
+        if (serverIndex === -1) return;
 
-  setExpandedServer: (id) => {
-    set({ expandedServerId: id });
-  },
-}));
+        const updatedServer = { ...servers[serverIndex], ...updates };
+        const newServers = [...servers];
+        newServers[serverIndex] = updatedServer;
+
+        set({ servers: newServers, error: null }, false, "updateServer/optimistic");
+
+        try {
+          const config = await ipc.config.get();
+          const mcpServers = config?.mcp?.servers || {};
+          await ipc.config.set({
+            mcp: {
+              ...config?.mcp,
+              servers: {
+                ...mcpServers,
+                [id]: {
+                  command: updatedServer.command,
+                  args: updatedServer.args,
+                  env: updatedServer.env,
+                  enabled: updatedServer.enabled,
+                },
+              },
+            },
+          });
+        } catch (error) {
+          set(
+            { servers, error: error instanceof Error ? error.message : "Failed to update server" },
+            false,
+            "updateServer/rollback",
+          );
+        }
+      },
+
+      toggleServer: async (id) => {
+        const { servers } = get();
+        const server = servers.find((s) => s.id === id);
+        if (!server) return;
+
+        await get().updateServer(id, { enabled: !server.enabled });
+      },
+
+      setExpandedServer: (id) => {
+        set({ expandedServerId: id }, false, "setExpandedServer");
+      },
+    }),
+    { name: "MCPStore" },
+  ),
+);
 
 // Selectors
 export const selectServers = (state: MCPStore) => state.servers;

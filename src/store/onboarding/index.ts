@@ -1,5 +1,6 @@
 import type { OnboardingStep } from "@clawui/types/onboarding";
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { ipc, RuntimeStatus, InstallProgress } from "@/lib/ipc";
 
 // Re-export the type for convenience
@@ -38,69 +39,75 @@ const initialState: OnboardingState = {
   error: null,
 };
 
-export const useOnboardingStore = create<OnboardingStore>((set) => ({
-  ...initialState,
+export const useOnboardingStore = create<OnboardingStore>()(
+  devtools(
+    (set) => ({
+      ...initialState,
 
-  setStep: (step) => set({ step }),
-  setRuntimeStatus: (runtimeStatus) => set({ runtimeStatus }),
-  setInstallProgress: (installProgress) => set({ installProgress }),
-  setLoading: (isLoading) => set({ isLoading }),
-  setError: (error) => set({ error }),
+      setStep: (step) => set({ step }, false, "setStep"),
+      setRuntimeStatus: (runtimeStatus) => set({ runtimeStatus }, false, "setRuntimeStatus"),
+      setInstallProgress: (installProgress) =>
+        set({ installProgress }, false, "setInstallProgress"),
+      setLoading: (isLoading) => set({ isLoading }, false, "setLoading"),
+      setError: (error) => set({ error }, false, "setError"),
 
-  detectRuntime: async () => {
-    set({ isLoading: true, error: null, step: "checking" });
-    try {
-      const status = await ipc.onboarding.detect();
-      if (!status) {
-        throw new Error(ERR_RUNTIME_DETECT_FAILED);
-      }
-      set({ runtimeStatus: status, isLoading: false });
+      detectRuntime: async () => {
+        set({ isLoading: true, error: null, step: "checking" }, false, "detectRuntime");
+        try {
+          const status = await ipc.onboarding.detect();
+          if (!status) {
+            throw new Error(ERR_RUNTIME_DETECT_FAILED);
+          }
+          set({ runtimeStatus: status, isLoading: false }, false, "detectRuntime/detected");
 
-      // Simple flow: if not installed, show install; otherwise complete
-      if (!status.nodeInstalled || !status.openclawInstalled) {
-        set({ step: "install" });
-      } else {
-        // OpenClaw is installed, go to chat page
-        // Config check will be done in ChatPage
-        set({ step: "complete" });
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : ERR_DETECTION_FAILED;
-      set({ error: message, isLoading: false, step: "error" });
-    }
-  },
+          if (!status.nodeInstalled || !status.openclawInstalled) {
+            set({ step: "install" }, false, "detectRuntime/needsInstall");
+          } else {
+            set({ step: "complete" }, false, "detectRuntime/complete");
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : ERR_DETECTION_FAILED;
+          set({ error: message, isLoading: false, step: "error" }, false, "detectRuntime/error");
+        }
+      },
 
-  startInstall: async () => {
-    set({ isLoading: true, error: null, step: "installing" });
+      startInstall: async () => {
+        set({ isLoading: true, error: null, step: "installing" }, false, "startInstall");
 
-    // Set up progress listener
-    const removeListener = ipc.onboarding.onInstallProgress((progress) => {
-      set({ installProgress: progress });
+        const removeListener = ipc.onboarding.onInstallProgress((progress) => {
+          set({ installProgress: progress }, false, "startInstall/progress");
 
-      if (progress.stage === "complete") {
-        set({ isLoading: false, step: "complete" });
-        removeListener();
-      } else if (progress.stage === "error") {
-        set({
-          isLoading: false,
-          step: "error",
-          error: progress.error || ERR_INSTALL_FAILED,
+          if (progress.stage === "complete") {
+            set({ isLoading: false, step: "complete" }, false, "startInstall/complete");
+            removeListener();
+          } else if (progress.stage === "error") {
+            set(
+              {
+                isLoading: false,
+                step: "error",
+                error: progress.error || ERR_INSTALL_FAILED,
+              },
+              false,
+              "startInstall/error",
+            );
+            removeListener();
+          }
         });
-        removeListener();
-      }
-    });
 
-    try {
-      await ipc.onboarding.install();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : ERR_INSTALL_FAILED;
-      set({ error: message, isLoading: false, step: "error" });
-      removeListener();
-    }
-  },
+        try {
+          await ipc.onboarding.install();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : ERR_INSTALL_FAILED;
+          set({ error: message, isLoading: false, step: "error" }, false, "startInstall/catch");
+          removeListener();
+        }
+      },
 
-  reset: () => set(initialState),
-}));
+      reset: () => set(initialState, false, "reset"),
+    }),
+    { name: "OnboardingStore" },
+  ),
+);
 
 // Selectors
 export const selectOnboardingStep = (state: OnboardingStore) => state.step;

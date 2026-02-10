@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 import { ipc } from "@/lib/ipc";
 import { i18n } from "@/locales/i18n";
 import { resolveEffectiveLanguage } from "@/locales/language";
@@ -50,49 +51,53 @@ const applyLocale = (locale: LocalePreference) => {
   void i18n.changeLanguage(effective);
 };
 
-export const useUIStore = create<UIStore>()((set, get) => ({
-  theme: "system",
-  locale: "system",
-  sidebarCollapsed: false,
+export const useUIStore = create<UIStore>()(
+  devtools(
+    (set, get) => ({
+      theme: "system",
+      locale: "system",
+      sidebarCollapsed: false,
 
-  hydrate: (state) => {
-    if (state.theme) {
-      set({ theme: state.theme });
-      applyTheme(state.theme);
-    }
-    if (state.locale) {
-      set({ locale: state.locale });
-      applyLocale(state.locale);
-    }
-    if (typeof state.sidebarCollapsed === "boolean") {
-      set({ sidebarCollapsed: state.sidebarCollapsed });
-    }
-  },
+      hydrate: (state) => {
+        if (state.theme) {
+          set({ theme: state.theme }, false, "hydrate/theme");
+          applyTheme(state.theme);
+        }
+        if (state.locale) {
+          set({ locale: state.locale }, false, "hydrate/locale");
+          applyLocale(state.locale);
+        }
+        if (typeof state.sidebarCollapsed === "boolean") {
+          set({ sidebarCollapsed: state.sidebarCollapsed }, false, "hydrate/sidebar");
+        }
+      },
 
-  setTheme: (theme) => {
-    set({ theme });
-    applyTheme(theme);
-    // Persist to ClawUI state (best-effort)
-    void ipc.state.patch({ ui: { theme } }).catch(() => {});
-  },
+      setTheme: (theme) => {
+        set({ theme }, false, "setTheme");
+        applyTheme(theme);
+        void ipc.state.patch({ ui: { theme } }).catch(() => {});
+      },
 
-  setLocale: (locale) => {
-    set({ locale });
-    applyLocale(locale);
-    void ipc.state.patch({ ui: { locale } }).catch(() => {});
-  },
+      setLocale: (locale) => {
+        set({ locale }, false, "setLocale");
+        applyLocale(locale);
+        void ipc.state.patch({ ui: { locale } }).catch(() => {});
+      },
 
-  toggleSidebar: () => {
-    const next = !get().sidebarCollapsed;
-    set({ sidebarCollapsed: next });
-    void ipc.state.patch({ ui: { sidebarCollapsed: next } }).catch(() => {});
-  },
+      toggleSidebar: () => {
+        const next = !get().sidebarCollapsed;
+        set({ sidebarCollapsed: next }, false, "toggleSidebar");
+        void ipc.state.patch({ ui: { sidebarCollapsed: next } }).catch(() => {});
+      },
 
-  setSidebarCollapsed: (collapsed) => {
-    set({ sidebarCollapsed: collapsed });
-    void ipc.state.patch({ ui: { sidebarCollapsed: collapsed } }).catch(() => {});
-  },
-}));
+      setSidebarCollapsed: (collapsed) => {
+        set({ sidebarCollapsed: collapsed }, false, "setSidebarCollapsed");
+        void ipc.state.patch({ ui: { sidebarCollapsed: collapsed } }).catch(() => {});
+      },
+    }),
+    { name: "UIStore" },
+  ),
+);
 
 // Initialize theme on load (uses in-memory default until hydrated).
 export function initThemeListeners() {

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { devtools, persist } from "zustand/middleware";
 import { subscriptionLog } from "@/lib/logger";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
 
@@ -70,102 +70,113 @@ const initialState: SubscriptionState = {
 };
 
 export const useSubscriptionStore = create<SubscriptionStore>()(
-  persist(
-    (set, get) => ({
-      ...initialState,
+  devtools(
+    persist(
+      (set, get) => ({
+        ...initialState,
 
-      loadSubscription: async () => {
-        set({ isLoading: true, error: null });
-        try {
-          // TODO: Fetch from API when backend is ready
-          // For now, simulate loading with mock data
-          await new Promise((resolve) => setTimeout(resolve, 500));
+        loadSubscription: async () => {
+          set({ isLoading: true, error: null }, false, "loadSubscription");
+          try {
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
-          const now = new Date();
-          const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-          const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            const now = new Date();
+            const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-          set({
-            usage: {
-              tokensUsed: 45000,
-              tokensLimit: 100000,
-              apiCallsToday: 42,
-              apiCallsLimit: 100,
-              billingPeriodStart: periodStart.toISOString(),
-              billingPeriodEnd: periodEnd.toISOString(),
-            },
-            isLoading: false,
-          });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Failed to load subscription";
-          set({ error: message, isLoading: false });
-        }
-      },
-
-      upgradePlan: async (planId) => {
-        const { currentPlan } = get();
-        if (planId === currentPlan) return;
-
-        set({ isUpgrading: true, error: null });
-        try {
-          // TODO: Integrate with payment provider (Stripe)
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          const newPlan = plans.find((p) => p.id === planId);
-          if (!newPlan) {
-            throw new Error("Invalid plan selected");
+            set(
+              {
+                usage: {
+                  tokensUsed: 45000,
+                  tokensLimit: 100000,
+                  apiCallsToday: 42,
+                  apiCallsLimit: 100,
+                  billingPeriodStart: periodStart.toISOString(),
+                  billingPeriodEnd: periodEnd.toISOString(),
+                },
+                isLoading: false,
+              },
+              false,
+              "loadSubscription/success",
+            );
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to load subscription";
+            set({ error: message, isLoading: false }, false, "loadSubscription/error");
           }
+        },
 
-          set({
-            currentPlan: planId,
-            usage: get().usage
-              ? {
-                  ...get().usage!,
-                  tokensLimit: newPlan.limits.tokensPerMonth,
-                  apiCallsLimit: newPlan.limits.apiCallsPerDay,
-                }
-              : null,
-            isUpgrading: false,
-          });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Failed to upgrade plan";
-          set({ error: message, isUpgrading: false });
-        }
-      },
+        upgradePlan: async (planId) => {
+          const { currentPlan } = get();
+          if (planId === currentPlan) return;
 
-      refreshUsage: async () => {
-        const { currentPlan } = get();
-        const currentPlanData = plans.find((p) => p.id === currentPlan);
+          set({ isUpgrading: true, error: null }, false, "upgradePlan");
+          try {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        try {
-          // TODO: Fetch from API when backend is ready
-          await new Promise((resolve) => setTimeout(resolve, 300));
+            const newPlan = plans.find((p) => p.id === planId);
+            if (!newPlan) {
+              throw new Error("Invalid plan selected");
+            }
 
-          const now = new Date();
-          const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-          const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            set(
+              {
+                currentPlan: planId,
+                usage: get().usage
+                  ? {
+                      ...get().usage!,
+                      tokensLimit: newPlan.limits.tokensPerMonth,
+                      apiCallsLimit: newPlan.limits.apiCallsPerDay,
+                    }
+                  : null,
+                isUpgrading: false,
+              },
+              false,
+              "upgradePlan/success",
+            );
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to upgrade plan";
+            set({ error: message, isUpgrading: false }, false, "upgradePlan/error");
+          }
+        },
 
-          set({
-            usage: {
-              tokensUsed: Math.floor(Math.random() * 50000) + 40000,
-              tokensLimit: currentPlanData?.limits.tokensPerMonth || 100000,
-              apiCallsToday: Math.floor(Math.random() * 50) + 30,
-              apiCallsLimit: currentPlanData?.limits.apiCallsPerDay || 100,
-              billingPeriodStart: periodStart.toISOString(),
-              billingPeriodEnd: periodEnd.toISOString(),
-            },
-          });
-        } catch (error) {
-          subscriptionLog.error("Failed to refresh usage:", error);
-        }
-      },
-    }),
-    {
-      name: "clawui-subscription",
-      partialize: (state) => ({
-        currentPlan: state.currentPlan,
+        refreshUsage: async () => {
+          const { currentPlan } = get();
+          const currentPlanData = plans.find((p) => p.id === currentPlan);
+
+          try {
+            await new Promise((resolve) => setTimeout(resolve, 300));
+
+            const now = new Date();
+            const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+            set(
+              {
+                usage: {
+                  tokensUsed: Math.floor(Math.random() * 50000) + 40000,
+                  tokensLimit: currentPlanData?.limits.tokensPerMonth || 100000,
+                  apiCallsToday: Math.floor(Math.random() * 50) + 30,
+                  apiCallsLimit: currentPlanData?.limits.apiCallsPerDay || 100,
+                  billingPeriodStart: periodStart.toISOString(),
+                  billingPeriodEnd: periodEnd.toISOString(),
+                },
+              },
+              false,
+              "refreshUsage",
+            );
+          } catch (error) {
+            subscriptionLog.error("Failed to refresh usage:", error);
+          }
+        },
       }),
-    },
+      {
+        name: "clawui-subscription",
+        partialize: (state) => ({
+          currentPlan: state.currentPlan,
+        }),
+      },
+    ),
+    { name: "SubscriptionStore" },
   ),
 );
 

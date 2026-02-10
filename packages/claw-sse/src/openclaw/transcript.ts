@@ -108,18 +108,32 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
           const result = toolResults[i]
           const outText = result ? extractToolResultText(result) : undefined
 
-          parts.push({
-            type: 'dynamic-tool',
-            toolName,
-            toolCallId:
-              callToolCallId ??
-              (toolCalls.length > 1 ? `${baseToolCallId}-${i + 1}` : baseToolCallId),
-            state: outText ? 'output-available' : 'input-available',
-            input: args ?? {},
-            ...(outText ? { output: outText } : {}),
-            dynamic: true,
-            providerExecuted: true,
-          })
+          const toolCallId =
+            callToolCallId ??
+            (toolCalls.length > 1 ? `${baseToolCallId}-${i + 1}` : baseToolCallId)
+
+          // Keep strict part typing: `output-available` requires an `output` field,
+          // while `input-available` must not include it.
+          if (outText) {
+            parts.push({
+              type: 'dynamic-tool',
+              toolName,
+              toolCallId,
+              state: 'output-available',
+              input: args ?? {},
+              output: outText,
+              providerExecuted: true,
+            })
+          } else {
+            parts.push({
+              type: 'dynamic-tool',
+              toolName,
+              toolCallId,
+              state: 'input-available',
+              input: args ?? {},
+              providerExecuted: true,
+            })
+          }
         }
       }
 

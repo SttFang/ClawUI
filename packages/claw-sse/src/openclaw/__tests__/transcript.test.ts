@@ -38,10 +38,8 @@ describe('openclawTranscriptToUIMessages', () => {
         state: 'output-available',
         input: { q: 'claw' },
         output: 'ok',
-        dynamic: true,
         providerExecuted: true,
       },
     ])
   })
 })
-

@@ -155,7 +155,6 @@ describe('createOpenClawChatTransport', () => {
       toolCallId: 'tc1',
       toolName: 'search',
       providerExecuted: true,
-      dynamic: true,
       input: { q: 'claw' },
     })
 
@@ -181,7 +180,6 @@ describe('createOpenClawChatTransport', () => {
       type: 'tool-output-available',
       toolCallId: 'tc1',
       preliminary: true,
-      dynamic: true,
       output: { items: [1] },
     })
 
@@ -208,7 +206,6 @@ describe('createOpenClawChatTransport', () => {
       type: 'tool-output-available',
       toolCallId: 'tc1',
       providerExecuted: true,
-      dynamic: true,
       output: { ok: true },
     })
 

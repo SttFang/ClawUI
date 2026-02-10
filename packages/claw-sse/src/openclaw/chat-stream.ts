@@ -198,7 +198,6 @@ export function createOpenClawChatStream(params: {
             toolCallId,
             toolName,
             input: tool.args,
-            dynamic: true,
             providerExecuted: true,
             title: meta,
           })
@@ -211,7 +210,6 @@ export function createOpenClawChatStream(params: {
             toolCallId,
             output: tool.partialResult,
             providerExecuted: true,
-            dynamic: true,
             preliminary: true,
           })
           return
@@ -225,7 +223,6 @@ export function createOpenClawChatStream(params: {
               toolCallId,
               errorText: 'tool error',
               providerExecuted: true,
-              dynamic: true,
             })
             return
           }
@@ -234,7 +231,6 @@ export function createOpenClawChatStream(params: {
             toolCallId,
             output: tool.result,
             providerExecuted: true,
-            dynamic: true,
           })
         }
       }
@@ -336,4 +332,3 @@ export function createOpenClawChatStream(params: {
     },
   })
 }
-

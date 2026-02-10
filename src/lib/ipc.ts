@@ -36,6 +36,7 @@ export type {
   OnboardingOpenClawConfig,
   ChannelConfig,
   GatewayStatus,
+  GatewayEventFrame,
   LoginCredentials,
   LoginResult,
   SubscriptionStatus,

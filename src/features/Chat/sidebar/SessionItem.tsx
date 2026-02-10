@@ -1,9 +1,73 @@
 import type { ClawUISessionMetadata } from "@clawui/types/clawui";
-import { MessageSquare, Sparkles, Trash2 } from "lucide-react";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+} from "@clawui/ui";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@clawui/ui";
+import { MessageSquare, MoreHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FaDiscord, FaSlack, FaTelegramPlane, FaWhatsapp, FaWeixin } from "react-icons/fa";
 import { cn } from "@/lib/utils";
 import type { SessionListItem } from "../types";
 import { classifySession, getSessionSourceBadge } from "../utils/sessionKey";
+
+function formatRelativeTime(updatedAt: number): string {
+  if (!updatedAt || !Number.isFinite(updatedAt)) return "—";
+  const diffMs = Date.now() - updatedAt;
+  const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+  if (diffSec < 60) return `${diffSec}s`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay}d`;
+}
+
+function SourceIcon(props: { source: string }) {
+  const { source } = props;
+  if (source === "discord") return <FaDiscord className="h-3.5 w-3.5 text-[#5865F2]" />;
+  if (source === "slack") return <FaSlack className="h-3.5 w-3.5 text-[#4A154B]" />;
+  if (source === "telegram") return <FaTelegramPlane className="h-3.5 w-3.5 text-[#229ED9]" />;
+  if (source === "whatsapp") return <FaWhatsapp className="h-3.5 w-3.5 text-[#25D366]" />;
+  if (source === "wechat") return <FaWeixin className="h-3.5 w-3.5 text-[#07C160]" />;
+  return <MessageSquare className="h-4 w-4 text-muted-foreground" />;
+}
+
+async function writeClipboardText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Fallback for insecure contexts / permission-denied.
+    try {
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.setAttribute("readonly", "true");
+      el.style.position = "fixed";
+      el.style.left = "-9999px";
+      document.body.appendChild(el);
+      el.select();
+      const ok = document.execCommand("copy");
+      el.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
 
 export function SessionItem(props: {
   session: SessionListItem;
@@ -11,14 +75,34 @@ export function SessionItem(props: {
   metadata?: ClawUISessionMetadata;
   metaBusy: boolean;
   onSelect: () => void;
+  onRename: (label: string) => void;
   onGenerateMetadata: () => void;
   onDelete: () => void;
 }) {
   const { t } = useTranslation("chat");
-  const { session, selected, metadata, metaBusy, onSelect, onGenerateMetadata, onDelete } = props;
+  const {
+    session,
+    selected,
+    metadata,
+    metaBusy,
+    onSelect,
+    onRename,
+    onGenerateMetadata,
+    onDelete,
+  } = props;
 
   const { source } = classifySession({ sessionKey: session.id, surface: session.surface });
   const badge = getSessionSourceBadge(source);
+  const updatedText = useMemo(() => formatRelativeTime(session.updatedAt), [session.updatedAt]);
+
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [copyOk, setCopyOk] = useState(false);
+
+  const openRename = () => {
+    setRenameValue(session.name ?? "");
+    setRenameOpen(true);
+  };
 
   return (
     <div
@@ -28,8 +112,11 @@ export function SessionItem(props: {
         selected && "bg-accent",
       )}
       onClick={onSelect}
+      data-testid="session-item"
     >
-      <MessageSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 border">
+        <SourceIcon source={source} />
+      </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm">{metadata?.title ?? session.name}</div>
         {metadata?.summary ? (
@@ -37,36 +124,120 @@ export function SessionItem(props: {
         ) : null}
       </div>
 
-      {badge ? (
-        <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-          {badge}
-        </span>
-      ) : null}
+      <div className="ml-2 flex items-center gap-2">
+        {badge ? (
+          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            {badge}
+          </span>
+        ) : null}
+        <div className="text-[11px] text-muted-foreground tabular-nums">{updatedText}</div>
 
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onGenerateMetadata();
-        }}
-        className="opacity-0 group-hover:opacity-100 p-1 hover:text-foreground transition-opacity"
-        aria-label={t("generateSessionMetaAria")}
-        disabled={metaBusy}
-      >
-        <Sparkles className={cn("w-3 h-3", metaBusy && "animate-pulse")} />
-      </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                "rounded-md border bg-background/70 p-1",
+                "text-muted-foreground hover:text-foreground hover:bg-accent",
+                "transition-opacity",
+                selected
+                  ? "opacity-100"
+                  : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+              )}
+              aria-label={t("sessionMenu.moreAria")}
+              data-testid="session-more"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                openRename();
+              }}
+            >
+              {t("sessionMenu.rename")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={metaBusy}
+              onSelect={(e) => {
+                e.preventDefault();
+                onGenerateMetadata();
+              }}
+            >
+              <span className="flex items-center gap-2">
+                <Sparkles className={cn("h-4 w-4", metaBusy && "animate-pulse")} />
+                {t("sessionMenu.generateSummary")}
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                void writeClipboardText(session.id).then((ok) => {
+                  setCopyOk(ok);
+                  setTimeout(() => setCopyOk(false), 1200);
+                });
+              }}
+            >
+              {copyOk ? t("sessionMenu.copied") : t("sessionMenu.copyId")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={(e) => {
+                e.preventDefault();
+                const ok = window.confirm(t("sessionMenu.confirmDelete"));
+                if (!ok) return;
+                onDelete();
+              }}
+            >
+              <span className="flex items-center gap-2">
+                <Trash2 className="h-4 w-4" />
+                {t("sessionMenu.delete")}
+              </span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity"
-        aria-label={t("deleteSessionAria")}
-      >
-        <Trash2 className="w-3 h-3" />
-      </button>
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>{t("sessionMenu.renameTitle")}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-2">
+            <Input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              placeholder={t("sessionMenu.renamePlaceholder")}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onRename(renameValue.trim());
+                  setRenameOpen(false);
+                }
+              }}
+            />
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setRenameOpen(false)} type="button">
+              {t("sessionMenu.cancel")}
+            </Button>
+            <Button
+              onClick={() => {
+                onRename(renameValue.trim());
+                setRenameOpen(false);
+              }}
+              type="button"
+            >
+              {t("sessionMenu.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

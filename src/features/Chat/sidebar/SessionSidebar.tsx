@@ -14,6 +14,7 @@ export function SessionSidebar(props: {
   onSessionFilterChange: (filter: SessionFilter) => void;
   onCreateSession: () => void;
   onSelectSession: (id: string) => void;
+  onRenameSession: (id: string, label: string) => void;
   onDeleteSession: (id: string) => void;
   onGenerateMetadata: (id: string) => void;
 }) {
@@ -26,6 +27,7 @@ export function SessionSidebar(props: {
     onSessionFilterChange,
     onCreateSession,
     onSelectSession,
+    onRenameSession,
     onDeleteSession,
     onGenerateMetadata,
   } = props;
@@ -71,6 +73,7 @@ export function SessionSidebar(props: {
               sessionMetadata={sessionMetadata}
               metaBusyByKey={metaBusyByKey}
               onSelectSession={onSelectSession}
+              onRenameSession={onRenameSession}
               onDeleteSession={onDeleteSession}
               onGenerateMetadata={onGenerateMetadata}
             />

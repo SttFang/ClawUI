@@ -37,6 +37,7 @@ export type ChatFeatureProps = {
   onSessionFilterChange: (filter: SessionFilter) => void;
   onCreateSession: () => void;
   onSelectSession: (id: string) => void;
+  onRenameSession: (id: string, label: string) => void;
   onDeleteSession: (id: string) => void;
   onGenerateMetadata: (id: string) => void;
 

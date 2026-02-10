@@ -8,6 +8,7 @@ export function SessionList(props: {
   sessionMetadata: Record<string, ClawUISessionMetadata>;
   metaBusyByKey: Record<string, boolean>;
   onSelectSession: (id: string) => void;
+  onRenameSession: (id: string, label: string) => void;
   onDeleteSession: (id: string) => void;
   onGenerateMetadata: (id: string) => void;
 }) {
@@ -17,6 +18,7 @@ export function SessionList(props: {
     sessionMetadata,
     metaBusyByKey,
     onSelectSession,
+    onRenameSession,
     onDeleteSession,
     onGenerateMetadata,
   } = props;
@@ -29,6 +31,7 @@ export function SessionList(props: {
       metadata={sessionMetadata[session.id]}
       metaBusy={Boolean(metaBusyByKey[session.id])}
       onSelect={() => onSelectSession(session.id)}
+      onRename={(label) => onRenameSession(session.id, label)}
       onGenerateMetadata={() => onGenerateMetadata(session.id)}
       onDelete={() => onDeleteSession(session.id)}
     />

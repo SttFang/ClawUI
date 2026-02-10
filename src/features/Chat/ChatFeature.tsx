@@ -18,6 +18,7 @@ export function ChatFeature(props: ChatFeatureProps) {
     onSessionFilterChange,
     onCreateSession,
     onSelectSession,
+    onRenameSession,
     onDeleteSession,
     onGenerateMetadata,
     sessionMetadata,
@@ -36,6 +37,7 @@ export function ChatFeature(props: ChatFeatureProps) {
           onSessionFilterChange={onSessionFilterChange}
           onCreateSession={onCreateSession}
           onSelectSession={onSelectSession}
+          onRenameSession={onRenameSession}
           onDeleteSession={onDeleteSession}
           onGenerateMetadata={onGenerateMetadata}
         />

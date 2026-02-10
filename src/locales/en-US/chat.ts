@@ -22,6 +22,20 @@ const chat = {
   attachFile: "Attach file",
   removeAttachment: "Remove attachment",
   createSessionHint: "Create a session to start chatting.",
+  sessionMenu: {
+    moreAria: "Session actions",
+    rename: "Rename…",
+    renameTitle: "Rename session",
+    renamePlaceholder: "Enter a new label",
+    cancel: "Cancel",
+    save: "Save",
+    generateSummary: "Generate summary",
+    copyId: "Copy session ID",
+    copied: "Copied",
+    delete: "Delete session…",
+    confirmDelete:
+      "Delete this session? (Will only remove the session entry; transcript is kept by default.)",
+  },
   sessionStrip: {
     label: "Label",
     optional: "(optional)",

@@ -23,6 +23,19 @@ export default function ChatLayout() {
   const selectSession = useChatStore((s) => s.selectSession);
   const deleteSession = useChatStore((s) => s.deleteSession);
 
+  const renameSession = useCallback(
+    async (key: string, label: string) => {
+      const connected = await ipc.chat.isConnected();
+      if (!connected) {
+        const ok = await ipc.chat.connect();
+        if (!ok) throw new Error("Failed to connect gateway WebSocket");
+      }
+      await ipc.chat.request("sessions.patch", { key, label: label.trim() ? label.trim() : null });
+      await refreshSessions();
+    },
+    [refreshSessions],
+  );
+
   const [configValid, setConfigValid] = useState<boolean | null>(null);
   const [showBanner, setShowBanner] = useState(true);
   const [didLoadSessions, setDidLoadSessions] = useState(false);
@@ -132,6 +145,7 @@ export default function ChatLayout() {
         void createGatewayUiSession().catch(() => {});
       }}
       onSelectSession={(id) => selectSession(id)}
+      onRenameSession={(id, label) => void renameSession(id, label).catch(() => {})}
       onDeleteSession={(id) => deleteSession(id)}
       onGenerateMetadata={(id) => void generateMetadata(id)}
       sessionMetadata={sessionMetadata}

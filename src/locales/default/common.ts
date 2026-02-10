@@ -318,6 +318,18 @@ const common = {
           autoCheckUpdatesHint: '启动时检查更新',
         },
       },
+      tokens: {
+        title: '渠道 Token',
+        description: '管理非模型密钥（Discord/Telegram/Slack）。这些会写入 OpenClaw 的环境变量（profiles 18789 + 19789）。',
+        fields: {
+          discordBotToken: 'Discord 机器人 Token',
+          discordAppToken: 'Discord 应用 Token',
+          telegramBotToken: 'Telegram 机器人 Token',
+          slackBotToken: 'Slack 机器人 Token',
+          slackAppToken: 'Slack 应用 Token',
+        },
+        saved: '已保存',
+      },
     },
     providerCard: {
       status: {

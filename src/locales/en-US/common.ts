@@ -318,6 +318,18 @@ const common = {
           autoCheckUpdatesHint: 'Check for updates on startup',
         },
       },
+      tokens: {
+        title: 'Channel tokens',
+        description: 'Manage non-model secrets (Discord/Telegram/Slack). These are written into OpenClaw env for both profiles (18789 + 19789).',
+        fields: {
+          discordBotToken: 'Discord bot token',
+          discordAppToken: 'Discord app token',
+          telegramBotToken: 'Telegram bot token',
+          slackBotToken: 'Slack bot token',
+          slackAppToken: 'Slack app token',
+        },
+        saved: 'Saved',
+      },
     },
     providerCard: {
       status: {

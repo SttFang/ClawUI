@@ -244,9 +244,9 @@ export default function SettingsPage() {
           <TabsContent value="tokens">
             <Card>
               <CardHeader>
-                <CardTitle>Channel Tokens</CardTitle>
+                <CardTitle>{t('settings.page.tokens.title')}</CardTitle>
                 <CardDescription>
-                  Manage non-model secrets (Discord/Telegram/Slack). These are written into OpenClaw env for both profiles (18789 + 19789).
+                  {t('settings.page.tokens.description')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -257,7 +257,7 @@ export default function SettingsPage() {
                 ) : null}
 
                 <div className="space-y-2">
-                  <Label htmlFor="discord-bot-token">Discord Bot Token</Label>
+                  <Label htmlFor="discord-bot-token">{t('settings.page.tokens.fields.discordBotToken')}</Label>
                   <Input
                     id="discord-bot-token"
                     type="password"
@@ -269,7 +269,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="discord-app-token">Discord App Token</Label>
+                  <Label htmlFor="discord-app-token">{t('settings.page.tokens.fields.discordAppToken')}</Label>
                   <Input
                     id="discord-app-token"
                     type="password"
@@ -281,7 +281,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="telegram-bot-token">Telegram Bot Token</Label>
+                  <Label htmlFor="telegram-bot-token">{t('settings.page.tokens.fields.telegramBotToken')}</Label>
                   <Input
                     id="telegram-bot-token"
                     type="password"
@@ -293,7 +293,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="slack-bot-token">Slack Bot Token</Label>
+                  <Label htmlFor="slack-bot-token">{t('settings.page.tokens.fields.slackBotToken')}</Label>
                   <Input
                     id="slack-bot-token"
                     type="password"
@@ -305,7 +305,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="slack-app-token">Slack App Token</Label>
+                  <Label htmlFor="slack-app-token">{t('settings.page.tokens.fields.slackAppToken')}</Label>
                   <Input
                     id="slack-app-token"
                     type="password"
@@ -319,12 +319,12 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2">
                   <Button onClick={saveSecrets} disabled={secretsSaving || secretsLoading}>
                     {secretsSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Save
+                    {t('actions.save')}
                   </Button>
                   {secretsSaveSuccess ? (
                     <span className="flex items-center gap-1 text-sm text-green-600">
                       <CheckCircle2 className="h-4 w-4" />
-                      Saved
+                      {t('settings.page.tokens.saved')}
                     </span>
                   ) : null}
                 </div>

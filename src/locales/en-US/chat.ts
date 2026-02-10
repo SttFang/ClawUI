@@ -21,6 +21,7 @@ const chat = {
   sendMessage: 'Send',
   attachFile: 'Attach file',
   removeAttachment: 'Remove attachment',
+  createSessionHint: 'Create a session to start chatting.',
 } as const
 
 export default chat

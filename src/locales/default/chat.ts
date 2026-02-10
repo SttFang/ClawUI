@@ -21,6 +21,7 @@ const chat = {
   sendMessage: '发送',
   attachFile: '添加附件',
   removeAttachment: '移除附件',
+  createSessionHint: '创建会话以开始对话。',
 } as const
 
 export default chat

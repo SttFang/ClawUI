@@ -26,6 +26,12 @@ const common = {
     connected: '已连接',
     connecting: '连接中',
   },
+  configBanner: {
+    title: '未配置 API Key',
+    description: '要开始对话，你需要配置 AI 提供商（Anthropic、OpenAI 等）的 API Key。',
+    oneClick: '一键配置',
+    manual: '手动配置',
+  },
   language: {
     manage: '语言',
     current: '当前语言',

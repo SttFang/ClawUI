@@ -26,6 +26,12 @@ const common = {
     connected: 'Connected',
     connecting: 'Connecting',
   },
+  configBanner: {
+    title: 'API key not configured',
+    description: 'To start chatting, configure API keys for AI providers (Anthropic, OpenAI, etc.).',
+    oneClick: 'One-click config',
+    manual: 'Manual config',
+  },
   language: {
     manage: 'Language',
     current: 'Current language',
@@ -36,4 +42,3 @@ const common = {
 } as const
 
 export default common
-

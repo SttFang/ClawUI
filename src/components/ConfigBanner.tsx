@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { AlertCircle, Key, Settings, X } from 'lucide-react'
 import { Button, Alert, AlertDescription, AlertTitle } from '@clawui/ui'
+import { useTranslation } from 'react-i18next'
 
 interface ConfigBannerProps {
   onDismiss?: () => void
@@ -14,6 +15,7 @@ interface ConfigBannerProps {
  */
 export function ConfigBanner({ onDismiss }: ConfigBannerProps) {
   const navigate = useNavigate()
+  const { t } = useTranslation('common')
 
   const handleOneClickConfig = () => {
     // TODO: Implement one-click config with login
@@ -29,11 +31,12 @@ export function ConfigBanner({ onDismiss }: ConfigBannerProps) {
     <Alert className="mb-4 border-warning bg-warning/10">
       <AlertCircle className="h-4 w-4" />
       <AlertTitle className="flex items-center justify-between">
-        <span>API Key Not Configured</span>
+        <span>{t('configBanner.title')}</span>
         {onDismiss && (
           <button
             onClick={onDismiss}
             className="p-1 hover:bg-accent rounded-sm transition-colors"
+            aria-label={t('actions.close')}
           >
             <X className="h-4 w-4" />
           </button>
@@ -41,16 +44,16 @@ export function ConfigBanner({ onDismiss }: ConfigBannerProps) {
       </AlertTitle>
       <AlertDescription className="mt-2">
         <p className="text-sm text-muted-foreground mb-3">
-          To start chatting, you need to configure your API keys for AI providers (Anthropic, OpenAI, etc.).
+          {t('configBanner.description')}
         </p>
         <div className="flex gap-2">
           <Button size="sm" onClick={handleOneClickConfig}>
             <Key className="mr-2 h-3 w-3" />
-            One-Click Config
+            {t('configBanner.oneClick')}
           </Button>
           <Button size="sm" variant="outline" onClick={handleManualConfig}>
             <Settings className="mr-2 h-3 w-3" />
-            Manual Config
+            {t('configBanner.manual')}
           </Button>
         </div>
       </AlertDescription>

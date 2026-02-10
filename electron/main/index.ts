@@ -89,7 +89,10 @@ app.whenReady().then(async () => {
 
   // Set Content Security Policy
   // Dev mode needs 'unsafe-inline' for Vite HMR / React Fast Refresh preamble
-  const scriptSrc = is.dev ? "'self' 'unsafe-inline'" : "'self'";
+  // Streamdown code highlighting uses Shiki/Oniguruma (WASM). Allow WASM eval without enabling full 'unsafe-eval'.
+  const scriptSrc = is.dev
+    ? "'self' 'unsafe-inline' 'wasm-unsafe-eval'"
+    : "'self' 'wasm-unsafe-eval'";
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {

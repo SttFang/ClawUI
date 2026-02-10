@@ -1,5 +1,7 @@
 import { Card, CardContent } from '@clawui/ui'
 import { Coins, Hash, MessageSquare, Timer } from 'lucide-react'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { UsageTotals, UsageAggregates } from '@clawui/types/usage'
 
 interface UsageSummaryCardsProps {
@@ -24,39 +26,40 @@ function formatLatency(ms: number | undefined): string {
   return `${Math.round(ms)}ms`
 }
 
-const cards = [
-  {
-    key: 'tokens',
-    label: 'Total Tokens',
-    icon: Hash,
-    getValue: (t: UsageTotals | null) => (t ? formatTokens(t.totalTokens) : '-'),
-    color: 'text-blue-500',
-  },
-  {
-    key: 'cost',
-    label: 'Total Cost',
-    icon: Coins,
-    getValue: (t: UsageTotals | null) => (t ? formatCost(t.totalCost) : '-'),
-    color: 'text-amber-500',
-  },
-  {
-    key: 'sessions',
-    label: 'Sessions',
-    icon: MessageSquare,
-    getValue: (_t: UsageTotals | null, count: number) => String(count),
-    color: 'text-green-500',
-  },
-  {
-    key: 'latency',
-    label: 'Avg Latency',
-    icon: Timer,
-    getValue: (_t: UsageTotals | null, _c: number, agg: UsageAggregates | null) =>
-      formatLatency(agg?.latency?.avgMs),
-    color: 'text-purple-500',
-  },
-] as const
-
 export function UsageSummaryCards({ totals, aggregates, sessionCount }: UsageSummaryCardsProps) {
+  const { t, i18n } = useTranslation('common')
+  const cards = useMemo(() => [
+    {
+      key: 'tokens',
+      label: t('usage.summary.totalTokens'),
+      icon: Hash,
+      getValue: (totals: UsageTotals | null) => (totals ? formatTokens(totals.totalTokens) : '-'),
+      color: 'text-blue-500',
+    },
+    {
+      key: 'cost',
+      label: t('usage.summary.totalCost'),
+      icon: Coins,
+      getValue: (totals: UsageTotals | null) => (totals ? formatCost(totals.totalCost) : '-'),
+      color: 'text-amber-500',
+    },
+    {
+      key: 'sessions',
+      label: t('usage.summary.sessions'),
+      icon: MessageSquare,
+      getValue: (_t: UsageTotals | null, count: number) => String(count),
+      color: 'text-green-500',
+    },
+    {
+      key: 'latency',
+      label: t('usage.summary.avgLatency'),
+      icon: Timer,
+      getValue: (_t: UsageTotals | null, _c: number, agg: UsageAggregates | null) =>
+        formatLatency(agg?.latency?.avgMs),
+      color: 'text-purple-500',
+    },
+  ] as const, [i18n.language, t])
+
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {cards.map((c) => (

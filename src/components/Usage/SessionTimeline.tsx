@@ -6,6 +6,8 @@ import {
   CartesianGrid,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@clawui/ui'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ChartContainer,
   ChartTooltip,
@@ -28,14 +30,9 @@ function formatTime(ts: number): string {
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
 }
 
-const chartConfig = {
-  output: { label: "Output", color: "var(--chart-1)" },
-  input: { label: "Input", color: "var(--chart-2)" },
-  cacheRead: { label: "Cache Read", color: "var(--chart-4)" },
-  cumulative: { label: "Cumulative", color: "var(--chart-5)" },
-} satisfies ChartConfig
-
 export function SessionTimeline({ timeSeries, loading, mode }: SessionTimelineProps) {
+  const { t, i18n } = useTranslation('common')
+
   if (loading) {
     return (
       <Card>
@@ -48,6 +45,13 @@ export function SessionTimeline({ timeSeries, loading, mode }: SessionTimelinePr
 
   if (!timeSeries || timeSeries.points.length === 0) return null
 
+  const chartConfig = useMemo(() => ({
+    output: { label: t('usage.metrics.output'), color: "var(--chart-1)" },
+    input: { label: t('usage.metrics.input'), color: "var(--chart-2)" },
+    cacheRead: { label: t('usage.metrics.cacheRead'), color: "var(--chart-4)" },
+    cumulative: { label: t('usage.metrics.cumulative'), color: "var(--chart-5)" },
+  } satisfies ChartConfig), [i18n.language, t])
+
   const chartData = timeSeries.points.map((p) => ({
     time: formatTime(p.timestamp),
     output: mode === 'cost' ? p.cost : p.output,
@@ -59,7 +63,7 @@ export function SessionTimeline({ timeSeries, loading, mode }: SessionTimelinePr
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Session Timeline</CardTitle>
+        <CardTitle className="text-base">{t('usage.sessionTimeline.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="min-h-[240px] w-full">

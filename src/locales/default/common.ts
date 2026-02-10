@@ -214,6 +214,77 @@ const common = {
       },
     },
   },
+  usage: {
+    title: '用量',
+    description: 'Token 消耗与成本分析',
+    actions: {
+      refresh: '刷新',
+    },
+    presets: {
+      today: '今天',
+      last7d: '7天',
+      last30d: '30天',
+    },
+    modes: {
+      tokens: 'Tokens',
+      cost: '成本',
+    },
+    granularity: {
+      hour: '小时',
+      day: '日',
+      month: '月',
+    },
+    metrics: {
+      output: '输出',
+      input: '输入',
+      cacheWrite: '缓存写入',
+      cacheRead: '缓存读取',
+      cumulative: '累计',
+    },
+    summary: {
+      totalTokens: '总 Tokens',
+      totalCost: '总成本',
+      sessions: '会话数',
+      avgLatency: '平均延迟',
+    },
+    trend: {
+      title: '趋势（{{mode}}）',
+      tokens: 'Tokens',
+      cost: '成本',
+      latency: '延迟',
+    },
+    costBreakdown: {
+      title: '成本拆分',
+      centerLabel: '总 Tokens',
+    },
+    providerBreakdown: {
+      title: '提供商分布',
+      centerLabel: '提供商',
+      unknown: '未知',
+    },
+    sessionList: {
+      title: '会话',
+      sortCost: '排序：成本',
+      sortTokens: '排序：Tokens',
+      sortName: '排序：名称',
+      empty: '未找到会话',
+    },
+    sessionDetail: {
+      messages: '消息',
+      toolCalls: '工具调用',
+      errors: '错误',
+      duration: '时长',
+      messageSub: '用户：{{user}} / 助手：{{assistant}}',
+      toolSub: '{{n}} 个工具',
+      modelsUsed: '使用的模型',
+      modelUnknown: '未知',
+      modelCallsCost: '{{n}} 次 / ${{cost}}',
+      topTools: '常用工具',
+    },
+    sessionTimeline: {
+      title: '会话时间线',
+    },
+  },
   language: {
     manage: '语言',
     current: '当前语言',

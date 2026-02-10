@@ -1,5 +1,7 @@
 import { PieChart, Pie, Cell, Label } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@clawui/ui'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ChartContainer,
   ChartTooltip,
@@ -14,13 +16,6 @@ interface CostBreakdownProps {
   totals: UsageTotals | null
 }
 
-const chartConfig = {
-  output: { label: "Output", color: "var(--chart-1)" },
-  input: { label: "Input", color: "var(--chart-2)" },
-  cacheWrite: { label: "Cache Write", color: "var(--chart-3)" },
-  cacheRead: { label: "Cache Read", color: "var(--chart-4)" },
-} satisfies ChartConfig
-
 const PIE_KEYS = ["output", "input", "cacheWrite", "cacheRead"] as const
 
 function formatTokens(n: number): string {
@@ -31,6 +26,14 @@ function formatTokens(n: number): string {
 
 export function CostBreakdown({ totals }: CostBreakdownProps) {
   if (!totals) return null
+
+  const { t, i18n } = useTranslation('common')
+  const chartConfig = useMemo(() => ({
+    output: { label: t('usage.metrics.output'), color: "var(--chart-1)" },
+    input: { label: t('usage.metrics.input'), color: "var(--chart-2)" },
+    cacheWrite: { label: t('usage.metrics.cacheWrite'), color: "var(--chart-3)" },
+    cacheRead: { label: t('usage.metrics.cacheRead'), color: "var(--chart-4)" },
+  } satisfies ChartConfig), [i18n.language, t])
 
   const pieData = PIE_KEYS.map((key) => ({
     key,
@@ -44,7 +47,7 @@ export function CostBreakdown({ totals }: CostBreakdownProps) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Cost Breakdown</CardTitle>
+        <CardTitle className="text-base">{t('usage.costBreakdown.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[250px]">
@@ -90,7 +93,7 @@ export function CostBreakdown({ totals }: CostBreakdownProps) {
                           y={(viewBox.cy || 0) + 20}
                           className="fill-muted-foreground text-xs"
                         >
-                          Total Tokens
+                          {t('usage.costBreakdown.centerLabel')}
                         </tspan>
                       </text>
                     )

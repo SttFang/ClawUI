@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@clawui/ui'
+import { useTranslation } from 'react-i18next'
 import {
   useUsageStore,
   selectUsageLoading,
@@ -25,6 +26,7 @@ import { SessionDetail } from '@/components/Usage/SessionDetail'
 import { SessionTimeline } from '@/components/Usage/SessionTimeline'
 
 export default function UsagePage() {
+  const { t } = useTranslation('common')
   const loading = useUsageStore(selectUsageLoading)
   const error = useUsageStore(selectUsageError)
   const sessions = useUsageStore(selectSessions)
@@ -61,8 +63,8 @@ export default function UsagePage() {
       <div className="mx-auto max-w-5xl space-y-6">
         {/* Title */}
         <div>
-          <h1 className="text-2xl font-semibold">Usage</h1>
-          <p className="text-muted-foreground">Token 消耗与成本分析</p>
+          <h1 className="text-2xl font-semibold">{t('usage.title')}</h1>
+          <p className="text-muted-foreground">{t('usage.description')}</p>
         </div>
 
         {/* Header: date range + mode + refresh */}

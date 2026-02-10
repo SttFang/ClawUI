@@ -1,5 +1,6 @@
 import { Button, Select } from '@clawui/ui'
 import { RefreshCw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface UsageHeaderProps {
   startDate: string
@@ -21,12 +22,6 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-const presets = [
-  { label: 'Today', days: 0 },
-  { label: '7d', days: 7 },
-  { label: '30d', days: 30 },
-]
-
 export function UsageHeader({
   startDate,
   endDate,
@@ -36,7 +31,13 @@ export function UsageHeader({
   onChartModeChange,
   onRefresh,
 }: UsageHeaderProps) {
+  const { t } = useTranslation('common')
   const today = todayStr()
+  const presets = [
+    { key: 'today', label: t('usage.presets.today'), days: 0 },
+    { key: 'last7d', label: t('usage.presets.last7d'), days: 7 },
+    { key: 'last30d', label: t('usage.presets.last30d'), days: 30 },
+  ]
 
   const activePreset = presets.find(
     (p) =>
@@ -50,7 +51,7 @@ export function UsageHeader({
       <div className="flex gap-1">
         {presets.map((p) => (
           <Button
-            key={p.label}
+            key={p.key}
             variant={activePreset?.days === p.days ? 'default' : 'outline'}
             size="sm"
             onClick={() =>
@@ -91,12 +92,18 @@ export function UsageHeader({
           }
           className="h-8 w-24 text-xs"
         >
-          <option value="tokens">Tokens</option>
-          <option value="cost">Cost</option>
+          <option value="tokens">{t('usage.modes.tokens')}</option>
+          <option value="cost">{t('usage.modes.cost')}</option>
         </Select>
 
         {/* Refresh */}
-        <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          disabled={loading}
+          aria-label={t('usage.actions.refresh')}
+        >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </Button>
       </div>

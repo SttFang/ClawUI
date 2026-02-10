@@ -214,6 +214,77 @@ const common = {
       },
     },
   },
+  usage: {
+    title: 'Usage',
+    description: 'Token usage and cost analysis',
+    actions: {
+      refresh: 'Refresh',
+    },
+    presets: {
+      today: 'Today',
+      last7d: '7d',
+      last30d: '30d',
+    },
+    modes: {
+      tokens: 'Tokens',
+      cost: 'Cost',
+    },
+    granularity: {
+      hour: 'Hour',
+      day: 'Day',
+      month: 'Month',
+    },
+    metrics: {
+      output: 'Output',
+      input: 'Input',
+      cacheWrite: 'Cache write',
+      cacheRead: 'Cache read',
+      cumulative: 'Cumulative',
+    },
+    summary: {
+      totalTokens: 'Total tokens',
+      totalCost: 'Total cost',
+      sessions: 'Sessions',
+      avgLatency: 'Avg latency',
+    },
+    trend: {
+      title: 'Trend ({{mode}})',
+      tokens: 'Tokens',
+      cost: 'Cost',
+      latency: 'Latency',
+    },
+    costBreakdown: {
+      title: 'Cost breakdown',
+      centerLabel: 'Total tokens',
+    },
+    providerBreakdown: {
+      title: 'Provider distribution',
+      centerLabel: 'Providers',
+      unknown: 'Unknown',
+    },
+    sessionList: {
+      title: 'Sessions',
+      sortCost: 'Sort: cost',
+      sortTokens: 'Sort: tokens',
+      sortName: 'Sort: name',
+      empty: 'No sessions found',
+    },
+    sessionDetail: {
+      messages: 'Messages',
+      toolCalls: 'Tool calls',
+      errors: 'Errors',
+      duration: 'Duration',
+      messageSub: 'User: {{user}} / Asst: {{assistant}}',
+      toolSub: '{{n}} unique tools',
+      modelsUsed: 'Models used',
+      modelUnknown: 'Unknown',
+      modelCallsCost: '{{n}} calls / ${{cost}}',
+      topTools: 'Top tools',
+    },
+    sessionTimeline: {
+      title: 'Session timeline',
+    },
+  },
   language: {
     manage: 'Language',
     current: 'Current language',

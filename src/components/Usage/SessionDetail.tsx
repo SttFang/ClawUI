@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@clawui/ui'
 import { MessageSquare, Wrench, AlertCircle, Clock } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { SessionsUsageEntry } from '@clawui/types/usage'
 
 interface SessionDetailProps {
@@ -18,32 +19,36 @@ function formatDuration(ms: number | undefined): string {
 export function SessionDetail({ session }: SessionDetailProps) {
   if (!session?.usage) return null
 
+  const { t } = useTranslation('common')
   const { usage } = session
   const stats = [
     {
       icon: MessageSquare,
-      label: 'Messages',
+      label: t('usage.sessionDetail.messages'),
       value: usage.messageCounts?.total ?? '-',
       sub: usage.messageCounts
-        ? `User: ${usage.messageCounts.user} / Asst: ${usage.messageCounts.assistant}`
+        ? t('usage.sessionDetail.messageSub', {
+            user: usage.messageCounts.user,
+            assistant: usage.messageCounts.assistant,
+          })
         : undefined,
     },
     {
       icon: Wrench,
-      label: 'Tool Calls',
+      label: t('usage.sessionDetail.toolCalls'),
       value: usage.toolUsage?.totalCalls ?? '-',
       sub: usage.toolUsage
-        ? `${usage.toolUsage.uniqueTools} unique tools`
+        ? t('usage.sessionDetail.toolSub', { n: usage.toolUsage.uniqueTools })
         : undefined,
     },
     {
       icon: AlertCircle,
-      label: 'Errors',
+      label: t('usage.sessionDetail.errors'),
       value: usage.messageCounts?.errors ?? 0,
     },
     {
       icon: Clock,
-      label: 'Duration',
+      label: t('usage.sessionDetail.duration'),
       value: formatDuration(usage.durationMs),
     },
   ]
@@ -74,13 +79,13 @@ export function SessionDetail({ session }: SessionDetailProps) {
         {/* Model usage breakdown */}
         {usage.modelUsage && usage.modelUsage.length > 0 && (
           <div className="mt-4">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">Models Used</p>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">{t('usage.sessionDetail.modelsUsed')}</p>
             <div className="space-y-1">
               {usage.modelUsage.map((m, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
-                  <span>{m.model ?? 'unknown'}</span>
+                  <span>{m.model ?? t('usage.sessionDetail.modelUnknown')}</span>
                   <span className="text-muted-foreground">
-                    {m.count} calls / ${m.totals.totalCost.toFixed(4)}
+                    {t('usage.sessionDetail.modelCallsCost', { n: m.count, cost: m.totals.totalCost.toFixed(4) })}
                   </span>
                 </div>
               ))}
@@ -91,15 +96,15 @@ export function SessionDetail({ session }: SessionDetailProps) {
         {/* Top tools */}
         {usage.toolUsage && usage.toolUsage.tools.length > 0 && (
           <div className="mt-4">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">Top Tools</p>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">{t('usage.sessionDetail.topTools')}</p>
             <div className="flex flex-wrap gap-1">
-              {usage.toolUsage.tools.slice(0, 8).map((t) => (
+              {usage.toolUsage.tools.slice(0, 8).map((tool) => (
                 <span
-                  key={t.name}
+                  key={tool.name}
                   className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs"
                 >
-                  {t.name}
-                  <span className="text-muted-foreground">{t.count}</span>
+                  {tool.name}
+                  <span className="text-muted-foreground">{tool.count}</span>
                 </span>
               ))}
             </div>

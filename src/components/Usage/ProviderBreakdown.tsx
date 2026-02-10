@@ -1,6 +1,7 @@
 import { useMemo, type ComponentType } from 'react'
 import { PieChart, Pie, Cell, Label } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@clawui/ui'
+import { useTranslation } from 'react-i18next'
 import {
   ChartContainer,
   ChartTooltip,
@@ -43,27 +44,29 @@ function formatTokens(n: number): string {
 export function ProviderBreakdown({ byProvider }: ProviderBreakdownProps) {
   if (!byProvider || byProvider.length === 0) return null
 
+  const { t, i18n } = useTranslation('common')
+
   const { pieData, chartConfig, totalTokens } = useMemo(() => {
     const config: ChartConfig = {}
     const total = byProvider.reduce((s, p) => s + p.totals.totalTokens, 0)
     const data = byProvider.map((p, i) => {
       const key = (p.provider ?? p.model ?? `provider-${i}`).replace(/[^a-zA-Z0-9]/g, '_')
       const color = CHART_COLORS[i % CHART_COLORS.length]
-      config[key] = { label: p.provider ?? 'Unknown', color }
+      config[key] = { label: p.provider ?? t('usage.providerBreakdown.unknown'), color }
       return {
         key,
-        name: p.provider ?? 'Unknown',
+        name: p.provider ?? t('usage.providerBreakdown.unknown'),
         value: p.totals.totalTokens,
         fill: `var(--color-${key})`,
       }
     })
     return { pieData: data, chartConfig: config, totalTokens: total }
-  }, [byProvider])
+  }, [byProvider, i18n.language, t])
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Provider Distribution</CardTitle>
+        <CardTitle className="text-base">{t('usage.providerBreakdown.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[250px]">
@@ -109,7 +112,7 @@ export function ProviderBreakdown({ byProvider }: ProviderBreakdownProps) {
                           y={(viewBox.cy || 0) + 20}
                           className="fill-muted-foreground text-xs"
                         >
-                          Providers
+                          {t('usage.providerBreakdown.centerLabel')}
                         </tspan>
                       </text>
                     )

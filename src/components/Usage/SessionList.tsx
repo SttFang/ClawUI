@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, Select } from '@clawui/ui'
 import { ScrollArea } from '@clawui/ui'
 import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { SessionsUsageEntry } from '@clawui/types/usage'
 
 interface SessionListProps {
@@ -23,6 +24,7 @@ function formatCost(n: number): string {
 }
 
 export function SessionList({ sessions, selectedKey, onSelect }: SessionListProps) {
+  const { t } = useTranslation('common')
   const [sortBy, setSortBy] = useState<SortField>('cost')
 
   const sorted = [...sessions].sort((a, b) => {
@@ -36,15 +38,15 @@ export function SessionList({ sessions, selectedKey, onSelect }: SessionListProp
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between pb-2">
-        <CardTitle className="text-base">Sessions</CardTitle>
+        <CardTitle className="text-base">{t('usage.sessionList.title')}</CardTitle>
         <Select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as SortField)}
           className="h-8 w-28 text-xs"
         >
-          <option value="cost">Sort: Cost</option>
-          <option value="tokens">Sort: Tokens</option>
-          <option value="key">Sort: Name</option>
+          <option value="cost">{t('usage.sessionList.sortCost')}</option>
+          <option value="tokens">{t('usage.sessionList.sortTokens')}</option>
+          <option value="key">{t('usage.sessionList.sortName')}</option>
         </Select>
       </CardHeader>
       <CardContent className="p-0">
@@ -52,7 +54,7 @@ export function SessionList({ sessions, selectedKey, onSelect }: SessionListProp
           <div className="divide-y">
             {sorted.length === 0 ? (
               <p className="p-4 text-center text-sm text-muted-foreground">
-                No sessions found
+                {t('usage.sessionList.empty')}
               </p>
             ) : (
               sorted.map((s) => (

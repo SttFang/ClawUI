@@ -10,4 +10,3 @@ export {
   type PromptInputProps,
   type PromptInputTextareaProps,
 } from "./prompt-input";
-

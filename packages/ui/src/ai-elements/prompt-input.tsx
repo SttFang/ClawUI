@@ -1,5 +1,4 @@
 import * as React from "react";
-
 import { Button, type ButtonProps } from "../button";
 import { cn } from "../utils";
 
@@ -84,4 +83,3 @@ export function PromptInputSubmit(props: Omit<ButtonProps, "type">) {
     </PromptInputAction>
   );
 }
-

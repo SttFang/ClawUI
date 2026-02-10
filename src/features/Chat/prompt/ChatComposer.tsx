@@ -1,5 +1,3 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
   Attachments,
   type AttachmentItem,
@@ -11,6 +9,8 @@ import {
   PromptInputTools,
   PromptInputSubmit,
 } from "@clawui/ui";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { SessionControlStrip } from "../components/SessionControlStrip";
 
@@ -36,15 +36,8 @@ export function ChatComposer(props: {
   className?: string;
 }) {
   const { t } = useTranslation("chat");
-  const {
-    sessionKey,
-    value,
-    onChange,
-    onSubmit,
-    disabled,
-    sessionControlsDisabled,
-    className,
-  } = props;
+  const { sessionKey, value, onChange, onSubmit, disabled, sessionControlsDisabled, className } =
+    props;
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -60,9 +53,10 @@ export function ChatComposer(props: {
     };
   }, [attachments]);
 
-  const attachmentItems: AttachmentItem[] = useMemo(() => attachments.map((a) => a.item), [
-    attachments,
-  ]);
+  const attachmentItems: AttachmentItem[] = useMemo(
+    () => attachments.map((a) => a.item),
+    [attachments],
+  );
 
   const removeAttachment = (id: string) => {
     setAttachments((prev) => {
@@ -127,7 +121,11 @@ export function ChatComposer(props: {
         />
 
         <div className="px-4 pt-3">
-          <Attachments items={attachmentItems} onRemove={removeAttachment} removeLabel={t("removeAttachment")} />
+          <Attachments
+            items={attachmentItems}
+            onRemove={removeAttachment}
+            removeLabel={t("removeAttachment")}
+          />
         </div>
 
         <PromptInputTextarea
@@ -152,14 +150,19 @@ export function ChatComposer(props: {
               </PromptInputAction>
             </PromptInputTools>
             <PromptInputActions>
-              <PromptInputSubmit disabled={disabled || !value.trim()}>{t("sendMessage")}</PromptInputSubmit>
+              <PromptInputSubmit disabled={disabled || !value.trim()}>
+                {t("sendMessage")}
+              </PromptInputSubmit>
             </PromptInputActions>
           </div>
 
-          <SessionControlStrip sessionKey={sessionKey} disabled={sessionControlsDisabled} className="mt-0" />
+          <SessionControlStrip
+            sessionKey={sessionKey}
+            disabled={sessionControlsDisabled}
+            className="mt-0"
+          />
         </PromptInputFooter>
       </PromptInput>
     </div>
   );
 }
-

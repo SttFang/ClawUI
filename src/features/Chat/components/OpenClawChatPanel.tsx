@@ -7,10 +7,10 @@ import { useTranslation } from "react-i18next";
 import { StickToBottom } from "use-stick-to-bottom";
 import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
+import { ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
 import { MessageParts } from "./MessageParts";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
-import { ChatComposer } from "../prompt/ChatComposer";
 
 export function OpenClawChatPanel(props: {
   sessionKey: string;

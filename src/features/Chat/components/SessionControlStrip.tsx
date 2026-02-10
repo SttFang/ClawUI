@@ -53,7 +53,11 @@ function toPatchValue(value: string): string | null {
   return value === "inherit" ? null : value;
 }
 
-export function SessionControlStrip(props: { sessionKey: string; disabled: boolean; className?: string }) {
+export function SessionControlStrip(props: {
+  sessionKey: string;
+  disabled: boolean;
+  className?: string;
+}) {
   const { sessionKey, disabled, className } = props;
   const { t } = useTranslation("chat");
 

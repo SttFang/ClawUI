@@ -1,5 +1,3 @@
-import * as React from "react";
-
 import { cn } from "../utils";
 
 export type AttachmentItem = {
@@ -54,4 +52,3 @@ export function Attachments(props: {
     </div>
   );
 }
-

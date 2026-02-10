@@ -9,4 +9,3 @@ export function ChatShell(props: { sidebar: ReactNode; main: ReactNode }) {
     </div>
   );
 }
-

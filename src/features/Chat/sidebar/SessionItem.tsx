@@ -70,4 +70,3 @@ export function SessionItem(props: {
     </div>
   );
 }
-

@@ -1,7 +1,7 @@
 import type { ClawUISessionMetadata } from "@clawui/types/clawui";
+import { Button, ScrollArea, Tabs, TabsList, TabsTrigger } from "@clawui/ui";
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Button, ScrollArea, Tabs, TabsList, TabsTrigger } from "@clawui/ui";
 import type { SessionFilter, SessionListItem } from "../types";
 import { SessionList } from "./SessionList";
 
@@ -63,9 +63,7 @@ export function SessionSidebar(props: {
       <ScrollArea className="min-h-0 flex-1">
         <div className="p-2 space-y-1">
           {sessions.length === 0 ? (
-            <div className="text-center text-muted-foreground text-sm py-8">
-              {t("noSessions")}
-            </div>
+            <div className="text-center text-muted-foreground text-sm py-8">{t("noSessions")}</div>
           ) : (
             <SessionList
               sessions={sessions}
@@ -82,4 +80,3 @@ export function SessionSidebar(props: {
     </div>
   );
 }
-

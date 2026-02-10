@@ -33,13 +33,13 @@
 - **Testing**: Vitest
 - **Package Manager**: pnpm
 
-## Build & Dev Commands
+## Build, Test, and Development Commands
 
 - Install: `pnpm install`
 - Dev: `pnpm dev`
 - Build: `pnpm build`
 - Type-check: `bun run type-check`
-- Lint: `pnpm lint`
+- Lint: `pnpm lint` (oxlint)
 - Format: `pnpm format`
 - Format check: `pnpm format:check`
 - Test: `bunx vitest run --silent='passed-only' 'src/[path].test.ts'`
@@ -60,6 +60,7 @@
 - File naming: PascalCase for components, camelCase for utilities.
 - Aim to keep files under ~400 LOC; guideline only (not a hard guardrail). Split/refactor when it improves clarity or testability.
 - Brief comments for tricky logic.
+- Lint/format baseline: prefer `pnpm lint` (oxlint) + `pnpm format:check` (oxfmt) before commits.
 
 ## Commit & Pull Request Guidelines
 
@@ -106,11 +107,6 @@
 - Use `vi.spyOn` over `vi.mock`.
 - Test files: `*.test.ts` colocated with source.
 
-## Scope Guardrails
-
-- 不要修改 `packages/claw-sse/**` 的任何文件；该包内部的类型错误不属于本轮 i18n/前端文案工作范围。
-- 如果 `bun run type-check` 的失败**仅**来自 `packages/claw-sse/**` 的既有错误：允许继续提交，但必须确保本次改动不引入新的 TypeScript 报错（至少保证报错文件/数量不增加）。
-
 ## Agent Commit Log
 
 | Hash | Message | Date |
@@ -132,6 +128,13 @@
 | `ui-ux-pro-max` | UI/UX 设计最佳实践 |
 | `tailwind-v4-shadcn` | Tailwind CSS v4 + shadcn/ui 模式 |
 
+### 何时使用哪个 Skill（对标 OpenClaw 的“按场景选工具”）
+
+- 在需要设计提交拆分、commit message 规范、提交策略时：使用 `/commit`；实际提交仍使用 `scripts/committer`。
+- 在用户提供 PR 链接并要求审查时：使用 `/review-pr`（只读 review，不切分支）。
+- 在做 UI/UX 设计、布局、信息层级、动效与可用性优化时：使用 `ui-ux-pro-max`。
+- 在做 Tailwind v4 + shadcn/ui 的主题变量、`@theme inline`、class 组织、迁移与疑难排查时：使用 `tailwind-v4-shadcn`。
+
 安装新 skill：
 ```bash
 npx skills search <keyword>
@@ -147,6 +150,7 @@ npx skills add <owner/repo@skill> -y -g
 1. `bun run type-check` - 类型检查
 2. `bunx vitest run --silent='passed-only' 'src/[相关文件].test.ts'` - 运行相关测试
 3. `pnpm lint` - 代码检查
+4. `pnpm format:check` - 格式检查（如失败，运行 `pnpm format` 再复查）
 
 ### 测试驱动开发 (TDD)
 

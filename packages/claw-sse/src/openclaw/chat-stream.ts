@@ -52,7 +52,9 @@ export function createOpenClawChatStream(params: {
       let didStartText = false
       let didFinish = false
       let lifecycleFinishTimer: ReturnType<typeof setTimeout> | null = null
+      let lifecycleEndAt = 0
       let lastChatEventAt = 0
+      const pendingToolCalls = new Set<string>()
       const textPartId = 'text-1'
       const buffered: GatewayEventFrame[] = []
       let unsubscribe: (() => void) | null = null
@@ -215,6 +217,7 @@ export function createOpenClawChatStream(params: {
         const meta = typeof tool.meta === 'string' && tool.meta.trim() ? tool.meta.trim() : undefined
 
         if (tool.phase === 'start') {
+          pendingToolCalls.add(toolCallId)
           controller.enqueue({
             type: 'tool-input-available',
             toolCallId,
@@ -229,6 +232,7 @@ export function createOpenClawChatStream(params: {
         }
 
         if (tool.phase === 'update') {
+          pendingToolCalls.add(toolCallId)
           controller.enqueue({
             type: 'tool-output-available',
             toolCallId,
@@ -241,6 +245,7 @@ export function createOpenClawChatStream(params: {
         }
 
         if (tool.phase === 'result') {
+          pendingToolCalls.delete(toolCallId)
           const isError = tool.isError === true
           if (isError) {
             controller.enqueue({
@@ -260,6 +265,38 @@ export function createOpenClawChatStream(params: {
             dynamic: true,
           })
         }
+      }
+
+      const scheduleLifecycleFinish = () => {
+        if (lifecycleFinishTimer) return
+        lifecycleEndAt = lifecycleEndAt || Date.now()
+        lifecycleFinishTimer = setTimeout(() => {
+          lifecycleFinishTimer = null
+
+          // Don't finish while tools are still running; exec can block chat.delta for a while.
+          if (pendingToolCalls.size > 0) {
+            scheduleLifecycleFinish()
+            return
+          }
+
+          const now = Date.now()
+          const idleForMs = lastChatEventAt > 0 ? now - lastChatEventAt : now - lifecycleEndAt
+          const sinceEndMs = now - lifecycleEndAt
+
+          // If we're still receiving chat.delta, keep waiting.
+          if (lastChatEventAt > 0 && idleForMs < 800) {
+            scheduleLifecycleFinish()
+            return
+          }
+
+          // Give plenty of time for long-running tools; only use lifecycle=end as a last resort.
+          if (sinceEndMs < 20_000) {
+            scheduleLifecycleFinish()
+            return
+          }
+
+          finishOnce()
+        }, 1500)
       }
 
       const handleLifecycleEvent = (evt: OpenClawAgentEventPayload, lifecycle: OpenClawLifecycleEventData) => {
@@ -285,14 +322,7 @@ export function createOpenClawChatStream(params: {
           // 如果这里立刻 finish，会导致尾部内容被截断（错过紧随其后的 chat.final）。
           //
           // 这里做一个“可被 chat.delta 取消”的兜底：只要后续还有 chat.delta/final，timer 会被清掉。
-          if (!lifecycleFinishTimer) {
-            lifecycleFinishTimer = setTimeout(() => {
-              const idleForMs = Date.now() - lastChatEventAt
-              // 如果最近仍在收到 chat.delta，说明还没收敛，不要提前结束。
-              if (lastChatEventAt > 0 && idleForMs < 800) return
-              finishOnce()
-            }, 1500)
-          }
+          scheduleLifecycleFinish()
           return
         }
         if (phase === 'error') {

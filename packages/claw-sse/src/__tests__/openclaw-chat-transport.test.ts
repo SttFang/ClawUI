@@ -291,10 +291,120 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
-    // lifecycle finish is delayed to avoid truncation (chat.final usually arrives after lifecycle end).
-    await vi.advanceTimersByTimeAsync(1600)
+    // lifecycle event is forwarded as a data chunk (A2UI can render it).
+    expect((await readNext(reader)).type).toBe('data-openclaw-lifecycle')
 
-    // Drain until finished.
+    // Without chat.final, lifecycle=end triggers a delayed fallback finish (longer than the old 1.5s cutoff).
+    await vi.advanceTimersByTimeAsync(21_500)
+
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+
+    vi.useRealTimers()
+  })
+
+  it('should not finish early on lifecycle=end while a tool is running', async () => {
+    vi.useFakeTimers()
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'run1'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('run exec')],
+      abortSignal: undefined,
+    })
+
+    const reader = stream.getReader()
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    // Tool starts, then lifecycle=end arrives before the final chat token.
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run1',
+        seq: 10,
+        stream: 'tool',
+        ts: Date.now(),
+        data: {
+          phase: 'start',
+          name: 'exec',
+          toolCallId: 'tc1',
+          args: { command: 'openclaw config --help' },
+          meta: 'exec',
+        },
+      },
+    })
+    expect((await readNext(reader)).type).toBe('tool-input-available')
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run1',
+        seq: 11,
+        stream: 'lifecycle',
+        ts: Date.now(),
+        data: { phase: 'end' },
+      },
+    })
+
+    // Advance time beyond the old 1.5s cutoff; stream must still be open.
+    await vi.advanceTimersByTimeAsync(5000)
+    const probe = await reader.read()
+    expect(probe.done).toBe(false)
+
+    // Tool finishes later, then chat.final arrives.
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run1',
+        seq: 12,
+        stream: 'tool',
+        ts: Date.now(),
+        data: {
+          phase: 'result',
+          name: 'exec',
+          toolCallId: 'tc1',
+          result: { code: 0 },
+          isError: false,
+        },
+      },
+    })
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'run1',
+        sessionKey: 's1',
+        seq: 20,
+        state: 'final',
+        message: { content: [{ type: 'text', text: 'done' }] },
+      },
+    })
+
+    // Drain until finish.
     for (;;) {
       const { done, value } = await reader.read()
       if (done) break
@@ -494,9 +604,8 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
-    await vi.advanceTimersByTimeAsync(1600)
-
     expect((await readNext(reader)).type).toBe('data-openclaw-lifecycle')
+    await vi.advanceTimersByTimeAsync(21_500)
     expect((await readNext(reader)).type).toBe('text-end')
     expect((await readNext(reader)).type).toBe('finish-step')
     expect((await readNext(reader)).type).toBe('finish')

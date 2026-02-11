@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { SessionControlStrip } from "../components/SessionControlStrip";
+import { ExecApprovalInlinePanel, useHasPendingExecApproval } from "./ExecApprovalInlinePanel";
 
 type LocalAttachment = {
   id: string;
@@ -33,15 +34,26 @@ export function ChatComposer(props: {
   onChange: (value: string) => void;
   onSubmit: () => Promise<void> | void;
   disabled: boolean;
+  showSessionControls?: boolean;
   sessionControlsDisabled: boolean;
   className?: string;
 }) {
   const { t } = useTranslation("chat");
-  const { sessionKey, value, onChange, onSubmit, disabled, sessionControlsDisabled, className } =
-    props;
+  const {
+    sessionKey,
+    value,
+    onChange,
+    onSubmit,
+    disabled,
+    showSessionControls = true,
+    sessionControlsDisabled,
+    className,
+  } = props;
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const composingRef = useRef(false);
+  const hasPendingApproval = useHasPendingExecApproval(sessionKey);
 
   const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
   const attachmentsRef = useRef<LocalAttachment[]>([]);
@@ -99,6 +111,7 @@ export function ChatComposer(props: {
   };
 
   const submit = async () => {
+    if (disabled || hasPendingApproval) return;
     await onSubmit();
     // v1: attachments are UI-only; clear after submit to avoid confusion.
     setAttachments((prev) => {
@@ -109,14 +122,25 @@ export function ChatComposer(props: {
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void submit();
-    }
+    if (e.key !== "Enter") return;
+
+    const nativeEvent = e.nativeEvent as KeyboardEvent & { keyCode?: number };
+    const isComposing =
+      composingRef.current || nativeEvent.isComposing || nativeEvent.keyCode === 229;
+
+    // 输入法选词/上屏时按 Enter，不应触发发送。
+    if (isComposing) return;
+
+    // 仅纯 Enter 发送；组合键一律保留换行行为（Cmd/Ctrl/Shift/Alt + Enter）。
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+    e.preventDefault();
+    void submit();
   };
 
   return (
     <div className={cn("mx-auto w-full max-w-3xl", className)}>
+      <ExecApprovalInlinePanel sessionKey={sessionKey} />
       <PromptInput onSubmit={() => void submit()}>
         <input
           ref={fileInputRef}
@@ -140,6 +164,12 @@ export function ChatComposer(props: {
           onChange={(e) => onChange(e.target.value)}
           placeholder={t("inputPlaceholder")}
           disabled={disabled}
+          onCompositionStart={() => {
+            composingRef.current = true;
+          }}
+          onCompositionEnd={() => {
+            composingRef.current = false;
+          }}
           onKeyDown={onKeyDown}
         />
 
@@ -156,15 +186,17 @@ export function ChatComposer(props: {
               <Paperclip className="h-4 w-4" />
             </PromptInputAction>
 
-            <SessionControlStrip
-              sessionKey={sessionKey}
-              disabled={sessionControlsDisabled}
-              className="mt-0"
-            />
+            {showSessionControls ? (
+              <SessionControlStrip
+                sessionKey={sessionKey}
+                disabled={sessionControlsDisabled}
+                className="mt-0"
+              />
+            ) : null}
           </PromptInputTools>
 
           <PromptInputActions className="ml-auto">
-            <PromptInputSubmit disabled={disabled || !value.trim()}>
+            <PromptInputSubmit disabled={disabled || hasPendingApproval || !value.trim()}>
               {t("sendMessage")}
             </PromptInputSubmit>
           </PromptInputActions>

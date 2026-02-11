@@ -2,14 +2,15 @@ import { Button } from "@clawui/ui";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
+import {
+  CONFIG_SECTIONS,
+  resolveConfigSection,
+  type ConfigSection,
+} from "@/router/settingsRouteSchema";
 import { ChannelsSection } from "./ChannelsSection";
 import { PluginsSection } from "./PluginsSection";
 import { SkillsSection } from "./SkillsSection";
 import { ToolsSection } from "./ToolsSection";
-
-const configSections = ["channels", "tools", "skills", "plugins"] as const;
-
-type ConfigSection = (typeof configSections)[number];
 
 const sectionLabelKeys: Record<ConfigSection, string> = {
   channels: "channels.title",
@@ -17,10 +18,6 @@ const sectionLabelKeys: Record<ConfigSection, string> = {
   skills: "agents.sections.skills.title",
   plugins: "plugins.title",
 };
-
-function isConfigSection(value: string | null): value is ConfigSection {
-  return Boolean(value) && configSections.includes(value as ConfigSection);
-}
 
 function ConfigSectionContent(props: { section: ConfigSection }) {
   const { section } = props;
@@ -47,17 +44,16 @@ export function ConfigTab(props: { activeSection: string | null }) {
   const sectionRefs = useRef<Partial<Record<ConfigSection, HTMLElement | null>>>({});
 
   const selectedSection = useMemo<ConfigSection>(
-    () => (isConfigSection(activeSection) ? activeSection : "channels"),
+    () => resolveConfigSection(activeSection),
     [activeSection],
   );
 
   useEffect(() => {
-    if (!isConfigSection(activeSection)) return;
-    const element = sectionRefs.current[activeSection];
+    const element = sectionRefs.current[selectedSection];
     if (!element) return;
 
     element.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [activeSection]);
+  }, [selectedSection]);
 
   const handleSectionChange = (section: ConfigSection) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -74,7 +70,7 @@ export function ConfigTab(props: { activeSection: string | null }) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
-        {configSections.map((section) => (
+        {CONFIG_SECTIONS.map((section) => (
           <Button
             key={section}
             size="sm"
@@ -87,7 +83,7 @@ export function ConfigTab(props: { activeSection: string | null }) {
       </div>
 
       <div className="space-y-8">
-        {configSections.map((section, index) => (
+        {CONFIG_SECTIONS.map((section, index) => (
           <section
             key={section}
             ref={(element) => {

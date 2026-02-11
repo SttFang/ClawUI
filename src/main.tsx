@@ -6,6 +6,7 @@ import { RouteErrorBoundary } from "./components/ErrorBoundary";
 import "./locales/i18n";
 import "katex/dist/katex.min.css";
 import "./index.css";
+import { SETTINGS_ALIAS_ROUTES } from "./router/settingsRouteSchema";
 import AgentsPage from "./routes/agents/page";
 import OnboardingPage from "./routes/onboarding/page";
 // Routes
@@ -25,26 +26,10 @@ const router = createHashRouter([
     children: [
       { index: true, element: <ChatPage /> },
       { path: "agents", element: <AgentsPage /> },
-      {
-        path: "channels",
-        element: <Navigate to="/settings?tab=config&section=channels" replace />,
-      },
-      {
-        path: "tools",
-        element: <Navigate to="/settings?tab=config&section=tools" replace />,
-      },
-      {
-        path: "mcp",
-        element: <Navigate to="/settings?tab=config&section=skills" replace />,
-      },
-      {
-        path: "skills",
-        element: <Navigate to="/settings?tab=config&section=skills" replace />,
-      },
-      {
-        path: "plugins",
-        element: <Navigate to="/settings?tab=config&section=plugins" replace />,
-      },
+      ...SETTINGS_ALIAS_ROUTES.map((route) => ({
+        path: route.path,
+        element: <Navigate to={route.to} replace />,
+      })),
       { path: "scheduler", element: <Navigate to="/agents?section=cron" replace /> },
       { path: "usage", element: <UsagePage /> },
       { path: "settings", element: <SettingsPage /> },

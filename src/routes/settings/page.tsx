@@ -3,6 +3,11 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { Subscription } from "@/features/Subscription";
+import {
+  isSettingsTab,
+  resolveTabFromSection,
+  type SettingsTab,
+} from "@/router/settingsRouteSchema";
 import { useSecretsStore } from "@/store/secrets";
 import { useSettingsStore } from "@/store/settings";
 import { AboutTab } from "./AboutTab";
@@ -12,35 +17,6 @@ import { GatewayTab } from "./GatewayTab";
 import { GeneralTab } from "./GeneralTab";
 import { SecurityTab } from "./SecurityTab";
 import { TokensTab } from "./TokensTab";
-
-const SETTINGS_TABS = [
-  "general",
-  "config",
-  "api",
-  "tokens",
-  "gateway",
-  "security",
-  "subscription",
-  "about",
-] as const;
-
-type SettingsTab = (typeof SETTINGS_TABS)[number];
-
-function isSettingsTab(value: string | null): value is SettingsTab {
-  return Boolean(value) && SETTINGS_TABS.includes(value as SettingsTab);
-}
-
-function resolveTabFromSection(section: string | null): SettingsTab {
-  if (!section) return "general";
-  if (
-    section === "channels" ||
-    section === "tools" ||
-    section === "skills" ||
-    section === "plugins"
-  )
-    return "config";
-  return "general";
-}
 
 export default function SettingsPage() {
   const { t } = useTranslation("common");

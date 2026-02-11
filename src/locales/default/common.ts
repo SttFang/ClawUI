@@ -823,6 +823,11 @@ const common = {
       runningHint: "已允许，正在执行…",
     },
   },
+  thinking: {
+    active: "思考中…",
+    done: "思考了 {{seconds}} 秒",
+    doneShort: "思考了几秒",
+  },
 } as const;
 
 export default common;

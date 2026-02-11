@@ -828,6 +828,11 @@ const common = {
       runningHint: "Approved. Executing…",
     },
   },
+  thinking: {
+    active: "Thinking…",
+    done: "Thought for {{seconds}} seconds",
+    doneShort: "Thought for a few seconds",
+  },
 } as const;
 
 export default common;

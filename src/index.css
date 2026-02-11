@@ -247,3 +247,33 @@
     oklch(0.268 0.007 17 / 70%) 100%
   );
 }
+
+/* Text-shimmer: sweep highlight across text (AI SDK Elements pattern) */
+@keyframes claw-text-shimmer {
+  0% {
+    background-position: 100% center;
+  }
+  100% {
+    background-position: 0% center;
+  }
+}
+
+.claw-text-shimmer {
+  --shimmer-spread: 20px;
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent calc(50% - var(--shimmer-spread)),
+      var(--background) 50%,
+      transparent calc(50% + var(--shimmer-spread))
+    ),
+    linear-gradient(var(--muted-foreground), var(--muted-foreground));
+  background-size:
+    250% 100%,
+    auto;
+  background-repeat: no-repeat, padding-box;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: claw-text-shimmer 2s linear infinite;
+}

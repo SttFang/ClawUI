@@ -1,4 +1,6 @@
 import type { UIMessage } from "ai";
+import { BrainIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExecActionItem, ExecCompletedSummary, ToolEventCard } from "@/components/A2UI";
 import {
@@ -8,14 +10,29 @@ import {
 } from "@/components/A2UI/execTrace";
 import { MessageText } from "./MessageText";
 
-function ThinkingShimmer(props: { label: string }) {
-  const { label } = props;
-  return (
-    <div aria-label="thinking">
-      <div className="inline-flex items-center gap-2 rounded-md bg-muted/40 px-3 py-1.5">
-        <span className="claw-shimmer h-2.5 w-2.5 shrink-0 rounded-full" />
-        <span className="text-sm font-semibold tracking-wide text-foreground/85">{label}</span>
+const AUTO_HIDE_DELAY = 1500;
+const MS_IN_S = 1000;
+
+function ThinkingIndicator(props: { isStreaming: boolean; duration: number | undefined }) {
+  const { t } = useTranslation("common");
+  const { isStreaming, duration } = props;
+
+  if (isStreaming || duration === 0) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-label="thinking">
+        <BrainIcon className="size-4" />
+        <span className="claw-text-shimmer">{t("thinking.active")}</span>
       </div>
+    );
+  }
+
+  const label =
+    duration === undefined ? t("thinking.doneShort") : t("thinking.done", { seconds: duration });
+
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-label="thinking">
+      <BrainIcon className="size-4" />
+      <span>{label}</span>
     </div>
   );
 }
@@ -25,13 +42,34 @@ export function MessageParts(props: {
   streaming: boolean;
   sessionKey: string;
 }) {
-  const { t } = useTranslation("common");
   const { message, streaming, sessionKey } = props;
 
   const hasVisibleText = message.parts.some(
     (p) => p.type === "text" && typeof p.text === "string" && Boolean(p.text.trim()),
   );
-  const shouldShowThinking = streaming && !hasVisibleText;
+  const isThinking = streaming && !hasVisibleText;
+
+  // Duration tracking
+  const startTimeRef = useRef<number | null>(null);
+  const [thinkingDuration, setThinkingDuration] = useState<number | undefined>(undefined);
+  const [showIndicator, setShowIndicator] = useState(false);
+
+  useEffect(() => {
+    if (isThinking) {
+      if (startTimeRef.current === null) {
+        startTimeRef.current = Date.now();
+      }
+      setShowIndicator(true);
+      setThinkingDuration(undefined);
+    } else if (startTimeRef.current !== null) {
+      const elapsed = Math.ceil((Date.now() - startTimeRef.current) / MS_IN_S);
+      setThinkingDuration(elapsed);
+      startTimeRef.current = null;
+      const timer = setTimeout(() => setShowIndicator(false), AUTO_HIDE_DELAY);
+      return () => clearTimeout(timer);
+    }
+  }, [isThinking]);
+
   const completedExecTraces = collectCompletedExecTraces(message.parts, sessionKey);
   const finishedExecToolCallIds = new Set(
     message.parts.flatMap((p) => {
@@ -44,7 +82,9 @@ export function MessageParts(props: {
 
   return (
     <div className="space-y-3">
-      {shouldShowThinking ? <ThinkingShimmer label={t("a2ui.execAction.thinking")} /> : null}
+      {showIndicator ? (
+        <ThinkingIndicator isStreaming={isThinking} duration={thinkingDuration} />
+      ) : null}
       {message.parts.map((part, index) => {
         if (part.type === "step-start") return null;
         if (part.type === "text") {

@@ -106,6 +106,7 @@
 - Never run full test suite; always filter by path.
 - Use `vi.spyOn` over `vi.mock`.
 - Test files: `*.test.ts` colocated with source.
+- 修复 bug 后记得引入回归测试。
 
 ## Store 规范（Zustand）
 

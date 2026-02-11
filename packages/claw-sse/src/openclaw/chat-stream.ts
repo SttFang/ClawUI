@@ -57,6 +57,8 @@ export function createOpenClawChatStream(params: {
       let hasSeenClientChatEvent = false
       let streamStartedAt = 0
       let lifecycleFinishTimer: ReturnType<typeof setTimeout> | null = null
+      let assistantFallbackTimer: ReturnType<typeof setTimeout> | null = null
+      let pendingAssistantText: string | null = null
       let lifecycleEndAt = 0
       let lastChatEventAt = 0
       const pendingToolCalls = new Set<string>()
@@ -135,6 +137,10 @@ export function createOpenClawChatStream(params: {
           clearTimeout(lifecycleFinishTimer)
           lifecycleFinishTimer = null
         }
+        if (assistantFallbackTimer) {
+          clearTimeout(assistantFallbackTimer)
+          assistantFallbackTimer = null
+        }
         controller.close()
       }
 
@@ -145,6 +151,10 @@ export function createOpenClawChatStream(params: {
         if (lifecycleFinishTimer) {
           clearTimeout(lifecycleFinishTimer)
           lifecycleFinishTimer = null
+        }
+        if (assistantFallbackTimer) {
+          clearTimeout(assistantFallbackTimer)
+          assistantFallbackTimer = null
         }
         controller.enqueue({ type: 'error', errorText })
         controller.close()
@@ -163,6 +173,10 @@ export function createOpenClawChatStream(params: {
         if (lifecycleFinishTimer) {
           clearTimeout(lifecycleFinishTimer)
           lifecycleFinishTimer = null
+        }
+        if (assistantFallbackTimer) {
+          clearTimeout(assistantFallbackTimer)
+          assistantFallbackTimer = null
         }
         // Always close the active text part to avoid leaving it in "streaming".
         if (didStartText) {
@@ -218,6 +232,11 @@ export function createOpenClawChatStream(params: {
         hasSeenClientChatEvent = true
 
         if (evt.state === 'delta' || evt.state === 'final') {
+          if (assistantFallbackTimer) {
+            clearTimeout(assistantFallbackTimer)
+            assistantFallbackTimer = null
+          }
+          pendingAssistantText = null
           lastChatEventAt = Date.now()
           if (lifecycleFinishTimer) {
             clearTimeout(lifecycleFinishTimer)
@@ -253,12 +272,42 @@ export function createOpenClawChatStream(params: {
         })
         if (!isCurrentAgentRun(evt.runId)) return
         if (evt.stream !== 'assistant') return
-        // OpenClaw 的 `chat.delta` 是累计快照，最终也由 assistant.text 映射而来。
-        // 过去同时消费 `agent.assistant` + `chat.delta` 会出现“重复/口吃式”拼接：
-        // 两条流的粒度/节流策略不同，偶发导致 append-only 的 delta 合成失真。
-        //
-        // v1 策略：以 `chat.delta/final` 作为唯一文本来源；assistant 流只用于补充 tool/lifecycle 等结构化信息。
-        void evt
+        // Preferred source remains `chat.delta/final`. But when some providers/runs
+        // only emit assistant stream (or chat stream is delayed after approvals),
+        // use assistant text as a fallback to avoid "approved but no visible reply".
+        if (hasSeenClientChatEvent) return
+
+        const text = typeof assistantData?.text === 'string' ? assistantData.text : ''
+        if (!text) return
+
+        pendingAssistantText = text
+        if (assistantFallbackTimer) clearTimeout(assistantFallbackTimer)
+        assistantFallbackTimer = setTimeout(() => {
+          assistantFallbackTimer = null
+          if (!pendingAssistantText || hasSeenClientChatEvent) return
+
+          const fallbackText = pendingAssistantText
+          pendingAssistantText = null
+
+          if (!currentText) {
+            ensureTextStarted()
+            currentText = fallbackText
+            controller.enqueue({ type: 'text-delta', id: textPartId, delta: fallbackText })
+            return
+          }
+
+          // Handle both snapshot-like and chunk-like assistant payloads.
+          if (fallbackText.startsWith(currentText)) {
+            const delta = computeSuffixDelta(currentText, fallbackText)
+            currentText = fallbackText
+            if (delta) controller.enqueue({ type: 'text-delta', id: textPartId, delta })
+            return
+          }
+
+          if (fallbackText.length < currentText.length) return
+          currentText += fallbackText
+          controller.enqueue({ type: 'text-delta', id: textPartId, delta: fallbackText })
+        }, 300)
       }
 
       const handleToolEvent = (evt: OpenClawAgentEventPayload, tool: OpenClawToolEventData) => {

@@ -96,10 +96,11 @@ export function createOpenClawChatStream(params: {
       const queuePendingChatAlias = (evt: OpenClawChatEvent) => {
         if (!clientRunId) return
         if (evt.runId === clientRunId) return
-        if (hasSeenClientChatEvent) return
+        const approvalRecovery = hasRecentApprovalActivity()
+        if (hasSeenClientChatEvent && !approvalRecovery) return
         if (didFinish) return
         if (boundChatRunId) return
-        if (currentText.length > 0) return
+        if (currentText.length > 0 && !approvalRecovery) return
         if (evt.state !== 'delta' && evt.state !== 'final') return
 
         pendingChatAliasRunId = evt.runId
@@ -112,7 +113,15 @@ export function createOpenClawChatStream(params: {
           pendingChatAliasRunId = null
           pendingChatAliasEvent = null
           if (!queuedRunId || !queuedEvent) return
-          if (hasSeenClientChatEvent || didFinish || boundChatRunId || currentText.length > 0) return
+          const approvalRecovery = hasRecentApprovalActivity()
+          if (
+            (hasSeenClientChatEvent && !approvalRecovery) ||
+            didFinish ||
+            boundChatRunId ||
+            (currentText.length > 0 && !approvalRecovery)
+          ) {
+            return
+          }
 
           boundChatRunId = queuedRunId
           handleChatEvent(queuedEvent)
@@ -128,21 +137,22 @@ export function createOpenClawChatStream(params: {
         if (!clientRunId) return
         if (!evt.runId || evt.runId === clientRunId) return
         if (boundChatRunId) return
-        if (hasSeenClientChatEvent) return
+        const approvalRecovery = hasRecentApprovalActivity()
+        if (hasSeenClientChatEvent && !approvalRecovery) return
         if (didFinish) return
         // NOTE:
         // OpenClaw exec approvals can pause a run for long periods. If we only allow
         // early-time binding, the resumed `chat.delta/final` (internal runId) is dropped,
         // causing "approved but no response until next message" regressions.
         //
-        // As long as this stream has not observed its own client run yet, bind to the
-        // first matching chat delta/final for the same session.
-        if (currentText.length > 0) return
+        // Some runs emit pre-approval text on clientRunId, then resume on an internal runId.
+        // During an approval recovery window, allow rebinding even after prior chat snapshots.
+        if (currentText.length > 0 && !approvalRecovery) return
         const elapsed = streamStartedAt > 0 ? Date.now() - streamStartedAt : 0
         const allowDelayedBind = elapsed >= 30_000
         const canTrustAliasWithoutGrace =
           (boundAgentRunId != null && evt.runId === boundAgentRunId) ||
-          hasRecentApprovalActivity() ||
+          approvalRecovery ||
           allowDelayedBind
         if (!canTrustAliasWithoutGrace && evt.state !== 'final') return
         if (evt.state !== 'delta' && evt.state !== 'final') return
@@ -165,11 +175,12 @@ export function createOpenClawChatStream(params: {
         if (!rid || !clientRunId) return
         if (rid === clientRunId) return
         if (boundAgentRunId) return
-        if (hasSeenClientChatEvent) return
+        const approvalRecovery = hasRecentApprovalActivity()
+        if (hasSeenClientChatEvent && !approvalRecovery) return
         const elapsed = streamStartedAt > 0 ? Date.now() - streamStartedAt : 0
         const likelyFreshSeq = typeof seq === 'number' ? seq <= 12 : true
         const allowDelayedBind = elapsed >= 30_000
-        if (!likelyFreshSeq && !allowDelayedBind && !hasRecentApprovalActivity()) return
+        if (!likelyFreshSeq && !allowDelayedBind && !approvalRecovery) return
 
         const normalizedPhase = typeof phase === 'string' ? phase : ''
         const canBindFromLifecycle =
@@ -347,7 +358,8 @@ export function createOpenClawChatStream(params: {
         // Preferred source remains `chat.delta/final`. But when some providers/runs
         // only emit assistant stream (or chat stream is delayed after approvals),
         // use assistant text as a fallback to avoid "approved but no visible reply".
-        if (hasSeenClientChatEvent) return
+        const approvalRecovery = hasRecentApprovalActivity()
+        if (hasSeenClientChatEvent && !approvalRecovery) return
 
         const text = typeof assistantData?.text === 'string' ? assistantData.text : ''
         if (!text) return
@@ -356,7 +368,9 @@ export function createOpenClawChatStream(params: {
         if (assistantFallbackTimer) clearTimeout(assistantFallbackTimer)
         assistantFallbackTimer = setTimeout(() => {
           assistantFallbackTimer = null
-          if (!pendingAssistantText || hasSeenClientChatEvent) return
+          if (!pendingAssistantText) return
+          const stillInApprovalRecovery = hasRecentApprovalActivity()
+          if (hasSeenClientChatEvent && !stillInApprovalRecovery) return
 
           const fallbackText = pendingAssistantText
           pendingAssistantText = null

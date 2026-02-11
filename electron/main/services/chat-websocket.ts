@@ -62,6 +62,9 @@ export class ChatWebSocketService extends EventEmitter {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private connectPromise: Promise<void> | null = null;
+  private shouldReconnect = true;
   private pendingRequests: Map<
     string,
     { resolve: (v: unknown) => void; reject: (e: Error) => void }
@@ -76,24 +79,59 @@ export class ChatWebSocketService extends EventEmitter {
     this.gatewayToken = token;
   }
 
+  private rejectAllPendingRequests(error: Error): void {
+    for (const [, { reject }] of this.pendingRequests) {
+      reject(error);
+    }
+    this.pendingRequests.clear();
+  }
+
   private cleanupSocket(): void {
-    if (this.ws) {
-      this.ws.removeAllListeners();
-      this.ws.close();
-      this.ws = null;
+    const socket = this.ws;
+    this.ws = null;
+    if (!socket) return;
+
+    if (socket.readyState === WebSocket.CONNECTING) {
+      // Avoid an unhandled "closed before established" error when tearing down
+      // a socket that is still handshaking.
+      socket.once("error", () => {});
+      socket.terminate();
+      return;
+    }
+
+    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CLOSING) {
+      socket.close();
     }
   }
 
   async connect(): Promise<void> {
-    this.cleanupSocket();
+    if (this.isConnected()) {
+      return;
+    }
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.shouldReconnect = true;
 
+    this.connectPromise = this.doConnect().finally(() => {
+      this.connectPromise = null;
+    });
+    return this.connectPromise;
+  }
+
+  private async doConnect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
         const t0 = Date.now();
         chatLog.info("[ws.connecting]", this.gatewayUrl);
-        this.ws = new WebSocket(this.gatewayUrl);
+        const socket = new WebSocket(this.gatewayUrl);
+        this.ws = socket;
 
-        this.ws.on("open", async () => {
+        socket.on("open", async () => {
           chatLog.info("[ws.open]", `durationMs=${Date.now() - t0}`);
           try {
             await this.sendConnectFrame();
@@ -109,23 +147,24 @@ export class ChatWebSocketService extends EventEmitter {
           }
         });
 
-        this.ws.on("message", (data: WebSocket.Data) => {
+        socket.on("message", (data: WebSocket.Data) => {
           this.handleMessage(data.toString());
         });
 
-        this.ws.on("close", (code, reason) => {
+        socket.on("close", (code, reason) => {
           chatLog.info("[ws.closed]", `code=${code}`, `reason=${String(reason)}`);
           this.connected = false;
-          this.emit("disconnected");
-          // Reject all pending requests
-          for (const [, { reject }] of this.pendingRequests) {
-            reject(new Error("Connection closed"));
+          if (this.ws === socket) {
+            this.ws = null;
           }
-          this.pendingRequests.clear();
-          this.attemptReconnect();
+          this.emit("disconnected");
+          this.rejectAllPendingRequests(new Error("Connection closed"));
+          if (this.shouldReconnect) {
+            this.attemptReconnect();
+          }
         });
 
-        this.ws.on("error", (error) => {
+        socket.on("error", (error) => {
           chatLog.error("[ws.error]", error.message);
           this.emit("error", error.message);
           reject(error);
@@ -309,13 +348,17 @@ export class ChatWebSocketService extends EventEmitter {
   }
 
   private attemptReconnect(): void {
+    if (!this.shouldReconnect || this.connectPromise || this.isConnected()) {
+      return;
+    }
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       chatLog.info(
         "[ws.reconnect]",
         `attempt=${this.reconnectAttempts}/${this.maxReconnectAttempts}`,
       );
-      setTimeout(() => {
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = null;
         this.connect().catch(() => {});
       }, this.reconnectDelay * this.reconnectAttempts);
     }
@@ -436,7 +479,13 @@ export class ChatWebSocketService extends EventEmitter {
   }
 
   disconnect(): void {
+    this.shouldReconnect = false;
     this.connected = false;
+    this.connectPromise = null;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.cleanupSocket();
   }
 

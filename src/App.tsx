@@ -5,6 +5,7 @@ import { initChatStreamListener } from "@/store/chat";
 import { initChatRunsListener } from "@/store/chatRuns";
 import { initExecApprovalsListener } from "@/store/execApprovals";
 import { initGatewayIpcListener } from "@/store/gateway";
+import { initRunMapListener } from "@/store/runMap";
 import { initTheme } from "@/store/ui";
 
 // Initialize IPC listeners and theme once
@@ -12,6 +13,7 @@ initGatewayIpcListener();
 initChatStreamListener();
 initChatRunsListener();
 initExecApprovalsListener();
+initRunMapListener();
 initTheme();
 
 function App() {

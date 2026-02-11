@@ -976,6 +976,14 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
+    expect(await readNext(reader)).toEqual({
+      type: 'tool-output-available',
+      toolCallId: 'tc-end-only',
+      output: 'No output - tool completed successfully.',
+      providerExecuted: true,
+      dynamic: true,
+    })
+
     await vi.advanceTimersByTimeAsync(21_500)
 
     expect((await readNext(reader)).type).toBe('text-end')

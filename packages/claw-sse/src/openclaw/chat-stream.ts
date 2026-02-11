@@ -476,13 +476,18 @@ export function createOpenClawChatStream(params: {
             return
           }
 
-          // Some OpenClaw flows emit phase=end without a result payload.
-          if (phase === 'end' && typeof tool.result === 'undefined') return
+          const hasResult = typeof tool.result !== 'undefined'
+          const hasPartialResult = typeof tool.partialResult !== 'undefined'
+          const fallbackOutput =
+            toolName === 'exec' || toolName === 'bash'
+              ? 'No output - tool completed successfully.'
+              : ''
+          const output = hasResult ? tool.result : hasPartialResult ? tool.partialResult : fallbackOutput
 
           controller.enqueue({
             type: 'tool-output-available',
             toolCallId,
-            output: tool.result,
+            output,
             providerExecuted: true,
             dynamic: true,
           })

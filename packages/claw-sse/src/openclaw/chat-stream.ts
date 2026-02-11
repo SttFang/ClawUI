@@ -58,13 +58,66 @@ export function createOpenClawChatStream(params: {
       let streamStartedAt = 0
       let lifecycleFinishTimer: ReturnType<typeof setTimeout> | null = null
       let assistantFallbackTimer: ReturnType<typeof setTimeout> | null = null
+      let pendingChatAliasTimer: ReturnType<typeof setTimeout> | null = null
       let pendingAssistantText: string | null = null
       let lifecycleEndAt = 0
       let lastChatEventAt = 0
+      let lastApprovalActivityAt = 0
+      let pendingChatAliasRunId: string | null = null
+      let pendingChatAliasEvent: OpenClawChatEvent | null = null
       const pendingToolCalls = new Set<string>()
       const textPartId = 'text-1'
       const buffered: GatewayEventFrame[] = []
       let unsubscribe: (() => void) | null = null
+      const CHAT_ALIAS_GRACE_MS = 250
+      const APPROVAL_ALIAS_WINDOW_MS = 120_000
+
+      const hasRecentApprovalActivity = () => {
+        if (!lastApprovalActivityAt) return false
+        return Date.now() - lastApprovalActivityAt <= APPROVAL_ALIAS_WINDOW_MS
+      }
+
+      const noteApprovalActivity = (createdAtMs?: unknown) => {
+        if (typeof createdAtMs === 'number' && streamStartedAt > 0 && createdAtMs + 1000 < streamStartedAt) {
+          return
+        }
+        lastApprovalActivityAt = Date.now()
+      }
+
+      const clearPendingChatAlias = () => {
+        if (pendingChatAliasTimer) {
+          clearTimeout(pendingChatAliasTimer)
+          pendingChatAliasTimer = null
+        }
+        pendingChatAliasRunId = null
+        pendingChatAliasEvent = null
+      }
+
+      const queuePendingChatAlias = (evt: OpenClawChatEvent) => {
+        if (!clientRunId) return
+        if (evt.runId === clientRunId) return
+        if (hasSeenClientChatEvent) return
+        if (didFinish) return
+        if (boundChatRunId) return
+        if (currentText.length > 0) return
+        if (evt.state !== 'delta' && evt.state !== 'final') return
+
+        pendingChatAliasRunId = evt.runId
+        pendingChatAliasEvent = evt
+        if (pendingChatAliasTimer) return
+        pendingChatAliasTimer = setTimeout(() => {
+          pendingChatAliasTimer = null
+          const queuedRunId = pendingChatAliasRunId
+          const queuedEvent = pendingChatAliasEvent
+          pendingChatAliasRunId = null
+          pendingChatAliasEvent = null
+          if (!queuedRunId || !queuedEvent) return
+          if (hasSeenClientChatEvent || didFinish || boundChatRunId || currentText.length > 0) return
+
+          boundChatRunId = queuedRunId
+          handleChatEvent(queuedEvent)
+        }, CHAT_ALIAS_GRACE_MS)
+      }
 
       const isCurrentChatRun = (rid: string) => {
         if (clientRunId != null && rid === clientRunId) return true
@@ -86,12 +139,12 @@ export function createOpenClawChatStream(params: {
         // first matching chat delta/final for the same session.
         if (currentText.length > 0) return
         const elapsed = streamStartedAt > 0 ? Date.now() - streamStartedAt : 0
-        if (boundAgentRunId && evt.runId !== boundAgentRunId) return
-        // Prevent accidental binding to stale old runs shortly after submit.
-        // Once approval waits long enough, relax this guard.
-        const likelyFreshSeq = typeof evt.seq === 'number' ? evt.seq <= 2 : true
         const allowDelayedBind = elapsed >= 30_000
-        if (!boundAgentRunId && !likelyFreshSeq && !allowDelayedBind && evt.state !== 'final') return
+        const canTrustAliasWithoutGrace =
+          (boundAgentRunId != null && evt.runId === boundAgentRunId) ||
+          hasRecentApprovalActivity() ||
+          allowDelayedBind
+        if (!canTrustAliasWithoutGrace && evt.state !== 'final') return
         if (evt.state !== 'delta' && evt.state !== 'final') return
         boundChatRunId = evt.runId
       }
@@ -116,7 +169,7 @@ export function createOpenClawChatStream(params: {
         const elapsed = streamStartedAt > 0 ? Date.now() - streamStartedAt : 0
         const likelyFreshSeq = typeof seq === 'number' ? seq <= 12 : true
         const allowDelayedBind = elapsed >= 30_000
-        if (!likelyFreshSeq && !allowDelayedBind) return
+        if (!likelyFreshSeq && !allowDelayedBind && !hasRecentApprovalActivity()) return
 
         const normalizedPhase = typeof phase === 'string' ? phase : ''
         const canBindFromLifecycle =
@@ -141,6 +194,10 @@ export function createOpenClawChatStream(params: {
           clearTimeout(assistantFallbackTimer)
           assistantFallbackTimer = null
         }
+        if (pendingChatAliasTimer) {
+          clearTimeout(pendingChatAliasTimer)
+          pendingChatAliasTimer = null
+        }
         controller.close()
       }
 
@@ -155,6 +212,10 @@ export function createOpenClawChatStream(params: {
         if (assistantFallbackTimer) {
           clearTimeout(assistantFallbackTimer)
           assistantFallbackTimer = null
+        }
+        if (pendingChatAliasTimer) {
+          clearTimeout(pendingChatAliasTimer)
+          pendingChatAliasTimer = null
         }
         controller.enqueue({ type: 'error', errorText })
         controller.close()
@@ -177,6 +238,10 @@ export function createOpenClawChatStream(params: {
         if (assistantFallbackTimer) {
           clearTimeout(assistantFallbackTimer)
           assistantFallbackTimer = null
+        }
+        if (pendingChatAliasTimer) {
+          clearTimeout(pendingChatAliasTimer)
+          pendingChatAliasTimer = null
         }
         // Always close the active text part to avoid leaving it in "streaming".
         if (didStartText) {
@@ -227,8 +292,15 @@ export function createOpenClawChatStream(params: {
 
       const handleChatEvent = (evt: OpenClawChatEvent) => {
         if (evt.sessionKey !== sessionKey) return
+        if (clientRunId && evt.runId === clientRunId) {
+          clearPendingChatAlias()
+        }
         maybeBindChatRunId(evt)
-        if (!isCurrentChatRun(evt.runId)) return
+        if (!isCurrentChatRun(evt.runId)) {
+          queuePendingChatAlias(evt)
+          return
+        }
+        clearPendingChatAlias()
         hasSeenClientChatEvent = true
 
         if (evt.state === 'delta' || evt.state === 'final') {
@@ -458,6 +530,30 @@ export function createOpenClawChatStream(params: {
 
       const processEventFrame = (frame: GatewayEventFrame) => {
         if (frame.type !== 'event') return
+        if (frame.event === 'exec.approval.requested') {
+          const payload = frame.payload as
+            | {
+                request?: { sessionKey?: unknown }
+                createdAtMs?: unknown
+              }
+            | undefined
+          if (!payload || typeof payload !== 'object') return
+          const approvalSessionKey =
+            payload.request && typeof payload.request === 'object'
+              ? (payload.request as { sessionKey?: unknown }).sessionKey
+              : undefined
+          if (approvalSessionKey !== sessionKey) return
+          noteApprovalActivity(payload.createdAtMs)
+          return
+        }
+        if (frame.event === 'exec.approval.resolved') {
+          // Some gateway versions only include id/decision; if we've seen a matching request
+          // in this stream window, keep the alias window alive.
+          if (lastApprovalActivityAt > 0) {
+            noteApprovalActivity()
+          }
+          return
+        }
         if (frame.event === 'chat') {
           const payload = frame.payload as OpenClawChatEvent | undefined
           if (!payload || typeof payload !== 'object') return

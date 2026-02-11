@@ -61,3 +61,17 @@ export function normalizeMathDelimiters(markdown: string): string {
 
   return lines.join("\n");
 }
+
+export function shouldParseIncompleteMarkdown(text: string): boolean {
+  if (!text) return false;
+  if (/\[[^\]]*$/.test(text)) return true;
+  if (/\[[^\]]+\]\([^)]+$/.test(text)) return true;
+
+  const openBrackets = (text.match(/\[/g) ?? []).length;
+  const closeBrackets = (text.match(/\]/g) ?? []).length;
+  if (openBrackets > closeBrackets) return true;
+
+  const openParens = (text.match(/\(/g) ?? []).length;
+  const closeParens = (text.match(/\)/g) ?? []).length;
+  return openParens > closeParens;
+}

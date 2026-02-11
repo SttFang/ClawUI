@@ -1,6 +1,7 @@
 import { Streamdown } from "streamdown";
 import {
   normalizeMathDelimiters,
+  shouldParseIncompleteMarkdown,
   STREAMDOWN_PLUGINS,
   stripOpenClawReplyTags,
   stripTerminalControlSequences,
@@ -11,13 +12,14 @@ export function MessageText(props: { text: string; isAnimating: boolean }) {
   const normalized = normalizeMathDelimiters(
     stripTerminalControlSequences(stripOpenClawReplyTags(text)),
   );
+  const parseIncomplete = isAnimating || shouldParseIncompleteMarkdown(normalized);
   return (
     <Streamdown
       plugins={STREAMDOWN_PLUGINS}
       // Keep a single render path to avoid a layout "jump" when streaming completes.
       mode="streaming"
       isAnimating={isAnimating}
-      parseIncompleteMarkdown={isAnimating}
+      parseIncompleteMarkdown={parseIncomplete}
       // Make long tokens/URLs wrap instead of expanding the bubble.
       className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
     >

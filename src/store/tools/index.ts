@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { ipc } from "@/lib/ipc";
 import { toolsLog } from "@/lib/logger";
+import { useConfigDraftStore } from "@/store/configDraft";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
 
 export type ToolAccessMode = "auto" | "ask" | "deny";
@@ -44,6 +45,71 @@ interface ToolsActions {
 }
 
 type ToolsStore = ToolsState & ToolsActions;
+
+type JsonObject = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonObject | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as JsonObject;
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function deriveToolAccessMode(tools: JsonObject | null): ToolAccessMode {
+  if (!tools) return "auto";
+  const deny = toStringArray(tools.deny);
+  if (deny.includes("*")) return "deny";
+  const exec = asRecord(tools.exec);
+  const ask = readString(exec?.ask);
+  if (ask === "always") return "ask";
+  return "auto";
+}
+
+function deriveSandboxEnabled(root: JsonObject): boolean {
+  const agents = asRecord(root.agents);
+  const defaults = asRecord(agents?.defaults);
+  const sandbox = asRecord(defaults?.sandbox);
+  if (!sandbox) return false;
+  if (typeof sandbox.enabled === "boolean") return sandbox.enabled;
+  const mode = readString(sandbox.mode);
+  return mode ? mode !== "off" : false;
+}
+
+function buildToolsPersistPatch(config: ToolsConfig): JsonObject {
+  const exec: JsonObject = {};
+  if (config.accessMode === "auto") {
+    exec.ask = "on-miss";
+    exec.security = undefined;
+  } else if (config.accessMode === "ask") {
+    exec.ask = "always";
+    exec.security = undefined;
+  } else {
+    exec.ask = "off";
+    exec.security = "deny";
+  }
+
+  return {
+    tools: {
+      allow: config.allowList,
+      deny: config.denyList,
+      exec,
+    },
+    agents: {
+      defaults: {
+        sandbox: {
+          mode: config.sandboxEnabled ? "non-main" : "off",
+        },
+      },
+    },
+  };
+}
 
 // Default tools available in OpenClaw
 const defaultTools: Tool[] = [
@@ -109,13 +175,15 @@ export const useToolsStore = create<ToolsStore>()(
       loadTools: async () => {
         set({ isLoading: true, error: null }, false, "loadTools");
         try {
-          const config = await ipc.config.get();
-          if (config?.tools) {
+          const snapshot = await ipc.config.getSnapshot();
+          const root = asRecord(snapshot.config) ?? {};
+          const toolsRaw = asRecord(root.tools);
+          if (toolsRaw) {
             const toolsConfig: ToolsConfig = {
-              accessMode: config.tools.access || "auto",
-              allowList: config.tools.allow || [],
-              denyList: config.tools.deny || [],
-              sandboxEnabled: config.tools.sandbox?.enabled ?? true,
+              accessMode: deriveToolAccessMode(toolsRaw),
+              allowList: toStringArray(toolsRaw.allow),
+              denyList: toStringArray(toolsRaw.deny),
+              sandboxEnabled: deriveSandboxEnabled(root),
             };
 
             const tools = get().tools.map((tool) => ({
@@ -137,14 +205,7 @@ export const useToolsStore = create<ToolsStore>()(
 
       internal_persistConfig: async () => {
         const { config } = get();
-        await ipc.config.set({
-          tools: {
-            access: config.accessMode,
-            allow: config.allowList,
-            deny: config.denyList,
-            sandbox: { enabled: config.sandboxEnabled },
-          },
-        });
+        await useConfigDraftStore.getState().applyPatch(buildToolsPersistPatch(config));
       },
 
       setAccessMode: async (mode) => {

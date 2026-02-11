@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { ipc } from "@/lib/ipc";
+import { useConfigDraftStore } from "@/store/configDraft";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
 
 export interface MCPTool {
@@ -38,6 +39,36 @@ interface MCPActions {
 
 type MCPStore = MCPState & MCPActions;
 
+type JsonObject = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonObject | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as JsonObject;
+}
+
+function toPersistedServerConfig(servers: MCPServer[]): Record<string, unknown> {
+  const record: Record<string, unknown> = {};
+  for (const server of servers) {
+    record[server.id] = {
+      command: server.command,
+      args: server.args,
+      env: server.env,
+      enabled: server.enabled,
+    };
+  }
+  return record;
+}
+
+function toStringRecord(value: unknown): Record<string, string> | undefined {
+  const record = asRecord(value);
+  if (!record) return undefined;
+  const out: Record<string, string> = {};
+  for (const [key, item] of Object.entries(record)) {
+    if (typeof item === "string") out[key] = item;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 const initialState: MCPState = {
   servers: [],
   isLoading: false,
@@ -53,28 +84,26 @@ export const useMCPStore = create<MCPStore>()(
       loadServers: async () => {
         set({ isLoading: true, error: null }, false, "loadServers");
         try {
-          const config = await ipc.config.get();
-          if (config?.mcp?.servers) {
-            const servers: MCPServer[] = Object.entries(config.mcp.servers).map(
-              ([id, serverConfig]) => {
-                const server = serverConfig as {
-                  command: string;
-                  args?: string[];
-                  env?: Record<string, string>;
-                  enabled?: boolean;
-                };
-                return {
-                  id,
-                  name: id,
-                  command: server.command,
-                  args: server.args || [],
-                  env: server.env,
-                  enabled: server.enabled ?? true,
-                  status: "stopped" as const,
-                  tools: [],
-                };
-              },
-            );
+          const snapshot = await ipc.config.getSnapshot();
+          const root = asRecord(snapshot.config) ?? {};
+          const mcp = asRecord(root.mcp);
+          const serverConfigs = asRecord(mcp?.servers);
+          if (serverConfigs) {
+            const servers: MCPServer[] = Object.entries(serverConfigs).map(([id, serverConfig]) => {
+              const server = asRecord(serverConfig) ?? {};
+              return {
+                id,
+                name: id,
+                command: typeof server.command === "string" ? server.command : "",
+                args: Array.isArray(server.args)
+                  ? server.args.filter((item): item is string => typeof item === "string")
+                  : [],
+                env: toStringRecord(server.env),
+                enabled: typeof server.enabled === "boolean" ? server.enabled : true,
+                status: "stopped" as const,
+                tools: [],
+              };
+            });
             set({ servers, isLoading: false }, false, "loadServers/success");
           } else {
             set({ servers: [], isLoading: false }, false, "loadServers/empty");
@@ -108,22 +137,10 @@ export const useMCPStore = create<MCPStore>()(
         set({ servers: [...servers, newServer], error: null }, false, "addServer/optimistic");
 
         try {
-          const config = await ipc.config.get();
-          const mcpServers = config?.mcp?.servers || {};
-          await ipc.config.set({
-            mcp: {
-              ...config?.mcp,
-              servers: {
-                ...mcpServers,
-                [id]: {
-                  command: serverData.command,
-                  args: serverData.args,
-                  env: serverData.env,
-                  enabled: serverData.enabled,
-                },
-              },
-            },
-          });
+          const nextServers = [...servers, newServer];
+          await useConfigDraftStore
+            .getState()
+            .applyPathPatch(["mcp", "servers"], toPersistedServerConfig(nextServers));
         } catch (error) {
           set(
             { servers, error: error instanceof Error ? error.message : "Failed to add server" },
@@ -141,20 +158,14 @@ export const useMCPStore = create<MCPStore>()(
         set({ isLoading: true, error: null }, false, "removeServer");
 
         try {
-          const config = await ipc.config.get();
-          const mcpServers = { ...config?.mcp?.servers };
-          delete mcpServers[id];
-
-          await ipc.config.set({
-            mcp: {
-              ...config?.mcp,
-              servers: mcpServers,
-            },
-          });
+          const nextServers = servers.filter((s) => s.id !== id);
+          await useConfigDraftStore
+            .getState()
+            .applyPathPatch(["mcp", "servers"], toPersistedServerConfig(nextServers));
 
           set(
             {
-              servers: servers.filter((s) => s.id !== id),
+              servers: nextServers,
               isLoading: false,
               expandedServerId: get().expandedServerId === id ? null : get().expandedServerId,
             },
@@ -185,22 +196,9 @@ export const useMCPStore = create<MCPStore>()(
         set({ servers: newServers, error: null }, false, "updateServer/optimistic");
 
         try {
-          const config = await ipc.config.get();
-          const mcpServers = config?.mcp?.servers || {};
-          await ipc.config.set({
-            mcp: {
-              ...config?.mcp,
-              servers: {
-                ...mcpServers,
-                [id]: {
-                  command: updatedServer.command,
-                  args: updatedServer.args,
-                  env: updatedServer.env,
-                  enabled: updatedServer.enabled,
-                },
-              },
-            },
-          });
+          await useConfigDraftStore
+            .getState()
+            .applyPathPatch(["mcp", "servers"], toPersistedServerConfig(newServers));
         } catch (error) {
           set(
             { servers, error: error instanceof Error ? error.message : "Failed to update server" },

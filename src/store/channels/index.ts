@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { ipc, ChannelConfig } from "@/lib/ipc";
+import { useConfigDraftStore } from "@/store/configDraft";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
 
 export type ChannelType = "telegram" | "discord" | "whatsapp" | "slack" | "wechat" | "signal";
@@ -30,6 +31,172 @@ interface ChannelsActions {
 }
 
 type ChannelsStore = ChannelsState & ChannelsActions;
+
+type JsonObject = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonObject | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as JsonObject;
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function readBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function readNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function toStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value.filter((entry): entry is string => typeof entry === "string");
+  return items.length > 0 ? items : [];
+}
+
+function resolveEffectiveChannelConfig(channelValue: unknown): JsonObject | null {
+  const channel = asRecord(channelValue);
+  if (!channel) return null;
+
+  const base: JsonObject = { ...channel };
+  delete base.accounts;
+
+  const accounts = asRecord(channel.accounts);
+  const defaultAccount = accounts ? asRecord(accounts.default) : null;
+  let selectedAccount = defaultAccount;
+  if (!selectedAccount && accounts) {
+    for (const entry of Object.values(accounts)) {
+      const account = asRecord(entry);
+      if (account) {
+        selectedAccount = account;
+        break;
+      }
+    }
+  }
+
+  return selectedAccount ? { ...base, ...selectedAccount } : base;
+}
+
+function readRequireMention(channelId: string, source: JsonObject): boolean | undefined {
+  const direct = readBoolean(source.requireMention);
+  if (typeof direct === "boolean") return direct;
+
+  if (channelId === "telegram" || channelId === "whatsapp") {
+    const groups = asRecord(source.groups);
+    const star = groups ? asRecord(groups["*"]) : null;
+    return readBoolean(star?.requireMention);
+  }
+
+  if (channelId === "discord") {
+    const guilds = asRecord(source.guilds);
+    const star = guilds ? asRecord(guilds["*"]) : null;
+    return readBoolean(star?.requireMention);
+  }
+
+  return undefined;
+}
+
+function mapActualChannelToUi(channelId: string, rawChannel: unknown): ChannelConfig | null {
+  const source = resolveEffectiveChannelConfig(rawChannel);
+  if (!source) return null;
+
+  const config: ChannelConfig = {
+    enabled: readBoolean(source.enabled) ?? true,
+    dmPolicy: undefined,
+    groupPolicy: undefined,
+  };
+
+  if (channelId === "telegram") {
+    config.botToken = readString(source.botToken);
+    config.dmPolicy = readString(source.dmPolicy) as ChannelConfig["dmPolicy"];
+    config.allowFrom = toStringArray(source.allowFrom);
+  } else if (channelId === "discord") {
+    config.botToken = readString(source.token);
+    const dm = asRecord(source.dm);
+    config.dmPolicy = readString(dm?.policy) as ChannelConfig["dmPolicy"];
+    config.allowFrom = toStringArray(dm?.allowFrom);
+  } else if (channelId === "slack") {
+    config.botToken = readString(source.botToken);
+    config.appToken = readString(source.appToken);
+    const dm = asRecord(source.dm);
+    config.dmPolicy = readString(dm?.policy) as ChannelConfig["dmPolicy"];
+    config.allowFrom = toStringArray(dm?.allowFrom);
+  } else if (channelId === "whatsapp") {
+    config.dmPolicy = readString(source.dmPolicy) as ChannelConfig["dmPolicy"];
+    config.allowFrom = toStringArray(source.allowFrom);
+  }
+
+  config.groupPolicy = readString(source.groupPolicy) as ChannelConfig["groupPolicy"];
+  config.requireMention = readRequireMention(channelId, source);
+  config.historyLimit = readNumber(source.historyLimit);
+  config.mediaMaxMb = readNumber(source.mediaMaxMb);
+  return config;
+}
+
+function buildActualChannelPatch(type: ChannelType, config: ChannelConfig): JsonObject {
+  const patch: JsonObject = {
+    enabled: config.enabled,
+  };
+
+  if (typeof config.groupPolicy === "string") patch.groupPolicy = config.groupPolicy;
+  if (typeof config.historyLimit === "number") patch.historyLimit = config.historyLimit;
+  if (typeof config.mediaMaxMb === "number") patch.mediaMaxMb = config.mediaMaxMb;
+
+  if (type === "telegram") {
+    if (typeof config.botToken === "string") patch.botToken = config.botToken;
+    if (typeof config.dmPolicy === "string") patch.dmPolicy = config.dmPolicy;
+    if (Array.isArray(config.allowFrom)) patch.allowFrom = [...config.allowFrom];
+    if (typeof config.requireMention === "boolean") {
+      patch.groups = { "*": { requireMention: config.requireMention } };
+    }
+    return patch;
+  }
+
+  if (type === "discord") {
+    if (typeof config.botToken === "string") patch.token = config.botToken;
+    if (typeof config.dmPolicy === "string" || Array.isArray(config.allowFrom)) {
+      patch.dm = {
+        ...(typeof config.dmPolicy === "string" ? { policy: config.dmPolicy } : {}),
+        ...(Array.isArray(config.allowFrom) ? { allowFrom: [...config.allowFrom] } : {}),
+      };
+    }
+    if (typeof config.requireMention === "boolean") {
+      patch.guilds = { "*": { requireMention: config.requireMention } };
+    }
+    return patch;
+  }
+
+  if (type === "slack") {
+    if (typeof config.botToken === "string") patch.botToken = config.botToken;
+    if (typeof config.appToken === "string") patch.appToken = config.appToken;
+    if (typeof config.dmPolicy === "string" || Array.isArray(config.allowFrom)) {
+      patch.dm = {
+        ...(typeof config.dmPolicy === "string" ? { policy: config.dmPolicy } : {}),
+        ...(Array.isArray(config.allowFrom) ? { allowFrom: [...config.allowFrom] } : {}),
+      };
+    }
+    return patch;
+  }
+
+  if (type === "whatsapp") {
+    if (typeof config.dmPolicy === "string") patch.dmPolicy = config.dmPolicy;
+    if (Array.isArray(config.allowFrom)) patch.allowFrom = [...config.allowFrom];
+    if (typeof config.requireMention === "boolean") {
+      patch.groups = { "*": { requireMention: config.requireMention } };
+    }
+    return patch;
+  }
+
+  if (typeof config.botToken === "string") patch.botToken = config.botToken;
+  if (typeof config.appToken === "string") patch.appToken = config.appToken;
+  if (typeof config.dmPolicy === "string") patch.dmPolicy = config.dmPolicy;
+  if (Array.isArray(config.allowFrom)) patch.allowFrom = [...config.allowFrom];
+  if (typeof config.requireMention === "boolean") patch.requireMention = config.requireMention;
+  return patch;
+}
 
 const defaultChannels: Channel[] = [
   {
@@ -102,27 +269,25 @@ export const useChannelsStore = create<ChannelsStore>()(
       loadChannels: async () => {
         set({ isLoading: true, error: null }, false, "loadChannels");
         try {
-          const config = await ipc.config.get();
-          if (config?.channels) {
-            set(
-              (state) => ({
-                channels: state.channels.map((channel) => {
-                  const channelConfig = config.channels[channel.type];
-                  return {
-                    ...channel,
-                    isConfigured: !!channelConfig,
-                    isEnabled: channelConfig?.enabled ?? false,
-                    config: channelConfig ?? null,
-                  };
-                }),
-                isLoading: false,
+          const snapshot = await ipc.config.getSnapshot();
+          const root = asRecord(snapshot.config) ?? {};
+          const channels = asRecord(root.channels) ?? {};
+          set(
+            (state) => ({
+              channels: state.channels.map((channel) => {
+                const channelConfig = mapActualChannelToUi(channel.type, channels[channel.type]);
+                return {
+                  ...channel,
+                  isConfigured: Boolean(channelConfig),
+                  isEnabled: channelConfig?.enabled ?? false,
+                  config: channelConfig,
+                };
               }),
-              false,
-              "loadChannels/success",
-            );
-          } else {
-            set({ isLoading: false }, false, "loadChannels/empty");
-          }
+              isLoading: false,
+            }),
+            false,
+            "loadChannels/success",
+          );
         } catch (error) {
           set(
             {
@@ -140,9 +305,9 @@ export const useChannelsStore = create<ChannelsStore>()(
         if (!channel?.config) return;
 
         try {
-          await ipc.config.set({
+          await useConfigDraftStore.getState().applyPatch({
             channels: {
-              [type]: { ...channel.config, enabled: true },
+              [type]: buildActualChannelPatch(type, { ...channel.config, enabled: true }),
             },
           });
           set(
@@ -165,7 +330,7 @@ export const useChannelsStore = create<ChannelsStore>()(
 
       disableChannel: async (type) => {
         try {
-          await ipc.config.set({
+          await useConfigDraftStore.getState().applyPatch({
             channels: {
               [type]: { enabled: false },
             },
@@ -190,9 +355,9 @@ export const useChannelsStore = create<ChannelsStore>()(
 
       configureChannel: async (type, config) => {
         try {
-          await ipc.config.set({
+          await useConfigDraftStore.getState().applyPatch({
             channels: {
-              [type]: config,
+              [type]: buildActualChannelPatch(type, config),
             },
           });
           set(

@@ -144,6 +144,7 @@
 | `agent-browser` | 需要在真实网站完成交互式操作（登录/点击/截图）时使用 |
 | `better-auth-best-practices` | Better Auth 鉴权与安全最佳实践 |
 | `web-artifacts-builder` | 构建/产出可发布的 Web 产物（静态页/截图/包）流程化 |
+| `store-best-practice` | ClawUI Zustand store 施工规范（action/slice/test） |
 
 ### 何时使用哪个 Skill（对标 OpenClaw 的“按场景选工具”）
 
@@ -159,6 +160,7 @@
 - 在需要更偏“网站操作/流程自动化”的浏览器能力（登录、点击、表单、截图）时：使用 `agent-browser`。
 - 在做 Better Auth 相关的鉴权/会话/安全策略设计与落地时：使用 `better-auth-best-practices`。
 - 在需要把 Web 页面/组件输出成可交付物（静态产物、截图、报告）并流程化时：使用 `web-artifacts-builder`。
+- 在新增/重构/审查 `src/store/**`（尤其 action 分层、slice 拆分、store action 测试）时：使用 `store-best-practice`。
 
 安装新 skill：
 ```bash

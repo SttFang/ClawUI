@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import { ipc } from "@/lib/ipc";
+import { useConfigDraftStore } from "@/store/configDraft";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
 
 export type PluginCategory = "ai" | "productivity" | "integration" | "utility";
@@ -51,6 +53,93 @@ interface PluginsActions {
 }
 
 type PluginsStore = PluginsState & PluginsActions;
+
+type JsonObject = Record<string, unknown>;
+type PluginsEntriesMap = Record<string, { enabled?: boolean; config?: Record<string, unknown> }>;
+type PluginsInstallsMap = Record<string, JsonObject>;
+
+function asRecord(value: unknown): JsonObject | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as JsonObject;
+}
+
+function readBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function toPluginsEntriesMap(value: unknown): PluginsEntriesMap {
+  const source = asRecord(value);
+  if (!source) return {};
+  const next: PluginsEntriesMap = {};
+  for (const [pluginId, entryValue] of Object.entries(source)) {
+    const entry = asRecord(entryValue);
+    if (!entry) continue;
+    next[pluginId] = {
+      enabled: readBoolean(entry.enabled),
+      config: asRecord(entry.config) ?? undefined,
+    };
+  }
+  return next;
+}
+
+function toPluginsInstallsMap(value: unknown): PluginsInstallsMap {
+  const source = asRecord(value);
+  if (!source) return {};
+  const next: PluginsInstallsMap = {};
+  for (const [pluginId, installValue] of Object.entries(source)) {
+    const install = asRecord(installValue);
+    if (!install) continue;
+    next[pluginId] = install;
+  }
+  return next;
+}
+
+function readPluginsConfigState(config: unknown): {
+  entries: PluginsEntriesMap;
+  installs: PluginsInstallsMap;
+} {
+  const root = asRecord(config) ?? {};
+  const plugins = asRecord(root.plugins) ?? {};
+  return {
+    entries: toPluginsEntriesMap(plugins.entries),
+    installs: toPluginsInstallsMap(plugins.installs),
+  };
+}
+
+function deriveInstalled(params: {
+  baseInstalled: boolean;
+  entry: { enabled?: boolean; config?: Record<string, unknown> } | undefined;
+  hasInstallRecord: boolean;
+}): boolean {
+  if (params.baseInstalled) return true;
+  if (params.hasInstallRecord) return true;
+  return params.entry?.enabled === true;
+}
+
+async function persistPluginsMutation(
+  mutate: (state: { entries: PluginsEntriesMap; installs: PluginsInstallsMap }) => void,
+): Promise<void> {
+  const draftStore = useConfigDraftStore.getState();
+  await draftStore.loadSnapshot();
+  const snapshotConfig = draftStore.snapshot?.config ?? {};
+  const current = readPluginsConfigState(snapshotConfig);
+  mutate(current);
+  await draftStore.applyPatch({
+    plugins: {
+      entries: current.entries,
+      installs: current.installs,
+    },
+  });
+}
+
+function createInstallRecord(plugin: Plugin): JsonObject {
+  return {
+    source: "path",
+    spec: `clawui:${plugin.id}`,
+    version: plugin.version,
+    installedAt: new Date().toISOString(),
+  };
+}
 
 const defaultPlugins: Plugin[] = [
   {
@@ -261,8 +350,29 @@ export const usePluginsStore = create<PluginsStore>()(
       loadPlugins: async () => {
         set({ isLoading: true, error: null }, false, "loadPlugins");
         try {
-          await new Promise((resolve) => setTimeout(resolve, 300));
-          set({ isLoading: false }, false, "loadPlugins/success");
+          const snapshot = await ipc.config.getSnapshot();
+          const { entries, installs } = readPluginsConfigState(snapshot.config);
+          set(
+            (state) => ({
+              plugins: state.plugins.map((plugin) => {
+                const entry = entries[plugin.id];
+                const hasInstallRecord = Boolean(installs[plugin.id]);
+                return {
+                  ...plugin,
+                  enabled: readBoolean(entry?.enabled) ?? plugin.enabled,
+                  installed: deriveInstalled({
+                    baseInstalled: plugin.installed,
+                    entry,
+                    hasInstallRecord,
+                  }),
+                  config: entry?.config ?? plugin.config,
+                };
+              }),
+              isLoading: false,
+            }),
+            false,
+            "loadPlugins/success",
+          );
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to load plugins";
           set({ error: message, isLoading: false }, false, "loadPlugins/error");
@@ -276,7 +386,15 @@ export const usePluginsStore = create<PluginsStore>()(
 
         set({ isLoading: true }, false, "installPlugin");
         try {
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          await persistPluginsMutation(({ entries, installs }) => {
+            const existing = entries[id] ?? {};
+            entries[id] = {
+              ...existing,
+              enabled: true,
+              config: plugin.config ?? existing.config,
+            };
+            installs[id] = installs[id] ?? createInstallRecord(plugin);
+          });
           set(
             {
               plugins: plugins.map((p) =>
@@ -300,7 +418,10 @@ export const usePluginsStore = create<PluginsStore>()(
 
         set({ isLoading: true }, false, "uninstallPlugin");
         try {
-          await new Promise((resolve) => setTimeout(resolve, 300));
+          await persistPluginsMutation(({ entries, installs }) => {
+            entries[id] = { enabled: false };
+            delete installs[id];
+          });
           set(
             {
               plugins: plugins.map((p) =>
@@ -319,35 +440,68 @@ export const usePluginsStore = create<PluginsStore>()(
 
       enablePlugin: async (id) => {
         const { plugins } = get();
-        set(
-          {
-            plugins: plugins.map((p) => (p.id === id ? { ...p, enabled: true } : p)),
-          },
-          false,
-          "enablePlugin",
-        );
+        const plugin = plugins.find((p) => p.id === id);
+        if (!plugin) return;
+        const prevPlugins = plugins;
+        const nextPlugins = plugins.map((p) => (p.id === id ? { ...p, enabled: true } : p));
+        set({ plugins: nextPlugins }, false, "enablePlugin/optimistic");
+        try {
+          await persistPluginsMutation(({ entries }) => {
+            const existing = entries[id] ?? {};
+            entries[id] = {
+              ...existing,
+              enabled: true,
+              config: plugin.config ?? existing.config,
+            };
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to enable plugin";
+          set({ plugins: prevPlugins, error: message }, false, "enablePlugin/rollback");
+        }
       },
 
       disablePlugin: async (id) => {
         const { plugins } = get();
-        set(
-          {
-            plugins: plugins.map((p) => (p.id === id ? { ...p, enabled: false } : p)),
-          },
-          false,
-          "disablePlugin",
-        );
+        const plugin = plugins.find((p) => p.id === id);
+        if (!plugin) return;
+        const prevPlugins = plugins;
+        const nextPlugins = plugins.map((p) => (p.id === id ? { ...p, enabled: false } : p));
+        set({ plugins: nextPlugins }, false, "disablePlugin/optimistic");
+        try {
+          await persistPluginsMutation(({ entries }) => {
+            const existing = entries[id] ?? {};
+            entries[id] = {
+              ...existing,
+              enabled: false,
+              config: plugin.config ?? existing.config,
+            };
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to disable plugin";
+          set({ plugins: prevPlugins, error: message }, false, "disablePlugin/rollback");
+        }
       },
 
       updatePluginConfig: async (id, config) => {
         const { plugins } = get();
-        set(
-          {
-            plugins: plugins.map((p) => (p.id === id ? { ...p, config } : p)),
-          },
-          false,
-          "updatePluginConfig",
-        );
+        const plugin = plugins.find((p) => p.id === id);
+        if (!plugin) return;
+        const prevPlugins = plugins;
+        const nextPlugins = plugins.map((p) => (p.id === id ? { ...p, config } : p));
+        set({ plugins: nextPlugins }, false, "updatePluginConfig/optimistic");
+        try {
+          await persistPluginsMutation(({ entries }) => {
+            const existing = entries[id] ?? {};
+            entries[id] = {
+              ...existing,
+              enabled: readBoolean(existing.enabled) ?? plugin.enabled,
+              config,
+            };
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to save plugin config";
+          set({ plugins: prevPlugins, error: message }, false, "updatePluginConfig/rollback");
+        }
       },
 
       setSearchQuery: (query) => {

@@ -783,6 +783,107 @@ describe('createOpenClawChatTransport', () => {
     vi.useRealTimers()
   })
 
+  it('should accept tool_use_id alias in OpenClaw tool events', async () => {
+    vi.useFakeTimers()
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'run-tool-use'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('run tool alias')],
+      abortSignal: undefined,
+    })
+    const reader = stream.getReader()
+
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-tool-use',
+        seq: 1,
+        stream: 'tool',
+        ts: Date.now(),
+        data: {
+          phase: 'start',
+          name: 'read',
+          tool_use_id: 'tc-use-1',
+          args: { path: 'app/page.tsx' },
+        },
+      },
+    })
+
+    expect(await readNext(reader)).toMatchObject({
+      type: 'tool-input-available',
+      toolCallId: 'tc-use-1',
+      toolName: 'read',
+      providerExecuted: true,
+    })
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-tool-use',
+        seq: 2,
+        stream: 'tool',
+        ts: Date.now(),
+        data: {
+          phase: 'result',
+          name: 'read',
+          tool_use_id: 'tc-use-1',
+          result: { ok: true },
+          isError: false,
+        },
+      },
+    })
+
+    expect(await readNext(reader)).toMatchObject({
+      type: 'tool-output-available',
+      toolCallId: 'tc-use-1',
+      providerExecuted: true,
+      output: { ok: true },
+    })
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'run-tool-use',
+        sessionKey: 's1',
+        seq: 3,
+        state: 'final',
+        message: { content: [{ type: 'text', text: 'done' }] },
+      },
+    })
+
+    expect((await readNext(reader)).type).toBe('text-delta')
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+    expect((await reader.read()).done).toBe(true)
+    vi.useRealTimers()
+  })
+
   it('should not finish early on lifecycle=end while a tool is running', async () => {
     vi.useFakeTimers()
     let handler: ((frame: GatewayEventFrame) => void) | null = null

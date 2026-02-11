@@ -422,7 +422,20 @@ export function createOpenClawChatStream(params: {
         if (!isCurrentAgentRun(evt.runId)) return
 
         const toolName = String(tool.name ?? '').trim()
-        const toolCallId = String(tool.toolCallId ?? '').trim()
+        const toolRecord = tool as Record<string, unknown>
+        const toolCallId = (() => {
+          const candidates = [
+            tool.toolCallId,
+            toolRecord.tool_call_id,
+            toolRecord.toolUseId,
+            toolRecord.tool_use_id,
+            toolRecord.toolId,
+          ]
+          for (const candidate of candidates) {
+            if (typeof candidate === 'string' && candidate.trim()) return candidate.trim()
+          }
+          return ''
+        })()
         const phase = typeof tool.phase === 'string' ? tool.phase : ''
         if (!toolName || !toolCallId) return
 

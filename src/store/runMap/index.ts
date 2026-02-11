@@ -36,6 +36,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function resolveToolCallId(record: Record<string, unknown> | null): string {
+  if (!record) return "";
+  const candidates = [
+    record.toolCallId,
+    record.tool_call_id,
+    record.toolUseId,
+    record.tool_use_id,
+    record.toolId,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  return "";
+}
+
 function createEmptySession(): SessionRunMap {
   return {
     runsById: {},
@@ -338,7 +355,7 @@ export const useRunMapStore = create<RunMapStore>()(
             }
 
             const meta = isRecord(event.metadata) ? event.metadata : null;
-            const toolCallId = typeof meta?.toolCallId === "string" ? meta.toolCallId.trim() : "";
+            const toolCallId = resolveToolCallId(meta);
             const toolName = typeof meta?.name === "string" ? meta.name.trim() : "";
             if (toolCallId) {
               const phase =
@@ -492,8 +509,7 @@ export const useRunMapStore = create<RunMapStore>()(
               });
 
               if (stream === "tool" && data) {
-                const toolCallId =
-                  typeof data.toolCallId === "string" ? data.toolCallId.trim() : "";
+                const toolCallId = resolveToolCallId(data);
                 const toolName = typeof data.name === "string" ? data.name.trim() : "tool";
                 const phase = typeof data.phase === "string" ? data.phase : "update";
                 if (toolCallId) {

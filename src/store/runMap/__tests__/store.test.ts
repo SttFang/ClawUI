@@ -88,4 +88,28 @@ describe("runMap store", () => {
     expect(session?.runsById["agent-fallback-1"]?.source).toBe("fallback");
     expect(session?.runsById["agent-fallback-1"]?.type).toBe("agent");
   });
+
+  it("accepts tool_use_id from gateway tool stream", () => {
+    const sessionKey = "agent:main:ui:s3";
+
+    useRunMapStore.getState().ingestGatewayFrame({
+      type: "event",
+      event: "agent",
+      payload: {
+        sessionKey,
+        runId: "agent-run-tool-use",
+        stream: "tool",
+        ts: 2100,
+        data: {
+          phase: "start",
+          name: "read",
+          tool_use_id: "TC-USE-1",
+        },
+      },
+    });
+
+    const session = useRunMapStore.getState().sessions[sessionKey];
+    expect(session?.toolCallsById["TC-USE-1"]?.toolName).toBe("read");
+    expect(session?.toolCallsById["TC-USE-1"]?.phase).toBe("start");
+  });
 });

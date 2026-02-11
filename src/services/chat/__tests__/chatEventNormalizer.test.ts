@@ -112,4 +112,32 @@ describe("ChatEventNormalizer", () => {
     expect(lifecycle).toHaveLength(1);
     expect(lifecycle[0]?.kind).toBe("run.lifecycle");
   });
+
+  it("normalizes tool_use_id into metadata.toolCallId", () => {
+    const normalizer = new ChatEventNormalizer();
+    const sessionKey = "agent:main:ui:test";
+    normalizer.onChatSendAccepted({
+      sessionKey,
+      clientRunId: "client-run-tool",
+    });
+
+    const events = normalizer.ingestGatewayEvent({
+      type: "event",
+      event: "agent",
+      payload: {
+        sessionKey,
+        runId: "client-run-tool",
+        stream: "tool",
+        data: {
+          phase: "start",
+          name: "exec",
+          tool_use_id: "call-use-1",
+        },
+      },
+    });
+
+    expect(events[0]?.kind).toBe("run.tool_started");
+    const metadata = (events[0]?.metadata ?? {}) as { toolCallId?: unknown };
+    expect(metadata.toolCallId).toBe("call-use-1");
+  });
 });

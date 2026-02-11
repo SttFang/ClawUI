@@ -6,6 +6,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function pickToolCallId(record: Record<string, unknown>): string {
+  const candidates = [
+    record.toolCallId,
+    record.tool_call_id,
+    record.toolUseId,
+    record.tool_use_id,
+    record.toolId,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  return "";
+}
+
+function normalizeToolMetadata(data: Record<string, unknown>): Record<string, unknown> {
+  const toolCallId = pickToolCallId(data);
+  if (!toolCallId) return data;
+  if (typeof data.toolCallId === "string" && data.toolCallId.trim()) return data;
+  return { ...data, toolCallId };
+}
+
 function extractTextFromMessage(message: unknown): string | undefined {
   if (!isRecord(message)) return undefined;
   const content = message.content;
@@ -211,9 +234,10 @@ export class ChatEventAdapter {
     if (!run.agentRunId) run.agentRunId = runId;
     const seq = typeof payload.seq === "number" ? payload.seq : undefined;
     const data = isRecord(payload.data) ? payload.data : {};
+    const normalizedToolData = stream === "tool" ? normalizeToolMetadata(data) : data;
 
     if (stream === "tool") {
-      const phase = typeof data.phase === "string" ? data.phase : "";
+      const phase = typeof normalizedToolData.phase === "string" ? normalizedToolData.phase : "";
       if (phase === "start") {
         run.status = normalizeRunStatus(run.status, "running");
         return [
@@ -222,7 +246,7 @@ export class ChatEventAdapter {
             ...this.state.eventBase(run, { correlationConfidence }),
             rawEventName: "agent.tool",
             rawSeq: seq,
-            metadata: data,
+            metadata: normalizedToolData,
           },
         ];
       }
@@ -234,12 +258,12 @@ export class ChatEventAdapter {
             ...this.state.eventBase(run, { correlationConfidence }),
             rawEventName: "agent.tool",
             rawSeq: seq,
-            metadata: data,
+            metadata: normalizedToolData,
           },
         ];
       }
       if (phase === "result" || phase === "error" || phase === "end") {
-        if (data.isError === true || phase === "error") {
+        if (normalizedToolData.isError === true || phase === "error") {
           run.status = normalizeRunStatus(run.status, "failed");
         } else {
           run.status = normalizeRunStatus(run.status, "running");
@@ -250,7 +274,7 @@ export class ChatEventAdapter {
             ...this.state.eventBase(run, { correlationConfidence }),
             rawEventName: "agent.tool",
             rawSeq: seq,
-            metadata: data,
+            metadata: normalizedToolData,
           },
         ];
       }

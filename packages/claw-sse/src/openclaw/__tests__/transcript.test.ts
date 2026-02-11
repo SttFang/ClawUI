@@ -16,6 +16,19 @@ describe('openclawTranscriptToUIMessages', () => {
     expect(ui[0]?.parts).toEqual([{ type: 'text', text: 'hello' }])
   })
 
+  it('should keep assistant text for output_text style blocks', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'm2',
+        role: 'assistant',
+        content: [{ type: 'output_text', text: 'done from tool' }],
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toEqual([{ type: 'text', text: 'done from tool' }])
+  })
+
   it('should lift toolcall/toolresult blocks into dynamic-tool parts', () => {
     const ui = openclawTranscriptToUIMessages([
       {

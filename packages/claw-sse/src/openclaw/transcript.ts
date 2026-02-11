@@ -31,12 +31,31 @@ function coerceContentBlocks(value: unknown): ContentBlock[] {
   return value.filter(Boolean) as ContentBlock[]
 }
 
-function extractTextFromBlocks(blocks: ContentBlock[]): string {
+function extractTextFromBlocks(blocks: ContentBlock[], rawContent?: unknown): string {
+  if (typeof rawContent === 'string' && rawContent.trim()) {
+    return rawContent
+  }
+
   const parts: string[] = []
   for (const b of blocks) {
     const t = typeof b.type === 'string' ? b.type.toLowerCase() : ''
-    if (t === 'text' && typeof b.text === 'string' && b.text.trim()) {
+    const canUseTextField =
+      t === 'text' ||
+      t === 'output_text' ||
+      t === 'input_text' ||
+      t === 'markdown' ||
+      t === 'message' ||
+      t === ''
+    if (canUseTextField && typeof b.text === 'string' && b.text.trim()) {
       parts.push(b.text)
+      continue
+    }
+    if (canUseTextField && typeof b.content === 'string' && b.content.trim()) {
+      parts.push(b.content)
+      continue
+    }
+    if (canUseTextField && typeof b.value === 'string' && b.value.trim()) {
+      parts.push(b.value)
     }
   }
   return parts.join('\n')
@@ -77,7 +96,7 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
 
       const parts: UIMessage['parts'] = []
 
-      const text = extractTextFromBlocks(contentBlocks)
+      const text = extractTextFromBlocks(contentBlocks, record.content)
       if (text) {
         parts.push({ type: 'text', text })
       }

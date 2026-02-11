@@ -1,10 +1,5 @@
 import type { DynamicToolUIPart } from "ai";
-import {
-  ChainOfAction,
-  ChainOfActionContent,
-  ChainOfActionShimmer,
-  ChainOfActionTrigger,
-} from "@clawui/ui";
+import { Task, TaskContent, TaskItem, TaskTrigger } from "@clawui/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -86,22 +81,23 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
   const approvalShortId = currentApproval ? currentApproval.id.slice(-8) : "";
 
   return (
-    <ChainOfAction className="overflow-hidden">
-      <ChainOfActionTrigger
-        title={command || "exec"}
-        status={visualState.status}
-        statusLabel={statusLabel}
-        meta={approvalShortId ? `#${approvalShortId}` : undefined}
-        expanded={expanded}
-        onToggle={() => setExpanded((v) => !v)}
-      />
-      {visualState.running ? (
-        <div className="px-3 pb-2">
-          <ChainOfActionShimmer label={t("a2ui.execAction.thinking")} />
-        </div>
-      ) : null}
-      <ChainOfActionContent open={expanded}>
-        <div className="space-y-2 text-xs">
+    <Task open={expanded} onOpenChange={setExpanded}>
+      <TaskTrigger title={command || "exec"} />
+      <TaskContent>
+        <div className="space-y-2">
+          <TaskItem className="inline-flex items-center gap-2 text-xs">
+            <span>{statusLabel}</span>
+            {approvalShortId ? (
+              <span className="text-muted-foreground">{`#${approvalShortId}`}</span>
+            ) : null}
+          </TaskItem>
+
+          {visualState.running ? (
+            <TaskItem className="text-xs text-muted-foreground">
+              {t("a2ui.execAction.thinking")}
+            </TaskItem>
+          ) : null}
+
           <div className="space-y-1">
             <div className="text-[11px] text-muted-foreground">{t("a2ui.execAction.command")}</div>
             <pre className="max-h-44 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs">
@@ -125,7 +121,7 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
             </div>
           ) : null}
         </div>
-      </ChainOfActionContent>
-    </ChainOfAction>
+      </TaskContent>
+    </Task>
   );
 }

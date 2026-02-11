@@ -35,7 +35,11 @@ const router = createHashRouter([
       },
       {
         path: "mcp",
-        element: <Navigate to="/settings?tab=config&section=mcp" replace />,
+        element: <Navigate to="/settings?tab=config&section=skills" replace />,
+      },
+      {
+        path: "skills",
+        element: <Navigate to="/settings?tab=config&section=skills" replace />,
       },
       {
         path: "plugins",

@@ -84,7 +84,7 @@ export function buildAgentsExportPayload(params: {
       kind: "navigate",
       href: "#/settings?tab=config&section=plugins",
     },
-    { id: "navigate.mcp", kind: "navigate", href: "#/settings?tab=config&section=mcp" },
+    { id: "navigate.skills", kind: "navigate", href: "#/settings?tab=config&section=skills" },
     {
       id: "navigate.channels",
       kind: "navigate",

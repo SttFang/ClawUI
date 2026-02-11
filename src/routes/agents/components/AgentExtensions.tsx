@@ -1,13 +1,16 @@
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@clawui/ui";
 import { Boxes, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useMCPStore, selectServers as selectMcpServers } from "@/store/mcp";
+import { useAgentsStore, agentsSelectors } from "@/store/agents";
 import { usePluginsStore, selectInstalledPlugins } from "@/store/plugins";
 
 export function AgentExtensions() {
   const { t } = useTranslation("common");
   const installedPlugins = usePluginsStore(selectInstalledPlugins);
-  const mcpServers = useMCPStore(selectMcpServers);
+  const skillsMain = useAgentsStore(agentsSelectors.selectSkillsMain);
+  const skillsConfigAgent = useAgentsStore(agentsSelectors.selectSkillsConfigAgent);
+  const totalSkills = new Set([...(skillsMain?.skills ?? []), ...(skillsConfigAgent?.skills ?? [])])
+    .size;
 
   return (
     <Card>
@@ -27,7 +30,7 @@ export function AgentExtensions() {
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <a href="#/settings?tab=config&section=mcp">{t("agents.actions.manageMcp")}</a>
+              <a href="#/settings?tab=config&section=skills">{t("agents.actions.manageSkills")}</a>
             </Button>
           </div>
         </div>
@@ -48,11 +51,11 @@ export function AgentExtensions() {
           <div className="rounded-lg border p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Boxes className="w-3.5 h-3.5" />
-              {t("agents.extensions.mcp")}
+              {t("agents.extensions.skills")}
             </div>
             <div className="font-medium">
-              {t("agents.extensions.mcpStatus", {
-                servers: mcpServers.length,
+              {t("agents.extensions.skillsStatus", {
+                count: totalSkills,
               })}
             </div>
           </div>

@@ -59,6 +59,48 @@ const common = {
       utility: "工具",
     },
   },
+  skillsPanel: {
+    description: "参考 OpenClaw Skills 面板，集中管理技能启用、安装与 API Key。",
+    refresh: "刷新",
+    loading: "加载中...",
+    filterPlaceholder: "搜索 skills（名称/描述/来源）",
+    shown: "显示 {{count}} 个",
+    empty: "未找到 skills。",
+    groups: {
+      workspace: "Workspace Skills",
+      builtIn: "Built-in Skills",
+      installed: "Installed Skills",
+      extra: "Extra Skills",
+      other: "Other Skills",
+    },
+    badges: {
+      bundled: "bundled",
+      eligible: "可用",
+      blocked: "受限",
+      disabled: "已禁用",
+    },
+    labels: {
+      missing: "缺失依赖",
+      reason: "原因",
+      apiKey: "API Key",
+    },
+    reasons: {
+      disabled: "已禁用",
+      blockedByAllowlist: "被 allowlist 阻止",
+    },
+    actions: {
+      enable: "启用",
+      disable: "禁用",
+      saveKey: "保存 Key",
+      installing: "安装中...",
+      installed: "已安装",
+    },
+    messages: {
+      enabled: "Skill 已启用",
+      disabled: "Skill 已禁用",
+      apiKeySaved: "API Key 已保存",
+    },
+  },
   agents: {
     title: "智能体",
     description: "以智能体为中心统一查看输入渠道、工具权限与扩展能力。",
@@ -113,6 +155,7 @@ const common = {
       manageTools: "管理工具",
       managePlugins: "管理插件",
       manageMcp: "管理 MCP",
+      manageSkills: "管理 Skills",
       exportJson: "导出 JSON",
     },
     inputs: {
@@ -131,9 +174,9 @@ const common = {
     extensions: {
       plugins: "插件",
       pluginsStatus: "已安装 {{installed}} 个",
-      mcp: "MCP",
-      mcpStatus: "服务器 {{servers}} 个",
-      note: "提示：插件/MCP 最终体现为可用工具与能力来源，建议在 Agent 下统一呈现。",
+      skills: "Skills",
+      skillsStatus: "共 {{count}} 个",
+      note: "提示：插件/Skills 最终体现为可用工具与能力来源，建议在 Agent 下统一呈现。",
     },
     skills: {
       loadFailed: "Skills 加载失败",

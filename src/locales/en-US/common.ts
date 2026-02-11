@@ -60,6 +60,49 @@ const common = {
       utility: "Utility",
     },
   },
+  skillsPanel: {
+    description:
+      "Based on the OpenClaw Skills panel, manage skill enablement, installs, and API keys in one place.",
+    refresh: "Refresh",
+    loading: "Loading...",
+    filterPlaceholder: "Search skills (name/description/source)",
+    shown: "{{count}} shown",
+    empty: "No skills found.",
+    groups: {
+      workspace: "Workspace Skills",
+      builtIn: "Built-in Skills",
+      installed: "Installed Skills",
+      extra: "Extra Skills",
+      other: "Other Skills",
+    },
+    badges: {
+      bundled: "bundled",
+      eligible: "eligible",
+      blocked: "blocked",
+      disabled: "disabled",
+    },
+    labels: {
+      missing: "Missing",
+      reason: "Reason",
+      apiKey: "API key",
+    },
+    reasons: {
+      disabled: "disabled",
+      blockedByAllowlist: "blocked by allowlist",
+    },
+    actions: {
+      enable: "Enable",
+      disable: "Disable",
+      saveKey: "Save key",
+      installing: "Installing...",
+      installed: "Installed",
+    },
+    messages: {
+      enabled: "Skill enabled",
+      disabled: "Skill disabled",
+      apiKeySaved: "API key saved",
+    },
+  },
   agents: {
     title: "Agents",
     description: "Manage inputs, tool access, and extensions around agents.",
@@ -114,6 +157,7 @@ const common = {
       manageTools: "Manage tools",
       managePlugins: "Manage plugins",
       manageMcp: "Manage MCP",
+      manageSkills: "Manage Skills",
       exportJson: "Export JSON",
     },
     inputs: {
@@ -133,9 +177,9 @@ const common = {
     extensions: {
       plugins: "Plugins",
       pluginsStatus: "{{installed}} installed",
-      mcp: "MCP",
-      mcpStatus: "{{servers}} servers",
-      note: "Note: plugins/MCP ultimately surface as tools/capabilities. Prefer presenting them under agents.",
+      skills: "Skills",
+      skillsStatus: "{{count}} total",
+      note: "Note: plugins/skills ultimately surface as tools/capabilities. Prefer presenting them under agents.",
     },
     skills: {
       loadFailed: "Failed to load skills",

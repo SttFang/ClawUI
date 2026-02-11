@@ -3,18 +3,18 @@ import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { ChannelsSection } from "./ChannelsSection";
-import { MCPSection } from "./MCPSection";
 import { PluginsSection } from "./PluginsSection";
+import { SkillsSection } from "./SkillsSection";
 import { ToolsSection } from "./ToolsSection";
 
-const configSections = ["channels", "tools", "mcp", "plugins"] as const;
+const configSections = ["channels", "tools", "skills", "plugins"] as const;
 
 type ConfigSection = (typeof configSections)[number];
 
 const sectionLabelKeys: Record<ConfigSection, string> = {
   channels: "channels.title",
   tools: "tools.title",
-  mcp: "mcp.title",
+  skills: "agents.sections.skills.title",
   plugins: "plugins.title",
 };
 
@@ -30,8 +30,8 @@ function ConfigSectionContent(props: { section: ConfigSection }) {
       return <ChannelsSection />;
     case "tools":
       return <ToolsSection />;
-    case "mcp":
-      return <MCPSection />;
+    case "skills":
+      return <SkillsSection />;
     case "plugins":
       return <PluginsSection />;
     default:

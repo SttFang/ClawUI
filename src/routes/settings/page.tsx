@@ -32,7 +32,12 @@ function isSettingsTab(value: string | null): value is SettingsTab {
 
 function resolveTabFromSection(section: string | null): SettingsTab {
   if (!section) return "general";
-  if (section === "channels" || section === "tools" || section === "mcp" || section === "plugins")
+  if (
+    section === "channels" ||
+    section === "tools" ||
+    section === "skills" ||
+    section === "plugins"
+  )
     return "config";
   return "general";
 }

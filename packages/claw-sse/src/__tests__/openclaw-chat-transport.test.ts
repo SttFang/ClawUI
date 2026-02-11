@@ -168,6 +168,85 @@ describe('createOpenClawChatTransport', () => {
     expect(last.done).toBe(true)
   })
 
+  it('should ignore unrelated internal chat run when seq is too old', async () => {
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'client-1'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('hi')],
+      abortSignal: undefined,
+    })
+
+    const reader = stream.getReader()
+
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    // Unrelated old run should be ignored.
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'internal-old',
+        sessionKey: 's1',
+        seq: 99,
+        state: 'delta',
+        message: { content: [{ type: 'text', text: 'stale' }] },
+      },
+    })
+
+    // Current run should still work.
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'client-1',
+        sessionKey: 's1',
+        seq: 1,
+        state: 'delta',
+        message: { content: [{ type: 'text', text: 'fresh' }] },
+      },
+    })
+
+    const d1 = await readNext(reader)
+    expect(d1).toEqual({ type: 'text-delta', id: 'text-1', delta: 'fresh' })
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'client-1',
+        sessionKey: 's1',
+        seq: 2,
+        state: 'final',
+        message: { content: [{ type: 'text', text: 'fresh' }] },
+      },
+    })
+
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+    expect((await reader.read()).done).toBe(true)
+  })
+
   it('should map OpenClaw tool events into AI SDK tool chunks', async () => {
     vi.useFakeTimers()
     let handler: ((frame: GatewayEventFrame) => void) | null = null

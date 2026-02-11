@@ -48,6 +48,7 @@ export function createOpenClawChatStream(params: {
       // - `chat` 事件只按 clientRunId 处理，避免跨 run 串包。
       // - `agent` 事件允许早期绑定一次内部 runId（用于 tool/lifecycle 展示）。
       let clientRunId: string | null = null
+      let boundChatRunId: string | null = null
       let boundAgentRunId: string | null = null
       let closed = false
       let currentText = ''
@@ -64,7 +65,21 @@ export function createOpenClawChatStream(params: {
       let unsubscribe: (() => void) | null = null
 
       const isCurrentChatRun = (rid: string) => {
-        return clientRunId != null && rid === clientRunId
+        if (clientRunId != null && rid === clientRunId) return true
+        return boundChatRunId != null && rid === boundChatRunId
+      }
+
+      const maybeBindChatRunId = (evt: OpenClawChatEvent) => {
+        if (!clientRunId) return
+        if (!evt.runId || evt.runId === clientRunId) return
+        if (boundChatRunId) return
+        if (hasSeenClientChatEvent) return
+        if (didFinish) return
+        if (currentText.length > 0) return
+        if (!streamStartedAt || Date.now() - streamStartedAt > 10_000) return
+        if (evt.state !== 'delta' && evt.state !== 'final') return
+        if (typeof evt.seq === 'number' && evt.seq > 3) return
+        boundChatRunId = evt.runId
       }
 
       const isCurrentAgentRun = (rid: string) => {
@@ -184,6 +199,7 @@ export function createOpenClawChatStream(params: {
 
       const handleChatEvent = (evt: OpenClawChatEvent) => {
         if (evt.sessionKey !== sessionKey) return
+        maybeBindChatRunId(evt)
         if (!isCurrentChatRun(evt.runId)) return
         hasSeenClientChatEvent = true
 

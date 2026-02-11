@@ -44,6 +44,8 @@ export default defineConfig({
     plugins: [react()],
     resolve: {
       alias: {
+        "@clawui/config-core": resolve("packages/config-core/src/index.ts"),
+        "@clawui/config-core/": resolve("packages/config-core/src/"),
         "@": resolve("src"),
         "@components": resolve("src/components"),
         "@features": resolve("src/features"),

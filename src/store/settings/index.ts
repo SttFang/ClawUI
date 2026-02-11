@@ -1,7 +1,8 @@
 import type { ModelsStatus } from "@clawui/types/models";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { ipc, getElectronAPI } from "@/lib/ipc";
+import { ipc } from "@/lib/ipc";
+import { configCoreManager } from "@/store/configDraft/manager";
 import {
   buildProviderEnvPatch,
   hydrateApiKeysFromModelsStatus,
@@ -60,30 +61,25 @@ export const useSettingsStore = create<SettingsStore>()(
       loadSettings: async () => {
         set({ isLoading: true, error: null }, false, "loadSettings");
         try {
-          const config = await ipc.config.get();
-          if (config) {
-            const env = (config as { env?: Record<string, string> }).env || {};
-            const loadedApiKeys = readApiKeysFromEnv(env);
-            set(
-              (state) => ({
-                apiKeys: (() => {
-                  const next: ApiKeys = { ...state.apiKeys };
-                  for (const providerId of getKnownProviderIds()) {
-                    next[providerId] = loadedApiKeys[providerId] ?? "";
-                  }
-                  for (const [providerId, value] of Object.entries(loadedApiKeys)) {
-                    next[providerId] = value;
-                  }
-                  return next;
-                })(),
-                isLoading: false,
-              }),
-              false,
-              "loadSettings/success",
-            );
-          } else {
-            set({ isLoading: false }, false, "loadSettings/empty");
-          }
+          await configCoreManager.loadSnapshot();
+          const loadedApiKeys = readApiKeysFromEnv(configCoreManager.getEnv());
+          set(
+            (state) => ({
+              apiKeys: (() => {
+                const next: ApiKeys = { ...state.apiKeys };
+                for (const providerId of getKnownProviderIds()) {
+                  next[providerId] = loadedApiKeys[providerId] ?? "";
+                }
+                for (const [providerId, value] of Object.entries(loadedApiKeys)) {
+                  next[providerId] = value;
+                }
+                return next;
+              })(),
+              isLoading: false,
+            }),
+            false,
+            "loadSettings/success",
+          );
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to load settings";
           set({ error: message, isLoading: false }, false, "loadSettings/error");
@@ -94,11 +90,8 @@ export const useSettingsStore = create<SettingsStore>()(
         set({ modelsLoading: true }, false, "loadModelsStatus");
         try {
           const status = await ipc.models.status();
-          const config = await ipc.config.get();
-          const env = ((config as { env?: Record<string, string> } | null)?.env ?? {}) as Record<
-            string,
-            string | undefined
-          >;
+          await configCoreManager.loadSnapshot();
+          const env = configCoreManager.getEnv();
           set(
             (state) => ({
               modelsStatus: status,
@@ -151,12 +144,8 @@ export const useSettingsStore = create<SettingsStore>()(
         try {
           const patch = buildProviderEnvPatch({ apiKeys, modelsStatus, providerId });
 
-          if (!getElectronAPI()) {
-            throw new Error("Electron API not available. Are you running in Electron?");
-          }
-
           if (Object.keys(patch).length > 0) {
-            await ipc.profiles.patchEnvBoth(patch);
+            await configCoreManager.applyEnvPatch(patch);
           }
           set({ isSaving: false, saveSuccess: true }, false, "saveApiKeys/success");
 

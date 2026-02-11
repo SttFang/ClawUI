@@ -23,6 +23,8 @@
       "@/*": ["src/*"],
       "@clawui/types": ["packages/types/src/index.ts"],
       "@clawui/types/*": ["packages/types/src/*"],
+      "@clawui/config-core": ["packages/config-core/src/index.ts"],
+      "@clawui/config-core/*": ["packages/config-core/src/*"],
       "@clawui/ui": ["packages/ui/src/index.ts"],
       "@clawui/ui/*": ["packages/ui/src/*"],
       "@clawui/database": ["packages/database/src/index.ts"],

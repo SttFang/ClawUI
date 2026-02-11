@@ -1,14 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { configCoreManager } from "@/store/configDraft/manager";
 import { useSecretsStore } from "../index";
 
-vi.mock("@/lib/ipc", () => ({
-  ipc: {
-    config: {
-      get: vi.fn(),
-    },
-    secrets: {
-      patch: vi.fn(),
-    },
+vi.mock("@/store/configDraft/manager", () => ({
+  configCoreManager: {
+    loadSnapshot: vi.fn(),
+    getEnv: vi.fn(() => ({})),
+    applyEnvPatch: vi.fn(),
   },
 }));
 
@@ -27,33 +25,32 @@ describe("SecretsStore", () => {
     });
     vi.clearAllMocks();
     vi.useFakeTimers();
+
+    (configCoreManager.loadSnapshot as Mock).mockResolvedValue(undefined);
+    (configCoreManager.getEnv as Mock).mockReturnValue({});
+    (configCoreManager.applyEnvPatch as Mock).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("loads secrets from config.env", async () => {
-    const { ipc } = await import("@/lib/ipc");
-    (ipc.config.get as Mock).mockResolvedValue({
-      env: {
-        DISCORD_BOT_TOKEN: "bot",
-        DISCORD_APP_TOKEN: "app",
-      },
+  it("loads secrets from config snapshot env", async () => {
+    (configCoreManager.getEnv as Mock).mockReturnValue({
+      DISCORD_BOT_TOKEN: "bot",
+      DISCORD_APP_TOKEN: "app",
     });
 
     await useSecretsStore.getState().load();
 
     const state = useSecretsStore.getState();
+    expect(configCoreManager.loadSnapshot).toHaveBeenCalled();
     expect(state.discordBotToken).toBe("bot");
     expect(state.discordAppToken).toBe("app");
     expect(state.isLoading).toBe(false);
   });
 
-  it("saves allowlisted secrets via ipc.secrets.patch", async () => {
-    const { ipc } = await import("@/lib/ipc");
-    (ipc.secrets.patch as Mock).mockResolvedValue(undefined);
-
+  it("saves allowlisted secrets through config core manager", async () => {
     useSecretsStore.setState({
       discordBotToken: "bot",
       discordAppToken: "",
@@ -68,7 +65,7 @@ describe("SecretsStore", () => {
 
     await useSecretsStore.getState().save();
 
-    expect(ipc.secrets.patch).toHaveBeenCalledWith(
+    expect(configCoreManager.applyEnvPatch).toHaveBeenCalledWith(
       expect.objectContaining({
         DISCORD_BOT_TOKEN: "bot",
         TELEGRAM_BOT_TOKEN: "tg",

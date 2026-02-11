@@ -577,7 +577,7 @@ const common = {
       security: {
         title: "安全",
         description:
-          "仅影响 OpenClaw 权限（minmax）的受限配置项。更改将通过 allowlist 的 `openclaw config set` 路径应用。",
+          "直接管理 OpenClaw 的安全策略（tools.elevated / agents.defaults.sandbox），保存后会写入真实配置草稿并提交。",
         allowElevatedWebchat: "允许提权（WebChat）",
         allowElevatedWebchatHint: "允许 WebChat 使用提权工具（谨慎开启）",
         allowElevatedDiscord: "允许提权（Discord）",
@@ -585,8 +585,8 @@ const common = {
         sandboxMode: "沙盒模式",
         sandboxModeOptions: {
           off: "关闭",
-          docker: "Docker",
-          native: "本地",
+          nonMain: "仅非主代理",
+          all: "全部代理",
         },
         workspaceAccess: "工作区访问权限",
         workspaceAccessOptions: {

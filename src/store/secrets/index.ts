@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { ipc } from "@/lib/ipc";
+import { configCoreManager } from "@/store/configDraft/manager";
 
 export interface SecretsState {
   discordBotToken: string;
@@ -49,8 +49,8 @@ export const useSecretsStore = create<SecretsStore>()(
       load: async () => {
         set({ isLoading: true, error: null }, false, "load");
         try {
-          const config = await ipc.config.get();
-          const env = (config as { env?: Record<string, string> })?.env ?? {};
+          await configCoreManager.loadSnapshot();
+          const env = configCoreManager.getEnv();
           set(
             {
               discordBotToken: env.DISCORD_BOT_TOKEN ?? "",
@@ -79,7 +79,7 @@ export const useSecretsStore = create<SecretsStore>()(
 
         set({ isSaving: true, error: null, saveSuccess: false }, false, "save");
         try {
-          await ipc.secrets.patch({
+          await configCoreManager.applyEnvPatch({
             DISCORD_BOT_TOKEN: discordBotToken,
             DISCORD_APP_TOKEN: discordAppToken,
             TELEGRAM_BOT_TOKEN: telegramBotToken,

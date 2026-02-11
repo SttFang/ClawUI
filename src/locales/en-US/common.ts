@@ -582,7 +582,7 @@ const common = {
       security: {
         title: "Security",
         description:
-          "Restricted controls that only touch OpenClaw permissions (minmax). These changes are applied via allowlisted `openclaw config set` paths.",
+          "Directly manage OpenClaw security policy fields (tools.elevated / agents.defaults.sandbox). Saves are applied through the real config draft transaction.",
         allowElevatedWebchat: "Allow elevated (WebChat)",
         allowElevatedWebchatHint: "Enable elevated tools from webchat (use with care)",
         allowElevatedDiscord: "Allow elevated (Discord)",
@@ -590,8 +590,8 @@ const common = {
         sandboxMode: "Sandbox mode",
         sandboxModeOptions: {
           off: "off",
-          docker: "docker",
-          native: "native",
+          nonMain: "non-main",
+          all: "all",
         },
         workspaceAccess: "Workspace access",
         workspaceAccessOptions: {

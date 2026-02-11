@@ -11,7 +11,7 @@ import {
 } from "@clawui/ui";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { ipc } from "@/lib/ipc";
+import { configCoreManager } from "@/store/configDraft/manager";
 
 export function SecurityTab() {
   const { t } = useTranslation("common");
@@ -24,39 +24,65 @@ export function SecurityTab() {
   const [workspaceAccess, setWorkspaceAccess] = useState<string>("rw");
 
   useEffect(() => {
+    let mounted = true;
+    const applyIfMounted = (fn: () => void) => {
+      if (!mounted) return;
+      fn();
+    };
+
     setLoading(true);
-    ipc.security
-      .get([
-        "tools.elevated.allowFrom.webchat",
-        "tools.elevated.allowFrom.discord",
-        "agents.defaults.sandbox.mode",
-        "agents.defaults.sandbox.workspaceAccess",
-      ])
-      .then((values) => {
-        setAllowElevatedWebchat(values["tools.elevated.allowFrom.webchat"] === true);
-        setAllowElevatedDiscord(values["tools.elevated.allowFrom.discord"] === true);
-        const sm = values["agents.defaults.sandbox.mode"];
-        if (typeof sm === "string") setSandboxMode(sm);
-        const wa = values["agents.defaults.sandbox.workspaceAccess"];
-        if (typeof wa === "string") setWorkspaceAccess(wa);
+    void configCoreManager
+      .loadSnapshot()
+      .then(() => {
+        applyIfMounted(() => {
+          setAllowElevatedWebchat(
+            configCoreManager.getPath(["tools", "elevated", "allowFrom", "webchat"]) === true,
+          );
+          setAllowElevatedDiscord(
+            configCoreManager.getPath(["tools", "elevated", "allowFrom", "discord"]) === true,
+          );
+          const mode = configCoreManager.getPath(["agents", "defaults", "sandbox", "mode"]);
+          if (typeof mode === "string") {
+            setSandboxMode(mode);
+          }
+          const access = configCoreManager.getPath([
+            "agents",
+            "defaults",
+            "sandbox",
+            "workspaceAccess",
+          ]);
+          if (typeof access === "string") {
+            setWorkspaceAccess(access);
+          }
+        });
       })
-      .catch((e) =>
-        setMessage(
-          e instanceof Error ? e.message : t("settings.page.security.messages.loadFailed"),
-        ),
-      )
-      .finally(() => setLoading(false));
+      .catch((error) => {
+        applyIfMounted(() => {
+          setMessage(
+            error instanceof Error
+              ? error.message
+              : t("settings.page.security.messages.loadFailed"),
+          );
+        });
+      })
+      .finally(() => {
+        applyIfMounted(() => setLoading(false));
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, [t]);
 
   const handleApply = () => {
     setLoading(true);
     setMessage(null);
-    ipc.security
-      .apply([
-        { path: "tools.elevated.allowFrom.webchat", value: allowElevatedWebchat },
-        { path: "tools.elevated.allowFrom.discord", value: allowElevatedDiscord },
-        { path: "agents.defaults.sandbox.mode", value: sandboxMode },
-        { path: "agents.defaults.sandbox.workspaceAccess", value: workspaceAccess },
+    void configCoreManager
+      .applyPathPatches([
+        { path: ["tools", "elevated", "allowFrom", "webchat"], value: allowElevatedWebchat },
+        { path: ["tools", "elevated", "allowFrom", "discord"], value: allowElevatedDiscord },
+        { path: ["agents", "defaults", "sandbox", "mode"], value: sandboxMode },
+        { path: ["agents", "defaults", "sandbox", "workspaceAccess"], value: workspaceAccess },
       ])
       .then(() => setMessage(t("settings.page.security.messages.updated")))
       .catch((e) =>
@@ -116,8 +142,10 @@ export function SecurityTab() {
             disabled={loading}
           >
             <option value="off">{t("settings.page.security.sandboxModeOptions.off")}</option>
-            <option value="docker">{t("settings.page.security.sandboxModeOptions.docker")}</option>
-            <option value="native">{t("settings.page.security.sandboxModeOptions.native")}</option>
+            <option value="non-main">
+              {t("settings.page.security.sandboxModeOptions.nonMain")}
+            </option>
+            <option value="all">{t("settings.page.security.sandboxModeOptions.all")}</option>
           </Select>
         </div>
 

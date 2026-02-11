@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stripTerminalControlSequences } from "../markdown";
+import { shouldParseIncompleteMarkdown, stripTerminalControlSequences } from "../markdown";
 
 describe("stripTerminalControlSequences", () => {
   it("removes ansi csi control sequences", () => {
@@ -14,5 +14,15 @@ describe("stripTerminalControlSequences", () => {
     expect(stripTerminalControlSequences("[OpenClaw](https://docs.openclaw.ai)")).toBe(
       "[OpenClaw](https://docs.openclaw.ai)",
     );
+  });
+});
+
+describe("shouldParseIncompleteMarkdown", () => {
+  it("returns true for incomplete markdown links", () => {
+    expect(shouldParseIncompleteMarkdown("[OpenClaw](https://docs.openclaw.ai")).toBe(true);
+  });
+
+  it("returns false for complete markdown links", () => {
+    expect(shouldParseIncompleteMarkdown("[OpenClaw](https://docs.openclaw.ai)")).toBe(false);
   });
 });

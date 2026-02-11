@@ -565,6 +565,97 @@ describe('createOpenClawChatTransport', () => {
     vi.useRealTimers()
   })
 
+  it('should clear running tool on phase=end and finish via lifecycle fallback', async () => {
+    vi.useFakeTimers()
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'run1'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('run exec')],
+      abortSignal: undefined,
+    })
+
+    const reader = stream.getReader()
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run1',
+        seq: 10,
+        stream: 'tool',
+        ts: Date.now(),
+        data: {
+          phase: 'start',
+          name: 'exec',
+          toolCallId: 'tc-end-only',
+          args: { command: 'claude --help' },
+          meta: 'exec',
+        },
+      },
+    })
+    expect((await readNext(reader)).type).toBe('tool-input-available')
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run1',
+        seq: 11,
+        stream: 'lifecycle',
+        ts: Date.now(),
+        data: { phase: 'end' },
+      },
+    })
+    expect((await readNext(reader)).type).toBe('data-openclaw-lifecycle')
+
+    // Tool completes with phase=end but no result payload.
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run1',
+        seq: 12,
+        stream: 'tool',
+        ts: Date.now(),
+        data: {
+          phase: 'end',
+          name: 'exec',
+          toolCallId: 'tc-end-only',
+        },
+      },
+    })
+
+    await vi.advanceTimersByTimeAsync(21_500)
+
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+    expect((await reader.read()).done).toBe(true)
+
+    vi.useRealTimers()
+  })
+
   it('should ignore agent assistant stream for text and rely on chat.delta snapshots', async () => {
     let handler: ((frame: GatewayEventFrame) => void) | null = null
 

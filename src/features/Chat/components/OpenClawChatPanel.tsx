@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StickToBottom } from "use-stick-to-bottom";
 import { ipc } from "@/lib/ipc";
+import { chatLog } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { useExecApprovalsStore } from "@/store/execApprovals";
 import { ChatComposer } from "../prompt/ChatComposer";
@@ -38,7 +39,13 @@ export function OpenClawChatPanel(props: {
   const historyInFlightRef = useRef(false);
   const lastHistoryAtRef = useRef(0);
   const lastHistorySigRef = useRef<string>("");
+  const pendingRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const approvalRecoveryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const lastHandledApprovalIdRef = useRef<string | null>(null);
   const setMessagesRef = useRef(chat.setMessages);
+  const lastResolvedApproval = useExecApprovalsStore(
+    (s) => s.lastResolvedBySession[normalizedSessionKey],
+  );
 
   useEffect(() => {
     // `useChat().setMessages` 在某些版本/实现里可能不是稳定引用，
@@ -56,45 +63,127 @@ export function OpenClawChatPanel(props: {
     return null;
   }, [chat.messages, chat.status]);
 
-  const refreshHistory = useCallback(async () => {
-    if (!hasSession || !normalizedSessionKey) return;
-    if (historyInFlightRef.current) return;
-    const now = Date.now();
-    // 防止 `chat.final`/热重载等情况下短时间内重复刷历史导致刷屏与 Gateway 压力。
-    if (now - lastHistoryAtRef.current < 800) return;
-    lastHistoryAtRef.current = now;
-    historyInFlightRef.current = true;
-    try {
-      const connected = await ipc.chat.isConnected();
-      if (!connected) {
-        const ok = await ipc.chat.connect();
-        if (!ok) return;
-      }
-      const res = (await ipc.chat.request("chat.history", {
-        sessionKey: normalizedSessionKey,
-        limit: 200,
-      })) as { messages?: unknown };
-      const uiMessages = openclawTranscriptToUIMessages(res?.messages);
+  const refreshHistory = useCallback(
+    async (options?: { force?: boolean; reason?: string }) => {
+      const force = options?.force === true;
+      const reason = options?.reason ?? "unknown";
+      if (!hasSession || !normalizedSessionKey) return;
 
-      // Avoid re-render loops: only update local state if the tail signature changed.
-      const last = uiMessages[uiMessages.length - 1];
-      const tailText = last?.parts?.find((p) => p.type === "text")?.text ?? "";
-      const sig = `${uiMessages.length}:${last?.id ?? ""}:${tailText.length}`;
-      if (sig !== lastHistorySigRef.current) {
-        lastHistorySigRef.current = sig;
-        setMessagesRef.current(uiMessages);
+      if (historyInFlightRef.current) {
+        if (!pendingRefreshTimerRef.current) {
+          pendingRefreshTimerRef.current = setTimeout(() => {
+            pendingRefreshTimerRef.current = null;
+            void refreshHistory({ force: true, reason: "inflight-retry" });
+          }, 250);
+        }
+        return;
       }
-    } catch {
-      // best-effort only
-    } finally {
-      historyInFlightRef.current = false;
+
+      const now = Date.now();
+      // 防止 chat.final/lifecycle 等短时间重复事件导致 Gateway 压力，但终态刷新可强制穿透。
+      if (!force && now - lastHistoryAtRef.current < 800) {
+        if (!pendingRefreshTimerRef.current) {
+          pendingRefreshTimerRef.current = setTimeout(() => {
+            pendingRefreshTimerRef.current = null;
+            void refreshHistory({ force: true, reason: "throttle-retry" });
+          }, 850);
+        }
+        return;
+      }
+
+      lastHistoryAtRef.current = now;
+      historyInFlightRef.current = true;
+      try {
+        const connected = await ipc.chat.isConnected();
+        if (!connected) {
+          const ok = await ipc.chat.connect();
+          if (!ok) return;
+        }
+        const res = (await ipc.chat.request("chat.history", {
+          sessionKey: normalizedSessionKey,
+          limit: 200,
+        })) as { messages?: unknown };
+        const uiMessages = openclawTranscriptToUIMessages(res?.messages);
+
+        // Avoid re-render loops: only update local state if the tail signature changed.
+        const last = uiMessages[uiMessages.length - 1];
+        const tailText = last?.parts?.find((p) => p.type === "text")?.text ?? "";
+        const sig = `${uiMessages.length}:${last?.id ?? ""}:${tailText.length}`;
+        const changed = sig !== lastHistorySigRef.current;
+        if (changed) {
+          lastHistorySigRef.current = sig;
+          setMessagesRef.current(uiMessages);
+        }
+        chatLog.debug(
+          "[chat.history.refresh]",
+          `session=${normalizedSessionKey}`,
+          `reason=${reason}`,
+          `force=${force}`,
+          `changed=${changed}`,
+          `count=${uiMessages.length}`,
+        );
+      } catch (error) {
+        chatLog.warn(
+          "[chat.history.refresh.failed]",
+          `session=${normalizedSessionKey}`,
+          `reason=${reason}`,
+          error instanceof Error ? error.message : String(error),
+        );
+      } finally {
+        historyInFlightRef.current = false;
+      }
+    },
+    [hasSession, normalizedSessionKey],
+  );
+
+  useEffect(() => {
+    lastHistoryAtRef.current = 0;
+    lastHistorySigRef.current = "";
+    historyInFlightRef.current = false;
+    lastHandledApprovalIdRef.current = null;
+    if (pendingRefreshTimerRef.current) {
+      clearTimeout(pendingRefreshTimerRef.current);
+      pendingRefreshTimerRef.current = null;
     }
-  }, [hasSession, normalizedSessionKey]);
+    for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
+    approvalRecoveryTimersRef.current = [];
+  }, [normalizedSessionKey]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingRefreshTimerRef.current) {
+        clearTimeout(pendingRefreshTimerRef.current);
+        pendingRefreshTimerRef.current = null;
+      }
+      for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
+      approvalRecoveryTimersRef.current = [];
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasSession || !normalizedSessionKey) return;
+    const resolved = lastResolvedApproval;
+    if (!resolved?.id) return;
+    if (lastHandledApprovalIdRef.current === resolved.id) return;
+
+    lastHandledApprovalIdRef.current = resolved.id;
+    for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
+    approvalRecoveryTimersRef.current = [];
+
+    void refreshHistory({ force: true, reason: "approval-resolved-immediate" });
+    const followUps = [500, 1500, 3000, 6000];
+    for (const delayMs of followUps) {
+      const timer = setTimeout(() => {
+        void refreshHistory({ force: true, reason: `approval-resolved-followup-${delayMs}` });
+      }, delayMs);
+      approvalRecoveryTimersRef.current.push(timer);
+    }
+  }, [hasSession, lastResolvedApproval, normalizedSessionKey, refreshHistory]);
 
   // OpenClaw Control UI: chat.final 到达后用 history 作为权威状态刷新（避免 delta/agent 流丢字段）。
   useEffect(() => {
     if (!hasSession) return;
-    void refreshHistory();
+    void refreshHistory({ force: true, reason: "session-init" });
   }, [hasSession, refreshHistory]);
 
   useEffect(() => {
@@ -107,7 +196,7 @@ export function OpenClawChatPanel(props: {
         if (payload.sessionKey !== normalizedSessionKey) return;
         if (payload.state === "final" || payload.state === "aborted" || payload.state === "error") {
           useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
-          void refreshHistory();
+          void refreshHistory({ force: true, reason: `chat-${String(payload.state)}` });
         }
         return;
       }
@@ -128,7 +217,7 @@ export function OpenClawChatPanel(props: {
         const phase = typeof data?.phase === "string" ? data.phase : "";
         if (phase === "end" || phase === "error") {
           useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
-          void refreshHistory();
+          void refreshHistory({ reason: `lifecycle-${phase}` });
         }
       }
     });
@@ -144,7 +233,7 @@ export function OpenClawChatPanel(props: {
         event.kind === "run.aborted"
       ) {
         useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
-        void refreshHistory();
+        void refreshHistory({ force: true, reason: event.kind });
       }
     });
   }, [hasSession, normalizedSessionKey, refreshHistory]);

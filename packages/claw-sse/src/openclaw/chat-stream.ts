@@ -272,11 +272,12 @@ export function createOpenClawChatStream(params: {
 
         const toolName = String(tool.name ?? '').trim()
         const toolCallId = String(tool.toolCallId ?? '').trim()
+        const phase = typeof tool.phase === 'string' ? tool.phase : ''
         if (!toolName || !toolCallId) return
 
         const meta = typeof tool.meta === 'string' && tool.meta.trim() ? tool.meta.trim() : undefined
 
-        if (tool.phase === 'start') {
+        if (phase === 'start') {
           pendingToolCalls.add(toolCallId)
           controller.enqueue({
             type: 'tool-input-available',
@@ -291,7 +292,7 @@ export function createOpenClawChatStream(params: {
           return
         }
 
-        if (tool.phase === 'update') {
+        if (phase === 'update') {
           pendingToolCalls.add(toolCallId)
           controller.enqueue({
             type: 'tool-output-available',
@@ -304,19 +305,29 @@ export function createOpenClawChatStream(params: {
           return
         }
 
-        if (tool.phase === 'result') {
+        if (phase === 'result' || phase === 'end' || phase === 'error') {
           pendingToolCalls.delete(toolCallId)
-          const isError = tool.isError === true
+          const isError = tool.isError === true || phase === 'error'
           if (isError) {
+            const errorText =
+              typeof tool.result === 'string'
+                ? tool.result
+                : typeof tool.partialResult === 'string'
+                  ? tool.partialResult
+                  : 'tool error'
             controller.enqueue({
               type: 'tool-output-error',
               toolCallId,
-              errorText: 'tool error',
+              errorText,
               providerExecuted: true,
               dynamic: true,
             })
             return
           }
+
+          // Some OpenClaw flows emit phase=end without a result payload.
+          if (phase === 'end' && typeof tool.result === 'undefined') return
+
           controller.enqueue({
             type: 'tool-output-available',
             toolCallId,

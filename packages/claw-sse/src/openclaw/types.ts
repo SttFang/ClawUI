@@ -27,7 +27,7 @@ export type OpenClawAgentEventPayload = {
 }
 
 export type OpenClawToolEventData = {
-  phase: 'start' | 'update' | 'result'
+  phase: 'start' | 'update' | 'result' | 'end' | 'error'
   name: string
   toolCallId: string
   args?: unknown
@@ -41,4 +41,3 @@ export type OpenClawLifecycleEventData = {
   phase?: unknown
   error?: unknown
 }
-

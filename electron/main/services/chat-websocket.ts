@@ -1,9 +1,8 @@
 import { randomUUID } from "crypto";
 import { EventEmitter } from "events";
-import WebSocket from "ws";
-import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { chatLog } from "../lib/logger";
 import { ChatEventNormalizer } from "./chat-event-normalizer";
+import { ChatTransport, type TransportGatewayEventFrame } from "./chat/transport";
 
 export interface ChatMessage {
   id: string;
@@ -30,233 +29,86 @@ export interface ChatStreamEvent {
   error?: string;
 }
 
-// OpenClaw ACP Protocol Types
-interface ACPRequest {
-  type: "req";
-  id: string;
-  method: string;
-  params?: Record<string, unknown>;
-}
-
-interface ACPResponse {
-  type: "res";
-  id: string;
-  ok: boolean;
-  payload?: unknown;
-  error?: { message: string; code?: string };
-}
-
-export interface GatewayEventFrame {
-  type: "event";
-  event: string;
-  payload?: unknown;
-  seq?: number;
-  stateVersion?: number;
-}
-
-type ACPMessage = ACPRequest | ACPResponse | GatewayEventFrame;
+export type GatewayEventFrame = TransportGatewayEventFrame;
 
 export class ChatWebSocketService extends EventEmitter {
-  private ws: WebSocket | null = null;
-  private gatewayUrl: string = `ws://127.0.0.1:${DEFAULT_GATEWAY_PORT}`;
-  private gatewayToken: string = "";
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
-  private reconnectTimer: NodeJS.Timeout | null = null;
-  private connectPromise: Promise<void> | null = null;
-  private shouldReconnect = true;
-  private pendingRequests: Map<
-    string,
-    { resolve: (v: unknown) => void; reject: (e: Error) => void }
-  > = new Map();
-  private connected = false;
-  private normalizer = new ChatEventNormalizer();
+  private readonly transport = new ChatTransport();
+  private readonly normalizer = new ChatEventNormalizer();
+
+  constructor() {
+    super();
+
+    this.transport.on("connected", () => this.emit("connected"));
+    this.transport.on("disconnected", () => this.emit("disconnected"));
+    this.transport.on("error", (error: string) => this.emit("error", error));
+    this.transport.on("event", (event: GatewayEventFrame) => this.handleEvent(event));
+  }
 
   setGatewayUrl(url: string): void {
-    this.gatewayUrl = url;
+    this.transport.setGatewayUrl(url);
   }
 
   setGatewayToken(token: string): void {
-    this.gatewayToken = token;
-  }
-
-  private rejectAllPendingRequests(error: Error): void {
-    for (const [, { reject }] of this.pendingRequests) {
-      reject(error);
-    }
-    this.pendingRequests.clear();
-  }
-
-  private cleanupSocket(): void {
-    const socket = this.ws;
-    this.ws = null;
-    if (!socket) return;
-
-    if (socket.readyState === WebSocket.CONNECTING) {
-      // Avoid an unhandled "closed before established" error when tearing down
-      // a socket that is still handshaking.
-      socket.once("error", () => {});
-      socket.terminate();
-      return;
-    }
-
-    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CLOSING) {
-      socket.close();
-    }
+    this.transport.setGatewayToken(token);
   }
 
   async connect(): Promise<void> {
-    if (this.isConnected()) {
-      return;
-    }
-    if (this.connectPromise) {
-      return this.connectPromise;
-    }
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    this.shouldReconnect = true;
-
-    this.connectPromise = this.doConnect().finally(() => {
-      this.connectPromise = null;
-    });
-    return this.connectPromise;
+    await this.transport.connect();
   }
 
-  private async doConnect(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      try {
-        const t0 = Date.now();
-        chatLog.info("[ws.connecting]", this.gatewayUrl);
-        const socket = new WebSocket(this.gatewayUrl);
-        this.ws = socket;
-
-        socket.on("open", async () => {
-          chatLog.info("[ws.open]", `durationMs=${Date.now() - t0}`);
-          try {
-            await this.sendConnectFrame();
-            this.connected = true;
-            this.reconnectAttempts = 0;
-            this.emit("connected");
-            chatLog.info("[ws.connected]", `durationMs=${Date.now() - t0}`);
-            resolve();
-          } catch (error) {
-            chatLog.error("[acp.connect.failed]", error);
-            this.ws?.close();
-            reject(error);
-          }
-        });
-
-        socket.on("message", (data: WebSocket.Data) => {
-          this.handleMessage(data.toString());
-        });
-
-        socket.on("close", (code, reason) => {
-          chatLog.info("[ws.closed]", `code=${code}`, `reason=${String(reason)}`);
-          this.connected = false;
-          if (this.ws === socket) {
-            this.ws = null;
-          }
-          this.emit("disconnected");
-          this.rejectAllPendingRequests(new Error("Connection closed"));
-          if (this.shouldReconnect) {
-            this.attemptReconnect();
-          }
-        });
-
-        socket.on("error", (error) => {
-          chatLog.error("[ws.error]", error.message);
-          this.emit("error", error.message);
-          reject(error);
-        });
-      } catch (error) {
-        reject(error);
-      }
-    });
+  async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
+    return this.transport.request(method, params);
   }
 
-  private async sendConnectFrame(): Promise<void> {
-    const connectId = randomUUID();
+  async sendMessage(request: ChatRequest): Promise<string> {
+    if (!this.transport.isConnected()) {
+      throw new Error("WebSocket not connected");
+    }
+
+    const messageId = request.messageId ?? randomUUID();
     const t0 = Date.now();
 
-    const connectRequest: ACPRequest = {
-      type: "req",
-      id: connectId,
-      method: "connect",
-      params: {
-        minProtocol: 1,
-        maxProtocol: 3,
-        client: {
-          id: "cli", // Use CLI - trusted local client, no origin check needed
-          version: "0.1.0",
-          platform: process.platform,
-          mode: "cli",
-        },
-        // Required for exec approval events + resolve calls.
-        scopes: ["operator.admin", "operator.approvals"],
-        // Enable enhanced streaming features (e.g. tool call events).
-        caps: ["tool-events"],
-        auth: {
-          token: this.gatewayToken,
-        },
-      },
-    };
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pendingRequests.delete(connectId);
-        reject(new Error("Connect timeout"));
-      }, 10000);
-
-      this.pendingRequests.set(connectId, {
-        resolve: (response) => {
-          clearTimeout(timeout);
-          const res = response as ACPResponse;
-          if (res.ok) {
-            chatLog.info("[acp.connected]", `durationMs=${Date.now() - t0}`);
-            resolve();
-          } else {
-            chatLog.warn(
-              "[acp.connect.rejected]",
-              res.error?.message,
-              `durationMs=${Date.now() - t0}`,
-            );
-            reject(new Error(res.error?.message || "Connect failed"));
-          }
-        },
-        reject: (error) => {
-          clearTimeout(timeout);
-          reject(error);
-        },
+    try {
+      await this.request("chat.send", {
+        sessionKey: request.sessionId,
+        message: request.message,
+        deliver: false,
+        idempotencyKey: messageId,
       });
 
-      chatLog.debug("[acp.connect.send]");
-      this.ws?.send(JSON.stringify(connectRequest));
-    });
+      chatLog.info(
+        "[chat.send.ok]",
+        `sessionId=${request.sessionId}`,
+        `durationMs=${Date.now() - t0}`,
+      );
+      const normalizedEvents = this.normalizer.onChatSendAccepted({
+        sessionKey: request.sessionId,
+        clientRunId: messageId,
+      });
+      for (const normalizedEvent of normalizedEvents) {
+        this.emit("normalized-event", normalizedEvent);
+      }
+
+      return messageId;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      chatLog.warn(
+        "[chat.send.failed]",
+        `sessionId=${request.sessionId}`,
+        message,
+        `durationMs=${Date.now() - t0}`,
+      );
+      throw new Error(message || "Chat request failed", { cause: error });
+    }
   }
 
-  private handleMessage(data: string): void {
-    try {
-      const message = JSON.parse(data) as ACPMessage;
+  disconnect(): void {
+    this.normalizer.resetAll();
+    this.transport.disconnect();
+  }
 
-      if (message.type === "res") {
-        // Handle response to a request
-        const response = message as ACPResponse;
-        const pending = this.pendingRequests.get(response.id);
-        if (pending) {
-          this.pendingRequests.delete(response.id);
-          pending.resolve(response);
-        }
-      } else if (message.type === "event") {
-        // Handle server events
-        const event = message as GatewayEventFrame;
-        this.handleEvent(event);
-      }
-    } catch (e) {
-      chatLog.error("[ws.parse.error]", e);
-    }
+  isConnected(): boolean {
+    return this.transport.isConnected();
   }
 
   private handleEvent(event: GatewayEventFrame): void {
@@ -313,7 +165,6 @@ export class ChatWebSocketService extends EventEmitter {
     if (state === "final") {
       const content = extractText(payload.message);
       if (content) {
-        // Ensure the renderer sees the final full content before we end the stream.
         this.emit("stream", {
           type: "delta",
           sessionId: sessionKey,
@@ -348,164 +199,7 @@ export class ChatWebSocketService extends EventEmitter {
         messageId: runId,
         error: errorMessage,
       });
-      return;
     }
-
-    return;
-  }
-
-  private attemptReconnect(): void {
-    if (!this.shouldReconnect || this.connectPromise || this.isConnected()) {
-      return;
-    }
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      chatLog.info(
-        "[ws.reconnect]",
-        `attempt=${this.reconnectAttempts}/${this.maxReconnectAttempts}`,
-      );
-      this.reconnectTimer = setTimeout(() => {
-        this.reconnectTimer = null;
-        this.connect().catch(() => {});
-      }, this.reconnectDelay * this.reconnectAttempts);
-    }
-  }
-
-  async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.connected) {
-      throw new Error("WebSocket not connected");
-    }
-
-    const requestId = randomUUID();
-    const t0 = Date.now();
-
-    const acpRequest: ACPRequest = {
-      type: "req",
-      id: requestId,
-      method,
-      params,
-    };
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pendingRequests.delete(requestId);
-        chatLog.warn(`[acp.request.timeout]`, `method=${method}`, `durationMs=${Date.now() - t0}`);
-        reject(new Error("Request timeout"));
-      }, 30000);
-
-      this.pendingRequests.set(requestId, {
-        resolve: (response) => {
-          clearTimeout(timeout);
-          const res = response as ACPResponse;
-          if (res.ok) {
-            chatLog.info(`[acp.request.ok]`, `method=${method}`, `durationMs=${Date.now() - t0}`);
-            resolve(res.payload);
-          } else {
-            chatLog.warn(
-              `[acp.request.failed]`,
-              `method=${method}`,
-              res.error?.message,
-              `durationMs=${Date.now() - t0}`,
-            );
-            reject(new Error(res.error?.message || `${method} failed`));
-          }
-        },
-        reject: (error) => {
-          clearTimeout(timeout);
-          reject(error);
-        },
-      });
-
-      this.ws?.send(JSON.stringify(acpRequest));
-    });
-  }
-
-  async sendMessage(request: ChatRequest): Promise<string> {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.connected) {
-      throw new Error("WebSocket not connected");
-    }
-
-    // Use a stable runId/idempotency key so we can map streaming events back to a renderer message.
-    const messageId = request.messageId ?? randomUUID();
-    const requestId = randomUUID();
-    const t0 = Date.now();
-
-    // OpenClaw Gateway v2026 uses `chat.send` + `chat` events for streaming.
-    const acpRequest: ACPRequest = {
-      type: "req",
-      id: requestId,
-      method: "chat.send",
-      params: {
-        sessionKey: request.sessionId,
-        message: request.message,
-        deliver: false,
-        idempotencyKey: messageId,
-      },
-    };
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pendingRequests.delete(requestId);
-        chatLog.warn(
-          "[chat.send.timeout]",
-          `sessionId=${request.sessionId}`,
-          `durationMs=${Date.now() - t0}`,
-        );
-        reject(new Error("Request timeout"));
-      }, 30000);
-
-      this.pendingRequests.set(requestId, {
-        resolve: (response) => {
-          clearTimeout(timeout);
-          const res = response as ACPResponse;
-          if (res.ok) {
-            chatLog.info(
-              "[chat.send.ok]",
-              `sessionId=${request.sessionId}`,
-              `durationMs=${Date.now() - t0}`,
-            );
-            const normalizedEvents = this.normalizer.onChatSendAccepted({
-              sessionKey: request.sessionId,
-              clientRunId: messageId,
-            });
-            for (const normalizedEvent of normalizedEvents) {
-              this.emit("normalized-event", normalizedEvent);
-            }
-            resolve(messageId);
-          } else {
-            chatLog.warn(
-              "[chat.send.failed]",
-              `sessionId=${request.sessionId}`,
-              res.error?.message,
-              `durationMs=${Date.now() - t0}`,
-            );
-            reject(new Error(res.error?.message || "Chat request failed"));
-          }
-        },
-        reject: (error) => {
-          clearTimeout(timeout);
-          reject(error);
-        },
-      });
-
-      this.ws?.send(JSON.stringify(acpRequest));
-    });
-  }
-
-  disconnect(): void {
-    this.shouldReconnect = false;
-    this.connected = false;
-    this.connectPromise = null;
-    this.normalizer.resetAll();
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    this.cleanupSocket();
-  }
-
-  isConnected(): boolean {
-    return this.connected && this.ws?.readyState === WebSocket.OPEN;
   }
 }
 

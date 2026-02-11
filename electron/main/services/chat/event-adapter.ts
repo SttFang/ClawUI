@@ -1,0 +1,331 @@
+import type { ChatNormalizedRunEvent } from "@clawui/types";
+import type { GatewayEventFrame } from "../chat-websocket";
+import { ChatRunState, normalizeRunStatus } from "./run-state";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function extractTextFromMessage(message: unknown): string | undefined {
+  if (!isRecord(message)) return undefined;
+  const content = message.content;
+  if (!Array.isArray(content)) return undefined;
+  for (const item of content) {
+    if (!isRecord(item)) continue;
+    const text = item.text;
+    if (typeof text === "string" && text.trim()) return text;
+  }
+  return undefined;
+}
+
+export class ChatEventAdapter {
+  constructor(private readonly state = new ChatRunState()) {}
+
+  resetSession(sessionKey: string): void {
+    this.state.resetSession(sessionKey);
+  }
+
+  resetAll(): void {
+    this.state.resetAll();
+  }
+
+  onChatSendAccepted(params: {
+    sessionKey: string;
+    clientRunId: string;
+  }): ChatNormalizedRunEvent[] {
+    const run = this.state.ensureRun({
+      sessionKey: params.sessionKey,
+      clientRunId: params.clientRunId,
+      startedAtMs: Date.now(),
+    });
+    run.status = "started";
+    this.state.touchRun(run);
+    return [
+      {
+        kind: "run.started",
+        ...this.state.eventBase(run, { source: "synthetic" }),
+        metadata: {},
+      },
+    ];
+  }
+
+  onApprovalResolveRequest(params: {
+    approvalId?: string;
+    decision?: "allow-once" | "allow-always" | "deny";
+  }): ChatNormalizedRunEvent[] {
+    if (!params.approvalId) return [];
+    const consumed = this.state.consumeApproval({ id: params.approvalId });
+    if (!consumed?.run) return [];
+
+    const run = consumed.run;
+    if (params.decision === "deny") {
+      run.status = normalizeRunStatus(run.status, "aborted");
+    } else {
+      run.status = normalizeRunStatus(run.status, "running");
+    }
+    this.state.touchRun(run);
+
+    return [
+      {
+        kind: "run.approval_resolved",
+        ...this.state.eventBase(run),
+        approvalId: params.approvalId,
+        decision: params.decision,
+        command: consumed.approval.command,
+      },
+    ];
+  }
+
+  ingestGatewayEvent(frame: GatewayEventFrame): ChatNormalizedRunEvent[] {
+    if (!frame || frame.type !== "event") return [];
+    this.state.gc();
+
+    if (frame.event === "chat") {
+      return this.ingestChatEvent(frame);
+    }
+    if (frame.event === "agent") {
+      return this.ingestAgentEvent(frame);
+    }
+    if (frame.event === "exec.approval.requested") {
+      return this.ingestExecApprovalRequested(frame);
+    }
+    if (frame.event === "exec.approval.resolved") {
+      return this.ingestExecApprovalResolved(frame);
+    }
+    return [];
+  }
+
+  private ingestChatEvent(frame: GatewayEventFrame): ChatNormalizedRunEvent[] {
+    if (!isRecord(frame.payload)) return [];
+    const payload = frame.payload;
+    const runId = typeof payload.runId === "string" ? payload.runId : "";
+    const sessionKey = typeof payload.sessionKey === "string" ? payload.sessionKey : "";
+    const state = typeof payload.state === "string" ? payload.state : "";
+    if (!runId || !sessionKey || !state) return [];
+
+    let correlationConfidence: "exact" | "fallback" = "exact";
+    let run = this.state.resolveRunByClient(sessionKey, runId);
+    if (!run) {
+      run = this.state.resolveRunByAgent(sessionKey, runId);
+    }
+    if (!run) {
+      correlationConfidence = "fallback";
+      run = this.state.maybeBindAliasFromSession({
+        sessionKey,
+        runId,
+        aliasKind: "client",
+      });
+    }
+    if (!run) {
+      correlationConfidence = "fallback";
+      run = this.state.ensureRun({ sessionKey, clientRunId: runId });
+    }
+
+    this.state.touchRun(run);
+    const events: ChatNormalizedRunEvent[] = [];
+
+    if (state === "delta") {
+      run.status = normalizeRunStatus(run.status, "running");
+      events.push({
+        kind: "run.delta",
+        ...this.state.eventBase(run, { correlationConfidence }),
+        text: extractTextFromMessage(payload.message),
+        rawEventName: "chat",
+        rawSeq: typeof payload.seq === "number" ? payload.seq : undefined,
+      });
+      return events;
+    }
+
+    if (state === "final") {
+      run.status = normalizeRunStatus(run.status, "completed");
+      events.push({
+        kind: "run.completed",
+        ...this.state.eventBase(run, { correlationConfidence }),
+        text: extractTextFromMessage(payload.message),
+        rawEventName: "chat",
+        rawSeq: typeof payload.seq === "number" ? payload.seq : undefined,
+      });
+      return events;
+    }
+
+    if (state === "aborted") {
+      run.status = normalizeRunStatus(run.status, "aborted");
+      events.push({
+        kind: "run.aborted",
+        ...this.state.eventBase(run, { correlationConfidence }),
+        rawEventName: "chat",
+        rawSeq: typeof payload.seq === "number" ? payload.seq : undefined,
+      });
+      return events;
+    }
+
+    if (state === "error") {
+      run.status = normalizeRunStatus(run.status, "failed");
+      const errorText =
+        typeof payload.errorMessage === "string" ? payload.errorMessage : "chat error";
+      events.push({
+        kind: "run.failed",
+        ...this.state.eventBase(run, { correlationConfidence }),
+        error: errorText,
+        rawEventName: "chat",
+        rawSeq: typeof payload.seq === "number" ? payload.seq : undefined,
+      });
+    }
+
+    return events;
+  }
+
+  private ingestAgentEvent(frame: GatewayEventFrame): ChatNormalizedRunEvent[] {
+    if (!isRecord(frame.payload)) return [];
+    const payload = frame.payload;
+    const runId = typeof payload.runId === "string" ? payload.runId : "";
+    const stream = typeof payload.stream === "string" ? payload.stream : "";
+    const sessionKey = typeof payload.sessionKey === "string" ? payload.sessionKey : "";
+    if (!runId || !stream || !sessionKey) return [];
+
+    let correlationConfidence: "exact" | "fallback" = "exact";
+    let run = this.state.resolveRunByAgent(sessionKey, runId);
+    if (!run) {
+      correlationConfidence = "fallback";
+      run = this.state.maybeBindAliasFromSession({
+        sessionKey,
+        runId,
+        aliasKind: "agent",
+      });
+    }
+    if (!run) {
+      correlationConfidence = "fallback";
+      run = this.state.findRunFromRecentApproval(sessionKey);
+      if (run) {
+        this.state.linkAgentAlias(run, sessionKey, runId);
+      }
+    }
+    if (!run && this.state.hasRecentApprovalContext(sessionKey)) {
+      correlationConfidence = "fallback";
+      run = this.state.ensureRun({ sessionKey, clientRunId: runId });
+      this.state.linkAgentAlias(run, sessionKey, runId);
+    }
+    if (!run) return [];
+
+    this.state.touchRun(run);
+    if (!run.agentRunId) run.agentRunId = runId;
+    const seq = typeof payload.seq === "number" ? payload.seq : undefined;
+    const data = isRecord(payload.data) ? payload.data : {};
+
+    if (stream === "tool") {
+      const phase = typeof data.phase === "string" ? data.phase : "";
+      if (phase === "start") {
+        run.status = normalizeRunStatus(run.status, "running");
+        return [
+          {
+            kind: "run.tool_started",
+            ...this.state.eventBase(run, { correlationConfidence }),
+            rawEventName: "agent.tool",
+            rawSeq: seq,
+            metadata: data,
+          },
+        ];
+      }
+      if (phase === "update") {
+        run.status = normalizeRunStatus(run.status, "running");
+        return [
+          {
+            kind: "run.tool_updated",
+            ...this.state.eventBase(run, { correlationConfidence }),
+            rawEventName: "agent.tool",
+            rawSeq: seq,
+            metadata: data,
+          },
+        ];
+      }
+      if (phase === "result" || phase === "error" || phase === "end") {
+        if (data.isError === true || phase === "error") {
+          run.status = normalizeRunStatus(run.status, "failed");
+        } else {
+          run.status = normalizeRunStatus(run.status, "running");
+        }
+        return [
+          {
+            kind: "run.tool_finished",
+            ...this.state.eventBase(run, { correlationConfidence }),
+            rawEventName: "agent.tool",
+            rawSeq: seq,
+            metadata: data,
+          },
+        ];
+      }
+      return [];
+    }
+
+    if (stream === "lifecycle") {
+      const phase = typeof data.phase === "string" ? data.phase : "";
+      if (phase === "error") {
+        run.status = normalizeRunStatus(run.status, "failed");
+      } else {
+        run.status = normalizeRunStatus(run.status, "running");
+      }
+      return [
+        {
+          kind: "run.lifecycle",
+          ...this.state.eventBase(run, { correlationConfidence }),
+          rawEventName: "agent.lifecycle",
+          rawSeq: seq,
+          metadata: data,
+        },
+      ];
+    }
+
+    if (stream === "assistant") {
+      return [
+        {
+          kind: "run.delta",
+          ...this.state.eventBase(run, { correlationConfidence }),
+          text: typeof data.text === "string" ? data.text : undefined,
+          rawEventName: "agent.assistant",
+          rawSeq: seq,
+        },
+      ];
+    }
+
+    return [];
+  }
+
+  private ingestExecApprovalRequested(frame: GatewayEventFrame): ChatNormalizedRunEvent[] {
+    if (!isRecord(frame.payload)) return [];
+    const id = typeof frame.payload.id === "string" ? frame.payload.id : "";
+    const request = isRecord(frame.payload.request) ? frame.payload.request : null;
+    const sessionKey = request && typeof request.sessionKey === "string" ? request.sessionKey : "";
+    const command = request && typeof request.command === "string" ? request.command : undefined;
+    if (!id || !sessionKey) return [];
+
+    const run = this.state.recordApprovalRequest({
+      id,
+      sessionKey,
+      command,
+    });
+    if (!run) return [];
+
+    run.status = normalizeRunStatus(run.status, "waiting_approval");
+    this.state.touchRun(run);
+    return [
+      {
+        kind: "run.waiting_approval",
+        ...this.state.eventBase(run),
+        approvalId: id,
+        command,
+      },
+    ];
+  }
+
+  private ingestExecApprovalResolved(frame: GatewayEventFrame): ChatNormalizedRunEvent[] {
+    if (!isRecord(frame.payload)) return [];
+    const id = typeof frame.payload.id === "string" ? frame.payload.id : "";
+    if (!id) return [];
+    const decisionRaw = frame.payload.decision;
+    const decision =
+      decisionRaw === "allow-once" || decisionRaw === "allow-always" || decisionRaw === "deny"
+        ? decisionRaw
+        : undefined;
+    return this.onApprovalResolveRequest({ approvalId: id, decision });
+  }
+}

@@ -1,16 +1,7 @@
-import type { OAuthProviderStatus } from "@clawui/types/models";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Button,
-  Input,
-  Label,
-} from "@clawui/ui";
-import { Key, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
-import { useCallback } from "react";
+import type { OAuthProviderStatus, ProviderAuthInfo } from "@clawui/types/models";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@clawui/ui";
+import { Key, Loader2, AlertCircle } from "lucide-react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ModelConfig } from "@/components/Settings/ModelConfig";
 import { ProviderCard } from "@/components/Settings/ProviderCard";
@@ -23,13 +14,17 @@ import {
   selectModelsStatus,
   selectModelsLoading,
 } from "@/store/settings";
+import { canSaveApiKeyForProvider } from "@/store/settings/providerConfigMiddleware";
+import {
+  getApiKeyInputValue,
+  getFallbackProviderIds,
+  normalizeProviderId,
+} from "@/store/settings/providerRegistry";
 
-function mapProviderToKey(provider: string): "anthropic" | "openai" | "openrouter" {
-  if (provider === "openai-codex") return "openai";
-  if (provider === "anthropic") return "anthropic";
-  if (provider === "openrouter") return "openrouter";
-  return "openai";
-}
+const fallbackProviderInfos: ProviderAuthInfo[] = getFallbackProviderIds().map((provider) => ({
+  provider,
+  effective: { kind: "none" },
+}));
 
 function findOAuthStatus(
   modelsStatus: { auth: Record<string, unknown> },
@@ -57,10 +52,30 @@ export function ApiTab() {
 
   const handleApiKeyChange = useCallback(
     (provider: string) => (value: string) => {
-      setApiKey(mapProviderToKey(provider), value);
+      setApiKey(provider, value);
     },
     [setApiKey],
   );
+  const providerInfos = useMemo(() => {
+    const merged: ProviderAuthInfo[] = [];
+    const seen = new Set<string>();
+
+    for (const provider of modelsStatus?.auth.providers ?? []) {
+      const providerId = normalizeProviderId(provider.provider);
+      if (!providerId || seen.has(providerId)) continue;
+      merged.push({ ...provider, provider: providerId });
+      seen.add(providerId);
+    }
+
+    for (const provider of fallbackProviderInfos) {
+      const providerId = normalizeProviderId(provider.provider);
+      if (!providerId || seen.has(providerId)) continue;
+      merged.push({ ...provider, provider: providerId });
+      seen.add(providerId);
+    }
+
+    return merged;
+  }, [modelsStatus]);
 
   if (modelsLoading) {
     return (
@@ -73,96 +88,53 @@ export function ApiTab() {
     );
   }
 
-  if (modelsStatus) {
-    return (
-      <div className="space-y-4">
-        <ModelConfig defaultModel={modelsStatus.defaultModel} fallbacks={modelsStatus.fallbacks} />
-        {modelsStatus.auth.providers.map((p) => (
-          <ProviderCard
-            key={p.provider}
-            provider={p.provider}
-            authInfo={p}
-            oauthStatus={findOAuthStatus(modelsStatus, p.provider)}
-            apiKeyValue={apiKeys[mapProviderToKey(p.provider)]}
-            onApiKeyChange={handleApiKeyChange(p.provider)}
-            onApiKeySave={saveApiKeys}
-            isSaving={isSaving}
-            saveSuccess={saveSuccess}
-          />
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Key className="w-5 h-5" />
-          <CardTitle>{t("settings.page.api.fallback.title")}</CardTitle>
-        </div>
-        <CardDescription>{t("settings.page.api.fallback.description")}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="anthropic-key">
-            {t("settings.page.api.fallback.fields.anthropicKey")}
-          </Label>
-          <Input
-            id="anthropic-key"
-            type="password"
-            placeholder="sk-ant-..."
-            value={apiKeys.anthropic}
-            onChange={(e) => setApiKey("anthropic", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="openai-key">{t("settings.page.api.fallback.fields.openaiKey")}</Label>
-          <Input
-            id="openai-key"
-            type="password"
-            placeholder="sk-..."
-            value={apiKeys.openai}
-            onChange={(e) => setApiKey("openai", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="openrouter-key">
-            {t("settings.page.api.fallback.fields.openrouterKey")}
-          </Label>
-          <Input
-            id="openrouter-key"
-            type="password"
-            placeholder="sk-or-..."
-            value={apiKeys.openrouter}
-            onChange={(e) => setApiKey("openrouter", e.target.value)}
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={saveApiKeys} disabled={isSaving}>
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("status.saving")}
-              </>
-            ) : (
-              t("settings.page.api.fallback.actions.saveApiKeys")
-            )}
-          </Button>
-          {saveSuccess && (
-            <span className="flex items-center gap-1 text-sm text-green-500">
-              <CheckCircle2 className="h-4 w-4" />
-              {t("settings.page.api.fallback.saved")}
-            </span>
-          )}
-          {settingsError && (
+    <div className="space-y-4">
+      {modelsStatus ? (
+        <ModelConfig defaultModel={modelsStatus.defaultModel} fallbacks={modelsStatus.fallbacks} />
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Key className="w-5 h-5" />
+              <CardTitle>{t("settings.page.api.fallback.title")}</CardTitle>
+            </div>
+            <CardDescription>{t("settings.page.api.fallback.description")}</CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            {t("settings.page.api.fallback.statusUnavailable")}
+          </CardContent>
+        </Card>
+      )}
+
+      {settingsError && (
+        <Card>
+          <CardContent className="pt-4">
             <span className="flex items-center gap-1 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
               {settingsError}
             </span>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {providerInfos.map((provider) => (
+        <ProviderCard
+          key={provider.provider}
+          provider={provider.provider}
+          authInfo={provider}
+          oauthStatus={modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined}
+          apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
+          onApiKeyChange={handleApiKeyChange(provider.provider)}
+          onApiKeySave={() => void saveApiKeys(provider.provider)}
+          isSaving={isSaving}
+          saveSuccess={saveSuccess}
+          canSaveApiKey={canSaveApiKeyForProvider({
+            providerId: provider.provider,
+            modelsStatus,
+          })}
+        />
+      ))}
+    </div>
   );
 }

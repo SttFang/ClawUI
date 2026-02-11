@@ -2,12 +2,14 @@ import type { ModelsStatus } from "@clawui/types/models";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { ipc, getElectronAPI } from "@/lib/ipc";
+import {
+  buildProviderEnvPatch,
+  hydrateApiKeysFromModelsStatus,
+  readApiKeysFromEnv,
+} from "./providerConfigMiddleware";
+import { getKnownProviderIds, setApiKeyInputValue } from "./providerRegistry";
 
-interface ApiKeys {
-  anthropic: string;
-  openai: string;
-  openrouter: string;
-}
+export type ApiKeys = Record<string, string>;
 
 interface SettingsState {
   apiKeys: ApiKeys;
@@ -24,8 +26,8 @@ interface SettingsState {
 interface SettingsActions {
   loadSettings: () => Promise<void>;
   loadPreferences: () => Promise<void>;
-  setApiKey: (provider: keyof ApiKeys, key: string) => void;
-  saveApiKeys: () => Promise<void>;
+  setApiKey: (provider: string, key: string) => void;
+  saveApiKeys: (providerId?: string) => Promise<void>;
   setAutoStartGateway: (enabled: boolean) => Promise<void>;
   setAutoCheckUpdates: (enabled: boolean) => Promise<void>;
   clearSaveSuccess: () => void;
@@ -61,15 +63,21 @@ export const useSettingsStore = create<SettingsStore>()(
           const config = await ipc.config.get();
           if (config) {
             const env = (config as { env?: Record<string, string> }).env || {};
+            const loadedApiKeys = readApiKeysFromEnv(env);
             set(
-              {
-                apiKeys: {
-                  anthropic: env.ANTHROPIC_API_KEY || "",
-                  openai: env.OPENAI_API_KEY || "",
-                  openrouter: env.OPENROUTER_API_KEY || "",
-                },
+              (state) => ({
+                apiKeys: (() => {
+                  const next: ApiKeys = { ...state.apiKeys };
+                  for (const providerId of getKnownProviderIds()) {
+                    next[providerId] = loadedApiKeys[providerId] ?? "";
+                  }
+                  for (const [providerId, value] of Object.entries(loadedApiKeys)) {
+                    next[providerId] = value;
+                  }
+                  return next;
+                })(),
                 isLoading: false,
-              },
+              }),
               false,
               "loadSettings/success",
             );
@@ -86,7 +94,24 @@ export const useSettingsStore = create<SettingsStore>()(
         set({ modelsLoading: true }, false, "loadModelsStatus");
         try {
           const status = await ipc.models.status();
-          set({ modelsStatus: status, modelsLoading: false }, false, "loadModelsStatus/success");
+          const config = await ipc.config.get();
+          const env = ((config as { env?: Record<string, string> } | null)?.env ?? {}) as Record<
+            string,
+            string | undefined
+          >;
+          set(
+            (state) => ({
+              modelsStatus: status,
+              apiKeys: hydrateApiKeysFromModelsStatus({
+                apiKeys: state.apiKeys,
+                modelsStatus: status,
+                env,
+              }),
+              modelsLoading: false,
+            }),
+            false,
+            "loadModelsStatus/success",
+          );
         } catch {
           set({ modelsStatus: null, modelsLoading: false }, false, "loadModelsStatus/error");
         }
@@ -111,7 +136,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setApiKey: (provider, key) => {
         set(
           (state) => ({
-            apiKeys: { ...state.apiKeys, [provider]: key },
+            apiKeys: setApiKeyInputValue(state.apiKeys, provider, key),
             saveSuccess: false,
           }),
           false,
@@ -119,28 +144,20 @@ export const useSettingsStore = create<SettingsStore>()(
         );
       },
 
-      saveApiKeys: async () => {
-        const { apiKeys } = get();
+      saveApiKeys: async (providerId?: string) => {
+        const { apiKeys, modelsStatus } = get();
         set({ isSaving: true, error: null, saveSuccess: false }, false, "saveApiKeys");
 
         try {
-          const patch: Record<string, string | null> = {};
-
-          if (apiKeys.anthropic) {
-            patch.ANTHROPIC_API_KEY = apiKeys.anthropic;
-          }
-          if (apiKeys.openai) {
-            patch.OPENAI_API_KEY = apiKeys.openai;
-          }
-          if (apiKeys.openrouter) {
-            patch.OPENROUTER_API_KEY = apiKeys.openrouter;
-          }
+          const patch = buildProviderEnvPatch({ apiKeys, modelsStatus, providerId });
 
           if (!getElectronAPI()) {
             throw new Error("Electron API not available. Are you running in Electron?");
           }
 
-          await ipc.profiles.patchEnvBoth(patch);
+          if (Object.keys(patch).length > 0) {
+            await ipc.profiles.patchEnvBoth(patch);
+          }
           set({ isSaving: false, saveSuccess: true }, false, "saveApiKeys/success");
 
           setTimeout(() => {

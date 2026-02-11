@@ -537,6 +537,7 @@ const common = {
         fallback: {
           title: "API Key",
           description: "配置 AI 提供商的 API Key。密钥将本地加密存储。",
+          statusUnavailable: "未读取到模型状态，展示内置 provider 列表（可直接配置）。",
           fields: {
             anthropicKey: "Anthropic API 密钥",
             openaiKey: "OpenAI API 密钥",
@@ -623,6 +624,8 @@ const common = {
       apiKeyPlaceholder: "输入 {{provider}} API Key...",
       editKey: "编辑 Key",
       saved: "已保存",
+      unsupportedSaveHint:
+        "该 provider 当前不支持在此面板直接保存 API Key（可能使用 OAuth/AWS 或需插件配置）。",
       auth: {
         envVar: "环境变量 {{name}}",
         envVarNotSet: "环境变量（未设置）",

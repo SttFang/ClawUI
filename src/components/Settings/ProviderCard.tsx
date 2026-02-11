@@ -4,13 +4,7 @@ import { CheckCircle2, Loader2, Clock, Edit3, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getProviderBrandIcon } from "@/lib/providerBrandIcons";
-
-const PROVIDER_LABELS: Record<string, string> = {
-  anthropic: "Anthropic",
-  openai: "OpenAI",
-  "openai-codex": "OpenAI Codex",
-  openrouter: "OpenRouter",
-};
+import { getProviderLabel } from "@/store/settings/providerRegistry";
 
 function getAuthStatus(authInfo: ProviderAuthInfo, oauthStatus?: OAuthProviderStatus) {
   const { effective } = authInfo;
@@ -41,6 +35,7 @@ interface ProviderCardProps {
   onApiKeySave: () => void;
   isSaving: boolean;
   saveSuccess: boolean;
+  canSaveApiKey: boolean;
 }
 
 export function ProviderCard({
@@ -52,12 +47,13 @@ export function ProviderCard({
   onApiKeySave,
   isSaving,
   saveSuccess,
+  canSaveApiKey,
 }: ProviderCardProps) {
   const { t } = useTranslation("common");
   const [isEditing, setIsEditing] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const Icon = getProviderBrandIcon(provider);
-  const label = PROVIDER_LABELS[provider] ?? provider;
+  const label = getProviderLabel(provider);
   const status = getAuthStatus(authInfo, oauthStatus);
   const authDesc = (() => {
     const { effective } = authInfo;
@@ -86,6 +82,7 @@ export function ProviderCard({
   const isOAuthAuth = authInfo.effective.kind === "profiles";
   const isMissing = status.kind === "missing";
   const statusLabel = t(`settings.providerCard.status.${status.kind}`);
+  const canEditApiKey = isEnvAuth && canSaveApiKey;
 
   return (
     <Card>
@@ -120,7 +117,7 @@ export function ProviderCard({
         )}
 
         {/* Env/none auth: show API key editor */}
-        {isEnvAuth && (
+        {canEditApiKey && (
           <div className="space-y-2">
             {isMissing || isEditing ? (
               <div className="flex items-center gap-2">
@@ -174,6 +171,12 @@ export function ProviderCard({
               </span>
             )}
           </div>
+        )}
+
+        {isEnvAuth && !canSaveApiKey && (
+          <p className="text-xs text-muted-foreground">
+            {t("settings.providerCard.unsupportedSaveHint")}
+          </p>
         )}
       </CardContent>
     </Card>

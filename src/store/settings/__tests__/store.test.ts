@@ -139,6 +139,48 @@ describe("SettingsStore", () => {
     });
   });
 
+  describe("loadModelsStatus", () => {
+    it("should hydrate models status and provider api keys", async () => {
+      const { ipc } = await import("@/lib/ipc");
+      (ipc.models.status as Mock).mockResolvedValue({
+        defaultModel: "google/gemini-3-pro",
+        fallbacks: [],
+        auth: {
+          providers: [
+            {
+              provider: "google",
+              effective: { kind: "env", detail: "masked" },
+              env: { source: "env: GEMINI_API_KEY" },
+            },
+          ],
+        },
+      });
+      (ipc.config.get as Mock).mockResolvedValue({
+        env: {
+          GEMINI_API_KEY: "sk-gemini-xxx",
+        },
+      });
+
+      await useSettingsStore.getState().loadModelsStatus();
+
+      const state = useSettingsStore.getState();
+      expect(state.modelsStatus?.defaultModel).toBe("google/gemini-3-pro");
+      expect(state.apiKeys.google).toBe("sk-gemini-xxx");
+      expect(state.modelsLoading).toBe(false);
+    });
+
+    it("should handle status load error", async () => {
+      const { ipc } = await import("@/lib/ipc");
+      (ipc.models.status as Mock).mockRejectedValue(new Error("status failed"));
+
+      await useSettingsStore.getState().loadModelsStatus();
+
+      const state = useSettingsStore.getState();
+      expect(state.modelsStatus).toBeNull();
+      expect(state.modelsLoading).toBe(false);
+    });
+  });
+
   describe("setApiKey", () => {
     it("should update anthropic API key", () => {
       const { setApiKey } = useSettingsStore.getState();
@@ -189,6 +231,12 @@ describe("SettingsStore", () => {
       expect(state.apiKeys.anthropic).toBe("sk-ant-existing");
       expect(state.apiKeys.openai).toBe("sk-openai-new");
       expect(state.apiKeys.openrouter).toBe("sk-or-existing");
+    });
+
+    it("should normalize provider aliases", () => {
+      const { setApiKey } = useSettingsStore.getState();
+      setApiKey("z.ai", "sk-zai");
+      expect(useSettingsStore.getState().apiKeys.zai).toBe("sk-zai");
     });
   });
 
@@ -263,6 +311,13 @@ describe("SettingsStore", () => {
     it("should handle save error", async () => {
       const { ipc } = await import("@/lib/ipc");
       (ipc.profiles.patchEnvBoth as Mock).mockRejectedValue(new Error("Write failed"));
+      useSettingsStore.setState({
+        apiKeys: {
+          anthropic: "sk-ant-xxx",
+          openai: "",
+          openrouter: "",
+        },
+      });
 
       const { saveApiKeys } = useSettingsStore.getState();
       await saveApiKeys();
@@ -275,6 +330,13 @@ describe("SettingsStore", () => {
 
     it("should set isSaving during save", async () => {
       const { ipc } = await import("@/lib/ipc");
+      useSettingsStore.setState({
+        apiKeys: {
+          anthropic: "sk-ant-xxx",
+          openai: "",
+          openrouter: "",
+        },
+      });
 
       let capturedSaving = false;
       (ipc.profiles.patchEnvBoth as Mock).mockImplementation(() => {
@@ -286,6 +348,48 @@ describe("SettingsStore", () => {
       await saveApiKeys();
 
       expect(capturedSaving).toBe(true);
+    });
+
+    it("should support provider-scoped save", async () => {
+      const { ipc } = await import("@/lib/ipc");
+      (ipc.profiles.patchEnvBoth as Mock).mockResolvedValue(undefined);
+
+      useSettingsStore.setState({
+        apiKeys: {
+          anthropic: "",
+          openai: "",
+          openrouter: "",
+          google: "gemini-key",
+        },
+      });
+
+      await useSettingsStore.getState().saveApiKeys("google");
+
+      expect(ipc.profiles.patchEnvBoth).toHaveBeenCalledWith({
+        GEMINI_API_KEY: "gemini-key",
+      });
+    });
+
+    it("should reject unsupported provider-scoped save", async () => {
+      const { ipc } = await import("@/lib/ipc");
+      (ipc.profiles.patchEnvBoth as Mock).mockResolvedValue(undefined);
+
+      useSettingsStore.setState({
+        apiKeys: {
+          anthropic: "",
+          openai: "",
+          openrouter: "",
+          "custom-provider": "sk-custom",
+        },
+      });
+
+      await useSettingsStore.getState().saveApiKeys("custom-provider");
+
+      const state = useSettingsStore.getState();
+      expect(state.error).toContain(
+        'Provider "custom-provider" does not support API key persistence.',
+      );
+      expect(ipc.profiles.patchEnvBoth).not.toHaveBeenCalled();
     });
   });
 

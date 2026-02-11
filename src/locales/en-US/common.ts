@@ -541,6 +541,8 @@ const common = {
           title: "API keys",
           description:
             "Configure your AI provider API keys. Keys are stored locally and encrypted.",
+          statusUnavailable:
+            "Models status is unavailable. Showing built-in provider list for direct configuration.",
           fields: {
             anthropicKey: "Anthropic API key",
             openaiKey: "OpenAI API key",
@@ -628,6 +630,8 @@ const common = {
       apiKeyPlaceholder: "Enter {{provider}} API key...",
       editKey: "Edit key",
       saved: "Saved",
+      unsupportedSaveHint:
+        "This provider cannot save API keys from this panel (likely OAuth/AWS or plugin-managed).",
       auth: {
         envVar: "env var {{name}}",
         envVarNotSet: "env var (not set)",

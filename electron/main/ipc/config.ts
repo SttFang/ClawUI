@@ -1,9 +1,11 @@
-import { IpcMain } from "electron";
+import type { IpcMain } from "electron";
 import { configLog } from "../lib/logger";
-import { ConfigService, OpenClawConfig } from "../services/config";
+import { OpenClawConfigBridge, type LegacyOpenClawConfig } from "../services/config-bridge";
 
 /** Only these top-level keys may be set from the renderer. */
-const ALLOWED_CONFIG_KEYS: ReadonlySet<keyof OpenClawConfig> = new Set([
+type AllowedConfigKey = "gateway" | "agents" | "session" | "channels" | "tools" | "cron" | "hooks";
+
+const ALLOWED_CONFIG_KEYS: ReadonlySet<AllowedConfigKey> = new Set([
   "gateway",
   "agents",
   "session",
@@ -13,22 +15,22 @@ const ALLOWED_CONFIG_KEYS: ReadonlySet<keyof OpenClawConfig> = new Set([
   "hooks",
 ]);
 
-function sanitizeConfigInput(raw: unknown): Partial<OpenClawConfig> | null {
+function sanitizeConfigInput(raw: unknown): Record<string, unknown> | null {
   if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return null;
   const filtered: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(raw)) {
-    if (ALLOWED_CONFIG_KEYS.has(key as keyof OpenClawConfig)) {
+    if (ALLOWED_CONFIG_KEYS.has(key as AllowedConfigKey)) {
       filtered[key] = value;
     } else {
       configLog.warn("[config.set] rejected unknown key:", key);
     }
   }
-  return Object.keys(filtered).length > 0 ? (filtered as Partial<OpenClawConfig>) : null;
+  return Object.keys(filtered).length > 0 ? filtered : null;
 }
 
-export function registerConfigHandlers(ipcMain: IpcMain, configService: ConfigService): void {
+export function registerConfigHandlers(ipcMain: IpcMain, bridge: OpenClawConfigBridge): void {
   ipcMain.handle("config:get", async () => {
-    return configService.getConfig();
+    return bridge.getLegacyConfig();
   });
 
   ipcMain.handle("config:set", async (_event, raw: unknown) => {
@@ -37,10 +39,10 @@ export function registerConfigHandlers(ipcMain: IpcMain, configService: ConfigSe
       configLog.warn("[config.set] rejected invalid input");
       return;
     }
-    await configService.setConfig(config);
+    await bridge.applyLegacyPatch(config as Partial<LegacyOpenClawConfig>);
   });
 
   ipcMain.handle("config:path", () => {
-    return configService.getConfigPath();
+    return bridge.getConfigPath();
   });
 }

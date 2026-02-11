@@ -16,6 +16,7 @@ import { registerStateHandlers } from "./ipc/state";
 import { registerUsageHandlers } from "./ipc/usage";
 import { initLogger, mainLog } from "./lib/logger";
 import { ClawUIStateService } from "./services/clawui-state";
+import { OpenClawConfigBridge } from "./services/config-bridge";
 import { GatewayService } from "./services/gateway";
 import { OpenClawProfilesService } from "./services/openclaw-profiles";
 import { UpdaterService } from "./services/updater";
@@ -27,6 +28,7 @@ initLogger();
 const gatewayService = new GatewayService();
 const profilesService = new OpenClawProfilesService();
 const configService = profilesService.getConfigService("main");
+const configBridge = new OpenClawConfigBridge(configService.getConfigPath());
 const updaterService = new UpdaterService();
 const clawUIStateService = new ClawUIStateService();
 
@@ -106,7 +108,7 @@ app.whenReady().then(async () => {
 
   // Register IPC handlers
   registerGatewayHandlers(ipcMain, gatewayService, configService);
-  registerConfigHandlers(ipcMain, configService);
+  registerConfigHandlers(ipcMain, configBridge);
   registerAppHandlers(ipcMain, updaterService);
   registerOnboardingHandlers();
   registerStateHandlers(ipcMain, clawUIStateService);

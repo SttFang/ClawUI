@@ -13,9 +13,17 @@ type GatewaySessionsDefaults = {
 
 type GatewaySessionRow = {
   key: string;
+  model?: string;
   thinkingLevel?: string;
   verboseLevel?: string;
   reasoningLevel?: string;
+};
+
+type GatewayModelChoice = {
+  id?: string;
+  provider?: string;
+  key?: string;
+  name?: string;
 };
 
 type SessionsListResult = {
@@ -23,9 +31,21 @@ type SessionsListResult = {
   sessions?: GatewaySessionRow[];
 };
 
+type ModelsListResult = {
+  models?: GatewayModelChoice[];
+};
+
 const THINKING_OPTIONS = ["inherit", "off", "minimal", "low", "medium", "high", "xhigh"] as const;
 const VERBOSE_OPTIONS = ["inherit", "off", "on", "full"] as const;
 const REASONING_OPTIONS = ["inherit", "off", "on", "stream"] as const;
+
+function normalizeModelKey(choice: GatewayModelChoice): string {
+  if (typeof choice.key === "string" && choice.key.trim()) return choice.key.trim();
+  const provider = typeof choice.provider === "string" ? choice.provider.trim() : "";
+  const id = typeof choice.id === "string" ? choice.id.trim() : "";
+  if (provider && id) return `${provider}/${id}`;
+  return id || provider;
+}
 
 function toSelectValue(value: unknown): string {
   if (typeof value === "string" && value.trim()) return value.trim();
@@ -73,25 +93,40 @@ export function SessionControlStrip(props: {
   const refreshSessions = useChatStore((s) => s.refreshSessions);
 
   const [row, setRow] = useState<GatewaySessionRow | null>(null);
+  const [modelChoices, setModelChoices] = useState<Array<{ key: string; label: string }>>([]);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!sessionKey.trim()) return;
     try {
       await ensureChatConnected();
-      const payload = (await ipc.chat.request("sessions.list", {
-        // `search` will match by key; keep limit small.
-        search: sessionKey,
-        limit: 10,
-        includeDerivedTitles: true,
-        includeLastMessage: false,
-        includeGlobal: true,
-        includeUnknown: true,
-      })) as SessionsListResult;
+      const [sessionsPayload, modelsPayload] = (await Promise.all([
+        ipc.chat.request("sessions.list", {
+          // `search` will match by key; keep limit small.
+          search: sessionKey,
+          limit: 10,
+          includeDerivedTitles: true,
+          includeLastMessage: false,
+          includeGlobal: true,
+          includeUnknown: true,
+        }),
+        ipc.chat.request("models.list"),
+      ])) as [SessionsListResult, ModelsListResult];
 
-      const sessions = Array.isArray(payload?.sessions) ? payload.sessions : [];
+      const sessions = Array.isArray(sessionsPayload?.sessions) ? sessionsPayload.sessions : [];
       const match = sessions.find((s) => s?.key === sessionKey) ?? sessions[0] ?? null;
       setRow(match);
+
+      const models = Array.isArray(modelsPayload?.models) ? modelsPayload.models : [];
+      const options = models
+        .map((choice) => {
+          const key = normalizeModelKey(choice);
+          if (!key) return null;
+          const name = typeof choice.name === "string" ? choice.name.trim() : "";
+          return { key, label: name && name !== key ? `${key} (${name})` : key };
+        })
+        .filter((item): item is { key: string; label: string } => Boolean(item));
+      setModelChoices(options);
     } catch {
       // best-effort only
     }
@@ -119,6 +154,7 @@ export function SessionControlStrip(props: {
   const thinkingValue = toSelectValue(row?.thinkingLevel);
   const verboseValue = toSelectValue(row?.verboseLevel);
   const reasoningValue = toSelectValue(row?.reasoningLevel);
+  const modelValue = toSelectValue(row?.model);
 
   return (
     <div
@@ -128,6 +164,26 @@ export function SessionControlStrip(props: {
         className,
       )}
     >
+      <div className="flex items-center gap-1">
+        <div className="whitespace-nowrap text-[11px] text-muted-foreground">
+          {t("sessionStrip.model")}
+        </div>
+        <Select
+          value={modelValue}
+          onChange={(e) => void patch({ model: toPatchValue(e.target.value) })}
+          disabled={disabled || saving}
+          aria-label={t("sessionStrip.model")}
+          className="h-8 w-[200px] px-1.5 pr-7 text-[11px]"
+        >
+          <option value="inherit">{t("sessionStrip.inherit")}</option>
+          {modelChoices.map((model) => (
+            <option key={model.key} value={model.key}>
+              {model.label}
+            </option>
+          ))}
+        </Select>
+      </div>
+
       <div className="flex items-center gap-1">
         <div className="whitespace-nowrap text-[11px] text-muted-foreground">
           {t("sessionStrip.thinking")}

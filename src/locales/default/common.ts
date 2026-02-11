@@ -492,6 +492,7 @@ const common = {
       tabs: {
         general: "通用",
         config: "配置中心",
+        models: "模型配置",
         api: "模型与认证",
         tokens: "渠道与 Token",
         gateway: "网关",
@@ -522,7 +523,7 @@ const common = {
       tokens: {
         title: "渠道 Token",
         description:
-          "管理非模型密钥（Discord/Telegram/Slack）。这些会写入 OpenClaw 的环境变量（profiles 18789 + 19789）。",
+          "管理非模型密钥（Discord/Telegram/Slack）。保存后会通过配置草稿事务写入 OpenClaw 的 env 配置。",
         fields: {
           discordBotToken: "Discord 机器人 Token",
           discordAppToken: "Discord 应用 Token",
@@ -547,6 +548,51 @@ const common = {
             saveApiKeys: "保存 API Key",
           },
           saved: "已保存",
+        },
+      },
+      models: {
+        defaultModel: {
+          title: "默认模型",
+          description: "配置 OpenClaw 全局默认模型（openclaw models set）。",
+          label: "模型",
+          current: "当前默认：{{model}}",
+        },
+        fallbacks: {
+          title: "回退模型",
+          description: "管理默认模型不可用时的回退链（openclaw models fallbacks）。",
+          placeholder: "输入模型 key，例如 openai/gpt-4o",
+          add: "添加回退",
+          clear: "清空回退",
+          remove: "移除",
+          empty: "暂无回退模型。",
+        },
+        authOrder: {
+          title: "认证顺序",
+          description: "按 provider 维护 auth profile 的优先级顺序（openclaw models auth order）。",
+          provider: "Provider",
+          orderInput: "Profile 顺序（逗号分隔）",
+          orderPlaceholder: "例如 openai-codex:default, openai-codex:backup",
+          current: "当前顺序：{{value}}",
+          inherit: "继承默认（轮询）",
+          save: "保存顺序",
+          clear: "清除顺序",
+          refresh: "刷新",
+        },
+        probe: {
+          title: "认证探测",
+          description: "触发一次模型认证探测（openclaw models status --probe）。",
+          runAll: "探测全部",
+          runProvider: "探测当前 Provider",
+          lastRun: "上次探测：{{time}}",
+          never: "尚未探测",
+        },
+        oauth: {
+          title: "OAuth 登录",
+          description:
+            "调用 openclaw models auth login。若当前进程无 TTY，系统会提示你在终端完成交互授权。",
+          method: "Method（可选）",
+          methodPlaceholder: "例如 device-code",
+          login: "启动 OAuth 登录",
         },
       },
       gateway: {

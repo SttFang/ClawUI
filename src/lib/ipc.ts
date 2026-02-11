@@ -13,7 +13,13 @@ import type {
   ConfigSnapshotV2,
 } from "@clawui/types/config-v2";
 import type { GatewayStatus, GatewayEventFrame } from "@clawui/types/gateway";
-import type { ModelsStatus } from "@clawui/types/models";
+import type {
+  ModelsAuthOrderResult,
+  ModelsCatalogResult,
+  ModelsFallbacksResult,
+  ModelsStatus,
+  ModelsStatusProbeOptions,
+} from "@clawui/types/models";
 // Import types from centralized package
 import type {
   RuntimeStatus,
@@ -55,6 +61,21 @@ export type SkillsProfileList = {
 
 export type SkillsListResult = {
   profiles: Record<OpenClawProfileId, SkillsProfileList>;
+};
+
+export type ModelsAuthLoginOptions = {
+  provider?: string;
+  method?: string;
+  setDefault?: boolean;
+};
+
+export type ModelsAuthOrderInput = {
+  provider: string;
+  agentId?: string;
+};
+
+export type ModelsAuthOrderSetInput = ModelsAuthOrderInput & {
+  profileIds: string[];
 };
 
 export interface ElectronAPI {
@@ -128,7 +149,17 @@ export interface ElectronAPI {
     logs: (params?: Record<string, unknown>) => Promise<unknown>;
   };
   models: {
-    status: () => Promise<ModelsStatus | null>;
+    status: (options?: ModelsStatusProbeOptions) => Promise<ModelsStatus | null>;
+    list: () => Promise<ModelsCatalogResult>;
+    setDefault: (model: string) => Promise<void>;
+    listFallbacks: () => Promise<ModelsFallbacksResult>;
+    addFallback: (model: string) => Promise<void>;
+    removeFallback: (model: string) => Promise<void>;
+    clearFallbacks: () => Promise<void>;
+    getAuthOrder: (input: ModelsAuthOrderInput) => Promise<ModelsAuthOrderResult>;
+    setAuthOrder: (input: ModelsAuthOrderSetInput) => Promise<ModelsAuthOrderResult>;
+    clearAuthOrder: (input: ModelsAuthOrderInput) => Promise<ModelsAuthOrderResult>;
+    authLogin: (input?: ModelsAuthLoginOptions) => Promise<{ ok: true; stdout: string }>;
   };
   metadata: {
     generate: (sessionKey: string) => Promise<ClawUISessionMetadata>;
@@ -424,9 +455,63 @@ export const ipc = {
     },
   },
   models: {
-    async status(): Promise<ModelsStatus | null> {
+    async status(options?: ModelsStatusProbeOptions): Promise<ModelsStatus | null> {
       const api = getElectronAPI();
-      return api?.models.status() ?? null;
+      return api?.models.status(options) ?? null;
+    },
+    async list(): Promise<ModelsCatalogResult> {
+      const api = getElectronAPI();
+      if (!api?.models?.list) throw new Error("Models API not available — restart the app");
+      return api.models.list();
+    },
+    async setDefault(model: string): Promise<void> {
+      const api = getElectronAPI();
+      if (!api?.models?.setDefault) throw new Error("Models API not available — restart the app");
+      await api.models.setDefault(model);
+    },
+    async listFallbacks(): Promise<ModelsFallbacksResult> {
+      const api = getElectronAPI();
+      if (!api?.models?.listFallbacks)
+        throw new Error("Models API not available — restart the app");
+      return api.models.listFallbacks();
+    },
+    async addFallback(model: string): Promise<void> {
+      const api = getElectronAPI();
+      if (!api?.models?.addFallback) throw new Error("Models API not available — restart the app");
+      await api.models.addFallback(model);
+    },
+    async removeFallback(model: string): Promise<void> {
+      const api = getElectronAPI();
+      if (!api?.models?.removeFallback)
+        throw new Error("Models API not available — restart the app");
+      await api.models.removeFallback(model);
+    },
+    async clearFallbacks(): Promise<void> {
+      const api = getElectronAPI();
+      if (!api?.models?.clearFallbacks)
+        throw new Error("Models API not available — restart the app");
+      await api.models.clearFallbacks();
+    },
+    async getAuthOrder(input: ModelsAuthOrderInput): Promise<ModelsAuthOrderResult> {
+      const api = getElectronAPI();
+      if (!api?.models?.getAuthOrder) throw new Error("Models API not available — restart the app");
+      return api.models.getAuthOrder(input);
+    },
+    async setAuthOrder(input: ModelsAuthOrderSetInput): Promise<ModelsAuthOrderResult> {
+      const api = getElectronAPI();
+      if (!api?.models?.setAuthOrder) throw new Error("Models API not available — restart the app");
+      return api.models.setAuthOrder(input);
+    },
+    async clearAuthOrder(input: ModelsAuthOrderInput): Promise<ModelsAuthOrderResult> {
+      const api = getElectronAPI();
+      if (!api?.models?.clearAuthOrder)
+        throw new Error("Models API not available — restart the app");
+      return api.models.clearAuthOrder(input);
+    },
+    async authLogin(input?: ModelsAuthLoginOptions): Promise<{ ok: true; stdout: string }> {
+      const api = getElectronAPI();
+      if (!api?.models?.authLogin) throw new Error("Models API not available — restart the app");
+      return api.models.authLogin(input);
     },
   },
   metadata: {

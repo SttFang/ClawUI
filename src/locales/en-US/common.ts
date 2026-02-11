@@ -495,6 +495,7 @@ const common = {
       tabs: {
         general: "General",
         config: "Config Center",
+        models: "Models",
         api: "Models & Auth",
         tokens: "Channels & Tokens",
         gateway: "Gateway",
@@ -525,7 +526,7 @@ const common = {
       tokens: {
         title: "Channel tokens",
         description:
-          "Manage non-model secrets (Discord/Telegram/Slack). These are written into OpenClaw env for both profiles (18789 + 19789).",
+          "Manage non-model secrets (Discord/Telegram/Slack). Saves are applied through the OpenClaw config draft transaction into env fields.",
         fields: {
           discordBotToken: "Discord bot token",
           discordAppToken: "Discord app token",
@@ -552,6 +553,51 @@ const common = {
             saveApiKeys: "Save API keys",
           },
           saved: "Saved!",
+        },
+      },
+      models: {
+        defaultModel: {
+          title: "Default model",
+          description: "Configure the global default model (openclaw models set).",
+          label: "Model",
+          current: "Current default: {{model}}",
+        },
+        fallbacks: {
+          title: "Fallback models",
+          description: "Manage fallback chain when primary model is unavailable.",
+          placeholder: "Enter model key, e.g. openai/gpt-4o",
+          add: "Add fallback",
+          clear: "Clear all",
+          remove: "Remove",
+          empty: "No fallback models.",
+        },
+        authOrder: {
+          title: "Auth order",
+          description: "Manage provider auth profile priority (models auth order).",
+          provider: "Provider",
+          orderInput: "Profile order (comma separated)",
+          orderPlaceholder: "e.g. openai-codex:default, openai-codex:backup",
+          current: "Current order: {{value}}",
+          inherit: "inherit default (round-robin)",
+          save: "Save order",
+          clear: "Clear order",
+          refresh: "Refresh",
+        },
+        probe: {
+          title: "Auth probe",
+          description: "Trigger auth probe via models status --probe.",
+          runAll: "Probe all",
+          runProvider: "Probe current provider",
+          lastRun: "Last probe: {{time}}",
+          never: "Never probed",
+        },
+        oauth: {
+          title: "OAuth login",
+          description:
+            "Run openclaw models auth login. If this process has no TTY, we will show a terminal command hint.",
+          method: "Method (optional)",
+          methodPlaceholder: "e.g. device-code",
+          login: "Run OAuth login",
         },
       },
       gateway: {

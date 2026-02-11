@@ -15,6 +15,7 @@ import { ApiTab } from "./ApiTab";
 import { ConfigTab } from "./config/ConfigTab";
 import { GatewayTab } from "./GatewayTab";
 import { GeneralTab } from "./GeneralTab";
+import { ModelsTab } from "./ModelsTab";
 import { SecurityTab } from "./SecurityTab";
 import { TokensTab } from "./TokensTab";
 
@@ -59,6 +60,7 @@ export default function SettingsPage() {
           <TabsList className="mb-4">
             <TabsTrigger value="general">{t("settings.page.tabs.general")}</TabsTrigger>
             <TabsTrigger value="config">{t("settings.page.tabs.config")}</TabsTrigger>
+            <TabsTrigger value="models">{t("settings.page.tabs.models")}</TabsTrigger>
             <TabsTrigger value="api">{t("settings.page.tabs.api")}</TabsTrigger>
             <TabsTrigger value="tokens">{t("settings.page.tabs.tokens")}</TabsTrigger>
             <TabsTrigger value="gateway">{t("settings.page.tabs.gateway")}</TabsTrigger>
@@ -72,6 +74,9 @@ export default function SettingsPage() {
           </TabsContent>
           <TabsContent value="config">
             <ConfigTab activeSection={sectionParam} />
+          </TabsContent>
+          <TabsContent value="models">
+            <ModelsTab />
           </TabsContent>
           <TabsContent value="api">
             <ApiTab />

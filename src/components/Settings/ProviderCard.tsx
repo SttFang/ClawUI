@@ -36,6 +36,7 @@ interface ProviderCardProps {
   isSaving: boolean;
   saveSuccess: boolean;
   canSaveApiKey: boolean;
+  onOAuthAction?: () => void;
 }
 
 export function ProviderCard({
@@ -48,6 +49,7 @@ export function ProviderCard({
   isSaving,
   saveSuccess,
   canSaveApiKey,
+  onOAuthAction,
 }: ProviderCardProps) {
   const { t } = useTranslation("common");
   const [isEditing, setIsEditing] = useState(false);
@@ -111,7 +113,7 @@ export function ProviderCard({
 
         {/* OAuth provider: show refresh button */}
         {isOAuthAuth && (
-          <Button variant="outline" size="sm" disabled>
+          <Button variant="outline" size="sm" disabled={!onOAuthAction} onClick={onOAuthAction}>
             {t("settings.providerCard.refreshOAuth")}
           </Button>
         )}

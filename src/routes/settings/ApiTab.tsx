@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@claw
 import { Key, Loader2, AlertCircle } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { ModelConfig } from "@/components/Settings/ModelConfig";
 import { ProviderCard } from "@/components/Settings/ProviderCard";
 import {
@@ -40,6 +41,7 @@ function findOAuthStatus(
 
 export function ApiTab() {
   const { t } = useTranslation("common");
+  const navigate = useNavigate();
 
   const apiKeys = useSettingsStore(selectApiKeys);
   const isSaving = useSettingsStore(selectIsSaving);
@@ -133,6 +135,7 @@ export function ApiTab() {
             providerId: provider.provider,
             modelsStatus,
           })}
+          onOAuthAction={() => navigate("/settings?tab=models")}
         />
       ))}
     </div>

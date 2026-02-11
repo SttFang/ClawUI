@@ -1,6 +1,7 @@
 export const SETTINGS_TABS = [
   "general",
   "config",
+  "models",
   "api",
   "tokens",
   "gateway",

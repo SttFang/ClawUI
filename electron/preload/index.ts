@@ -180,7 +180,28 @@ contextBridge.exposeInMainWorld("electron", {
     logs: (params?: Record<string, unknown>) => ipcRenderer.invoke("usage:logs", params),
   },
   models: {
-    status: () => ipcRenderer.invoke("models:status"),
+    status: (options?: {
+      probe?: boolean;
+      probeProvider?: string;
+      probeProfile?: string[];
+      probeTimeout?: number;
+      probeConcurrency?: number;
+      probeMaxTokens?: number;
+    }) => ipcRenderer.invoke("models:status", options),
+    list: () => ipcRenderer.invoke("models:list"),
+    setDefault: (model: string) => ipcRenderer.invoke("models:set-default", model),
+    listFallbacks: () => ipcRenderer.invoke("models:fallbacks-list"),
+    addFallback: (model: string) => ipcRenderer.invoke("models:fallbacks-add", model),
+    removeFallback: (model: string) => ipcRenderer.invoke("models:fallbacks-remove", model),
+    clearFallbacks: () => ipcRenderer.invoke("models:fallbacks-clear"),
+    getAuthOrder: (input: { provider: string; agentId?: string }) =>
+      ipcRenderer.invoke("models:auth-order-get", input),
+    setAuthOrder: (input: { provider: string; profileIds: string[]; agentId?: string }) =>
+      ipcRenderer.invoke("models:auth-order-set", input),
+    clearAuthOrder: (input: { provider: string; agentId?: string }) =>
+      ipcRenderer.invoke("models:auth-order-clear", input),
+    authLogin: (input?: { provider?: string; method?: string; setDefault?: boolean }) =>
+      ipcRenderer.invoke("models:auth-login", input),
   },
   metadata: {
     generate: (sessionKey: string) => ipcRenderer.invoke("metadata:generate", sessionKey),

@@ -41,6 +41,7 @@ const chat = {
     kind: "类型",
     updated: "更新",
     tokens: "Tokens",
+    model: "模型",
     thinking: "思考",
     verbose: "详细",
     reasoning: "推理",

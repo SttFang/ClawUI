@@ -1,12 +1,11 @@
 import { exec } from "child_process";
 import { app } from "electron";
 import { existsSync } from "fs";
-import { readFile } from "fs/promises";
-import { homedir } from "os";
 import path from "path";
 import { promisify } from "util";
 import { detectorLog } from "../lib/logger";
 import { execInLoginShell, resolveCommandPath } from "../utils/login-shell";
+import { ConfigRepository } from "./config-repository";
 
 const execAsync = promisify(exec);
 
@@ -19,12 +18,14 @@ export interface RuntimeStatus {
   openclawPath: string | null;
   configExists: boolean;
   configValid: boolean;
+  configSchemaVersion: string | null;
   configPath: string;
 }
 
 export class RuntimeDetectorService {
   private runtimeDir = path.join(app.getPath("userData"), "runtime");
-  private configPath = path.join(homedir(), ".openclaw", "openclaw.json");
+  private configRepository = new ConfigRepository();
+  private configPath = this.configRepository.getPath();
 
   async detect(): Promise<RuntimeStatus> {
     const t0 = Date.now();
@@ -152,22 +153,18 @@ export class RuntimeDetectorService {
   private async detectConfig(): Promise<{
     configExists: boolean;
     configValid: boolean;
+    configSchemaVersion: string | null;
   }> {
     if (!existsSync(this.configPath)) {
-      return { configExists: false, configValid: false };
+      return { configExists: false, configValid: false, configSchemaVersion: null };
     }
 
-    try {
-      const content = await readFile(this.configPath, "utf-8");
-      const config = JSON.parse(content);
-      // Basic validation: check for required fields
-      const isValid = Boolean(
-        config.models && (config.models.anthropic || config.models.openai || config.proxy),
-      );
-      return { configExists: true, configValid: isValid };
-    } catch {
-      return { configExists: true, configValid: false };
-    }
+    const inspected = await this.configRepository.inspectCanonicalConfig();
+    return {
+      configExists: inspected.exists,
+      configValid: inspected.valid,
+      configSchemaVersion: inspected.schemaVersion,
+    };
   }
 
   private getEmbeddedNodePath(): string | null {

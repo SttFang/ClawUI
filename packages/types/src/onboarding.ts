@@ -22,6 +22,8 @@ export interface RuntimeStatus {
   configExists: boolean;
   /** Whether config has valid API keys */
   configValid: boolean;
+  /** Parsed config schema version for diagnostics */
+  configSchemaVersion?: string | null;
   /** Path to config file (~/.openclaw/openclaw.json) */
   configPath: string;
 }

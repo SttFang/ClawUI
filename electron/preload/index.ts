@@ -27,6 +27,7 @@ export interface RuntimeStatus {
   openclawPath: string | null;
   configExists: boolean;
   configValid: boolean;
+  configSchemaVersion?: string | null;
   configPath: string;
 }
 

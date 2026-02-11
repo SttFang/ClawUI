@@ -21,29 +21,42 @@ export type SessionListItem = {
   surface?: string | null;
 };
 
-export type ChatFeatureProps = {
+export type ChatFeatureSessionState = {
   sessions: SessionListItem[];
   currentSessionId: string | null;
-  wsConnected: boolean;
-  isGatewayRunning: boolean;
-
-  configValid: boolean | null;
-  showBanner: boolean;
-  onDismissBanner: () => void;
-  onOneClickConfig: () => void;
-  onManualConfig: () => void;
-
   sessionFilter: SessionFilter;
+  sessionMetadata: Record<string, ClawUISessionMetadata>;
+  metaBusyByKey: Record<string, boolean>;
+};
+
+export type ChatFeatureSessionActions = {
   onSessionFilterChange: (filter: SessionFilter) => void;
   onCreateSession: () => void;
-  onStartConversation: (content: string) => Promise<void>;
   onSelectSession: (id: string) => void;
   onRenameSession: (id: string, label: string) => void;
   onDeleteSession: (id: string) => void;
   onGenerateMetadata: (id: string) => void;
+};
 
-  sessionMetadata: Record<string, ClawUISessionMetadata>;
-  metaBusyByKey: Record<string, boolean>;
+export type ChatFeatureUIState = {
+  wsConnected: boolean;
+  isGatewayRunning: boolean;
+  configValid: boolean | null;
+  showBanner: boolean;
+};
+
+export type ChatFeatureUIActions = {
+  onDismissBanner: () => void;
+  onOneClickConfig: () => void;
+  onManualConfig: () => void;
+  onStartConversation: (content: string) => Promise<void>;
+};
+
+export type ChatFeatureProps = {
+  sessionState: ChatFeatureSessionState;
+  sessionActions: ChatFeatureSessionActions;
+  uiState: ChatFeatureUIState;
+  uiActions: ChatFeatureUIActions;
 };
 
 export type MessagePartsProps = { message: UIMessage; streaming: boolean };

@@ -5,25 +5,17 @@ import { SessionSidebar } from "./sidebar/SessionSidebar";
 
 export function ChatFeature(props: ChatFeatureProps) {
   const {
-    sessions,
-    currentSessionId,
-    wsConnected,
-    isGatewayRunning,
-    configValid,
-    showBanner,
-    onDismissBanner,
-    onOneClickConfig,
-    onManualConfig,
-    sessionFilter,
-    onSessionFilterChange,
-    onCreateSession,
-    onStartConversation,
-    onSelectSession,
-    onRenameSession,
-    onDeleteSession,
-    onGenerateMetadata,
-    sessionMetadata,
-    metaBusyByKey,
+    sessionState: { sessions, currentSessionId, sessionFilter, sessionMetadata, metaBusyByKey },
+    sessionActions: {
+      onSessionFilterChange,
+      onCreateSession,
+      onSelectSession,
+      onRenameSession,
+      onDeleteSession,
+      onGenerateMetadata,
+    },
+    uiState: { wsConnected, isGatewayRunning, configValid, showBanner },
+    uiActions: { onDismissBanner, onOneClickConfig, onManualConfig, onStartConversation },
   } = props;
 
   return (

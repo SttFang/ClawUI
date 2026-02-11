@@ -1,13 +1,17 @@
 import type { StateCreator } from "zustand";
 import { ipc } from "@/lib/ipc";
 import { agentsLog } from "@/lib/logger";
+import { ensureChatConnected as ensureGatewayChatConnected } from "@/services/chat/connection";
 import type { AgentsStore } from "../../store";
 import type { CronJob, CronRunsEntry, CronStatus } from "../../types";
 
 async function ensureChatConnected(): Promise<boolean> {
-  const connected = await ipc.chat.isConnected();
-  if (connected) return true;
-  return await ipc.chat.connect();
+  try {
+    await ensureGatewayChatConnected();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export interface CronAction {

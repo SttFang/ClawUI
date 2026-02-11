@@ -9,6 +9,7 @@ import {
   type SessionListItem,
 } from "@/features/Chat";
 import { ipc } from "@/lib/ipc";
+import { ensureChatConnected } from "@/services/chat/connection";
 import { useChatStore, selectCurrentSession, selectSessions } from "@/store/chat";
 import { useGatewayStore, selectIsGatewayRunning } from "@/store/gateway";
 
@@ -54,11 +55,7 @@ export default function ChatLayout() {
 
   const renameSession = useCallback(
     async (key: string, label: string) => {
-      const connected = await ipc.chat.isConnected();
-      if (!connected) {
-        const ok = await ipc.chat.connect();
-        if (!ok) throw new Error("Failed to connect gateway WebSocket");
-      }
+      await ensureChatConnected();
       await ipc.chat.request("sessions.patch", { key, label: label.trim() ? label.trim() : null });
       await refreshSessions();
     },
@@ -106,11 +103,7 @@ export default function ChatLayout() {
       : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const key = `agent:main:ui:${uuid}`;
 
-    const connected = await ipc.chat.isConnected();
-    if (!connected) {
-      const ok = await ipc.chat.connect();
-      if (!ok) throw new Error("Failed to connect gateway WebSocket");
-    }
+    await ensureChatConnected();
 
     await ipc.chat.request("sessions.reset", { key });
     await refreshSessions();
@@ -162,28 +155,36 @@ export default function ChatLayout() {
 
   return (
     <ChatFeature
-      sessions={visibleSessions}
-      currentSessionId={currentSession?.id ?? null}
-      wsConnected={wsConnected}
-      isGatewayRunning={isGatewayRunning}
-      configValid={configValid}
-      showBanner={showBanner}
-      onDismissBanner={() => setShowBanner(false)}
-      onOneClickConfig={() => navigate("/settings")}
-      onManualConfig={() => navigate("/settings")}
-      sessionFilter={sessionFilter}
-      onSessionFilterChange={setSessionFilter}
-      onCreateSession={() => {
-        setSessionFilter("ui");
-        void createGatewayUiSession().catch(() => {});
+      sessionState={{
+        sessions: visibleSessions,
+        currentSessionId: currentSession?.id ?? null,
+        sessionFilter,
+        sessionMetadata,
+        metaBusyByKey,
       }}
-      onStartConversation={startConversation}
-      onSelectSession={(id) => selectSession(id)}
-      onRenameSession={(id, label) => void renameSession(id, label).catch(() => {})}
-      onDeleteSession={(id) => deleteSession(id)}
-      onGenerateMetadata={(id) => void generateMetadata(id)}
-      sessionMetadata={sessionMetadata}
-      metaBusyByKey={metaBusyByKey}
+      sessionActions={{
+        onSessionFilterChange: setSessionFilter,
+        onCreateSession: () => {
+          setSessionFilter("ui");
+          void createGatewayUiSession().catch(() => {});
+        },
+        onSelectSession: (id) => selectSession(id),
+        onRenameSession: (id, label) => void renameSession(id, label).catch(() => {}),
+        onDeleteSession: (id) => deleteSession(id),
+        onGenerateMetadata: (id) => void generateMetadata(id),
+      }}
+      uiState={{
+        wsConnected,
+        isGatewayRunning,
+        configValid,
+        showBanner,
+      }}
+      uiActions={{
+        onDismissBanner: () => setShowBanner(false),
+        onOneClickConfig: () => navigate("/settings"),
+        onManualConfig: () => navigate("/settings"),
+        onStartConversation: startConversation,
+      }}
     />
   );
 }

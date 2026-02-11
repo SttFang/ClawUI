@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
+import { ensureChatConnected } from "@/services/chat/connection";
 import { useChatStore } from "@/store/chat";
 
 type GatewaySessionsDefaults = {
@@ -77,11 +78,7 @@ export function SessionControlStrip(props: {
   const load = useCallback(async () => {
     if (!sessionKey.trim()) return;
     try {
-      const connected = await ipc.chat.isConnected();
-      if (!connected) {
-        const ok = await ipc.chat.connect();
-        if (!ok) return;
-      }
+      await ensureChatConnected();
       const payload = (await ipc.chat.request("sessions.list", {
         // `search` will match by key; keep limit small.
         search: sessionKey,

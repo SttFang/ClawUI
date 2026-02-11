@@ -1,6 +1,7 @@
 import type { StateCreator } from "zustand";
 import { ipc } from "@/lib/ipc";
 import { chatLog } from "@/lib/logger";
+import { disconnectChat, ensureChatConnected } from "@/services/chat/connection";
 import type { ChatStore } from "../../store";
 import { generateChatRunId } from "../../helpers";
 
@@ -33,7 +34,7 @@ export const transportSlice: StateCreator<
 
   connectWebSocket: async (url) => {
     try {
-      await ipc.chat.connect(url);
+      await ensureChatConnected(url);
     } catch (error) {
       chatLog.error("Failed to connect WebSocket:", error);
     }
@@ -41,7 +42,7 @@ export const transportSlice: StateCreator<
 
   disconnectWebSocket: async () => {
     try {
-      await ipc.chat.disconnect();
+      await disconnectChat();
     } catch (error) {
       chatLog.error("Failed to disconnect WebSocket:", error);
     }

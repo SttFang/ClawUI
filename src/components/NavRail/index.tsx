@@ -1,12 +1,11 @@
 import { OpenClaw } from "@lobehub/icons";
-import { MessageSquare, Bot, Clock, BarChart3, Settings } from "lucide-react";
+import { MessageSquare, Bot, BarChart3, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 const navItems = [
   { to: "/", icon: MessageSquare, labelKey: "nav:chat" },
   { to: "/agents", icon: Bot, labelKey: "nav:agents" },
-  { to: "/scheduler", icon: Clock, labelKey: "nav:scheduler" },
   { to: "/usage", icon: BarChart3, labelKey: "nav:usage" },
   { to: "/settings", icon: Settings, labelKey: "nav:settings" },
 ];

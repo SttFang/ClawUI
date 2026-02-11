@@ -1,6 +1,5 @@
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
-import { app, shell, BrowserWindow, ipcMain, session } from "electron";
-import { join } from "path";
+import { app, BrowserWindow, ipcMain, session } from "electron";
 import { registerAppHandlers } from "./ipc/app";
 import { registerChatHandlers } from "./ipc/chat";
 import { registerConfigHandlers } from "./ipc/config";
@@ -21,6 +20,7 @@ import { ConfigOrchestrator } from "./services/config-orchestrator";
 import { GatewayService } from "./services/gateway";
 import { OpenClawProfilesService } from "./services/openclaw-profiles";
 import { UpdaterService } from "./services/updater";
+import { createMainWindow } from "./window/create-main-window";
 
 // Initialise logging before anything else
 initLogger();
@@ -36,51 +36,6 @@ const configOrchestrator = new ConfigOrchestrator({
 });
 const updaterService = new UpdaterService();
 const clawUIStateService = new ClawUIStateService();
-
-function createWindow(): BrowserWindow {
-  const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    show: false,
-    autoHideMenuBar: true,
-    // macOS: 隐藏标题栏但保留原生红绿灯
-    titleBarStyle: "hiddenInset",
-    // 红绿灯垂直居中公式: y = HEADER_HEIGHT / 2 - TRAFFIC_LIGHTS_HEIGHT / 2
-    // h-11 = 44px, 红绿灯高度 = 14px, y = 44/2 - 14/2 = 22 - 7 = 15
-    trafficLightPosition: { x: 20, y: 15 },
-    webPreferences: {
-      // Sandbox preload runs as a script; use CJS bundle output (no ESM `import`).
-      preload: join(__dirname, "../preload/index.cjs"),
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-
-  mainWindow.on("ready-to-show", () => {
-    mainWindow.show();
-  });
-
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    if (details.url.startsWith("https://")) {
-      shell.openExternal(details.url);
-    } else {
-      mainLog.warn("[window.blockedUrl]", details.url);
-    }
-    return { action: "deny" };
-  });
-
-  // HMR for renderer base on electron-vite cli
-  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
-  } else {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
-  }
-
-  return mainWindow;
-}
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows
@@ -129,7 +84,10 @@ app.whenReady().then(async () => {
   registerSkillsHandlers(ipcMain, profilesService);
 
   // Create the main window
-  const mainWindow = createWindow();
+  const mainWindow = createMainWindow({
+    isDev: is.dev,
+    rendererUrl: process.env["ELECTRON_RENDERER_URL"],
+  });
 
   // Register chat handlers (needs mainWindow reference)
   registerChatHandlers(mainWindow, configService);
@@ -168,7 +126,12 @@ app.whenReady().then(async () => {
 
   app.on("activate", function () {
     // On macOS re-create window when dock icon is clicked and no other windows are open
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createMainWindow({
+        isDev: is.dev,
+        rendererUrl: process.env["ELECTRON_RENDERER_URL"],
+      });
+    }
   });
 });
 

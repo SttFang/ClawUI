@@ -1,85 +1,117 @@
 (() => {
   const sessionKey = "agent:main:ui:e2e-approval-session";
+  const secondarySessionKey = "agent:main:ui:e2e-approval-session-2";
   const now = Date.now();
 
   const histories = {
-    initial: [
-      { id: "m1", role: "user", content: "整理桌面", timestamp: now - 8000 },
-      { id: "m2", role: "assistant", content: "行，我来干。", timestamp: now - 7000 },
-      {
-        id: "m3",
-        role: "assistant",
-        content: "我先扫一眼你桌面现在有哪些东西，再按可恢复归档方式整理。",
-        timestamp: now - 6000,
-      },
-      {
-        id: "m4",
-        role: "assistant",
-        content: "刚才系统拦了我的读取命令，需要你点一下批准执行。",
-        timestamp: now - 5000,
-      },
-      {
-        id: "m5",
-        role: "system",
-        content: "System: approval pending (id=e2e-approval-1)",
-        timestamp: now - 4000,
-      },
-      {
-        id: "m6",
-        role: "assistant",
-        content: "TOTAL 15 ...",
-        timestamp: now - 3000,
-      },
-      { id: "m7", role: "user", content: "结果呢", timestamp: now - 2000 },
-      {
-        id: "m8",
-        role: "assistant",
-        content: "结果：你的桌面已经很干净了。",
-        timestamp: now - 1000,
-      },
-    ],
-    updated: [
-      { id: "m1", role: "user", content: "整理桌面", timestamp: now - 8000 },
-      { id: "m2", role: "assistant", content: "行，我来干。", timestamp: now - 7000 },
-      {
-        id: "m3",
-        role: "assistant",
-        content: "我先扫一眼你桌面现在有哪些东西，再按可恢复归档方式整理。",
-        timestamp: now - 6000,
-      },
-      {
-        id: "m4",
-        role: "assistant",
-        content: "刚才系统拦了我的读取命令，需要你点一下批准执行。",
-        timestamp: now - 5000,
-      },
-      {
-        id: "m5",
-        role: "system",
-        content:
-          "System: Exec finished (gateway id=e2e-approval-1, session=fast-coral, code 0)\nTOTAL 15",
-        timestamp: now - 4000,
-      },
-      {
-        id: "m6",
-        role: "assistant",
-        content: "TOTAL 15 ...",
-        timestamp: now - 3000,
-      },
-      { id: "m7", role: "user", content: "结果呢", timestamp: now - 2000 },
-      {
-        id: "m8",
-        role: "assistant",
-        content: "结果：你的桌面已经很干净了。",
-        timestamp: now - 1000,
-      },
-    ],
+    [sessionKey]: {
+      initial: [
+        { id: "m1", role: "user", content: "整理桌面", timestamp: now - 8000 },
+        { id: "m2", role: "assistant", content: "行，我来干。", timestamp: now - 7000 },
+        {
+          id: "m3",
+          role: "assistant",
+          content: "我先扫一眼你桌面现在有哪些东西，再按可恢复归档方式整理。",
+          timestamp: now - 6000,
+        },
+        {
+          id: "m4",
+          role: "assistant",
+          content: "刚才系统拦了我的读取命令，需要你点一下批准执行。",
+          timestamp: now - 5000,
+        },
+        {
+          id: "m5",
+          role: "system",
+          content: "System: approval pending (id=e2e-approval-1)",
+          timestamp: now - 4000,
+        },
+        {
+          id: "m6",
+          role: "assistant",
+          content: "TOTAL 15 ...",
+          timestamp: now - 3000,
+        },
+        { id: "m7", role: "user", content: "结果呢", timestamp: now - 2000 },
+        {
+          id: "m8",
+          role: "assistant",
+          content: "结果：你的桌面已经很干净了。",
+          timestamp: now - 1000,
+        },
+      ],
+      updated: [
+        { id: "m1", role: "user", content: "整理桌面", timestamp: now - 8000 },
+        { id: "m2", role: "assistant", content: "行，我来干。", timestamp: now - 7000 },
+        {
+          id: "m3",
+          role: "assistant",
+          content: "我先扫一眼你桌面现在有哪些东西，再按可恢复归档方式整理。",
+          timestamp: now - 6000,
+        },
+        {
+          id: "m4",
+          role: "assistant",
+          content: "刚才系统拦了我的读取命令，需要你点一下批准执行。",
+          timestamp: now - 5000,
+        },
+        {
+          id: "m5",
+          role: "system",
+          content:
+            "System: Exec finished (gateway id=e2e-approval-1, session=fast-coral, code 0)\nTOTAL 15",
+          timestamp: now - 4000,
+        },
+        {
+          id: "m6",
+          role: "assistant",
+          content: "TOTAL 15 ...",
+          timestamp: now - 3000,
+        },
+        { id: "m7", role: "user", content: "结果呢", timestamp: now - 2000 },
+        {
+          id: "m8",
+          role: "assistant",
+          content: "结果：你的桌面已经很干净了。",
+          timestamp: now - 1000,
+        },
+      ],
+    },
+    [secondarySessionKey]: {
+      initial: [
+        { id: "s1", role: "user", content: "第二轮测试", timestamp: now - 6000 },
+        { id: "s2", role: "assistant", content: "开始处理第二轮任务。", timestamp: now - 5000 },
+        {
+          id: "s3",
+          role: "system",
+          content: "System: approval pending (id=e2e-approval-2)",
+          timestamp: now - 4000,
+        },
+      ],
+      updated: [
+        { id: "s1", role: "user", content: "第二轮测试", timestamp: now - 6000 },
+        { id: "s2", role: "assistant", content: "开始处理第二轮任务。", timestamp: now - 5000 },
+        {
+          id: "s3",
+          role: "system",
+          content: "System: Exec finished (gateway id=e2e-approval-2, session=sea-green, code 0)",
+          timestamp: now - 4000,
+        },
+      ],
+    },
   };
 
   const state = {
     connected: false,
     gatewayStatus: "stopped",
-    historyMode: "initial",
+    historyModeBySession: {
+      [sessionKey]: "initial",
+      [secondarySessionKey]: "initial",
+    },
+    historyRequestsBySession: {
+      [sessionKey]: 0,
+      [secondarySessionKey]: 0,
+    },
     sentMessages: [],
   };
 
@@ -209,9 +241,16 @@
     onboarding: {
       async detect() {
         return {
+          nodeInstalled: true,
+          nodeVersion: "v22.12.0",
+          nodePath: "/usr/local/bin/node",
           openclawInstalled: true,
+          openclawVersion: "2026.2.9",
+          openclawPath: "/usr/local/bin/openclaw",
+          configExists: true,
           configValid: true,
-          gatewayInstalled: true,
+          configSchemaVersion: "canonical-v2",
+          configPath: "/tmp/openclaw.json",
         };
       },
       async install() {},
@@ -259,14 +298,23 @@
                 updatedAt: Date.now(),
                 surface: "ui",
               },
+              {
+                key: secondarySessionKey,
+                derivedTitle: "E2E Secondary Session",
+                updatedAt: Date.now() - 1000,
+                surface: "ui",
+              },
             ],
           };
         }
         if (method === "chat.history") {
           const requestedKey =
             typeof params?.sessionKey === "string" ? params.sessionKey : sessionKey;
-          if (requestedKey !== sessionKey) return { messages: [] };
-          return { messages: clone(histories[state.historyMode]) };
+          const mode = state.historyModeBySession[requestedKey] || "initial";
+          const bucket = histories[requestedKey];
+          state.historyRequestsBySession[requestedKey] =
+            (state.historyRequestsBySession[requestedKey] || 0) + 1;
+          return { messages: clone(bucket?.[mode] || []) };
         }
         if (method === "chat.abort") return { ok: true };
         if (method === "sessions.patch") return { ok: true };
@@ -350,9 +398,13 @@
 
   window.__CLAWUI_E2E__ = {
     sessionKey,
+    secondarySessionKey,
     switchHistory(mode) {
+      return this.switchHistoryForSession(sessionKey, mode);
+    },
+    switchHistoryForSession(targetSessionKey, mode) {
       if (mode === "initial" || mode === "updated") {
-        state.historyMode = mode;
+        state.historyModeBySession[targetSessionKey] = mode;
       }
     },
     emitNormalizedEvent(partial) {
@@ -372,6 +424,12 @@
     },
     getSentMessages() {
       return clone(state.sentMessages);
+    },
+    getHistoryRequestCount(targetSessionKey = sessionKey) {
+      return state.historyRequestsBySession[targetSessionKey] || 0;
+    },
+    resetHistoryRequestCount(targetSessionKey = sessionKey) {
+      state.historyRequestsBySession[targetSessionKey] = 0;
     },
   };
 })();

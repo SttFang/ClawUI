@@ -402,6 +402,100 @@ describe('createOpenClawChatTransport', () => {
     expect((await reader.read()).done).toBe(true)
   })
 
+  it('should continue streaming when post-approval chat switches runId after early client delta', async () => {
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'client-approval-switch'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('先执行再审批')],
+      abortSignal: undefined,
+    })
+
+    const reader = stream.getReader()
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    // First delta arrives on clientRunId before approval.
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'client-approval-switch',
+        sessionKey: 's1',
+        seq: 1,
+        state: 'delta',
+        message: { content: [{ type: 'text', text: '我先检查一下。' }] },
+      },
+    })
+
+    expect(await readNext(reader)).toEqual({ type: 'text-delta', id: 'text-1', delta: '我先检查一下。' })
+
+    handler?.({
+      type: 'event',
+      event: 'exec.approval.requested',
+      payload: {
+        id: 'approval-switch-1',
+        request: { sessionKey: 's1', command: 'ls -la' },
+        createdAtMs: Date.now(),
+        expiresAtMs: Date.now() + 60_000,
+      },
+    })
+
+    // After approval, gateway resumes on an internal runId.
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'internal-after-approval-switch',
+        sessionKey: 's1',
+        seq: 52,
+        state: 'delta',
+        message: { content: [{ type: 'text', text: '我先检查一下。\n审批通过，继续执行。' }] },
+      },
+    })
+
+    expect(await readNext(reader)).toEqual({
+      type: 'text-delta',
+      id: 'text-1',
+      delta: '\n审批通过，继续执行。',
+    })
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'internal-after-approval-switch',
+        sessionKey: 's1',
+        seq: 53,
+        state: 'final',
+        message: { content: [{ type: 'text', text: '我先检查一下。\n审批通过，继续执行。' }] },
+      },
+    })
+
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+    expect((await reader.read()).done).toBe(true)
+  })
+
   it('should still bind internal run after long approval pause', async () => {
     vi.useFakeTimers()
     let handler: ((frame: GatewayEventFrame) => void) | null = null

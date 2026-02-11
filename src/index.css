@@ -183,6 +183,16 @@
   }
 }
 
+@layer components {
+  [data-streamdown="table-wrapper"] {
+    max-width: 100%;
+  }
+
+  [data-streamdown="table-wrapper"] > div:last-child {
+    overflow-y: hidden;
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

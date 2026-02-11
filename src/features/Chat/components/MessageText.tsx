@@ -1,5 +1,6 @@
 import { Streamdown } from "streamdown";
 import {
+  compactTableLeadingBlankLines,
   normalizeMathDelimiters,
   shouldParseIncompleteMarkdown,
   STREAMDOWN_PLUGINS,
@@ -9,19 +10,20 @@ import {
 
 export function MessageText(props: { text: string; isAnimating: boolean }) {
   const { text, isAnimating } = props;
-  const normalized = normalizeMathDelimiters(
-    stripTerminalControlSequences(stripOpenClawReplyTags(text)),
+  const normalized = compactTableLeadingBlankLines(
+    normalizeMathDelimiters(stripTerminalControlSequences(stripOpenClawReplyTags(text))),
   );
   const parseIncomplete = isAnimating || shouldParseIncompleteMarkdown(normalized);
+  const mode = parseIncomplete ? "streaming" : "static";
   return (
     <Streamdown
       plugins={STREAMDOWN_PLUGINS}
-      // Keep a single render path to avoid a layout "jump" when streaming completes.
-      mode="streaming"
+      // 流式阶段容错（含不完整 markdown），完成后切换 static，避免多 block 渲染噪音。
+      mode={mode}
       isAnimating={isAnimating}
       parseIncompleteMarkdown={parseIncomplete}
       // Make long tokens/URLs wrap instead of expanding the bubble.
-      className="w-fit max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+      className="min-w-0 max-w-full break-words [overflow-wrap:anywhere] overflow-x-hidden [&_[data-streamdown='table']]:!w-auto [&_[data-streamdown='table']]:min-w-max"
     >
       {normalized}
     </Streamdown>

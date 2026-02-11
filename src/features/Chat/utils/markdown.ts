@@ -62,6 +62,12 @@ export function normalizeMathDelimiters(markdown: string): string {
   return lines.join("\n");
 }
 
+export function compactTableLeadingBlankLines(markdown: string): string {
+  // 用户粘贴数据时经常在表格前带大量空行，这会放大流式渲染里的视觉空白。
+  // 仅在“紧邻 GFM 表格头”的位置压缩为最多 1 个空行，避免误伤其它段落结构。
+  return markdown.replaceAll(/\n{3,}(?=[ \t]*\|[^\n]+\|\s*\n[ \t]*\|[ \t:|-]+\|)/g, "\n\n");
+}
+
 export function shouldParseIncompleteMarkdown(text: string): boolean {
   if (!text) return false;
   if (/\[[^\]]*$/.test(text)) return true;

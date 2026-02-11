@@ -1,3 +1,4 @@
+import { OpenClaw } from "@lobehub/icons";
 import { MessageSquare, Bot, Clock, BarChart3, Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
@@ -17,9 +18,7 @@ export function NavRail() {
     <aside className="flex w-14 shrink-0 flex-col items-center bg-sidebar pb-3 pt-3">
       {/* Logo */}
       <div className="mb-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
-          <span className="text-base font-bold text-primary-foreground">C</span>
-        </div>
+        <OpenClaw.Color size={36} />
       </div>
 
       {/* Divider */}

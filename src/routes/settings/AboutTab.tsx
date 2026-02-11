@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, Button } from "@clawui/ui";
-import { Info } from "lucide-react";
+import { OpenClaw } from "@lobehub/icons";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
@@ -16,13 +16,13 @@ export function AboutTab() {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Info className="w-5 h-5" />
+          <OpenClaw.Color size={20} />
           <CardTitle>{t("settings.page.about.title")}</CardTitle>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <p className="font-medium">ClawUI</p>
+        <div className="flex items-center gap-2">
+          <OpenClaw.Combine size={24} type="color" />
           <p className="text-sm text-muted-foreground">
             {t("settings.page.about.version", { version })}
           </p>

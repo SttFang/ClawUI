@@ -1,4 +1,5 @@
 import { Button, Progress } from "@clawui/ui";
+import { OpenClaw } from "@lobehub/icons";
 import { Loader2, Download, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -79,8 +80,8 @@ export function Onboarding() {
       <div className="min-h-screen flex items-center justify-center bg-background p-8">
         <div className="max-w-md w-full space-y-8 text-center">
           {/* Logo/Title */}
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold">ClawUI</h1>
+          <div className="space-y-4">
+            <OpenClaw.Combine size={48} type="color" className="mx-auto" />
             <p className="text-muted-foreground">{t("onboarding.subtitle")}</p>
           </div>
 

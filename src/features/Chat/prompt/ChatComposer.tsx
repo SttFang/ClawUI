@@ -173,7 +173,7 @@ export function ChatComposer(props: {
           onKeyDown={onKeyDown}
         />
 
-        <PromptInputFooter className="flex-nowrap items-center gap-1.5">
+        <PromptInputFooter className="flex-nowrap items-center gap-1.5 border-t-0">
           <PromptInputTools className="min-w-0 flex-1 flex-nowrap items-center gap-1.5">
             <PromptInputAction
               type="button"

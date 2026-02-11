@@ -3,13 +3,13 @@ import {
   ChainOfAction,
   ChainOfActionContent,
   ChainOfActionShimmer,
-  type ChainOfActionStatus,
   ChainOfActionTrigger,
 } from "@clawui/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
-import { upsertExecTrace } from "./execTrace";
+import { deriveExecActionState } from "./execActionState";
+import { isExecPreliminary, upsertExecTrace } from "./execTrace";
 
 function parseExecInput(input: unknown): { command: string; cwd?: string; yieldMs?: number } {
   if (typeof input !== "object" || input === null) return { command: "" };
@@ -45,37 +45,39 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
 
   const runningKey = command ? makeExecApprovalKey(sessionKey, command) : "";
   const runningAtMs = runningKey ? runningByKey[runningKey] : 0;
-  const isRunning =
-    part.state === "input-available" || part.state === "input-streaming" || Boolean(runningAtMs);
+  const visualState = deriveExecActionState({
+    partState:
+      part.state === "input-streaming" || part.state === "output-available"
+        ? part.state
+        : "input-available",
+    preliminary: part.state === "output-available" ? isExecPreliminary(part) : false,
+    approvalRequested,
+    runningMarked: Boolean(runningAtMs),
+  });
 
   useEffect(() => {
-    if (approvalRequested || isRunning) {
+    if (approvalRequested || visualState.running) {
       setExpanded(true);
     }
-  }, [approvalRequested, isRunning]);
+  }, [approvalRequested, visualState.running]);
 
-  const status: ChainOfActionStatus = approvalRequested
-    ? "waiting_approval"
-    : isRunning
-      ? "running"
-      : "idle";
-  const subtitle = approvalRequested
-    ? t("a2ui.toolState.waitingApproval")
-    : isRunning
-      ? t("a2ui.toolState.running")
-      : part.state;
+  const statusLabel =
+    visualState.statusKey === "waitingApproval"
+      ? t("a2ui.toolState.waitingApproval")
+      : visualState.statusKey === "running"
+        ? t("a2ui.toolState.running")
+        : part.state;
 
   return (
     <ChainOfAction className="overflow-hidden">
       <ChainOfActionTrigger
         title={command || "exec"}
-        subtitle={subtitle}
-        status={status}
-        statusLabel={subtitle}
+        status={visualState.status}
+        statusLabel={statusLabel}
         expanded={expanded}
         onToggle={() => setExpanded((v) => !v)}
       />
-      {isRunning ? (
+      {visualState.running ? (
         <div className="px-3 pb-2">
           <ChainOfActionShimmer label={t("a2ui.execAction.thinking")} />
         </div>

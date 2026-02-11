@@ -106,7 +106,7 @@ export function OpenClawChatPanel(props: {
       {/* Messages */}
       <StickToBottom
         className={cn(
-          "relative min-h-0 flex-1 overflow-y-auto overscroll-contain p-4",
+          "relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-0",
           // 允许触控/触控板在该区域垂直滚动
           "touch-pan-y",
         )}

@@ -11,5 +11,6 @@ export type {
   ConfigPath,
   ConfigPathPatch,
   ConfigPathSegment,
+  ConfigReadSource,
   ConfigSnapshotLike,
 } from "./types";

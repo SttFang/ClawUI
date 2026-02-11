@@ -27,6 +27,7 @@ interface ConfigDraftActions {
   loadSchema: (force?: boolean) => Promise<void>;
   patchDraft: (patch: ConfigDraftObject) => Promise<void>;
   patchDraftPath: (path: Array<string | number>, value: unknown) => Promise<void>;
+  resetDraftToSnapshot: () => Promise<void>;
   resetDraft: () => Promise<void>;
   applyDraft: () => Promise<void>;
   applyPatch: (patch: ConfigDraftObject) => Promise<void>;
@@ -71,38 +72,55 @@ export const useConfigDraftStore = create<ConfigDraftStore>()(
         return get().draft ?? {};
       };
 
+      const loadSnapshotInternal = async ({
+        force,
+        preserveDirtyDraft,
+        action,
+      }: {
+        force: boolean;
+        preserveDirtyDraft: boolean;
+        action: string;
+      }) => {
+        if (!force && get().isLoading) return;
+        set({ isLoading: true }, false, action);
+        try {
+          const snapshot = await ipc.config.getSnapshot();
+          const shouldKeepDirtyDraft = preserveDirtyDraft && get().isDirty && get().draft;
+          set(
+            {
+              snapshot,
+              draft: shouldKeepDirtyDraft ? get().draft : ensureDraftObject(snapshot.config),
+              isLoading: false,
+              isDirty: shouldKeepDirtyDraft ? get().isDirty : false,
+              error: null,
+              errorCode: null,
+            },
+            false,
+            `${action}/success`,
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to load config snapshot";
+          set(
+            {
+              isLoading: false,
+              error: message,
+            },
+            false,
+            `${action}/error`,
+          );
+          throw error;
+        }
+      };
+
       return {
         ...initialState,
 
         loadSnapshot: async (force = false) => {
-          if (!force && get().isLoading) return;
-          set({ isLoading: true }, false, "configDraft/loadSnapshot");
-          try {
-            const snapshot = await ipc.config.getSnapshot();
-            const shouldKeepDirtyDraft = get().isDirty && get().draft;
-            set(
-              {
-                snapshot,
-                draft: shouldKeepDirtyDraft ? get().draft : ensureDraftObject(snapshot.config),
-                isLoading: false,
-                error: null,
-                errorCode: null,
-              },
-              false,
-              "configDraft/loadSnapshot/success",
-            );
-          } catch (error) {
-            const message =
-              error instanceof Error ? error.message : "Failed to load config snapshot";
-            set(
-              {
-                isLoading: false,
-                error: message,
-              },
-              false,
-              "configDraft/loadSnapshot/error",
-            );
-          }
+          await loadSnapshotInternal({
+            force,
+            preserveDirtyDraft: true,
+            action: "configDraft/loadSnapshot",
+          });
         },
 
         loadSchema: async (force = false) => {
@@ -148,9 +166,16 @@ export const useConfigDraftStore = create<ConfigDraftStore>()(
           );
         },
 
+        resetDraftToSnapshot: async () => {
+          await loadSnapshotInternal({
+            force: true,
+            preserveDirtyDraft: false,
+            action: "configDraft/resetDraftToSnapshot",
+          });
+        },
+
         resetDraft: async () => {
-          set({ isDirty: false }, false, "configDraft/resetDraft");
-          await get().loadSnapshot(true);
+          await get().resetDraftToSnapshot();
         },
 
         applyDraft: async () => {

@@ -3,6 +3,10 @@ import type { ConfigDraftStoreLike, ConfigObject, ConfigPathSegment } from "../t
 import { createEnvPathPatches, readConfigEnvVars } from "../env";
 import { ConfigCoreManager } from "../manager";
 
+function deepClone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 function setPathValue(
   source: Record<string, unknown>,
   path: Array<ConfigPathSegment>,
@@ -24,10 +28,20 @@ function createMockStore(config: ConfigObject): {
   store: ConfigDraftStoreLike;
   applyDraft: ReturnType<typeof vi.fn>;
   patchDraftPath: ReturnType<typeof vi.fn>;
+  resetDraftToSnapshot: ReturnType<typeof vi.fn>;
+  state: {
+    snapshot: { config: ConfigObject; hash: string };
+    draft: ConfigObject;
+    loadSnapshot: ReturnType<typeof vi.fn>;
+    patchDraft: ReturnType<typeof vi.fn>;
+    patchDraftPath: ReturnType<typeof vi.fn>;
+    resetDraftToSnapshot: ReturnType<typeof vi.fn>;
+    applyDraft: ReturnType<typeof vi.fn>;
+  };
 } {
   const state = {
     snapshot: { config, hash: "hash-1" },
-    draft: JSON.parse(JSON.stringify(config)) as ConfigObject,
+    draft: deepClone(config),
     loadSnapshot: vi.fn().mockResolvedValue(undefined),
     patchDraft: vi.fn().mockImplementation(async (patch: ConfigObject) => {
       state.draft = {
@@ -40,6 +54,9 @@ function createMockStore(config: ConfigObject): {
       .mockImplementation(async (path: Array<ConfigPathSegment>, value: unknown) => {
         setPathValue(state.draft as Record<string, unknown>, path, value);
       }),
+    resetDraftToSnapshot: vi.fn().mockImplementation(async () => {
+      state.draft = deepClone(state.snapshot.config);
+    }),
     applyDraft: vi.fn().mockResolvedValue(undefined),
   };
 
@@ -49,6 +66,8 @@ function createMockStore(config: ConfigObject): {
     },
     applyDraft: state.applyDraft,
     patchDraftPath: state.patchDraftPath,
+    resetDraftToSnapshot: state.resetDraftToSnapshot,
+    state,
   };
 }
 
@@ -84,7 +103,7 @@ describe("config-core", () => {
   });
 
   it("ConfigCoreManager should retry once on base hash conflict", async () => {
-    const { store, applyDraft, patchDraftPath } = createMockStore({
+    const { store, applyDraft, patchDraftPath, resetDraftToSnapshot } = createMockStore({
       env: { vars: {} },
     });
     const manager = new ConfigCoreManager(store, { conflictRetryCount: 1 });
@@ -99,7 +118,84 @@ describe("config-core", () => {
     });
 
     expect(applyDraft).toHaveBeenCalledTimes(2);
+    expect(resetDraftToSnapshot).toHaveBeenCalledTimes(2);
     expect(patchDraftPath).toHaveBeenCalledWith(["env", "vars", "OPENAI_API_KEY"], "sk-openai");
     expect(patchDraftPath).toHaveBeenCalledWith(["env", "OPENAI_API_KEY"], "sk-openai");
+  });
+
+  it("ConfigCoreManager should rebase patch on latest snapshot after conflict", async () => {
+    const { store, state } = createMockStore({
+      tools: { elevated: { allowFrom: { webchat: false } } },
+      agents: { defaults: { sandbox: { mode: "off" } } },
+    });
+    const manager = new ConfigCoreManager(store, { conflictRetryCount: 1 });
+
+    let applyCount = 0;
+    state.applyDraft.mockImplementation(async () => {
+      applyCount += 1;
+
+      if (applyCount === 1) {
+        state.snapshot = {
+          config: {
+            tools: { elevated: { allowFrom: { webchat: false } } },
+            agents: { defaults: { sandbox: { mode: "all" } } },
+            memory: { enabled: true },
+          },
+          hash: "hash-2",
+        };
+        throw Object.assign(new Error("conflict"), { code: "CONFIG_BASE_HASH_CONFLICT" });
+      }
+
+      state.snapshot = {
+        config: deepClone(state.draft),
+        hash: "hash-3",
+      };
+    });
+
+    await manager.applyPathPatch(["tools", "elevated", "allowFrom", "webchat"], true);
+
+    expect(state.snapshot.config).toEqual({
+      tools: { elevated: { allowFrom: { webchat: true } } },
+      agents: { defaults: { sandbox: { mode: "all" } } },
+      memory: { enabled: true },
+    });
+  });
+
+  it("ConfigCoreManager should read snapshot by default and support explicit source", () => {
+    const { store } = createMockStore({
+      env: {
+        vars: { OPENAI_API_KEY: "snapshot-key" },
+      },
+    });
+
+    const state = store.getState();
+    state.draft = {
+      env: {
+        vars: { OPENAI_API_KEY: "draft-key" },
+      },
+    };
+
+    const manager = new ConfigCoreManager(store);
+
+    expect(manager.getEnvValue("OPENAI_API_KEY")).toBe("snapshot-key");
+    expect(manager.getEnvValue("OPENAI_API_KEY", "draft")).toBe("draft-key");
+    expect(manager.getEnvValue("OPENAI_API_KEY", "auto")).toBe("draft-key");
+  });
+
+  it("ConfigCoreManager should honor readSource option", () => {
+    const { store } = createMockStore({
+      env: {
+        vars: { OPENAI_API_KEY: "snapshot-key" },
+      },
+    });
+    const state = store.getState();
+    state.draft = {
+      env: {
+        vars: { OPENAI_API_KEY: "draft-key" },
+      },
+    };
+
+    const manager = new ConfigCoreManager(store, { readSource: "auto" });
+    expect(manager.getEnvValue("OPENAI_API_KEY")).toBe("draft-key");
   });
 });

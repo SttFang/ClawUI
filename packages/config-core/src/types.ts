@@ -16,6 +16,7 @@ export interface ConfigDraftActionsLike {
   loadSnapshot: (force?: boolean) => Promise<void>;
   patchDraft: (patch: ConfigObject) => Promise<void>;
   patchDraftPath: (path: Array<string | number>, value: unknown) => Promise<void>;
+  resetDraftToSnapshot?: () => Promise<void>;
   applyDraft: () => Promise<void>;
 }
 
@@ -28,6 +29,9 @@ export interface ConfigPathPatch {
   value: unknown;
 }
 
+export type ConfigReadSource = "snapshot" | "draft" | "auto";
+
 export interface ConfigCoreOptions {
   conflictRetryCount?: number;
+  readSource?: ConfigReadSource;
 }

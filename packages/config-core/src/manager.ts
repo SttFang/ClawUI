@@ -4,15 +4,20 @@ import type {
   ConfigObject,
   ConfigPath,
   ConfigPathPatch,
+  ConfigReadSource,
 } from "./types";
 import { createEnvPathPatches, readConfigEnvVars } from "./env";
 import { getConfigPathValue, normalizeConfigPath } from "./path";
 import { applyConfigPatch, applyConfigPathPatch, applyConfigPathPatches } from "./transaction";
 
-function readCurrentConfig(store: ConfigDraftStoreLike): ConfigObject {
+const DEFAULT_READ_SOURCE: ConfigReadSource = "snapshot";
+
+function readCurrentConfig(store: ConfigDraftStoreLike, source: ConfigReadSource): ConfigObject {
   const state = store.getState();
-  if (state.draft) return state.draft;
-  return state.snapshot?.config ?? {};
+  if (source === "snapshot") {
+    return state.snapshot?.config ?? {};
+  }
+  return state.draft ?? state.snapshot?.config ?? {};
 }
 
 export class ConfigCoreManager {
@@ -25,24 +30,28 @@ export class ConfigCoreManager {
     this.options = options;
   }
 
+  private resolveReadSource(source?: ConfigReadSource): ConfigReadSource {
+    return source ?? this.options.readSource ?? DEFAULT_READ_SOURCE;
+  }
+
   async loadSnapshot(force = false): Promise<void> {
     await this.store.getState().loadSnapshot(force);
   }
 
-  getConfig(): ConfigObject {
-    return readCurrentConfig(this.store);
+  getConfig(source?: ConfigReadSource): ConfigObject {
+    return readCurrentConfig(this.store, this.resolveReadSource(source));
   }
 
-  getPath(path: string | ConfigPath): unknown {
-    return getConfigPathValue(this.getConfig(), path);
+  getPath(path: string | ConfigPath, source?: ConfigReadSource): unknown {
+    return getConfigPathValue(this.getConfig(source), path);
   }
 
-  getEnv(): Record<string, string> {
-    return readConfigEnvVars(this.getConfig());
+  getEnv(source?: ConfigReadSource): Record<string, string> {
+    return readConfigEnvVars(this.getConfig(source));
   }
 
-  getEnvValue(key: string): string {
-    return this.getEnv()[key] ?? "";
+  getEnvValue(key: string, source?: ConfigReadSource): string {
+    return this.getEnv(source)[key] ?? "";
   }
 
   async applyPatch(patch: ConfigObject): Promise<void> {

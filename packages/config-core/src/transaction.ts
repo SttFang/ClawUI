@@ -12,18 +12,20 @@ function isBaseHashConflict(error: unknown): boolean {
   return (error as ConfigError | null)?.code === "CONFIG_BASE_HASH_CONFLICT";
 }
 
-async function ensureSnapshotLoaded(store: ConfigDraftStoreLike): Promise<void> {
-  const { snapshot, loadSnapshot } = store.getState();
-  if (!snapshot) {
-    await loadSnapshot();
-  }
-}
-
 interface TransactionContext {
   patchDraft: (patch: ConfigObject) => Promise<void>;
   patchDraftPath: (path: Array<string | number>, value: unknown) => Promise<void>;
   applyDraft: () => Promise<void>;
+  resetDraftToSnapshot?: () => Promise<void>;
   loadSnapshot: (force?: boolean) => Promise<void>;
+}
+
+async function resetDraftBaseline(state: TransactionContext): Promise<void> {
+  if (state.resetDraftToSnapshot) {
+    await state.resetDraftToSnapshot();
+    return;
+  }
+  await state.loadSnapshot(true);
 }
 
 async function commitTransaction(
@@ -31,14 +33,13 @@ async function commitTransaction(
   runner: (ctx: TransactionContext) => Promise<void>,
   options?: ConfigCoreOptions,
 ): Promise<void> {
-  await ensureSnapshotLoaded(store);
-
   const maxRetries = Math.max(0, options?.conflictRetryCount ?? 1);
   let attempts = 0;
 
   while (true) {
     const state = store.getState();
     try {
+      await resetDraftBaseline(state);
       await runner(state);
       await state.applyDraft();
       return;
@@ -47,7 +48,6 @@ async function commitTransaction(
         throw error;
       }
       attempts += 1;
-      await state.loadSnapshot(true);
     }
   }
 }

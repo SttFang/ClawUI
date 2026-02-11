@@ -788,6 +788,8 @@ const common = {
       deny: "Deny",
       allowOnce: "Allow once",
       allowAlways: "Always allow",
+      allowAlwaysHint: "Don't ask again for commands starting with `{{prefix}}`",
+      submit: "Submit",
     },
   },
   errorBoundary: {
@@ -821,6 +823,7 @@ const common = {
     },
     toolState: {
       waitingApproval: "Waiting for approval",
+      pending: "Pending",
       running: "Running",
       runningHint: "Approved. Executing…",
     },

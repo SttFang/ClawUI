@@ -1,5 +1,5 @@
 import { Button, Card, CardContent } from "@clawui/ui";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useExecApprovalsStore, type ExecApprovalDecision } from "@/store/execApprovals";
@@ -13,14 +13,10 @@ function pickApprovalForSession(queue: ApprovalEntry[], sessionKey: string): App
   return queue.find((entry) => entry.request.sessionKey === normalized) ?? queue[0] ?? null;
 }
 
-function formatLine(label: string, value: string | null | undefined) {
-  if (!value) return null;
-  return (
-    <div className="flex gap-2 text-xs">
-      <div className="w-16 shrink-0 text-muted-foreground">{label}</div>
-      <div className="min-w-0 flex-1 break-words">{value}</div>
-    </div>
-  );
+/** Extract the first line (up to 50 chars) as a command prefix hint. */
+function commandPrefix(command: string): string {
+  const first = command.trimStart().split("\n")[0];
+  return first.length > 50 ? `${first.slice(0, 50)}…` : first;
 }
 
 export function useHasPendingExecApproval(sessionKey: string): boolean {
@@ -28,6 +24,8 @@ export function useHasPendingExecApproval(sessionKey: string): boolean {
   const current = useMemo(() => pickApprovalForSession(queue, sessionKey), [queue, sessionKey]);
   return Boolean(current);
 }
+
+const DECISIONS: ExecApprovalDecision[] = ["allow-once", "allow-always", "deny"];
 
 export function ExecApprovalInlinePanel(props: { sessionKey: string; className?: string }) {
   const { t } = useTranslation("common");
@@ -39,11 +37,12 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
 
   const current = useMemo(() => pickApprovalForSession(queue, sessionKey), [queue, sessionKey]);
   const busy = current ? busyById[current.id] === true : false;
+  const [selected, setSelected] = useState<ExecApprovalDecision>("allow-once");
 
-  const onDecision = async (decision: ExecApprovalDecision) => {
+  const onSubmit = async () => {
     if (!current || busy) return;
     try {
-      await resolve(current.id, decision);
+      await resolve(current.id, selected);
       remove(current.id);
     } catch {
       // keep pending entry for retry
@@ -52,6 +51,9 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
 
   if (!current) return null;
 
+  const meta = [current.request.agentId, current.request.cwd].filter(Boolean).join(" · ");
+  const prefix = commandPrefix(current.request.command);
+
   return (
     <Card
       className={cn(
@@ -59,53 +61,72 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
         className,
       )}
     >
-      <CardContent className="space-y-3 p-3">
-        <div>
-          <div className="text-sm font-medium">
-            {t("execApproval.needsApproval", {
-              title: current.request.host
-                ? t("execApproval.titleWithHost", { host: current.request.host })
-                : t("execApproval.title"),
-            })}
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            {t("execApproval.description", { id: current.id })}
-          </div>
+      <CardContent className="space-y-2 p-3">
+        {/* Title */}
+        <div className="text-sm font-medium">
+          {t("execApproval.needsApproval", {
+            title: current.request.host
+              ? t("execApproval.titleWithHost", { host: current.request.host })
+              : t("execApproval.title"),
+          })}
         </div>
 
-        <div className="space-y-1.5">
-          {formatLine(t("execApproval.fields.agent"), current.request.agentId)}
-          {formatLine(t("execApproval.fields.session"), current.request.sessionKey)}
-          {formatLine(t("execApproval.fields.cwd"), current.request.cwd)}
-        </div>
+        {/* Intent summary (ask field) */}
+        {current.request.ask && (
+          <div className="text-xs text-muted-foreground">{current.request.ask}</div>
+        )}
 
-        <pre className="max-h-28 overflow-auto rounded-md bg-muted px-2.5 py-2 text-xs">
+        {/* Security warning */}
+        {current.request.security && (
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-900 dark:text-amber-200">
+            {current.request.security}
+          </div>
+        )}
+
+        {/* Compact metadata */}
+        {meta && <div className="text-xs text-muted-foreground">{meta}</div>}
+
+        {/* Command code block */}
+        <pre className="max-h-28 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs leading-tight">
           {current.request.command}
         </pre>
 
-        <div className="flex flex-col gap-2">
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() => void onDecision("allow-once")}
-            className="justify-start"
-          >
-            {t("execApproval.actions.allowOnce")}
-          </Button>
-          <Button
-            disabled={busy}
-            onClick={() => void onDecision("allow-always")}
-            className="justify-start"
-          >
-            {t("execApproval.actions.allowAlways")}
-          </Button>
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() => void onDecision("deny")}
-            className="justify-start border-destructive/40 text-destructive hover:bg-destructive/10"
-          >
-            {t("execApproval.actions.deny")}
+        {/* Radio list */}
+        <div className="space-y-1">
+          {DECISIONS.map((decision, i) => (
+            <button
+              key={decision}
+              type="button"
+              disabled={busy}
+              onClick={() => setSelected(decision)}
+              className={cn(
+                "flex w-full items-start gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
+                selected === decision
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              <span className="shrink-0 font-medium">{i + 1}.</span>
+              <div className="min-w-0">
+                <div className={cn(selected === decision && "font-medium")}>
+                  {t(
+                    `execApproval.actions.${decision === "allow-once" ? "allowOnce" : decision === "allow-always" ? "allowAlways" : "deny"}`,
+                  )}
+                </div>
+                {decision === "allow-always" && (
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {t("execApproval.actions.allowAlwaysHint", { prefix })}
+                  </div>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Submit */}
+        <div className="flex justify-end">
+          <Button size="sm" disabled={busy} onClick={() => void onSubmit()}>
+            {t("execApproval.actions.submit")}
           </Button>
         </div>
       </CardContent>

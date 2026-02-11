@@ -783,6 +783,8 @@ const common = {
       deny: "拒绝",
       allowOnce: "仅本次允许",
       allowAlways: "总是允许",
+      allowAlwaysHint: "以后不再询问以 `{{prefix}}` 开头的命令",
+      submit: "提交",
     },
   },
   errorBoundary: {
@@ -816,6 +818,7 @@ const common = {
     },
     toolState: {
       waitingApproval: "等待你允许",
+      pending: "等待执行",
       running: "执行中",
       runningHint: "已允许，正在执行…",
     },

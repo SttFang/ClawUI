@@ -73,4 +73,44 @@ describe('openclawTranscriptToUIMessages', () => {
     expect(shifted).toBeTruthy()
     expect(shifted).toBe(base)
   })
+
+  it('should disambiguate duplicate direct message ids to avoid UI merge pollution', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'dup-id',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'first' }],
+      },
+      {
+        id: 'dup-id',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'second' }],
+      },
+    ])
+
+    expect(ui).toHaveLength(2)
+    expect(ui[0]?.id).toBe('dup-id')
+    expect(ui[1]?.id).toBe('dup-id:2')
+  })
+
+  it('should disambiguate duplicate fallback ids in one history batch', () => {
+    const ts = 1739232000000
+    const ui = openclawTranscriptToUIMessages([
+      {
+        role: 'assistant',
+        timestamp: ts,
+        content: [{ type: 'text', text: 'same content' }],
+      },
+      {
+        role: 'assistant',
+        timestamp: ts,
+        content: [{ type: 'text', text: 'same content' }],
+      },
+    ])
+
+    expect(ui).toHaveLength(2)
+    expect(ui[0]?.id).toBeTruthy()
+    expect(ui[1]?.id).toBeTruthy()
+    expect(ui[1]?.id).not.toBe(ui[0]?.id)
+  })
 })

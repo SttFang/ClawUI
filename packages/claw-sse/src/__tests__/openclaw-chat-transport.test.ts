@@ -1122,6 +1122,190 @@ describe('createOpenClawChatTransport', () => {
     vi.useRealTimers()
   })
 
+  it('should ignore stale buffered agent events from previous runs', async () => {
+    vi.useFakeTimers()
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'run-fresh'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('hello')],
+      abortSignal: undefined,
+    })
+
+    const staleTs = Date.now() - 60_000
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-stale',
+        sessionKey: 's1',
+        seq: 1,
+        stream: 'lifecycle',
+        ts: staleTs,
+        data: { phase: 'start' },
+      },
+    })
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-stale',
+        sessionKey: 's1',
+        seq: 2,
+        stream: 'assistant',
+        ts: staleTs,
+        data: { text: 'stale assistant text' },
+      },
+    })
+
+    const reader = stream.getReader()
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    await vi.advanceTimersByTimeAsync(350)
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'run-fresh',
+        sessionKey: 's1',
+        seq: 1,
+        state: 'delta',
+        message: { content: [{ type: 'text', text: 'fresh text' }] },
+      },
+    })
+
+    expect(await readNext(reader)).toEqual({ type: 'text-delta', id: 'text-1', delta: 'fresh text' })
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'run-fresh',
+        sessionKey: 's1',
+        seq: 2,
+        state: 'final',
+        message: { content: [{ type: 'text', text: 'fresh text' }] },
+      },
+    })
+
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+    expect((await reader.read()).done).toBe(true)
+
+    vi.useRealTimers()
+  })
+
+  it('should not append divergent assistant fallback snapshots', async () => {
+    vi.useFakeTimers()
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'run-assistant-divergent'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('hello')],
+      abortSignal: undefined,
+    })
+
+    const reader = stream.getReader()
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    const ts = Date.now()
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-assistant-divergent',
+        sessionKey: 's1',
+        seq: 1,
+        stream: 'assistant',
+        ts,
+        data: { text: 'System: Exec finished (code 0)' },
+      },
+    })
+    await vi.advanceTimersByTimeAsync(350)
+
+    expect(await readNext(reader)).toEqual({
+      type: 'text-delta',
+      id: 'text-1',
+      delta: 'System: Exec finished (code 0)',
+    })
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-assistant-divergent',
+        sessionKey: 's1',
+        seq: 2,
+        stream: 'assistant',
+        ts: ts + 1,
+        data: { text: '现在有了，截图已成功生成，文件路径如下。' },
+      },
+    })
+    await vi.advanceTimersByTimeAsync(350)
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-assistant-divergent',
+        sessionKey: 's1',
+        seq: 3,
+        stream: 'lifecycle',
+        ts: ts + 2,
+        data: { phase: 'end' },
+      },
+    })
+
+    expect((await readNext(reader)).type).toBe('data-openclaw-lifecycle')
+    await vi.advanceTimersByTimeAsync(21_500)
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+    expect((await reader.read()).done).toBe(true)
+
+    vi.useRealTimers()
+  })
+
   it('should wait for chat.final if lifecycle end arrives first (avoid truncation)', async () => {
     let handler: ((frame: GatewayEventFrame) => void) | null = null
 

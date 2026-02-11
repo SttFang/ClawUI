@@ -1,10 +1,5 @@
 import type { UIMessage } from 'ai'
 
-function createId(prefix: string): string {
-  const rand = (globalThis.crypto as { randomUUID?: () => string } | undefined)?.randomUUID?.()
-  return `${prefix}-${rand ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`}`
-}
-
 type ContentBlock = Record<string, unknown> & { type?: unknown }
 
 function pickNonEmptyString(...values: unknown[]): string | null {
@@ -14,16 +9,30 @@ function pickNonEmptyString(...values: unknown[]): string | null {
   return null
 }
 
+function contentHashHint(content: unknown): string {
+  if (content == null) return '0'
+  const source = typeof content === 'string' ? content : JSON.stringify(content)
+  if (!source) return '0'
+  const text = source.slice(0, 64)
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return (hash >>> 0).toString(36)
+}
+
 function resolveStableMessageId(record: Record<string, unknown>, role: UIMessage['role'], index: number): string {
   const direct = pickNonEmptyString(record.id, record.messageId, record.message_id)
   if (direct) return direct
 
   const tsNum = typeof record.timestamp === 'number' ? record.timestamp : null
   const tsStr = typeof record.timestamp === 'string' && record.timestamp.trim() ? record.timestamp.trim() : null
-  if (tsNum != null) return `${role}:${tsNum}:${index}`
-  if (tsStr != null) return `${role}:${tsStr}:${index}`
+  const hint = contentHashHint(record.content)
+  if (tsNum != null) return `${role}:${tsNum}:${hint}`
+  if (tsStr != null) return `${role}:${tsStr}:${hint}`
 
-  return createId(`${role}-${index}`)
+  return `${role}:${index}:${hint}`
 }
 
 function coerceContentBlocks(value: unknown): ContentBlock[] {

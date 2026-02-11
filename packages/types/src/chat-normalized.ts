@@ -33,6 +33,8 @@ export interface ChatNormalizedRunEvent {
   sessionKey: string;
   clientRunId: string;
   agentRunId?: string;
+  source?: "gateway" | "synthetic";
+  correlationConfidence?: "exact" | "fallback";
   approvalId?: string;
   command?: string;
   decision?: "allow-once" | "allow-always" | "deny";

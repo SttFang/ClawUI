@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 import { openclawTranscriptToUIMessages } from "@clawui/claw-sse";
 import { useCallback, useEffect, useRef } from "react";
+import { clearTracesForSession } from "@/components/A2UI/execTrace";
 import { ipc, type ChatNormalizedRunEvent, type GatewayEventFrame } from "@/lib/ipc";
 import { chatLog } from "@/lib/logger";
 import { useExecApprovalsStore } from "@/store/execApprovals";
@@ -8,6 +9,9 @@ import { ensureChatConnected } from "./connection";
 import { buildHistoryFingerprint } from "./historyFingerprint";
 import {
   APPROVAL_RECOVERY_FOLLOWUPS_MS,
+  getEffectiveHeartbeatThrottleMs,
+  recordHistoryRefreshResult,
+  resetHeartbeatBackoff,
   shouldRefreshHistoryOnHeartbeat,
 } from "./historyRefreshPolicy";
 
@@ -18,10 +22,9 @@ type LastResolvedApproval = {
 };
 
 const DEFAULT_REFRESH_THROTTLE_MS = 800;
-const HEARTBEAT_REFRESH_THROTTLE_MS = 2_500;
-const RECOVERY_HEARTBEAT_REFRESH_THROTTLE_MS = 1_200;
 const APPROVAL_RECOVERY_WINDOW_MS = 120_000;
 const TERMINAL_RECOVERY_WINDOW_MS = 20_000;
+const FORCE_FOLLOWUP_THRESHOLD_MS = 10_000;
 
 function isExecToolFinished(event: ChatNormalizedRunEvent): boolean {
   if (event.kind !== "run.tool_finished") return false;
@@ -82,6 +85,7 @@ export function useOpenClawHistorySync(params: {
   const approvalRecoveryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const lastHandledApprovalIdRef = useRef<string | null>(null);
   const recoveryUntilMsRef = useRef(0);
+  const lastSessionKeyRef = useRef(normalizedSessionKey);
 
   useEffect(() => {
     setMessagesRef.current = setMessages;
@@ -110,9 +114,15 @@ export function useOpenClawHistorySync(params: {
 
       if (historyInFlightRef.current) {
         if (allowRetry && !pendingRefreshTimerRef.current) {
+          const retryReason = `${reason}-inflight-retry`;
           pendingRefreshTimerRef.current = setTimeout(() => {
             pendingRefreshTimerRef.current = null;
-            void refreshHistory({ force: false, reason: "inflight-retry", allowRetry: false });
+            void refreshHistory({
+              force,
+              reason: retryReason,
+              allowRetry: false,
+              throttleMs: options?.throttleMs,
+            });
           }, 250);
         }
         return false;
@@ -121,18 +131,25 @@ export function useOpenClawHistorySync(params: {
       const now = Date.now();
       const heartbeatThrottleMs =
         reason === "heartbeat"
-          ? isRecoveryActive()
-            ? RECOVERY_HEARTBEAT_REFRESH_THROTTLE_MS
-            : HEARTBEAT_REFRESH_THROTTLE_MS
+          ? getEffectiveHeartbeatThrottleMs({
+              sessionKey: normalizedSessionKey,
+              recoveryActive: isRecoveryActive(),
+            })
           : null;
       const throttleMs = force
         ? 0
         : (options?.throttleMs ?? heartbeatThrottleMs ?? DEFAULT_REFRESH_THROTTLE_MS);
       if (!force && now - lastHistoryAtRef.current < throttleMs) {
         if (allowRetry && !pendingRefreshTimerRef.current) {
+          const retryReason = `${reason}-throttle-retry`;
           pendingRefreshTimerRef.current = setTimeout(() => {
             pendingRefreshTimerRef.current = null;
-            void refreshHistory({ force: false, reason: "throttle-retry", allowRetry: false });
+            void refreshHistory({
+              force,
+              reason: retryReason,
+              allowRetry: false,
+              throttleMs: options?.throttleMs,
+            });
           }, throttleMs + 50);
         }
         return false;
@@ -163,6 +180,7 @@ export function useOpenClawHistorySync(params: {
           `changed=${changed}`,
           `count=${uiMessages.length}`,
         );
+        recordHistoryRefreshResult(normalizedSessionKey, changed);
         return changed;
       } catch (error) {
         chatLog.warn(
@@ -171,6 +189,7 @@ export function useOpenClawHistorySync(params: {
           `reason=${reason}`,
           error instanceof Error ? error.message : String(error),
         );
+        recordHistoryRefreshResult(normalizedSessionKey, false);
         return false;
       } finally {
         historyInFlightRef.current = false;
@@ -180,11 +199,19 @@ export function useOpenClawHistorySync(params: {
   );
 
   useEffect(() => {
+    const previousSessionKey = lastSessionKeyRef.current;
+    if (previousSessionKey && previousSessionKey !== normalizedSessionKey) {
+      clearTracesForSession(previousSessionKey);
+      resetHeartbeatBackoff(previousSessionKey);
+    }
+    lastSessionKeyRef.current = normalizedSessionKey;
+
     lastHistoryAtRef.current = 0;
     lastHistorySigRef.current = "";
     historyInFlightRef.current = false;
     lastHandledApprovalIdRef.current = null;
     recoveryUntilMsRef.current = 0;
+    resetHeartbeatBackoff(normalizedSessionKey);
     if (pendingRefreshTimerRef.current) {
       clearTimeout(pendingRefreshTimerRef.current);
       pendingRefreshTimerRef.current = null;
@@ -213,20 +240,21 @@ export function useOpenClawHistorySync(params: {
 
     lastHandledApprovalIdRef.current = resolved.id;
     extendRecoveryWindow(APPROVAL_RECOVERY_WINDOW_MS);
+    resetHeartbeatBackoff(normalizedSessionKey);
     for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
     approvalRecoveryTimersRef.current = [];
 
     void refreshHistory({
       force: true,
       reason: "approval-resolved-immediate",
-      allowRetry: false,
+      allowRetry: true,
     });
     for (const delayMs of APPROVAL_RECOVERY_FOLLOWUPS_MS) {
       const timer = setTimeout(() => {
         void refreshHistory({
-          force: false,
+          force: delayMs <= FORCE_FOLLOWUP_THRESHOLD_MS,
           reason: `approval-resolved-followup-${delayMs}`,
-          allowRetry: false,
+          allowRetry: true,
         });
       }, delayMs);
       approvalRecoveryTimersRef.current.push(timer);
@@ -280,7 +308,7 @@ export function useOpenClawHistorySync(params: {
         void refreshHistory({
           force: false,
           reason: "approval-requested",
-          allowRetry: false,
+          allowRetry: true,
         });
         return;
       }
@@ -295,7 +323,7 @@ export function useOpenClawHistorySync(params: {
           void refreshHistory({
             force: true,
             reason: `chat-${String(payload.state)}`,
-            allowRetry: false,
+            allowRetry: true,
           });
         }
         return;
@@ -319,9 +347,9 @@ export function useOpenClawHistorySync(params: {
           useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
           extendRecoveryWindow(TERMINAL_RECOVERY_WINDOW_MS);
           void refreshHistory({
-            force: false,
+            force: true,
             reason: `lifecycle-${phase}`,
-            allowRetry: false,
+            allowRetry: true,
           });
         }
       }
@@ -350,7 +378,7 @@ export function useOpenClawHistorySync(params: {
         void refreshHistory({
           force: shouldForceRefreshOnNormalizedEvent(event),
           reason: event.kind,
-          allowRetry: false,
+          allowRetry: true,
         });
       }
     });

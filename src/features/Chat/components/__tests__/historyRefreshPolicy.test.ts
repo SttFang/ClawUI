@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   APPROVAL_RECOVERY_FOLLOWUPS_MS,
+  getEffectiveHeartbeatThrottleMs,
+  recordHistoryRefreshResult,
+  resetHeartbeatBackoff,
   shouldRefreshHistoryOnHeartbeat,
 } from "../historyRefreshPolicy";
 
 describe("historyRefreshPolicy", () => {
-  it("extends approval recovery follow-ups beyond 6 seconds", () => {
-    expect(APPROVAL_RECOVERY_FOLLOWUPS_MS[0]).toBe(500);
-    expect(APPROVAL_RECOVERY_FOLLOWUPS_MS).toContain(6_000);
-    expect(APPROVAL_RECOVERY_FOLLOWUPS_MS).toContain(90_000);
+  it("uses bounded approval recovery follow-ups", () => {
+    expect(APPROVAL_RECOVERY_FOLLOWUPS_MS).toEqual([800, 2_000, 5_000, 10_000, 15_000]);
   });
 
   it("refreshes on heartbeat when pending approval matches session", () => {
@@ -50,5 +51,42 @@ describe("historyRefreshPolicy", () => {
       },
     });
     expect(shouldRefresh).toBe(false);
+  });
+
+  it("refreshes on heartbeat during approval recovery window", () => {
+    const shouldRefresh = shouldRefreshHistoryOnHeartbeat({
+      sessionKey: "agent:main:ui:abc",
+      queue: [],
+      runningByKey: {},
+      recoveryActive: true,
+    });
+    expect(shouldRefresh).toBe(true);
+  });
+
+  it("applies exponential heartbeat backoff after unchanged refreshes", () => {
+    const sessionKey = "agent:main:ui:abc";
+    resetHeartbeatBackoff(sessionKey);
+
+    const initial = getEffectiveHeartbeatThrottleMs({ sessionKey, recoveryActive: true });
+    recordHistoryRefreshResult(sessionKey, false);
+    const afterOneUnchanged = getEffectiveHeartbeatThrottleMs({ sessionKey, recoveryActive: true });
+    recordHistoryRefreshResult(sessionKey, false);
+    const afterTwoUnchanged = getEffectiveHeartbeatThrottleMs({ sessionKey, recoveryActive: true });
+
+    expect(initial).toBe(1_200);
+    expect(afterOneUnchanged).toBeGreaterThan(initial);
+    expect(afterTwoUnchanged).toBeGreaterThan(afterOneUnchanged);
+  });
+
+  it("resets heartbeat backoff after a changed refresh", () => {
+    const sessionKey = "agent:main:ui:abc";
+    resetHeartbeatBackoff(sessionKey);
+    recordHistoryRefreshResult(sessionKey, false);
+    const slowed = getEffectiveHeartbeatThrottleMs({ sessionKey, recoveryActive: true });
+    recordHistoryRefreshResult(sessionKey, true);
+    const reset = getEffectiveHeartbeatThrottleMs({ sessionKey, recoveryActive: true });
+
+    expect(slowed).toBeGreaterThan(1_200);
+    expect(reset).toBe(1_200);
   });
 });

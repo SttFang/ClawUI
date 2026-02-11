@@ -399,22 +399,6 @@ export class ChatWebSocketService extends EventEmitter {
           const res = response as ACPResponse;
           if (res.ok) {
             chatLog.info(`[acp.request.ok]`, `method=${method}`, `durationMs=${Date.now() - t0}`);
-            if (method === "exec.approval.resolve") {
-              const approvalId = typeof params?.id === "string" ? params.id : undefined;
-              const decision =
-                params?.decision === "allow-once" ||
-                params?.decision === "allow-always" ||
-                params?.decision === "deny"
-                  ? params.decision
-                  : undefined;
-              const normalizedEvents = this.normalizer.onApprovalResolveRequest({
-                approvalId,
-                decision,
-              });
-              for (const normalizedEvent of normalizedEvents) {
-                this.emit("normalized-event", normalizedEvent);
-              }
-            }
             resolve(res.payload);
           } else {
             chatLog.warn(
@@ -512,6 +496,7 @@ export class ChatWebSocketService extends EventEmitter {
     this.shouldReconnect = false;
     this.connected = false;
     this.connectPromise = null;
+    this.normalizer.resetAll();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;

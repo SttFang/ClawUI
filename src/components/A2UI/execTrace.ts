@@ -19,6 +19,17 @@ type ExecTraceCache = ExecTrace;
 
 const traceCache = new Map<string, ExecTraceCache>();
 
+export function clearTracesForSession(sessionKey: string): void {
+  const normalizedSessionKey = sessionKey.trim();
+  if (!normalizedSessionKey) return;
+  const prefix = `${normalizedSessionKey}::`;
+  for (const key of traceCache.keys()) {
+    if (key.startsWith(prefix)) {
+      traceCache.delete(key);
+    }
+  }
+}
+
 function toRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
 }

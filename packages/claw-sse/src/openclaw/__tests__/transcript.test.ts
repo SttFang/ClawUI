@@ -55,4 +55,22 @@ describe('openclawTranscriptToUIMessages', () => {
       },
     ])
   })
+
+  it('should keep fallback message id stable when index shifts', () => {
+    const record = {
+      role: 'assistant',
+      timestamp: 1739232000000,
+      content: [{ type: 'text', text: 'same output' }],
+    }
+
+    const base = openclawTranscriptToUIMessages([record])[0]?.id
+    const shifted = openclawTranscriptToUIMessages([
+      { id: 'user-1', role: 'user', content: [{ type: 'text', text: 'hello' }] },
+      record,
+    ])[1]?.id
+
+    expect(base).toBeTruthy()
+    expect(shifted).toBeTruthy()
+    expect(shifted).toBe(base)
+  })
 })

@@ -1,5 +1,6 @@
 export type Theme = "light" | "dark" | "system";
 export type LocalePreference = "system" | "zh-CN" | "en-US";
+export type MotionPreference = "system" | "reduce" | "no-preference";
 
 export interface ClawUISessionMetadata {
   title: string;
@@ -21,6 +22,7 @@ export interface ClawUIStateV1 {
     theme: Theme;
     locale: LocalePreference;
     sidebarCollapsed: boolean;
+    motionPreference: MotionPreference;
   };
   app: {
     autoCheckUpdates: boolean;

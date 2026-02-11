@@ -1,128 +1,17 @@
-import { create } from "zustand";
-import { devtools } from "zustand/middleware";
-import { ipc } from "@/lib/ipc";
-import { i18n } from "@/locales/i18n";
-import { resolveEffectiveLanguage } from "@/locales/language";
-
-export type Theme = "light" | "dark" | "system";
-export type LocalePreference = "system" | "zh-CN" | "en-US";
-
-interface UIState {
-  theme: Theme;
-  locale: LocalePreference;
-  sidebarCollapsed: boolean;
-}
-
-interface UIActions {
-  setTheme: (theme: Theme) => void;
-  setLocale: (locale: LocalePreference) => void;
-  toggleSidebar: () => void;
-  setSidebarCollapsed: (collapsed: boolean) => void;
-  hydrate: (state: Partial<UIState>) => void;
-}
-
-type UIStore = UIState & UIActions;
-
-const getSystemTheme = (): "light" | "dark" => {
-  if (typeof window !== "undefined") {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
-  return "light";
-};
-
-const applyTheme = (theme: Theme) => {
-  const root = document.documentElement;
-  const effectiveTheme = theme === "system" ? getSystemTheme() : theme;
-
-  if (effectiveTheme === "dark") {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
-};
-
-const applyLocale = (locale: LocalePreference) => {
-  const effective =
-    locale === "system" && typeof navigator !== "undefined"
-      ? resolveEffectiveLanguage("system", navigator.language)
-      : locale === "system"
-        ? "zh-CN"
-        : locale;
-  void i18n.changeLanguage(effective);
-};
-
-export const useUIStore = create<UIStore>()(
-  devtools(
-    (set, get) => ({
-      theme: "system",
-      locale: "system",
-      sidebarCollapsed: false,
-
-      hydrate: (state) => {
-        if (state.theme) {
-          set({ theme: state.theme }, false, "hydrate/theme");
-          applyTheme(state.theme);
-        }
-        if (state.locale) {
-          set({ locale: state.locale }, false, "hydrate/locale");
-          applyLocale(state.locale);
-        }
-        if (typeof state.sidebarCollapsed === "boolean") {
-          set({ sidebarCollapsed: state.sidebarCollapsed }, false, "hydrate/sidebar");
-        }
-      },
-
-      setTheme: (theme) => {
-        set({ theme }, false, "setTheme");
-        applyTheme(theme);
-        void ipc.state.patch({ ui: { theme } }).catch(() => {});
-      },
-
-      setLocale: (locale) => {
-        set({ locale }, false, "setLocale");
-        applyLocale(locale);
-        void ipc.state.patch({ ui: { locale } }).catch(() => {});
-      },
-
-      toggleSidebar: () => {
-        const next = !get().sidebarCollapsed;
-        set({ sidebarCollapsed: next }, false, "toggleSidebar");
-        void ipc.state.patch({ ui: { sidebarCollapsed: next } }).catch(() => {});
-      },
-
-      setSidebarCollapsed: (collapsed) => {
-        set({ sidebarCollapsed: collapsed }, false, "setSidebarCollapsed");
-        void ipc.state.patch({ ui: { sidebarCollapsed: collapsed } }).catch(() => {});
-      },
-    }),
-    { name: "UIStore" },
-  ),
-);
-
-// Initialize theme on load (uses in-memory default until hydrated).
-export function initThemeListeners() {
-  const { theme } = useUIStore.getState();
-  applyTheme(theme);
-
-  if (typeof window !== "undefined") {
-    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-      if (useUIStore.getState().theme === "system") applyTheme("system");
-    });
-  }
-}
-
-// Backward-compatible alias (App.tsx expects initTheme()).
-export function initTheme() {
-  initThemeListeners();
-}
-
-// Selectors
-export const selectTheme = (state: UIStore) => state.theme;
-export const selectLocale = (state: UIStore) => state.locale;
-export const selectSidebarCollapsed = (state: UIStore) => state.sidebarCollapsed;
-
-export const uiSelectors = {
+export { useUIStore, initThemeListeners, initTheme } from "./store";
+export {
   selectTheme,
   selectLocale,
   selectSidebarCollapsed,
-};
+  selectMotionPreference,
+  uiSelectors,
+} from "./selectors";
+export type {
+  Theme,
+  LocalePreference,
+  MotionPreference,
+  UIState,
+  UIPublicActions,
+  UIInternalActions,
+  UIStore,
+} from "./types";

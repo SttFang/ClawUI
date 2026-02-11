@@ -5,6 +5,7 @@ import { dirname, join } from "path";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 
 export type Theme = "light" | "dark" | "system";
+export type MotionPreference = "system" | "reduce" | "no-preference";
 
 export interface ClawUISessionMetadata {
   title: string;
@@ -26,6 +27,7 @@ export interface ClawUIStateV1 {
     theme: Theme;
     locale: "system" | "zh-CN" | "en-US";
     sidebarCollapsed: boolean;
+    motionPreference: MotionPreference;
   };
   app: {
     autoCheckUpdates: boolean;
@@ -63,6 +65,7 @@ const DEFAULT_STATE: ClawUIState = {
     theme: "system",
     locale: "system",
     sidebarCollapsed: false,
+    motionPreference: "system",
   },
   app: {
     autoCheckUpdates: true,

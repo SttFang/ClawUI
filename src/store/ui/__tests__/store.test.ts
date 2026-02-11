@@ -1,271 +1,246 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { useUIStore, type Theme } from "../index";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { MotionPreference, Theme } from "../types";
+import {
+  initThemeListeners,
+  selectLocale,
+  selectMotionPreference,
+  selectSidebarCollapsed,
+  selectTheme,
+  useUIStore,
+} from "../index";
 
-// Mock localStorage for persist middleware
-const mockStorage: Record<string, string> = {};
-const localStorageMock = {
-  getItem: vi.fn((key: string) => mockStorage[key] || null),
-  setItem: vi.fn((key: string, value: string) => {
-    mockStorage[key] = value;
-  }),
-  removeItem: vi.fn((key: string) => {
-    delete mockStorage[key];
-  }),
-  clear: vi.fn(() => {
-    Object.keys(mockStorage).forEach((key) => delete mockStorage[key]);
-  }),
-};
-
-// Mock window.matchMedia
-const mockMatchMedia = vi.fn((query: string) => ({
-  matches: false,
-  media: query,
-  onchange: null,
-  addListener: vi.fn(),
-  removeListener: vi.fn(),
-  addEventListener: vi.fn(),
-  removeEventListener: vi.fn(),
-  dispatchEvent: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  patchState: vi.fn<(patch: unknown) => Promise<void>>(),
+  changeLanguage: vi.fn<(lang: string) => Promise<void>>(),
+  uiLogError: vi.fn<(message: string, ...args: unknown[]) => void>(),
 }));
 
-// Mock document.documentElement
-const mockClassList = {
-  add: vi.fn(),
-  remove: vi.fn(),
-  contains: vi.fn(),
-  toggle: vi.fn(),
-};
-
-Object.defineProperty(global, "localStorage", { value: localStorageMock });
-Object.defineProperty(global, "window", {
-  value: {
-    matchMedia: mockMatchMedia,
-    localStorage: localStorageMock,
-  },
-  writable: true,
-});
-Object.defineProperty(global, "document", {
-  value: {
-    documentElement: {
-      classList: mockClassList,
+vi.mock("@/lib/ipc", () => ({
+  ipc: {
+    state: {
+      patch: mocks.patchState,
     },
   },
-  writable: true,
-});
+}));
 
-const initialState = {
-  theme: "system" as Theme,
-  sidebarCollapsed: false,
-};
+vi.mock("@/locales/i18n", () => ({
+  i18n: {
+    language: "zh-CN",
+    changeLanguage: mocks.changeLanguage,
+  },
+}));
+
+vi.mock("@/lib/logger", () => ({
+  uiLog: {
+    error: mocks.uiLogError,
+  },
+}));
+
+const mediaMatches = new Map<string, boolean>();
+const mediaListeners = new Map<string, Array<() => void>>();
+
+function installMatchMediaMock() {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn((query: string): MediaQueryList => {
+      const listeners = mediaListeners.get(query) ?? [];
+      mediaListeners.set(query, listeners);
+
+      return {
+        matches: mediaMatches.get(query) ?? false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn((listener: () => void) => {
+          listeners.push(listener);
+        }),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn((_eventName: string, listener: () => void) => {
+          listeners.push(listener);
+        }),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      } as MediaQueryList;
+    }),
+  });
+}
+
+function emitMediaChange(query: string) {
+  for (const listener of mediaListeners.get(query) ?? []) {
+    listener();
+  }
+}
+
+async function flushMicrotasks() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
 
 describe("UIStore", () => {
   beforeEach(() => {
-    // Reset store state before each test
-    useUIStore.setState(initialState);
+    mediaMatches.clear();
+    mediaListeners.clear();
+    installMatchMediaMock();
+
+    document.documentElement.className = "";
+
+    mocks.patchState.mockResolvedValue(undefined);
+    mocks.changeLanguage.mockResolvedValue(undefined);
     vi.clearAllMocks();
-    localStorageMock.clear();
+
+    useUIStore.setState({
+      theme: "system",
+      locale: "system",
+      sidebarCollapsed: false,
+      motionPreference: "system",
+    });
   });
 
   describe("setTheme", () => {
-    it("should set theme to light", () => {
-      const { setTheme } = useUIStore.getState();
+    describe("happy path", () => {
+      it("should persist light theme and clear dark class", async () => {
+        useUIStore.getState().setTheme("light");
 
-      setTheme("light");
-
-      expect(useUIStore.getState().theme).toBe("light");
-    });
-
-    it("should set theme to dark", () => {
-      const { setTheme } = useUIStore.getState();
-
-      setTheme("dark");
-
-      expect(useUIStore.getState().theme).toBe("dark");
-    });
-
-    it("should set theme to system", () => {
-      const { setTheme } = useUIStore.getState();
-
-      setTheme("dark"); // First set to dark
-      setTheme("system");
-
-      expect(useUIStore.getState().theme).toBe("system");
-    });
-
-    it("should add dark class for dark theme", () => {
-      const { setTheme } = useUIStore.getState();
-
-      setTheme("dark");
-
-      expect(mockClassList.add).toHaveBeenCalledWith("dark");
-    });
-
-    it("should remove dark class for light theme", () => {
-      const { setTheme } = useUIStore.getState();
-
-      setTheme("light");
-
-      expect(mockClassList.remove).toHaveBeenCalledWith("dark");
-    });
-
-    it("should use system preference when theme is system and prefers dark", () => {
-      mockMatchMedia.mockReturnValueOnce({
-        matches: true, // prefers-color-scheme: dark
-        media: "(prefers-color-scheme: dark)",
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
+        expect(useUIStore.getState().theme).toBe("light");
+        expect(document.documentElement.classList.contains("dark")).toBe(false);
+        expect(mocks.patchState).toHaveBeenCalledWith({ ui: { theme: "light" } });
+        await flushMicrotasks();
       });
 
-      const { setTheme } = useUIStore.getState();
-      setTheme("system");
+      it("should apply system dark theme when OS prefers dark", () => {
+        mediaMatches.set("(prefers-color-scheme: dark)", true);
 
-      expect(mockClassList.add).toHaveBeenCalledWith("dark");
+        useUIStore.getState().setTheme("system");
+
+        expect(useUIStore.getState().theme).toBe("system");
+        expect(document.documentElement.classList.contains("dark")).toBe(true);
+      });
     });
 
-    it("should use system preference when theme is system and prefers light", () => {
-      mockMatchMedia.mockReturnValueOnce({
-        matches: false, // prefers-color-scheme: light
-        media: "(prefers-color-scheme: dark)",
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
+    describe("error handling", () => {
+      it("should log persistence errors without reverting UI state", async () => {
+        mocks.patchState.mockRejectedValueOnce(new Error("patch failed"));
+
+        useUIStore.getState().setTheme("dark");
+        await flushMicrotasks();
+
+        expect(useUIStore.getState().theme).toBe("dark");
+        expect(document.documentElement.classList.contains("dark")).toBe(true);
+        expect(mocks.uiLogError).toHaveBeenCalled();
       });
-
-      const { setTheme } = useUIStore.getState();
-      setTheme("system");
-
-      expect(mockClassList.remove).toHaveBeenCalledWith("dark");
     });
   });
 
-  describe("toggleSidebar", () => {
-    it("should toggle sidebar from collapsed to expanded", () => {
-      useUIStore.setState({ sidebarCollapsed: true });
+  describe("setLocale", () => {
+    describe("happy path", () => {
+      it("should update locale and change i18n language", async () => {
+        useUIStore.getState().setLocale("en-US");
 
-      const { toggleSidebar } = useUIStore.getState();
-      toggleSidebar();
-
-      expect(useUIStore.getState().sidebarCollapsed).toBe(false);
-    });
-
-    it("should toggle sidebar from expanded to collapsed", () => {
-      useUIStore.setState({ sidebarCollapsed: false });
-
-      const { toggleSidebar } = useUIStore.getState();
-      toggleSidebar();
-
-      expect(useUIStore.getState().sidebarCollapsed).toBe(true);
-    });
-
-    it("should toggle multiple times correctly", () => {
-      const { toggleSidebar } = useUIStore.getState();
-
-      expect(useUIStore.getState().sidebarCollapsed).toBe(false);
-
-      toggleSidebar();
-      expect(useUIStore.getState().sidebarCollapsed).toBe(true);
-
-      toggleSidebar();
-      expect(useUIStore.getState().sidebarCollapsed).toBe(false);
-
-      toggleSidebar();
-      expect(useUIStore.getState().sidebarCollapsed).toBe(true);
+        expect(useUIStore.getState().locale).toBe("en-US");
+        expect(mocks.changeLanguage).toHaveBeenCalledWith("en-US");
+        expect(mocks.patchState).toHaveBeenCalledWith({ ui: { locale: "en-US" } });
+        await flushMicrotasks();
+      });
     });
   });
 
-  describe("setSidebarCollapsed", () => {
-    it("should set sidebar to collapsed", () => {
-      const { setSidebarCollapsed } = useUIStore.getState();
-
-      setSidebarCollapsed(true);
+  describe("sidebar actions", () => {
+    it("should toggle sidebar state and persist patch", async () => {
+      useUIStore.getState().toggleSidebar();
 
       expect(useUIStore.getState().sidebarCollapsed).toBe(true);
+      expect(mocks.patchState).toHaveBeenCalledWith({ ui: { sidebarCollapsed: true } });
+      await flushMicrotasks();
     });
 
-    it("should set sidebar to expanded", () => {
-      useUIStore.setState({ sidebarCollapsed: true });
+    it("should set sidebar collapsed state directly", async () => {
+      useUIStore.getState().setSidebarCollapsed(true);
 
-      const { setSidebarCollapsed } = useUIStore.getState();
-      setSidebarCollapsed(false);
-
-      expect(useUIStore.getState().sidebarCollapsed).toBe(false);
+      expect(useUIStore.getState().sidebarCollapsed).toBe(true);
+      expect(mocks.patchState).toHaveBeenCalledWith({ ui: { sidebarCollapsed: true } });
+      await flushMicrotasks();
     });
+  });
 
-    it("should not change state when setting same value", () => {
-      const { setSidebarCollapsed } = useUIStore.getState();
+  describe("setMotionPreference", () => {
+    describe("happy path", () => {
+      it("should enforce reduced motion class", async () => {
+        useUIStore.getState().setMotionPreference("reduce");
 
-      setSidebarCollapsed(false);
-      expect(useUIStore.getState().sidebarCollapsed).toBe(false);
+        expect(useUIStore.getState().motionPreference).toBe("reduce");
+        expect(document.documentElement.classList.contains("reduce-motion")).toBe(true);
+        expect(document.documentElement.classList.contains("allow-motion")).toBe(false);
+        expect(mocks.patchState).toHaveBeenCalledWith({
+          ui: { motionPreference: "reduce" },
+        });
+        await flushMicrotasks();
+      });
 
-      setSidebarCollapsed(false);
-      expect(useUIStore.getState().sidebarCollapsed).toBe(false);
+      it("should enforce explicit motion allowed class", async () => {
+        useUIStore.getState().setMotionPreference("no-preference");
+
+        expect(useUIStore.getState().motionPreference).toBe("no-preference");
+        expect(document.documentElement.classList.contains("allow-motion")).toBe(true);
+        expect(document.documentElement.classList.contains("reduce-motion")).toBe(false);
+        await flushMicrotasks();
+      });
+    });
+  });
+
+  describe("hydrate", () => {
+    it("should hydrate state without persistence side effects", () => {
+      const nextTheme: Theme = "dark";
+      const nextMotion: MotionPreference = "reduce";
+
+      useUIStore.getState().hydrate({
+        theme: nextTheme,
+        locale: "en-US",
+        sidebarCollapsed: true,
+        motionPreference: nextMotion,
+      });
+
+      const state = useUIStore.getState();
+      expect(state.theme).toBe("dark");
+      expect(state.locale).toBe("en-US");
+      expect(state.sidebarCollapsed).toBe(true);
+      expect(state.motionPreference).toBe("reduce");
+      expect(mocks.patchState).not.toHaveBeenCalled();
     });
   });
 
   describe("selectors", () => {
-    it("selectTheme should return current theme", async () => {
-      const { selectTheme } = await import("../index");
-      useUIStore.setState({ theme: "dark" });
+    it("should read all selector values from state", () => {
+      useUIStore.setState({
+        theme: "dark",
+        locale: "en-US",
+        sidebarCollapsed: true,
+        motionPreference: "reduce",
+      });
 
-      expect(selectTheme(useUIStore.getState())).toBe("dark");
-    });
-
-    it("selectTheme should return system by default", async () => {
-      const { selectTheme } = await import("../index");
-
-      expect(selectTheme(useUIStore.getState())).toBe("system");
-    });
-
-    it("selectSidebarCollapsed should return collapsed state", async () => {
-      const { selectSidebarCollapsed } = await import("../index");
-      useUIStore.setState({ sidebarCollapsed: true });
-
-      expect(selectSidebarCollapsed(useUIStore.getState())).toBe(true);
-    });
-
-    it("selectSidebarCollapsed should return false by default", async () => {
-      const { selectSidebarCollapsed } = await import("../index");
-
-      expect(selectSidebarCollapsed(useUIStore.getState())).toBe(false);
-    });
-  });
-
-  describe("persistence", () => {
-    it("should use correct storage key name", () => {
-      // The store uses persist middleware with name 'clawui-ui'
-      // We just verify the store is created with persist middleware
-      // by checking the store's persist property exists
       const state = useUIStore.getState();
-      expect(state.theme).toBeDefined();
-      expect(state.sidebarCollapsed).toBeDefined();
-      // The persist middleware wraps the store,
-      // we can verify the store still functions correctly
-      const { setTheme } = state;
-      setTheme("dark");
-      expect(useUIStore.getState().theme).toBe("dark");
+      expect(selectTheme(state)).toBe("dark");
+      expect(selectLocale(state)).toBe("en-US");
+      expect(selectSidebarCollapsed(state)).toBe(true);
+      expect(selectMotionPreference(state)).toBe("reduce");
     });
   });
 
-  describe("theme combinations", () => {
-    const themes: Theme[] = ["light", "dark", "system"];
+  describe("initThemeListeners", () => {
+    it("should react to system preference changes in system mode", () => {
+      mediaMatches.set("(prefers-color-scheme: dark)", false);
+      mediaMatches.set("(prefers-reduced-motion: reduce)", false);
 
-    it("should handle all theme transitions", () => {
-      const { setTheme } = useUIStore.getState();
+      initThemeListeners();
+      expect(document.documentElement.classList.contains("dark")).toBe(false);
+      expect(document.documentElement.classList.contains("reduce-motion")).toBe(false);
 
-      for (const fromTheme of themes) {
-        for (const toTheme of themes) {
-          setTheme(fromTheme);
-          setTheme(toTheme);
-          expect(useUIStore.getState().theme).toBe(toTheme);
-        }
-      }
+      mediaMatches.set("(prefers-color-scheme: dark)", true);
+      mediaMatches.set("(prefers-reduced-motion: reduce)", true);
+
+      emitMediaChange("(prefers-color-scheme: dark)");
+      emitMediaChange("(prefers-reduced-motion: reduce)");
+
+      expect(document.documentElement.classList.contains("dark")).toBe(true);
+      expect(document.documentElement.classList.contains("reduce-motion")).toBe(true);
     });
   });
 });

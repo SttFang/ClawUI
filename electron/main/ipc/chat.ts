@@ -1,3 +1,4 @@
+import type { ChatNormalizedRunEvent } from "@clawui/types";
 import { ipcMain, BrowserWindow } from "electron";
 import {
   chatWebSocket,
@@ -54,6 +55,12 @@ export function registerChatHandlers(
   chatWebSocket.on("gateway-event", (event: GatewayEventFrame) => {
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send("gateway:event", event);
+    }
+  });
+
+  chatWebSocket.on("normalized-event", (event: ChatNormalizedRunEvent) => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("chat:normalized-event", event);
     }
   });
 

@@ -75,10 +75,22 @@ export function createOpenClawChatStream(params: {
         if (boundChatRunId) return
         if (hasSeenClientChatEvent) return
         if (didFinish) return
+        // NOTE:
+        // OpenClaw exec approvals can pause a run for long periods. If we only allow
+        // early-time binding, the resumed `chat.delta/final` (internal runId) is dropped,
+        // causing "approved but no response until next message" regressions.
+        //
+        // As long as this stream has not observed its own client run yet, bind to the
+        // first matching chat delta/final for the same session.
         if (currentText.length > 0) return
-        if (!streamStartedAt || Date.now() - streamStartedAt > 10_000) return
+        const elapsed = streamStartedAt > 0 ? Date.now() - streamStartedAt : 0
+        if (boundAgentRunId && evt.runId !== boundAgentRunId) return
+        // Prevent accidental binding to stale old runs shortly after submit.
+        // Once approval waits long enough, relax this guard.
+        const likelyFreshSeq = typeof evt.seq === 'number' ? evt.seq <= 2 : true
+        const allowDelayedBind = elapsed >= 30_000
+        if (!boundAgentRunId && !likelyFreshSeq && !allowDelayedBind && evt.state !== 'final') return
         if (evt.state !== 'delta' && evt.state !== 'final') return
-        if (typeof evt.seq === 'number' && evt.seq > 3) return
         boundChatRunId = evt.runId
       }
 
@@ -94,13 +106,15 @@ export function createOpenClawChatStream(params: {
         seq?: number
         phase?: string
       }) => {
-        const { rid, stream, seq, phase } = params
+        const { rid, stream, phase, seq } = params
         if (!rid || !clientRunId) return
         if (rid === clientRunId) return
         if (boundAgentRunId) return
         if (hasSeenClientChatEvent) return
-        if (!streamStartedAt || Date.now() - streamStartedAt > 10_000) return
-        if (typeof seq === 'number' && seq > 8) return
+        const elapsed = streamStartedAt > 0 ? Date.now() - streamStartedAt : 0
+        const likelyFreshSeq = typeof seq === 'number' ? seq <= 12 : true
+        const allowDelayedBind = elapsed >= 30_000
+        if (!likelyFreshSeq && !allowDelayedBind) return
 
         const normalizedPhase = typeof phase === 'string' ? phase : ''
         const canBindFromLifecycle =

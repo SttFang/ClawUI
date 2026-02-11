@@ -134,6 +134,21 @@ export function OpenClawChatPanel(props: {
     });
   }, [hasSession, normalizedSessionKey, refreshHistory]);
 
+  useEffect(() => {
+    if (!hasSession || !normalizedSessionKey) return;
+    return ipc.chat.onNormalizedEvent((event) => {
+      if (event.sessionKey !== normalizedSessionKey) return;
+      if (
+        event.kind === "run.completed" ||
+        event.kind === "run.failed" ||
+        event.kind === "run.aborted"
+      ) {
+        useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
+        void refreshHistory();
+      }
+    });
+  }, [hasSession, normalizedSessionKey, refreshHistory]);
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {/* Messages */}

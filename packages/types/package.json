@@ -16,6 +16,7 @@
     "./app": "./src/app.ts",
     "./usage": "./src/usage.ts",
     "./clawui": "./src/clawui.ts",
-    "./models": "./src/models.ts"
+    "./models": "./src/models.ts",
+    "./chat-normalized": "./src/chat-normalized.ts"
   }
 }

@@ -3,6 +3,7 @@ import { EventEmitter } from "events";
 import WebSocket from "ws";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { chatLog } from "../lib/logger";
+import { ChatEventNormalizer } from "./chat-event-normalizer";
 
 export interface ChatMessage {
   id: string;
@@ -70,6 +71,7 @@ export class ChatWebSocketService extends EventEmitter {
     { resolve: (v: unknown) => void; reject: (e: Error) => void }
   > = new Map();
   private connected = false;
+  private normalizer = new ChatEventNormalizer();
 
   setGatewayUrl(url: string): void {
     this.gatewayUrl = url;
@@ -258,6 +260,11 @@ export class ChatWebSocketService extends EventEmitter {
   }
 
   private handleEvent(event: GatewayEventFrame): void {
+    const normalizedEvents = this.normalizer.ingestGatewayEvent(event);
+    for (const normalizedEvent of normalizedEvents) {
+      this.emit("normalized-event", normalizedEvent);
+    }
+
     // Forward raw Gateway events for richer renderer-side transports.
     this.emit("gateway-event", event);
 
@@ -392,6 +399,22 @@ export class ChatWebSocketService extends EventEmitter {
           const res = response as ACPResponse;
           if (res.ok) {
             chatLog.info(`[acp.request.ok]`, `method=${method}`, `durationMs=${Date.now() - t0}`);
+            if (method === "exec.approval.resolve") {
+              const approvalId = typeof params?.id === "string" ? params.id : undefined;
+              const decision =
+                params?.decision === "allow-once" ||
+                params?.decision === "allow-always" ||
+                params?.decision === "deny"
+                  ? params.decision
+                  : undefined;
+              const normalizedEvents = this.normalizer.onApprovalResolveRequest({
+                approvalId,
+                decision,
+              });
+              for (const normalizedEvent of normalizedEvents) {
+                this.emit("normalized-event", normalizedEvent);
+              }
+            }
             resolve(res.payload);
           } else {
             chatLog.warn(
@@ -457,6 +480,13 @@ export class ChatWebSocketService extends EventEmitter {
               `sessionId=${request.sessionId}`,
               `durationMs=${Date.now() - t0}`,
             );
+            const normalizedEvents = this.normalizer.onChatSendAccepted({
+              sessionKey: request.sessionId,
+              clientRunId: messageId,
+            });
+            for (const normalizedEvent of normalizedEvents) {
+              this.emit("normalized-event", normalizedEvent);
+            }
             resolve(messageId);
           } else {
             chatLog.warn(

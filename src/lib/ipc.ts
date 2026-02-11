@@ -3,6 +3,7 @@
 
 import type { UpdateInfo } from "@clawui/types/app";
 import type { ChatRequest, ChatStreamEvent } from "@clawui/types/chat";
+import type { ChatNormalizedRunEvent } from "@clawui/types/chat-normalized";
 import type { ClawUIState, ClawUISessionMetadata } from "@clawui/types/clawui";
 import type { OpenClawConfig, OnboardingOpenClawConfig, ChannelConfig } from "@clawui/types/config";
 import type {
@@ -30,6 +31,7 @@ export type {
   BYOKConfig,
   ChatRequest,
   ChatStreamEvent,
+  ChatNormalizedRunEvent,
   OpenClawConfig,
   OnboardingOpenClawConfig,
   ChannelConfig,
@@ -117,6 +119,7 @@ export interface ElectronAPI {
     onConnected: (callback: () => void) => () => void;
     onDisconnected: (callback: () => void) => () => void;
     onError: (callback: (error: string) => void) => () => void;
+    onNormalizedEvent: (callback: (event: ChatNormalizedRunEvent) => void) => () => void;
   };
   usage: {
     sessions: (params?: Record<string, unknown>) => Promise<SessionsUsageResult>;
@@ -392,6 +395,10 @@ export const ipc = {
     onError(callback: (error: string) => void) {
       const api = getElectronAPI();
       return api?.chat.onError(callback) ?? (() => {});
+    },
+    onNormalizedEvent(callback: (event: ChatNormalizedRunEvent) => void) {
+      const api = getElectronAPI();
+      return api?.chat.onNormalizedEvent(callback) ?? (() => {});
     },
   },
   usage: {

@@ -1,3 +1,4 @@
+import type { ChatNormalizedRunEvent } from "@clawui/types";
 import { contextBridge, ipcRenderer } from "electron";
 
 export type GatewayStatus = "stopped" | "starting" | "running" | "error";
@@ -162,6 +163,12 @@ contextBridge.exposeInMainWorld("electron", {
       const listener = (_event: Electron.IpcRendererEvent, error: string) => callback(error);
       ipcRenderer.on("chat:error", listener);
       return () => ipcRenderer.removeListener("chat:error", listener);
+    },
+    onNormalizedEvent: (callback: (event: ChatNormalizedRunEvent) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, evt: ChatNormalizedRunEvent) =>
+        callback(evt);
+      ipcRenderer.on("chat:normalized-event", listener);
+      return () => ipcRenderer.removeListener("chat:normalized-event", listener);
     },
   },
   usage: {

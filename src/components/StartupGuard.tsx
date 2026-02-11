@@ -1,6 +1,5 @@
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
 import { useStartupGuard } from "@/hooks/useStartupGuard";
 
 interface StartupGuardProps {
@@ -16,7 +15,6 @@ interface StartupGuardProps {
  */
 export function StartupGuard({ children }: StartupGuardProps) {
   const { t } = useTranslation("common");
-  const location = useLocation();
   const state = useStartupGuard();
 
   if (state.isChecking) {
@@ -30,7 +28,7 @@ export function StartupGuard({ children }: StartupGuardProps) {
     );
   }
 
-  if (!state.openclawInstalled && location.pathname !== "/onboarding") {
+  if (!state.openclawInstalled) {
     return null;
   }
 

@@ -10,6 +10,7 @@
     "./onboarding": "./src/onboarding.ts",
     "./chat": "./src/chat.ts",
     "./config": "./src/config.ts",
+    "./config-v2": "./src/config-v2.ts",
     "./gateway": "./src/gateway.ts",
     "./subscription": "./src/subscription.ts",
     "./app": "./src/app.ts",

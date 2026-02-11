@@ -5,6 +5,12 @@ import type { UpdateInfo } from "@clawui/types/app";
 import type { ChatRequest, ChatStreamEvent } from "@clawui/types/chat";
 import type { ClawUIState, ClawUISessionMetadata } from "@clawui/types/clawui";
 import type { OpenClawConfig, OnboardingOpenClawConfig, ChannelConfig } from "@clawui/types/config";
+import type {
+  ConfigSchemaV2,
+  ConfigSetDraftInputV2,
+  ConfigSetDraftResponseV2,
+  ConfigSnapshotV2,
+} from "@clawui/types/config-v2";
 import type { GatewayStatus, GatewayEventFrame } from "@clawui/types/gateway";
 import type { ModelsStatus } from "@clawui/types/models";
 // Import types from centralized package
@@ -63,6 +69,9 @@ export interface ElectronAPI {
   config: {
     get: () => Promise<OpenClawConfig>;
     set: (config: Partial<OpenClawConfig>) => Promise<void>;
+    getSnapshot: () => Promise<ConfigSnapshotV2>;
+    getSchema: () => Promise<ConfigSchemaV2>;
+    setDraft: (input: ConfigSetDraftInputV2) => Promise<ConfigSetDraftResponseV2>;
     getPath: () => Promise<string>;
   };
   profiles: {
@@ -201,6 +210,27 @@ export const ipc = {
       if (api) {
         await api.config.set(config);
       }
+    },
+    async getSnapshot() {
+      const api = getElectronAPI();
+      if (!api) throw new Error("Electron API not available");
+      return api.config.getSnapshot();
+    },
+    async getSchema() {
+      const api = getElectronAPI();
+      if (!api) throw new Error("Electron API not available");
+      return api.config.getSchema();
+    },
+    async setDraft(input: ConfigSetDraftInputV2) {
+      const api = getElectronAPI();
+      if (!api) throw new Error("Electron API not available");
+      const result = await api.config.setDraft(input);
+      if (!result.ok) {
+        const error = new Error(result.error.message) as Error & { code?: string };
+        error.code = result.error.code;
+        throw error;
+      }
+      return result;
     },
     async getPath() {
       const api = getElectronAPI();

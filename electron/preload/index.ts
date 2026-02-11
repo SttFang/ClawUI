@@ -86,6 +86,9 @@ contextBridge.exposeInMainWorld("electron", {
   config: {
     get: () => ipcRenderer.invoke("config:get"),
     set: (config: unknown) => ipcRenderer.invoke("config:set", config),
+    getSnapshot: () => ipcRenderer.invoke("config:snapshot"),
+    getSchema: () => ipcRenderer.invoke("config:schema"),
+    setDraft: (input: unknown) => ipcRenderer.invoke("config:set-draft", input),
     getPath: () => ipcRenderer.invoke("config:path"),
   },
   profiles: {

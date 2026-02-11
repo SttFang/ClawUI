@@ -34,7 +34,11 @@ export function LanguageManager() {
     <div className="titlebar-no-drag flex items-center gap-1.5 px-1">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <IconActionButton icon={<Globe className="h-4 w-4" />} title={t("language.manage")} />
+          <IconActionButton
+            icon={<Globe className="h-4 w-4" />}
+            title={t("language.manage")}
+            aria-label={t("language.manage")}
+          />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>

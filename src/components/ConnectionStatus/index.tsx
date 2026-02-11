@@ -31,10 +31,12 @@ export function ConnectionStatus() {
 
   return (
     <div
-      className="flex items-center gap-1.5 px-3"
-      style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+      className="titlebar-no-drag flex items-center gap-1.5 px-3"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
     >
-      <div className={cn("h-2 w-2 rounded-full", color)} />
+      <div className={cn("h-2 w-2 rounded-full", color)} aria-hidden="true" />
       <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );

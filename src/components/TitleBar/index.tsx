@@ -13,10 +13,7 @@ import { LanguageManager } from "@/components/LanguageManager";
  */
 export function TitleBar() {
   return (
-    <div
-      className="titlebar flex h-11 w-full shrink-0 items-center justify-end gap-1 border-b border-border bg-sidebar pr-2"
-      style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-    >
+    <div className="titlebar flex h-11 w-full shrink-0 items-center justify-end gap-1 border-b border-border bg-sidebar pr-2">
       <LanguageManager />
       <ConnectionStatus />
     </div>

@@ -34,14 +34,16 @@ export function NavRail() {
               cn(
                 "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
                 "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-muted-foreground",
               )
             }
             title={t(item.labelKey)}
+            aria-label={t(item.labelKey)}
           >
-            <item.icon size={18} />
+            <item.icon size={18} aria-hidden="true" />
           </NavLink>
         ))}
       </nav>

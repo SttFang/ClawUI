@@ -213,10 +213,26 @@
 /* Electron titlebar drag region */
 .titlebar {
   -webkit-app-region: drag;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .titlebar-no-drag {
   -webkit-app-region: no-drag;
+}
+
+.reduce-motion .animate-pulse,
+.reduce-motion .claw-shimmer,
+.reduce-motion .claw-text-shimmer {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not(.allow-motion) .animate-pulse,
+  :root:not(.allow-motion) .claw-shimmer,
+  :root:not(.allow-motion) .claw-text-shimmer {
+    animation: none !important;
+  }
 }
 
 @keyframes claw-shimmer {

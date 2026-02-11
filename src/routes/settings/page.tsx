@@ -67,7 +67,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="h-full overflow-y-auto p-6">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold">{t("settings.page.title")}</h1>

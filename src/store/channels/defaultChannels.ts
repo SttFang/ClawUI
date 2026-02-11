@@ -1,0 +1,58 @@
+import type { Channel } from "./types";
+
+export const defaultChannels: Channel[] = [
+  {
+    type: "telegram",
+    name: "Telegram",
+    description: "Connect your Telegram bot",
+    icon: "📱",
+    isConfigured: false,
+    isEnabled: false,
+    config: null,
+  },
+  {
+    type: "discord",
+    name: "Discord",
+    description: "Connect your Discord bot",
+    icon: "🎮",
+    isConfigured: false,
+    isEnabled: false,
+    config: null,
+  },
+  {
+    type: "whatsapp",
+    name: "WhatsApp",
+    description: "Connect to WhatsApp",
+    icon: "💬",
+    isConfigured: false,
+    isEnabled: false,
+    config: null,
+  },
+  {
+    type: "slack",
+    name: "Slack",
+    description: "Connect your Slack workspace",
+    icon: "💼",
+    isConfigured: false,
+    isEnabled: false,
+    config: null,
+  },
+  {
+    type: "wechat",
+    name: "WeChat",
+    description: "Connect to WeChat",
+    icon: "🟢",
+    isConfigured: false,
+    isEnabled: false,
+    config: null,
+  },
+  {
+    type: "signal",
+    name: "Signal",
+    description: "Connect to Signal",
+    icon: "🔒",
+    isConfigured: false,
+    isEnabled: false,
+    config: null,
+  },
+];

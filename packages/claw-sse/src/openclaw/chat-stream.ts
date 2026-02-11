@@ -77,6 +77,14 @@ export function createOpenClawChatStream(params: {
         return Date.now() - lastApprovalActivityAt <= APPROVAL_ALIAS_WINDOW_MS
       }
 
+      const isContinuationSnapshotEvent = (evt: OpenClawChatEvent) => {
+        if (currentText.length === 0) return false
+        if (evt.state !== 'delta' && evt.state !== 'final') return false
+        const nextText = extractOpenClawTextFromMessage(evt.message) ?? ''
+        if (!nextText) return false
+        return nextText.length >= currentText.length && nextText.startsWith(currentText)
+      }
+
       const noteApprovalActivity = (createdAtMs?: unknown) => {
         if (typeof createdAtMs === 'number' && streamStartedAt > 0 && createdAtMs + 1000 < streamStartedAt) {
           return
@@ -97,10 +105,11 @@ export function createOpenClawChatStream(params: {
         if (!clientRunId) return
         if (evt.runId === clientRunId) return
         const approvalRecovery = hasRecentApprovalActivity()
-        if (hasSeenClientChatEvent && !approvalRecovery) return
+        const continuationSnapshot = isContinuationSnapshotEvent(evt)
+        if (hasSeenClientChatEvent && !approvalRecovery && !continuationSnapshot) return
         if (didFinish) return
         if (boundChatRunId) return
-        if (currentText.length > 0 && !approvalRecovery) return
+        if (currentText.length > 0 && !approvalRecovery && !continuationSnapshot) return
         if (evt.state !== 'delta' && evt.state !== 'final') return
 
         pendingChatAliasRunId = evt.runId
@@ -114,11 +123,12 @@ export function createOpenClawChatStream(params: {
           pendingChatAliasEvent = null
           if (!queuedRunId || !queuedEvent) return
           const approvalRecovery = hasRecentApprovalActivity()
+          const continuationSnapshot = isContinuationSnapshotEvent(queuedEvent)
           if (
-            (hasSeenClientChatEvent && !approvalRecovery) ||
+            (hasSeenClientChatEvent && !approvalRecovery && !continuationSnapshot) ||
             didFinish ||
             boundChatRunId ||
-            (currentText.length > 0 && !approvalRecovery)
+            (currentText.length > 0 && !approvalRecovery && !continuationSnapshot)
           ) {
             return
           }
@@ -138,7 +148,8 @@ export function createOpenClawChatStream(params: {
         if (!evt.runId || evt.runId === clientRunId) return
         if (boundChatRunId) return
         const approvalRecovery = hasRecentApprovalActivity()
-        if (hasSeenClientChatEvent && !approvalRecovery) return
+        const continuationSnapshot = isContinuationSnapshotEvent(evt)
+        if (hasSeenClientChatEvent && !approvalRecovery && !continuationSnapshot) return
         if (didFinish) return
         // NOTE:
         // OpenClaw exec approvals can pause a run for long periods. If we only allow
@@ -147,7 +158,7 @@ export function createOpenClawChatStream(params: {
         //
         // Some runs emit pre-approval text on clientRunId, then resume on an internal runId.
         // During an approval recovery window, allow rebinding even after prior chat snapshots.
-        if (currentText.length > 0 && !approvalRecovery) return
+        if (currentText.length > 0 && !approvalRecovery && !continuationSnapshot) return
         const elapsed = streamStartedAt > 0 ? Date.now() - streamStartedAt : 0
         const allowDelayedBind = elapsed >= 30_000
         const canTrustAliasWithoutGrace =

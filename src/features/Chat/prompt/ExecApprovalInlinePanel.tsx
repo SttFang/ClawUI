@@ -1,5 +1,5 @@
-import { Button, Card, CardContent } from "@clawui/ui";
-import { useMemo, useState } from "react";
+import { Card, CardContent } from "@clawui/ui";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useExecApprovalsStore, type ExecApprovalDecision } from "@/store/execApprovals";
@@ -37,12 +37,11 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
 
   const current = useMemo(() => pickApprovalForSession(queue, sessionKey), [queue, sessionKey]);
   const busy = current ? busyById[current.id] === true : false;
-  const [selected, setSelected] = useState<ExecApprovalDecision>("allow-once");
 
-  const onSubmit = async () => {
+  const onDecision = async (decision: ExecApprovalDecision) => {
     if (!current || busy) return;
     try {
-      await resolve(current.id, selected);
+      await resolve(current.id, decision);
       remove(current.id);
     } catch {
       // keep pending entry for retry
@@ -91,24 +90,23 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
           {current.request.command}
         </pre>
 
-        {/* Radio list */}
+        {/* Option list */}
         <div className="space-y-1">
           {DECISIONS.map((decision, i) => (
             <button
               key={decision}
               type="button"
               disabled={busy}
-              onClick={() => setSelected(decision)}
+              onClick={() => void onDecision(decision)}
               className={cn(
                 "flex w-full items-start gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
-                selected === decision
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-muted",
+                "hover:bg-accent hover:text-accent-foreground",
+                "text-muted-foreground",
               )}
             >
               <span className="shrink-0 font-medium">{i + 1}.</span>
               <div className="min-w-0">
-                <div className={cn(selected === decision && "font-medium")}>
+                <div>
                   {t(
                     `execApproval.actions.${decision === "allow-once" ? "allowOnce" : decision === "allow-always" ? "allowAlways" : "deny"}`,
                   )}
@@ -121,13 +119,6 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
               </div>
             </button>
           ))}
-        </div>
-
-        {/* Submit */}
-        <div className="flex justify-end">
-          <Button size="sm" disabled={busy} onClick={() => void onSubmit()}>
-            {t("execApproval.actions.submit")}
-          </Button>
         </div>
       </CardContent>
     </Card>

@@ -1,5 +1,5 @@
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@clawui/ui";
-import { useMemo, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@clawui/ui";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useExecApprovalsStore, type ExecApprovalDecision } from "@/store/execApprovals";
@@ -21,7 +21,6 @@ export function ExecApprovalPrompt() {
 
   const current = queue[0] ?? null;
   const busy = current ? busyById[current.id] === true : false;
-  const [selected, setSelected] = useState<ExecApprovalDecision>("allow-once");
 
   const title = useMemo(() => {
     if (!current) return "";
@@ -30,10 +29,10 @@ export function ExecApprovalPrompt() {
       : t("execApproval.title");
   }, [current, t]);
 
-  const onSubmit = async () => {
+  const onDecision = async (decision: ExecApprovalDecision) => {
     if (!current || busy) return;
     try {
-      await resolve(current.id, selected);
+      await resolve(current.id, decision);
       remove(current.id);
     } catch {
       // Keep it in queue; errors are handled elsewhere.
@@ -73,24 +72,23 @@ export function ExecApprovalPrompt() {
             {current.request.command}
           </pre>
 
-          {/* Radio list */}
+          {/* Option list */}
           <div className="space-y-1">
             {DECISIONS.map((decision, i) => (
               <button
                 key={decision}
                 type="button"
                 disabled={busy}
-                onClick={() => setSelected(decision)}
+                onClick={() => void onDecision(decision)}
                 className={cn(
                   "flex w-full items-start gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
-                  selected === decision
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-muted",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  "text-muted-foreground",
                 )}
               >
                 <span className="shrink-0 font-medium">{i + 1}.</span>
                 <div className="min-w-0">
-                  <div className={cn(selected === decision && "font-medium")}>
+                  <div>
                     {t(
                       `execApproval.actions.${decision === "allow-once" ? "allowOnce" : decision === "allow-always" ? "allowAlways" : "deny"}`,
                     )}
@@ -103,13 +101,6 @@ export function ExecApprovalPrompt() {
                 </div>
               </button>
             ))}
-          </div>
-
-          {/* Submit */}
-          <div className="flex justify-end pt-1">
-            <Button size="sm" disabled={busy} onClick={() => void onSubmit()}>
-              {t("execApproval.actions.submit")}
-            </Button>
           </div>
         </div>
       </DialogContent>

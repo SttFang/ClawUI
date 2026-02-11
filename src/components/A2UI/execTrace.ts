@@ -1,4 +1,5 @@
 import type { DynamicToolUIPart, UIMessage } from "ai";
+import { useExecApprovalsStore } from "@/store/execApprovals";
 
 export type ExecTraceStatus = "waiting" | "running" | "completed" | "error";
 
@@ -71,12 +72,18 @@ export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): E
       next.endedAtMs = base.endedAtMs ?? now;
       next.durationMs = Math.max(0, next.endedAtMs - next.startedAtMs);
       next.output = part.output;
+      if (next.command) {
+        useExecApprovalsStore.getState().clearRunning(next.sessionKey, next.command);
+      }
     }
   } else if (part.state === "output-error") {
     next.status = "error";
     next.endedAtMs = base.endedAtMs ?? now;
     next.durationMs = Math.max(0, next.endedAtMs - next.startedAtMs);
     next.errorText = part.errorText;
+    if (next.command) {
+      useExecApprovalsStore.getState().clearRunning(next.sessionKey, next.command);
+    }
   }
 
   traceCache.set(traceKey, next);

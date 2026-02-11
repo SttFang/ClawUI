@@ -33,6 +33,14 @@ export function MessageParts(props: {
   );
   const shouldShowThinking = streaming && !hasVisibleText;
   const completedExecTraces = collectCompletedExecTraces(message.parts, sessionKey);
+  const finishedExecToolCallIds = new Set(
+    message.parts.flatMap((p) => {
+      if (!isExecPart(p)) return [];
+      if (p.state === "output-error") return [p.toolCallId];
+      if (p.state === "output-available" && !isExecPreliminary(p)) return [p.toolCallId];
+      return [];
+    }),
+  );
 
   return (
     <div className="space-y-3">
@@ -51,6 +59,10 @@ export function MessageParts(props: {
         }
         if (part.type === "dynamic-tool") {
           if (isExecPart(part)) {
+            if (finishedExecToolCallIds.has(part.toolCallId)) {
+              // 同一个 exec 已有最终结果时，隐藏历史中的 start/update 片段，避免一直显示“执行中”。
+              return null;
+            }
             if (
               part.state === "input-available" ||
               part.state === "input-streaming" ||

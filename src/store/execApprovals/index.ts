@@ -86,6 +86,7 @@ interface ExecApprovalsState {
 interface ExecApprovalsActions {
   add: (entry: ExecApprovalRequest) => void;
   remove: (id: string) => void;
+  clearRunning: (sessionKey: string | null | undefined, command: string) => void;
   resolve: (id: string, decision: ExecApprovalDecision) => Promise<void>;
 }
 
@@ -116,6 +117,18 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
           }),
           false,
           "remove",
+        ),
+
+      clearRunning: (sessionKey, command) =>
+        set(
+          (s) => {
+            const key = makeExecApprovalKey(sessionKey, command);
+            if (!s.runningByKey[key]) return s;
+            const { [key]: _ignored, ...rest } = s.runningByKey;
+            return { ...s, runningByKey: rest };
+          },
+          false,
+          "clearRunning",
         ),
 
       resolve: async (id, decision) => {

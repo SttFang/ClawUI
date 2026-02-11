@@ -10,8 +10,9 @@ import { cn } from "@/lib/utils";
 import { useExecApprovalsStore } from "@/store/execApprovals";
 import { ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
-import { MessageParts } from "./MessageParts";
+import { AssistantMessageItem } from "./AssistantMessageItem";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
+import { UserMessageItem } from "./UserMessageItem";
 
 export function OpenClawChatPanel(props: {
   sessionKey: string | null;
@@ -46,6 +47,14 @@ export function OpenClawChatPanel(props: {
   }, [chat.setMessages]);
 
   const isBusy = chat.status === "submitted" || chat.status === "streaming";
+  const activeAssistantMessageId = useMemo(() => {
+    if (chat.status !== "streaming") return null;
+    for (let i = chat.messages.length - 1; i >= 0; i -= 1) {
+      const message = chat.messages[i];
+      if (message?.role === "assistant") return message.id;
+    }
+    return null;
+  }, [chat.messages, chat.status]);
 
   const refreshHistory = useCallback(async () => {
     if (!hasSession || !normalizedSessionKey) return;
@@ -92,15 +101,35 @@ export function OpenClawChatPanel(props: {
     if (!hasSession || !normalizedSessionKey) return;
     return ipc.gateway.onEvent((frame) => {
       if (frame.type !== "event") return;
-      if (frame.event !== "chat") return;
-      const payload = frame.payload as { sessionKey?: unknown; state?: unknown } | undefined;
-      if (!payload || typeof payload !== "object") return;
-      if (payload.sessionKey !== normalizedSessionKey) return;
-      if (payload.state === "final" || payload.state === "aborted" || payload.state === "error") {
-        useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
+      if (frame.event === "chat") {
+        const payload = frame.payload as { sessionKey?: unknown; state?: unknown } | undefined;
+        if (!payload || typeof payload !== "object") return;
+        if (payload.sessionKey !== normalizedSessionKey) return;
+        if (payload.state === "final" || payload.state === "aborted" || payload.state === "error") {
+          useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
+          void refreshHistory();
+        }
+        return;
       }
-      if (payload.state === "final") {
-        void refreshHistory();
+
+      if (frame.event === "agent") {
+        const payload = frame.payload as {
+          sessionKey?: unknown;
+          stream?: unknown;
+          data?: unknown;
+        } | null;
+        if (!payload || typeof payload !== "object") return;
+        if (payload.sessionKey !== normalizedSessionKey) return;
+        if (payload.stream !== "lifecycle") return;
+        const data =
+          payload.data && typeof payload.data === "object"
+            ? (payload.data as { phase?: unknown })
+            : null;
+        const phase = typeof data?.phase === "string" ? data.phase : "";
+        if (phase === "end" || phase === "error") {
+          useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
+          void refreshHistory();
+        }
       }
     });
   }, [hasSession, normalizedSessionKey, refreshHistory]);
@@ -131,42 +160,21 @@ export function OpenClawChatPanel(props: {
               </p>
             </div>
           ) : (
-            chat.messages.map((message) => {
-              const isUser = message.role === "user";
-              const streaming = chat.status === "streaming" && message.role === "assistant";
+            chat.messages.map((message, index) => {
+              const key = `${message.id}:${index}`;
+              if (message.role === "user") {
+                return (
+                  <UserMessageItem key={key} message={message} sessionKey={effectiveSessionKey} />
+                );
+              }
 
               return (
-                <div
-                  key={message.id}
-                  className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}
-                >
-                  <div
-                    className={cn(
-                      "min-w-0 max-w-[85%] sm:max-w-[75%]",
-                      isUser ? "ml-auto text-right" : "mr-auto text-left",
-                    )}
-                  >
-                    {isUser ? (
-                      <div className="inline-block max-w-full rounded-xl bg-primary px-4 py-3 text-primary-foreground">
-                        <MessageParts
-                          message={message}
-                          streaming={false}
-                          sessionKey={effectiveSessionKey}
-                        />
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="inline-block max-w-full rounded-xl bg-transparent px-4 py-3">
-                          <MessageParts
-                            message={message}
-                            streaming={streaming}
-                            sessionKey={effectiveSessionKey}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <AssistantMessageItem
+                  key={key}
+                  message={message}
+                  sessionKey={effectiveSessionKey}
+                  streaming={activeAssistantMessageId === message.id}
+                />
               );
             })
           )}

@@ -22,7 +22,12 @@ export function createOpenClawChatStream(params: {
   const { sessionKey, adapter, messages, abortSignal, trigger } = params
 
   const last = messages[messages.length - 1]
-  const userText = extractUserText(last) ?? extractUserText([...messages].reverse().find((m) => m.role === 'user'))
+  const latestUserText = extractUserText(last)
+  const fallbackUserText =
+    trigger === 'regenerate-message'
+      ? extractUserText([...messages].reverse().find((m) => m.role === 'user'))
+      : null
+  const userText = latestUserText ?? fallbackUserText
   if (!userText) {
     return new ReadableStream<UIMessageChunk>({
       start(controller) {
@@ -39,18 +44,17 @@ export function createOpenClawChatStream(params: {
 
   return new ReadableStream<UIMessageChunk>({
     start(controller) {
-      // `chat.send` 的 idempotencyKey（ClawUI 侧用作 messageId）不一定等于 agent 内部 runId。
-      // OpenClaw 可能会用内部 runId 来广播 `event chat` / `event agent`，这会导致严格按 runId 过滤时“收不到流”。
-      //
-      // 这里做一个“自动绑定”：
-      // - clientRunId：本次 chat.send 的稳定 idempotencyKey（用于 abort）
-      // - observedRunId：从 event chat/agent 首次观测到的内部 runId（用于匹配后续事件）
+      // run 绑定策略（OpenClaw v2026）:
+      // - `chat` 事件只按 clientRunId 处理，避免跨 run 串包。
+      // - `agent` 事件允许早期绑定一次内部 runId（用于 tool/lifecycle 展示）。
       let clientRunId: string | null = null
-      let observedRunId: string | null = null
+      let boundAgentRunId: string | null = null
       let closed = false
       let currentText = ''
       let didStartText = false
       let didFinish = false
+      let hasSeenClientChatEvent = false
+      let streamStartedAt = 0
       let lifecycleFinishTimer: ReturnType<typeof setTimeout> | null = null
       let lifecycleEndAt = 0
       let lastChatEventAt = 0
@@ -59,25 +63,39 @@ export function createOpenClawChatStream(params: {
       const buffered: GatewayEventFrame[] = []
       let unsubscribe: (() => void) | null = null
 
-      const isCurrentRun = (rid: string) => {
-        if (clientRunId && rid === clientRunId) return true
-        if (observedRunId && rid === observedRunId) return true
-        return false
+      const isCurrentChatRun = (rid: string) => {
+        return clientRunId != null && rid === clientRunId
       }
 
-      const maybeAdoptObservedRunId = (rid: string) => {
-        if (!rid) return
-        // Prefer keeping observedRunId stable once chosen.
-        if (observedRunId) return
-        // If the server uses a different internal id than our idempotency key, bind to it.
-        if (clientRunId && rid !== clientRunId) {
-          observedRunId = rid
-          return
-        }
-        // If clientRunId is not yet known (should be rare), bind anyway.
-        if (!clientRunId) {
-          observedRunId = rid
-        }
+      const isCurrentAgentRun = (rid: string) => {
+        if (clientRunId == null) return false
+        if (rid === clientRunId) return true
+        return boundAgentRunId != null && rid === boundAgentRunId
+      }
+
+      const maybeBindAgentRunId = (params: {
+        rid: string
+        stream: OpenClawAgentEventPayload['stream']
+        seq?: number
+        phase?: string
+      }) => {
+        const { rid, stream, seq, phase } = params
+        if (!rid || !clientRunId) return
+        if (rid === clientRunId) return
+        if (boundAgentRunId) return
+        if (hasSeenClientChatEvent) return
+        if (!streamStartedAt || Date.now() - streamStartedAt > 10_000) return
+        if (typeof seq === 'number' && seq > 8) return
+
+        const normalizedPhase = typeof phase === 'string' ? phase : ''
+        const canBindFromLifecycle =
+          stream === 'lifecycle' &&
+          (normalizedPhase === 'start' || normalizedPhase === 'bootstrap' || !normalizedPhase)
+        const canBindFromTool =
+          stream === 'tool' && (normalizedPhase === 'start' || normalizedPhase === 'update')
+
+        if (!canBindFromLifecycle && !canBindFromTool) return
+        boundAgentRunId = rid
       }
 
       const closeOnce = () => {
@@ -166,8 +184,8 @@ export function createOpenClawChatStream(params: {
 
       const handleChatEvent = (evt: OpenClawChatEvent) => {
         if (evt.sessionKey !== sessionKey) return
-        maybeAdoptObservedRunId(evt.runId)
-        if (!isCurrentRun(evt.runId)) return
+        if (!isCurrentChatRun(evt.runId)) return
+        hasSeenClientChatEvent = true
 
         if (evt.state === 'delta' || evt.state === 'final') {
           lastChatEventAt = Date.now()
@@ -195,8 +213,15 @@ export function createOpenClawChatStream(params: {
       }
 
       const handleAssistantEvent = (evt: OpenClawAgentEventPayload) => {
-        maybeAdoptObservedRunId(evt.runId)
-        if (!isCurrentRun(evt.runId)) return
+        const assistantData =
+          evt.data && typeof evt.data === 'object' ? (evt.data as Record<string, unknown>) : null
+        maybeBindAgentRunId({
+          rid: evt.runId,
+          stream: evt.stream,
+          seq: evt.seq,
+          phase: typeof assistantData?.phase === 'string' ? assistantData.phase : undefined,
+        })
+        if (!isCurrentAgentRun(evt.runId)) return
         if (evt.stream !== 'assistant') return
         // OpenClaw 的 `chat.delta` 是累计快照，最终也由 assistant.text 映射而来。
         // 过去同时消费 `agent.assistant` + `chat.delta` 会出现“重复/口吃式”拼接：
@@ -207,8 +232,13 @@ export function createOpenClawChatStream(params: {
       }
 
       const handleToolEvent = (evt: OpenClawAgentEventPayload, tool: OpenClawToolEventData) => {
-        maybeAdoptObservedRunId(evt.runId)
-        if (!isCurrentRun(evt.runId)) return
+        maybeBindAgentRunId({
+          rid: evt.runId,
+          stream: evt.stream,
+          seq: evt.seq,
+          phase: typeof tool.phase === 'string' ? tool.phase : undefined,
+        })
+        if (!isCurrentAgentRun(evt.runId)) return
 
         const toolName = String(tool.name ?? '').trim()
         const toolCallId = String(tool.toolCallId ?? '').trim()
@@ -300,8 +330,13 @@ export function createOpenClawChatStream(params: {
       }
 
       const handleLifecycleEvent = (evt: OpenClawAgentEventPayload, lifecycle: OpenClawLifecycleEventData) => {
-        maybeAdoptObservedRunId(evt.runId)
-        if (!isCurrentRun(evt.runId)) return
+        maybeBindAgentRunId({
+          rid: evt.runId,
+          stream: evt.stream,
+          seq: evt.seq,
+          phase: typeof lifecycle.phase === 'string' ? lifecycle.phase : undefined,
+        })
+        if (!isCurrentAgentRun(evt.runId)) return
         const phase = typeof lifecycle.phase === 'string' ? lifecycle.phase : null
         if (phase) {
           controller.enqueue({
@@ -382,6 +417,7 @@ export function createOpenClawChatStream(params: {
         try {
           const connected = await adapter.isConnected?.()
           if (!connected) await adapter.connect?.()
+          streamStartedAt = Date.now()
           clientRunId = await adapter.sendChat({ sessionKey, message: userText })
 
           controller.enqueue({ type: 'start', messageId: clientRunId })

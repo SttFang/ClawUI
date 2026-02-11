@@ -19,6 +19,23 @@ export function stripOpenClawReplyTags(text: string): string {
   return text.replaceAll(/\[\[reply_to:[^\]]+\]\]/g, "").replaceAll("[[reply_to_current]]", "");
 }
 
+export function stripTerminalControlSequences(text: string): string {
+  const esc = String.fromCharCode(27);
+  const bel = String.fromCharCode(7);
+  const ansiCsiPattern = new RegExp(`${esc}\\[[0-?]*[ -/]*[@-~]`, "g");
+  const ansiOscPattern = new RegExp(`${esc}\\][^${bel}]*(?:${bel}|${esc}\\\\)`, "g");
+  const leakedCsiPattern = new RegExp("\\[\\?(?:25[hl]|2004[hl])\\b", "g");
+  return (
+    text
+      // CSI sequences, e.g. "\u001b[?25h" / "\u001b[?25l"
+      .replaceAll(ansiCsiPattern, "")
+      // OSC sequences
+      .replaceAll(ansiOscPattern, "")
+      // Some logs lose ESC and leave a raw fragment like "[?25h"
+      .replaceAll(leakedCsiPattern, "")
+  );
+}
+
 export function normalizeMathDelimiters(markdown: string): string {
   // 将 `\\( ... \\)` / `\\[ ... \\]` 转成 remark-math 可解析的 `$` / `$$`。
   // 为了避免破坏 fenced code block，这里只在非 ``` fence 区域做替换。

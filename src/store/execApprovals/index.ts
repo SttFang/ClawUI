@@ -87,6 +87,7 @@ interface ExecApprovalsActions {
   add: (entry: ExecApprovalRequest) => void;
   remove: (id: string) => void;
   clearRunning: (sessionKey: string | null | undefined, command: string) => void;
+  clearRunningForSession: (sessionKey: string | null | undefined) => void;
   resolve: (id: string, decision: ExecApprovalDecision) => Promise<void>;
 }
 
@@ -129,6 +130,20 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
           },
           false,
           "clearRunning",
+        ),
+
+      clearRunningForSession: (sessionKey) =>
+        set(
+          (s) => {
+            const prefix = `${sessionKey ?? ""}::`;
+            const next = Object.fromEntries(
+              Object.entries(s.runningByKey).filter(([key]) => !key.startsWith(prefix)),
+            );
+            if (Object.keys(next).length === Object.keys(s.runningByKey).length) return s;
+            return { ...s, runningByKey: next };
+          },
+          false,
+          "clearRunningForSession",
         ),
 
       resolve: async (id, decision) => {

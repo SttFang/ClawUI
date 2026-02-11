@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { StickToBottom } from "use-stick-to-bottom";
 import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
+import { useExecApprovalsStore } from "@/store/execApprovals";
 import { ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
 import { MessageParts } from "./MessageParts";
@@ -95,6 +96,9 @@ export function OpenClawChatPanel(props: {
       const payload = frame.payload as { sessionKey?: unknown; state?: unknown } | undefined;
       if (!payload || typeof payload !== "object") return;
       if (payload.sessionKey !== normalizedSessionKey) return;
+      if (payload.state === "final" || payload.state === "aborted" || payload.state === "error") {
+        useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
+      }
       if (payload.state === "final") {
         void refreshHistory();
       }

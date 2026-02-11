@@ -66,7 +66,7 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
       ? t("a2ui.toolState.waitingApproval")
       : visualState.statusKey === "running"
         ? t("a2ui.toolState.running")
-        : part.state;
+        : t("a2ui.toolState.pending");
 
   return (
     <ChainOfAction className="overflow-hidden">

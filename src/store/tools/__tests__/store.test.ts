@@ -1,15 +1,53 @@
-import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { useToolsStore, type Tool } from "../index";
 
-// Mock IPC
+const mockDraft = vi.hoisted(() => ({
+  applyPatch: vi.fn<(patch: unknown) => Promise<void>>(async () => {}),
+}));
+
+const mockToolsLog = vi.hoisted(() => ({
+  error: vi.fn<(message: string, error: unknown) => void>(() => {}),
+}));
+
 vi.mock("@/lib/ipc", () => ({
   ipc: {
     config: {
-      get: vi.fn(),
-      set: vi.fn(),
+      getSnapshot: vi.fn(),
     },
   },
 }));
+
+vi.mock("@/store/configDraft", () => ({
+  useConfigDraftStore: {
+    getState: () => ({
+      applyPatch: mockDraft.applyPatch,
+    }),
+  },
+}));
+
+vi.mock("@/lib/logger", () => ({
+  toolsLog: {
+    error: mockToolsLog.error,
+  },
+}));
+
+type ToolsPersistPatch = {
+  tools?: {
+    allow?: string[];
+    deny?: string[];
+    exec?: {
+      ask?: string;
+      security?: string;
+    };
+  };
+  agents?: {
+    defaults?: {
+      sandbox?: {
+        mode?: string;
+      };
+    };
+  };
+};
 
 const defaultTools: Tool[] = [
   {
@@ -66,27 +104,48 @@ const initialState = {
   error: null,
 };
 
+function getLastPersistPatch() {
+  const call = mockDraft.applyPatch.mock.calls.at(-1);
+  expect(call).toBeDefined();
+  if (!call) throw new Error("missing applyPatch call");
+  return call[0] as ToolsPersistPatch;
+}
+
 describe("ToolsStore", () => {
   beforeEach(() => {
-    // Reset store state before each test
-    useToolsStore.setState(initialState);
+    useToolsStore.setState({
+      ...initialState,
+      tools: JSON.parse(JSON.stringify(defaultTools)) as Tool[],
+      config: {
+        ...initialState.config,
+        allowList: [],
+        denyList: [],
+      },
+      isLoading: false,
+      error: null,
+    });
     vi.clearAllMocks();
   });
 
   describe("loadTools", () => {
     it("should load tools config from IPC", async () => {
       const { ipc } = await import("@/lib/ipc");
-      (ipc.config.get as Mock).mockResolvedValue({
-        tools: {
-          access: "ask",
-          allow: ["fs", "web"],
-          deny: ["database"],
-          sandbox: { enabled: false },
+      (ipc.config.getSnapshot as Mock).mockResolvedValue({
+        config: {
+          tools: {
+            allow: ["fs", "web"],
+            deny: ["database"],
+            exec: { ask: "always" },
+          },
+          agents: {
+            defaults: {
+              sandbox: { mode: "off" },
+            },
+          },
         },
       });
 
-      const { loadTools } = useToolsStore.getState();
-      await loadTools();
+      await useToolsStore.getState().loadTools();
 
       const state = useToolsStore.getState();
       expect(state.config.accessMode).toBe("ask");
@@ -94,21 +153,22 @@ describe("ToolsStore", () => {
       expect(state.config.denyList).toEqual(["database"]);
       expect(state.config.sandboxEnabled).toBe(false);
       expect(state.isLoading).toBe(false);
+      expect(state.error).toBeNull();
     });
 
     it("should update tools enabled status based on deny list", async () => {
       const { ipc } = await import("@/lib/ipc");
-      (ipc.config.get as Mock).mockResolvedValue({
-        tools: {
-          access: "auto",
-          allow: [],
-          deny: ["fs", "web"],
-          sandbox: { enabled: true },
+      (ipc.config.getSnapshot as Mock).mockResolvedValue({
+        config: {
+          tools: {
+            allow: [],
+            deny: ["fs", "web"],
+            exec: { ask: "on-miss" },
+          },
         },
       });
 
-      const { loadTools } = useToolsStore.getState();
-      await loadTools();
+      await useToolsStore.getState().loadTools();
 
       const state = useToolsStore.getState();
       const fsTool = state.tools.find((t) => t.id === "fs");
@@ -120,17 +180,17 @@ describe("ToolsStore", () => {
 
     it("should enable tools in allow list", async () => {
       const { ipc } = await import("@/lib/ipc");
-      (ipc.config.get as Mock).mockResolvedValue({
-        tools: {
-          access: "auto",
-          allow: ["database", "media"],
-          deny: [],
-          sandbox: { enabled: true },
+      (ipc.config.getSnapshot as Mock).mockResolvedValue({
+        config: {
+          tools: {
+            allow: ["database", "media"],
+            deny: [],
+            exec: { ask: "on-miss" },
+          },
         },
       });
 
-      const { loadTools } = useToolsStore.getState();
-      await loadTools();
+      await useToolsStore.getState().loadTools();
 
       const state = useToolsStore.getState();
       const dbTool = state.tools.find((t) => t.id === "database");
@@ -142,30 +202,35 @@ describe("ToolsStore", () => {
 
     it("should handle null config", async () => {
       const { ipc } = await import("@/lib/ipc");
-      (ipc.config.get as Mock).mockResolvedValue(null);
+      (ipc.config.getSnapshot as Mock).mockResolvedValue({
+        config: null,
+      });
 
-      const { loadTools } = useToolsStore.getState();
-      await loadTools();
+      await useToolsStore.getState().loadTools();
 
-      expect(useToolsStore.getState().isLoading).toBe(false);
+      const state = useToolsStore.getState();
+      expect(state.isLoading).toBe(false);
+      expect(state.error).toBeNull();
     });
 
     it("should handle config without tools", async () => {
       const { ipc } = await import("@/lib/ipc");
-      (ipc.config.get as Mock).mockResolvedValue({});
+      (ipc.config.getSnapshot as Mock).mockResolvedValue({
+        config: {},
+      });
 
-      const { loadTools } = useToolsStore.getState();
-      await loadTools();
+      await useToolsStore.getState().loadTools();
 
-      expect(useToolsStore.getState().isLoading).toBe(false);
+      const state = useToolsStore.getState();
+      expect(state.isLoading).toBe(false);
+      expect(state.error).toBeNull();
     });
 
     it("should handle load error", async () => {
       const { ipc } = await import("@/lib/ipc");
-      (ipc.config.get as Mock).mockRejectedValue(new Error("Config load failed"));
+      (ipc.config.getSnapshot as Mock).mockRejectedValue(new Error("Config load failed"));
 
-      const { loadTools } = useToolsStore.getState();
-      await loadTools();
+      await useToolsStore.getState().loadTools();
 
       const state = useToolsStore.getState();
       expect(state.error).toBe("Config load failed");
@@ -174,15 +239,14 @@ describe("ToolsStore", () => {
 
     it("should set loading state during load", async () => {
       const { ipc } = await import("@/lib/ipc");
-
       let capturedLoading = false;
-      (ipc.config.get as Mock).mockImplementation(() => {
+
+      (ipc.config.getSnapshot as Mock).mockImplementation(() => {
         capturedLoading = useToolsStore.getState().isLoading;
-        return Promise.resolve({});
+        return Promise.resolve({ config: {} });
       });
 
-      const { loadTools } = useToolsStore.getState();
-      await loadTools();
+      await useToolsStore.getState().loadTools();
 
       expect(capturedLoading).toBe(true);
     });
@@ -190,72 +254,48 @@ describe("ToolsStore", () => {
 
   describe("setAccessMode", () => {
     it("should update access mode to auto", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
-      const { setAccessMode } = useToolsStore.getState();
-      await setAccessMode("auto");
-
+      await useToolsStore.getState().setAccessMode("auto");
       expect(useToolsStore.getState().config.accessMode).toBe("auto");
     });
 
     it("should update access mode to ask", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
-      const { setAccessMode } = useToolsStore.getState();
-      await setAccessMode("ask");
-
+      await useToolsStore.getState().setAccessMode("ask");
       expect(useToolsStore.getState().config.accessMode).toBe("ask");
     });
 
     it("should update access mode to deny", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
-      const { setAccessMode } = useToolsStore.getState();
-      await setAccessMode("deny");
-
+      await useToolsStore.getState().setAccessMode("deny");
       expect(useToolsStore.getState().config.accessMode).toBe("deny");
     });
 
     it("should persist to config", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
+      await useToolsStore.getState().setAccessMode("ask");
 
-      const { setAccessMode } = useToolsStore.getState();
-      await setAccessMode("ask");
+      expect(mockDraft.applyPatch).toHaveBeenCalledTimes(1);
+      const patch = getLastPersistPatch();
 
-      expect(ipc.config.set).toHaveBeenCalledWith({
-        tools: expect.objectContaining({
-          access: "ask",
-        }),
-      });
+      expect(patch.tools?.exec?.ask).toBe("always");
+      expect(patch.tools?.deny).toEqual([]);
+      expect(patch.tools?.allow).toEqual([]);
+      expect(patch.agents?.defaults?.sandbox?.mode).toBe("non-main");
     });
 
     it("should handle save error gracefully", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-      (ipc.config.set as Mock).mockRejectedValue(new Error("Save failed"));
+      mockDraft.applyPatch.mockRejectedValueOnce(new Error("Save failed"));
 
-      const { setAccessMode } = useToolsStore.getState();
-      await setAccessMode("deny");
+      await useToolsStore.getState().setAccessMode("deny");
 
-      // State should still be updated locally
       expect(useToolsStore.getState().config.accessMode).toBe("deny");
-      expect(consoleSpy).toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
+      expect(mockToolsLog.error).toHaveBeenCalledWith(
+        "Failed to save access mode:",
+        expect.any(Error),
+      );
     });
   });
 
   describe("enableTool", () => {
     it("should enable a tool", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
-      const { enableTool } = useToolsStore.getState();
-      await enableTool("database");
+      await useToolsStore.getState().enableTool("database");
 
       const state = useToolsStore.getState();
       const dbTool = state.tools.find((t) => t.id === "database");
@@ -263,26 +303,17 @@ describe("ToolsStore", () => {
     });
 
     it("should add tool to allow list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
-      const { enableTool } = useToolsStore.getState();
-      await enableTool("database");
-
+      await useToolsStore.getState().enableTool("database");
       expect(useToolsStore.getState().config.allowList).toContain("database");
     });
 
     it("should remove tool from deny list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
       useToolsStore.setState({
         ...initialState,
         config: { ...initialState.config, denyList: ["database", "media"] },
       });
 
-      const { enableTool } = useToolsStore.getState();
-      await enableTool("database");
+      await useToolsStore.getState().enableTool("database");
 
       const state = useToolsStore.getState();
       expect(state.config.denyList).not.toContain("database");
@@ -290,43 +321,30 @@ describe("ToolsStore", () => {
     });
 
     it("should not duplicate in allow list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
       useToolsStore.setState({
         ...initialState,
         config: { ...initialState.config, allowList: ["database"] },
       });
 
-      const { enableTool } = useToolsStore.getState();
-      await enableTool("database");
+      await useToolsStore.getState().enableTool("database");
 
       const allowList = useToolsStore.getState().config.allowList;
       expect(allowList.filter((id) => id === "database")).toHaveLength(1);
     });
 
     it("should persist config", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
+      await useToolsStore.getState().enableTool("database");
 
-      const { enableTool } = useToolsStore.getState();
-      await enableTool("database");
-
-      expect(ipc.config.set).toHaveBeenCalledWith({
-        tools: expect.objectContaining({
-          allow: expect.arrayContaining(["database"]),
-        }),
-      });
+      expect(mockDraft.applyPatch).toHaveBeenCalledTimes(1);
+      const patch = getLastPersistPatch();
+      expect(patch.tools?.allow).toEqual(expect.arrayContaining(["database"]));
+      expect(patch.tools?.deny).not.toContain("database");
     });
   });
 
   describe("disableTool", () => {
     it("should disable a tool", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
-      const { disableTool } = useToolsStore.getState();
-      await disableTool("fs");
+      await useToolsStore.getState().disableTool("fs");
 
       const state = useToolsStore.getState();
       const fsTool = state.tools.find((t) => t.id === "fs");
@@ -334,26 +352,17 @@ describe("ToolsStore", () => {
     });
 
     it("should add tool to deny list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
-      const { disableTool } = useToolsStore.getState();
-      await disableTool("fs");
-
+      await useToolsStore.getState().disableTool("fs");
       expect(useToolsStore.getState().config.denyList).toContain("fs");
     });
 
     it("should remove tool from allow list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
       useToolsStore.setState({
         ...initialState,
         config: { ...initialState.config, allowList: ["fs", "web"] },
       });
 
-      const { disableTool } = useToolsStore.getState();
-      await disableTool("fs");
+      await useToolsStore.getState().disableTool("fs");
 
       const state = useToolsStore.getState();
       expect(state.config.allowList).not.toContain("fs");
@@ -361,16 +370,12 @@ describe("ToolsStore", () => {
     });
 
     it("should not duplicate in deny list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
       useToolsStore.setState({
         ...initialState,
         config: { ...initialState.config, denyList: ["fs"] },
       });
 
-      const { disableTool } = useToolsStore.getState();
-      await disableTool("fs");
+      await useToolsStore.getState().disableTool("fs");
 
       const denyList = useToolsStore.getState().config.denyList;
       expect(denyList.filter((id) => id === "fs")).toHaveLength(1);
@@ -379,67 +384,42 @@ describe("ToolsStore", () => {
 
   describe("toggleSandbox", () => {
     it("should enable sandbox", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
       useToolsStore.setState({
         ...initialState,
         config: { ...initialState.config, sandboxEnabled: false },
       });
 
-      const { toggleSandbox } = useToolsStore.getState();
-      await toggleSandbox(true);
-
+      await useToolsStore.getState().toggleSandbox(true);
       expect(useToolsStore.getState().config.sandboxEnabled).toBe(true);
     });
 
     it("should disable sandbox", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
-      const { toggleSandbox } = useToolsStore.getState();
-      await toggleSandbox(false);
-
+      await useToolsStore.getState().toggleSandbox(false);
       expect(useToolsStore.getState().config.sandboxEnabled).toBe(false);
     });
 
     it("should persist config", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
+      await useToolsStore.getState().toggleSandbox(false);
 
-      const { toggleSandbox } = useToolsStore.getState();
-      await toggleSandbox(false);
-
-      expect(ipc.config.set).toHaveBeenCalledWith({
-        tools: expect.objectContaining({
-          sandbox: { enabled: false },
-        }),
-      });
+      expect(mockDraft.applyPatch).toHaveBeenCalledTimes(1);
+      const patch = getLastPersistPatch();
+      expect(patch.agents?.defaults?.sandbox?.mode).toBe("off");
     });
   });
 
   describe("addToAllowList", () => {
     it("should add tool to allow list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
-      const { addToAllowList } = useToolsStore.getState();
-      await addToAllowList("database");
-
+      await useToolsStore.getState().addToAllowList("database");
       expect(useToolsStore.getState().config.allowList).toContain("database");
     });
 
     it("should remove from deny list if present", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
       useToolsStore.setState({
         ...initialState,
         config: { ...initialState.config, denyList: ["database"] },
       });
 
-      const { addToAllowList } = useToolsStore.getState();
-      await addToAllowList("database");
+      await useToolsStore.getState().addToAllowList("database");
 
       const state = useToolsStore.getState();
       expect(state.config.allowList).toContain("database");
@@ -447,43 +427,29 @@ describe("ToolsStore", () => {
     });
 
     it("should not add if already in allow list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
       useToolsStore.setState({
         ...initialState,
         config: { ...initialState.config, allowList: ["database"] },
       });
 
-      const { addToAllowList } = useToolsStore.getState();
-      await addToAllowList("database");
-
-      expect(ipc.config.set).not.toHaveBeenCalled();
+      await useToolsStore.getState().addToAllowList("database");
+      expect(mockDraft.applyPatch).not.toHaveBeenCalled();
     });
   });
 
   describe("addToDenyList", () => {
     it("should add tool to deny list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
-      const { addToDenyList } = useToolsStore.getState();
-      await addToDenyList("fs");
-
+      await useToolsStore.getState().addToDenyList("fs");
       expect(useToolsStore.getState().config.denyList).toContain("fs");
     });
 
     it("should remove from allow list if present", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
       useToolsStore.setState({
         ...initialState,
         config: { ...initialState.config, allowList: ["fs"] },
       });
 
-      const { addToDenyList } = useToolsStore.getState();
-      await addToDenyList("fs");
+      await useToolsStore.getState().addToDenyList("fs");
 
       const state = useToolsStore.getState();
       expect(state.config.denyList).toContain("fs");
@@ -491,33 +457,24 @@ describe("ToolsStore", () => {
     });
 
     it("should not add if already in deny list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
       useToolsStore.setState({
         ...initialState,
         config: { ...initialState.config, denyList: ["fs"] },
       });
 
-      const { addToDenyList } = useToolsStore.getState();
-      await addToDenyList("fs");
-
-      expect(ipc.config.set).not.toHaveBeenCalled();
+      await useToolsStore.getState().addToDenyList("fs");
+      expect(mockDraft.applyPatch).not.toHaveBeenCalled();
     });
   });
 
   describe("removeFromAllowList", () => {
     it("should remove tool from allow list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
       useToolsStore.setState({
         ...initialState,
         config: { ...initialState.config, allowList: ["fs", "web"] },
       });
 
-      const { removeFromAllowList } = useToolsStore.getState();
-      await removeFromAllowList("fs");
+      await useToolsStore.getState().removeFromAllowList("fs");
 
       const allowList = useToolsStore.getState().config.allowList;
       expect(allowList).not.toContain("fs");
@@ -527,16 +484,12 @@ describe("ToolsStore", () => {
 
   describe("removeFromDenyList", () => {
     it("should remove tool from deny list", async () => {
-      const { ipc } = await import("@/lib/ipc");
-      (ipc.config.set as Mock).mockResolvedValue(undefined);
-
       useToolsStore.setState({
         ...initialState,
         config: { ...initialState.config, denyList: ["database", "media"] },
       });
 
-      const { removeFromDenyList } = useToolsStore.getState();
-      await removeFromDenyList("database");
+      await useToolsStore.getState().removeFromDenyList("database");
 
       const denyList = useToolsStore.getState().config.denyList;
       expect(denyList).not.toContain("database");
@@ -547,14 +500,12 @@ describe("ToolsStore", () => {
   describe("selectors", () => {
     it("selectTools should return all tools", async () => {
       const { selectTools } = await import("../index");
-
       const tools = selectTools(useToolsStore.getState());
       expect(tools).toHaveLength(5);
     });
 
     it("selectToolsConfig should return config", async () => {
       const { selectToolsConfig } = await import("../index");
-
       const config = selectToolsConfig(useToolsStore.getState());
       expect(config.accessMode).toBe("auto");
       expect(config.sandboxEnabled).toBe(true);
@@ -572,10 +523,7 @@ describe("ToolsStore", () => {
 
     it("selectEnabledTools should return only enabled tools", async () => {
       const { selectEnabledTools } = await import("../index");
-
       const enabledTools = selectEnabledTools(useToolsStore.getState());
-
-      // Default: fs, web, bash are enabled; database, media are disabled
       expect(enabledTools).toHaveLength(3);
       expect(enabledTools.map((t) => t.id)).toContain("fs");
       expect(enabledTools.map((t) => t.id)).toContain("web");
@@ -595,14 +543,12 @@ describe("ToolsStore", () => {
     it("selectIsLoading should return loading state", async () => {
       const { selectIsLoading } = await import("../index");
       useToolsStore.setState({ ...initialState, isLoading: true });
-
       expect(selectIsLoading(useToolsStore.getState())).toBe(true);
     });
 
     it("selectError should return error", async () => {
       const { selectError } = await import("../index");
       useToolsStore.setState({ ...initialState, error: "Test error" });
-
       expect(selectError(useToolsStore.getState())).toBe("Test error");
     });
   });

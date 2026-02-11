@@ -20,7 +20,7 @@ export function AgentCapabilities() {
             <CardDescription>{t("agents.sections.capabilities.description")}</CardDescription>
           </div>
           <Button variant="outline" size="sm" asChild>
-            <a href="#/tools">{t("agents.actions.manageTools")}</a>
+            <a href="#/settings?tab=config&section=tools">{t("agents.actions.manageTools")}</a>
           </Button>
         </div>
       </CardHeader>

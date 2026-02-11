@@ -79,10 +79,18 @@ export function buildAgentsExportPayload(params: {
     { id: "cron.run", kind: "rpc", method: "cron.run", params: { id: "<jobId>", mode: "force" } },
     { id: "cron.remove", kind: "rpc", method: "cron.remove", params: { id: "<jobId>" } },
     { id: "cron.runs", kind: "rpc", method: "cron.runs", params: { id: "<jobId>", limit: 50 } },
-    { id: "navigate.plugins", kind: "navigate", href: "#/plugins" },
-    { id: "navigate.mcp", kind: "navigate", href: "#/mcp" },
-    { id: "navigate.channels", kind: "navigate", href: "#/channels" },
-    { id: "navigate.tools", kind: "navigate", href: "#/tools" },
+    {
+      id: "navigate.plugins",
+      kind: "navigate",
+      href: "#/settings?tab=config&section=plugins",
+    },
+    { id: "navigate.mcp", kind: "navigate", href: "#/settings?tab=config&section=mcp" },
+    {
+      id: "navigate.channels",
+      kind: "navigate",
+      href: "#/settings?tab=config&section=channels",
+    },
+    { id: "navigate.tools", kind: "navigate", href: "#/settings?tab=config&section=tools" },
   ];
 
   return {

@@ -44,9 +44,11 @@ describe("buildAgentsExportPayload", () => {
     expect(payload.operations.some((op) => op.kind === "rpc" && op.method === "cron.list")).toBe(
       true,
     );
-    expect(payload.operations.some((op) => op.kind === "navigate" && op.href === "#/plugins")).toBe(
-      true,
-    );
+    expect(
+      payload.operations.some(
+        (op) => op.kind === "navigate" && op.href === "#/settings?tab=config&section=plugins",
+      ),
+    ).toBe(true);
     expect(payload.notes.openclawConfigPath).toBe("/Users/me/.openclaw/openclaw.json");
   });
 });

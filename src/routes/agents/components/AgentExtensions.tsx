@@ -22,10 +22,12 @@ export function AgentExtensions() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
-              <a href="#/plugins">{t("agents.actions.managePlugins")}</a>
+              <a href="#/settings?tab=config&section=plugins">
+                {t("agents.actions.managePlugins")}
+              </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <a href="#/mcp">{t("agents.actions.manageMcp")}</a>
+              <a href="#/settings?tab=config&section=mcp">{t("agents.actions.manageMcp")}</a>
             </Button>
           </div>
         </div>

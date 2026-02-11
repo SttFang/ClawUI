@@ -15,4 +15,7 @@ export {
   ChainOfActionTrigger,
   ChainOfActionContent,
   ChainOfActionShimmer,
+  ChainOfActionSteps,
+  ChainOfActionStep,
+  type ChainOfActionStatus,
 } from "./chain-of-action";

@@ -67,4 +67,7 @@ export {
   ChainOfActionTrigger,
   ChainOfActionContent,
   ChainOfActionShimmer,
+  ChainOfActionSteps,
+  ChainOfActionStep,
+  type ChainOfActionStatus,
 } from "./ai-elements";

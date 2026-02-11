@@ -13,13 +13,12 @@ function contentHashHint(content: unknown): string {
   if (content == null) return '0'
   const source = typeof content === 'string' ? content : JSON.stringify(content)
   if (!source) return '0'
-  const text = source.slice(0, 64)
   let hash = 0x811c9dc5
-  for (let i = 0; i < text.length; i += 1) {
-    hash ^= text.charCodeAt(i)
+  for (let i = 0; i < source.length; i += 1) {
+    hash ^= source.charCodeAt(i)
     hash = Math.imul(hash, 0x01000193)
   }
-  return (hash >>> 0).toString(36)
+  return `${(hash >>> 0).toString(36)}:${source.length.toString(36)}`
 }
 
 function resolveStableMessageId(record: Record<string, unknown>, role: UIMessage['role'], index: number): string {
@@ -89,6 +88,7 @@ function extractToolResultText(block: ContentBlock): string | undefined {
 
 export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[] {
   const input = Array.isArray(rawMessages) ? rawMessages : []
+  const idSeenCount = new Map<string, number>()
 
   return input
     .map((m, idx): UIMessage | null => {
@@ -99,7 +99,10 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
       const role =
         roleRaw === 'user' || roleRaw === 'assistant' || roleRaw === 'system' ? roleRaw : null
       if (!role) return null
-      const msgId = resolveStableMessageId(record, role, idx)
+      const rawMsgId = resolveStableMessageId(record, role, idx)
+      const seenCount = idSeenCount.get(rawMsgId) ?? 0
+      idSeenCount.set(rawMsgId, seenCount + 1)
+      const msgId = seenCount === 0 ? rawMsgId : `${rawMsgId}:${seenCount + 1}`
 
       const contentBlocks = coerceContentBlocks(record.content)
 

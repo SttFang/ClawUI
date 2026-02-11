@@ -77,6 +77,14 @@ export function createOpenClawChatStream(params: {
         return Date.now() - lastApprovalActivityAt <= APPROVAL_ALIAS_WINDOW_MS
       }
 
+      const isStaleAgentEvent = (ts: unknown) => {
+        if (typeof ts !== 'number') return false
+        if (!Number.isFinite(ts)) return false
+        if (streamStartedAt <= 0) return false
+        // Drop events clearly older than current stream start, preventing cross-run/session pollution.
+        return ts + 1000 < streamStartedAt
+      }
+
       const isContinuationSnapshotEvent = (evt: OpenClawChatEvent) => {
         if (currentText.length === 0) return false
         if (evt.state !== 'delta' && evt.state !== 'final') return false
@@ -369,8 +377,7 @@ export function createOpenClawChatStream(params: {
         // Preferred source remains `chat.delta/final`. But when some providers/runs
         // only emit assistant stream (or chat stream is delayed after approvals),
         // use assistant text as a fallback to avoid "approved but no visible reply".
-        const approvalRecovery = hasRecentApprovalActivity()
-        if (hasSeenClientChatEvent && !approvalRecovery) return
+        if (hasSeenClientChatEvent) return
 
         const text = typeof assistantData?.text === 'string' ? assistantData.text : ''
         if (!text) return
@@ -380,8 +387,7 @@ export function createOpenClawChatStream(params: {
         assistantFallbackTimer = setTimeout(() => {
           assistantFallbackTimer = null
           if (!pendingAssistantText) return
-          const stillInApprovalRecovery = hasRecentApprovalActivity()
-          if (hasSeenClientChatEvent && !stillInApprovalRecovery) return
+          if (hasSeenClientChatEvent) return
 
           const fallbackText = pendingAssistantText
           pendingAssistantText = null
@@ -400,10 +406,9 @@ export function createOpenClawChatStream(params: {
             if (delta) controller.enqueue({ type: 'text-delta', id: textPartId, delta })
             return
           }
-
-          if (fallbackText.length < currentText.length) return
-          currentText += fallbackText
-          controller.enqueue({ type: 'text-delta', id: textPartId, delta: fallbackText })
+          // Ambiguous divergence: do not append blind chunks, otherwise old/stale runs can
+          // pollute the current assistant message.
+          return
         }, 300)
       }
 
@@ -598,6 +603,7 @@ export function createOpenClawChatStream(params: {
           if (!payload.data || typeof payload.data !== 'object') return
           // Some agent events include sessionKey; if present, use it to avoid cross-session pollution.
           if (typeof payload.sessionKey === 'string' && payload.sessionKey !== sessionKey) return
+          if (isStaleAgentEvent(payload.ts)) return
 
           if (payload.stream === 'tool') {
             handleToolEvent(payload, payload.data as unknown as OpenClawToolEventData)

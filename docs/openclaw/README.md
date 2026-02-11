@@ -11,6 +11,7 @@
 - `docs/openclaw/session-management.md`：SessionKey/SessionId、存储路径、Gateway 会话方法与 UI 对接建议
 - `docs/openclaw/control-ui-nodes.md`：Control UI 的 `/nodes` 页面管理什么、对应 RPC/schema、配对与权限策略
 - `docs/openclaw/persistence-and-policies.md`：身份/渠道/权限/拓展/定时任务/skills 的落盘 schema 与迁移/写入策略
+- `docs/openclaw/dashboard-pages-config-breakdown.md`：Control UI 13 个页面与配置读写拆分（逐页）
 
 ## 来源
 

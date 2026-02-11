@@ -1,5 +1,4 @@
 import type { UIMessage } from "ai";
-import { BrainIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExecActionItem, ExecCompletedSummary, ToolEventCard } from "@/components/A2UI";
@@ -19,8 +18,7 @@ function ThinkingIndicator(props: { isStreaming: boolean; duration: number | und
 
   if (isStreaming || duration === 0) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-label="thinking">
-        <BrainIcon className="size-4" />
+      <div className="text-muted-foreground" aria-label="thinking">
         <span className="claw-text-shimmer">{t("thinking.active")}</span>
       </div>
     );
@@ -30,8 +28,7 @@ function ThinkingIndicator(props: { isStreaming: boolean; duration: number | und
     duration === undefined ? t("thinking.doneShort") : t("thinking.done", { seconds: duration });
 
   return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-label="thinking">
-      <BrainIcon className="size-4" />
+    <div className="text-muted-foreground" aria-label="thinking">
       <span>{label}</span>
     </div>
   );

@@ -1,63 +1,17 @@
 import { useChat } from "@ai-sdk/react";
-import { createOpenClawChatTransport, openclawTranscriptToUIMessages } from "@clawui/claw-sse";
+import { createOpenClawChatTransport } from "@clawui/claw-sse";
 import { Button } from "@clawui/ui";
 import { MessageSquare } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StickToBottom } from "use-stick-to-bottom";
-import { ipc } from "@/lib/ipc";
-import { chatLog } from "@/lib/logger";
 import { cn } from "@/lib/utils";
-import { useExecApprovalsStore } from "@/store/execApprovals";
+import { useOpenClawHistorySync } from "@/services/chat/useOpenClawHistorySync";
 import { ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
 import { AssistantMessageItem } from "./AssistantMessageItem";
-import {
-  APPROVAL_RECOVERY_FOLLOWUPS_MS,
-  shouldRefreshHistoryOnHeartbeat,
-} from "./historyRefreshPolicy";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
 import { UserMessageItem } from "./UserMessageItem";
-
-function safeJsonLength(value: unknown): number {
-  try {
-    return JSON.stringify(value).length;
-  } catch {
-    return 0;
-  }
-}
-
-function buildHistoryFingerprint(
-  messages: Array<{ id?: string; role?: string; parts?: unknown }>,
-): string {
-  const tail = messages.slice(-2);
-  const normalized = tail.map((message) => {
-    const parts = Array.isArray(message.parts) ? message.parts : [];
-    return {
-      id: message.id ?? "",
-      role: message.role ?? "",
-      parts: parts.map((part) => {
-        if (!part || typeof part !== "object") return { type: "unknown" };
-        const p = part as Record<string, unknown>;
-        const type = typeof p.type === "string" ? p.type : "unknown";
-        if (type === "text") {
-          return { type, text: typeof p.text === "string" ? p.text : "" };
-        }
-        if (type === "dynamic-tool") {
-          return {
-            type,
-            toolCallId: typeof p.toolCallId === "string" ? p.toolCallId : "",
-            state: typeof p.state === "string" ? p.state : "",
-            inputLen: safeJsonLength(p.input ?? null),
-            outputLen: safeJsonLength(p.output ?? null),
-          };
-        }
-        return { type };
-      }),
-    };
-  });
-  return `${messages.length}:${JSON.stringify(normalized)}`;
-}
 
 export function OpenClawChatPanel(props: {
   sessionKey: string | null;
@@ -80,22 +34,12 @@ export function OpenClawChatPanel(props: {
 
   const chat = useChat({ id: effectiveSessionKey, transport });
   const [input, setInput] = useState("");
-  const historyInFlightRef = useRef(false);
-  const lastHistoryAtRef = useRef(0);
-  const lastHistorySigRef = useRef<string>("");
-  const pendingRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const approvalRecoveryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const lastHandledApprovalIdRef = useRef<string | null>(null);
-  const setMessagesRef = useRef(chat.setMessages);
-  const lastResolvedApproval = useExecApprovalsStore(
-    (s) => s.lastResolvedBySession[normalizedSessionKey],
-  );
 
-  useEffect(() => {
-    // `useChat().setMessages` 在某些版本/实现里可能不是稳定引用，
-    // 这里用 ref 避免 `refreshHistory` 因依赖变化导致的 effect 重跑刷屏。
-    setMessagesRef.current = chat.setMessages;
-  }, [chat.setMessages]);
+  useOpenClawHistorySync({
+    sessionKey: normalizedSessionKey,
+    hasSession,
+    setMessages: chat.setMessages,
+  });
 
   const isBusy = chat.status === "submitted" || chat.status === "streaming";
   const activeAssistantMessageId = useMemo(() => {
@@ -106,193 +50,6 @@ export function OpenClawChatPanel(props: {
     }
     return null;
   }, [chat.messages, chat.status]);
-
-  const refreshHistory = useCallback(
-    async (options?: { force?: boolean; reason?: string }) => {
-      const force = options?.force === true;
-      const reason = options?.reason ?? "unknown";
-      if (!hasSession || !normalizedSessionKey) return;
-
-      if (historyInFlightRef.current) {
-        if (!pendingRefreshTimerRef.current) {
-          pendingRefreshTimerRef.current = setTimeout(() => {
-            pendingRefreshTimerRef.current = null;
-            void refreshHistory({ force: true, reason: "inflight-retry" });
-          }, 250);
-        }
-        return;
-      }
-
-      const now = Date.now();
-      // 防止 chat.final/lifecycle 等短时间重复事件导致 Gateway 压力，但终态刷新可强制穿透。
-      if (!force && now - lastHistoryAtRef.current < 800) {
-        if (!pendingRefreshTimerRef.current) {
-          pendingRefreshTimerRef.current = setTimeout(() => {
-            pendingRefreshTimerRef.current = null;
-            void refreshHistory({ force: true, reason: "throttle-retry" });
-          }, 850);
-        }
-        return;
-      }
-
-      lastHistoryAtRef.current = now;
-      historyInFlightRef.current = true;
-      try {
-        const connected = await ipc.chat.isConnected();
-        if (!connected) {
-          const ok = await ipc.chat.connect();
-          if (!ok) return;
-        }
-        const res = (await ipc.chat.request("chat.history", {
-          sessionKey: normalizedSessionKey,
-          limit: 200,
-        })) as { messages?: unknown };
-        const uiMessages = openclawTranscriptToUIMessages(res?.messages);
-
-        // Avoid re-render loops: only update local state if the tail signature changed.
-        const sig = buildHistoryFingerprint(uiMessages);
-        const changed = sig !== lastHistorySigRef.current;
-        if (changed || force) {
-          lastHistorySigRef.current = sig;
-          setMessagesRef.current(uiMessages);
-        }
-        chatLog.info(
-          "[chat.history.refresh]",
-          `session=${normalizedSessionKey}`,
-          `reason=${reason}`,
-          `force=${force}`,
-          `changed=${changed}`,
-          `count=${uiMessages.length}`,
-        );
-      } catch (error) {
-        chatLog.warn(
-          "[chat.history.refresh.failed]",
-          `session=${normalizedSessionKey}`,
-          `reason=${reason}`,
-          error instanceof Error ? error.message : String(error),
-        );
-      } finally {
-        historyInFlightRef.current = false;
-      }
-    },
-    [hasSession, normalizedSessionKey],
-  );
-
-  useEffect(() => {
-    lastHistoryAtRef.current = 0;
-    lastHistorySigRef.current = "";
-    historyInFlightRef.current = false;
-    lastHandledApprovalIdRef.current = null;
-    if (pendingRefreshTimerRef.current) {
-      clearTimeout(pendingRefreshTimerRef.current);
-      pendingRefreshTimerRef.current = null;
-    }
-    for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
-    approvalRecoveryTimersRef.current = [];
-  }, [normalizedSessionKey]);
-
-  useEffect(() => {
-    return () => {
-      if (pendingRefreshTimerRef.current) {
-        clearTimeout(pendingRefreshTimerRef.current);
-        pendingRefreshTimerRef.current = null;
-      }
-      for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
-      approvalRecoveryTimersRef.current = [];
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!hasSession || !normalizedSessionKey) return;
-    const resolved = lastResolvedApproval;
-    if (!resolved?.id) return;
-    if (lastHandledApprovalIdRef.current === resolved.id) return;
-
-    lastHandledApprovalIdRef.current = resolved.id;
-    for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
-    approvalRecoveryTimersRef.current = [];
-
-    void refreshHistory({ force: true, reason: "approval-resolved-immediate" });
-    for (const delayMs of APPROVAL_RECOVERY_FOLLOWUPS_MS) {
-      const timer = setTimeout(() => {
-        void refreshHistory({ force: true, reason: `approval-resolved-followup-${delayMs}` });
-      }, delayMs);
-      approvalRecoveryTimersRef.current.push(timer);
-    }
-  }, [hasSession, lastResolvedApproval, normalizedSessionKey, refreshHistory]);
-
-  // OpenClaw Control UI: chat.final 到达后用 history 作为权威状态刷新（避免 delta/agent 流丢字段）。
-  useEffect(() => {
-    if (!hasSession) return;
-    void refreshHistory({ force: true, reason: "session-init" });
-  }, [hasSession, refreshHistory]);
-
-  useEffect(() => {
-    if (!hasSession || !normalizedSessionKey) return;
-    return ipc.gateway.onEvent((frame) => {
-      if (frame.type !== "event") return;
-
-      if (frame.event === "heartbeat") {
-        const state = useExecApprovalsStore.getState();
-        if (
-          shouldRefreshHistoryOnHeartbeat({
-            sessionKey: normalizedSessionKey,
-            queue: state.queue,
-            runningByKey: state.runningByKey,
-          })
-        ) {
-          void refreshHistory({ force: true, reason: "heartbeat" });
-        }
-        return;
-      }
-
-      if (frame.event === "chat") {
-        const payload = frame.payload as { sessionKey?: unknown; state?: unknown } | undefined;
-        if (!payload || typeof payload !== "object") return;
-        if (payload.sessionKey !== normalizedSessionKey) return;
-        if (payload.state === "final" || payload.state === "aborted" || payload.state === "error") {
-          useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
-          void refreshHistory({ force: true, reason: `chat-${String(payload.state)}` });
-        }
-        return;
-      }
-
-      if (frame.event === "agent") {
-        const payload = frame.payload as {
-          sessionKey?: unknown;
-          stream?: unknown;
-          data?: unknown;
-        } | null;
-        if (!payload || typeof payload !== "object") return;
-        if (payload.sessionKey !== normalizedSessionKey) return;
-        if (payload.stream !== "lifecycle") return;
-        const data =
-          payload.data && typeof payload.data === "object"
-            ? (payload.data as { phase?: unknown })
-            : null;
-        const phase = typeof data?.phase === "string" ? data.phase : "";
-        if (phase === "end" || phase === "error") {
-          useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
-          void refreshHistory({ reason: `lifecycle-${phase}` });
-        }
-      }
-    });
-  }, [hasSession, normalizedSessionKey, refreshHistory]);
-
-  useEffect(() => {
-    if (!hasSession || !normalizedSessionKey) return;
-    return ipc.chat.onNormalizedEvent((event) => {
-      if (event.sessionKey !== normalizedSessionKey) return;
-      if (
-        event.kind === "run.completed" ||
-        event.kind === "run.failed" ||
-        event.kind === "run.aborted"
-      ) {
-        useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
-        void refreshHistory({ force: true, reason: event.kind });
-      }
-    });
-  }, [hasSession, normalizedSessionKey, refreshHistory]);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -308,10 +65,10 @@ export function OpenClawChatPanel(props: {
       >
         <StickToBottom.Content className="mx-auto flex w-full max-w-3xl flex-col gap-4">
           {chat.messages.length === 0 ? (
-            <div className="text-center text-muted-foreground py-12">
-              <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <div className="py-12 text-center text-muted-foreground">
+              <MessageSquare className="mx-auto mb-4 h-12 w-12 opacity-50" />
               <p>{t("emptyTitle")}</p>
-              <p className="text-sm mt-2">
+              <p className="mt-2 text-sm">
                 {isGatewayRunning
                   ? wsConnected
                     ? t("emptyHintConnected")

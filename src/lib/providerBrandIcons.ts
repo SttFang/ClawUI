@@ -4,6 +4,7 @@ import googleBardIcon from "@iconify/icons-logos/google-bard-icon";
 import googleIcon from "@iconify/icons-logos/google-icon";
 import microsoftIcon from "@iconify/icons-logos/microsoft-icon";
 import openaiIcon from "@iconify/icons-logos/openai-icon";
+import { OpenClaw } from "@lobehub/icons";
 import OpenRouter from "@lobehub/icons/es/OpenRouter";
 import { SiAnthropic, SiMeta } from "react-icons/si";
 import { createIconifyBrandIcon, type BrandIcon } from "@/lib/iconifyBrandIcon";
@@ -13,6 +14,7 @@ const PROVIDER_ICONS: Record<string, BrandIcon> = {
   openai: createIconifyBrandIcon(openaiIcon),
   "openai-codex": createIconifyBrandIcon(openaiIcon),
   openrouter: OpenRouter, // no SimpleIcons logo in react-icons (as of 2026-02-10)
+  openclaw: OpenClaw.Color,
   google: createIconifyBrandIcon(googleIcon),
   gemini: createIconifyBrandIcon(googleBardIcon),
   meta: SiMeta, // Meta logo is typically monochrome/1-color

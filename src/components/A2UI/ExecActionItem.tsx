@@ -7,7 +7,11 @@ import {
 } from "@clawui/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
+import {
+  getPendingApprovalsForSession,
+  makeExecApprovalKey,
+  useExecApprovalsStore,
+} from "@/store/execApprovals";
 import { deriveExecActionState } from "./execActionState";
 import { isExecPreliminary, upsertExecTrace } from "./execTrace";
 
@@ -28,31 +32,38 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
   const trace = upsertExecTrace(part, sessionKey);
   const parsed = parseExecInput(part.input);
   const command = parsed.command || trace.command;
+  const normalizedSessionKey = sessionKey ?? "";
 
   const queue = useExecApprovalsStore((s) => s.queue);
+  const pendingApprovals = useMemo(
+    () => getPendingApprovalsForSession(queue, normalizedSessionKey),
+    [queue, normalizedSessionKey],
+  );
   const runningByKey = useExecApprovalsStore((s) => s.runningByKey);
 
-  const approvalRequested = useMemo(
-    () =>
-      Boolean(
-        command &&
-        queue.some(
-          (e) => e.request.sessionKey === (sessionKey ?? "") && e.request.command === command,
-        ),
-      ),
-    [command, queue, sessionKey],
-  );
+  const currentApproval = useMemo(() => {
+    if (!command) return null;
+    return pendingApprovals.find((entry) => entry.request.command === command) ?? null;
+  }, [command, pendingApprovals]);
 
-  const runningKey = command ? makeExecApprovalKey(sessionKey, command) : "";
+  const approvalRequested = Boolean(currentApproval);
+
+  const runningKey = command ? makeExecApprovalKey(normalizedSessionKey, command) : "";
   const runningAtMs = runningKey ? runningByKey[runningKey] : 0;
   const visualState = deriveExecActionState({
     partState:
-      part.state === "input-streaming" || part.state === "output-available"
+      part.state === "input-streaming" ||
+      part.state === "output-available" ||
+      part.state === "output-error"
         ? part.state
         : "input-available",
     preliminary: part.state === "output-available" ? isExecPreliminary(part) : false,
     approvalRequested,
-    runningMarked: Boolean(runningAtMs),
+    runningMarked: Boolean(runningAtMs) && trace.status !== "completed" && trace.status !== "error",
+    hasFinalOutput:
+      (part.state === "output-available" && !isExecPreliminary(part)) ||
+      trace.status === "completed",
+    hasError: part.state === "output-error" || trace.status === "error",
   });
 
   useEffect(() => {
@@ -61,12 +72,18 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
     }
   }, [approvalRequested, visualState.running]);
 
-  const statusLabel =
-    visualState.statusKey === "waitingApproval"
-      ? t("a2ui.toolState.waitingApproval")
-      : visualState.statusKey === "running"
-        ? t("a2ui.toolState.running")
-        : t("a2ui.toolState.pending");
+  let statusLabel = t("a2ui.toolState.pending");
+  if (visualState.statusKey === "waitingApproval") {
+    statusLabel = t("a2ui.toolState.waitingApproval");
+  } else if (visualState.statusKey === "running") {
+    statusLabel = t("a2ui.toolState.running");
+  } else if (visualState.statusKey === "completed") {
+    statusLabel = t("a2ui.execAction.statusDone");
+  } else if (visualState.statusKey === "error") {
+    statusLabel = t("a2ui.execAction.statusError");
+  }
+
+  const approvalShortId = currentApproval ? currentApproval.id.slice(-8) : "";
 
   return (
     <ChainOfAction className="overflow-hidden">
@@ -74,6 +91,7 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
         title={command || "exec"}
         status={visualState.status}
         statusLabel={statusLabel}
+        meta={approvalShortId ? `#${approvalShortId}` : undefined}
         expanded={expanded}
         onToggle={() => setExpanded((v) => !v)}
       />

@@ -8,6 +8,8 @@ describe("deriveExecActionState", () => {
       preliminary: false,
       approvalRequested: false,
       runningMarked: false,
+      hasFinalOutput: false,
+      hasError: false,
     });
     expect(state.statusKey).toBe("pending");
     expect(state.running).toBe(false);
@@ -19,6 +21,8 @@ describe("deriveExecActionState", () => {
       preliminary: false,
       approvalRequested: true,
       runningMarked: false,
+      hasFinalOutput: false,
+      hasError: false,
     });
     expect(state.statusKey).toBe("waitingApproval");
     expect(state.status).toBe("waiting_approval");
@@ -30,8 +34,36 @@ describe("deriveExecActionState", () => {
       preliminary: true,
       approvalRequested: false,
       runningMarked: false,
+      hasFinalOutput: false,
+      hasError: false,
     });
     expect(state.statusKey).toBe("running");
     expect(state.running).toBe(true);
+  });
+
+  it("final output should win over running mark", () => {
+    const state = deriveExecActionState({
+      partState: "output-available",
+      preliminary: false,
+      approvalRequested: false,
+      runningMarked: true,
+      hasFinalOutput: true,
+      hasError: false,
+    });
+    expect(state.statusKey).toBe("completed");
+    expect(state.running).toBe(false);
+  });
+
+  it("error should win over running mark", () => {
+    const state = deriveExecActionState({
+      partState: "output-error",
+      preliminary: false,
+      approvalRequested: false,
+      runningMarked: true,
+      hasFinalOutput: false,
+      hasError: true,
+    });
+    expect(state.statusKey).toBe("error");
+    expect(state.running).toBe(false);
   });
 });

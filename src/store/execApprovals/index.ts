@@ -22,6 +22,12 @@ export type ExecApprovalRequest = {
   expiresAtMs: number;
 };
 
+type LastResolvedApproval = {
+  id: string;
+  decision: ExecApprovalDecision;
+  atMs: number;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -56,16 +62,30 @@ function parseExecApprovalRequested(payload: unknown): ExecApprovalRequest | nul
   };
 }
 
-function parseExecApprovalResolved(payload: unknown): { id: string } | null {
+function parseExecApprovalResolved(payload: unknown): {
+  id: string;
+  decision: ExecApprovalDecision | null;
+  atMs: number;
+} | null {
   if (!isRecord(payload)) return null;
   const id = typeof payload.id === "string" ? payload.id.trim() : "";
   if (!id) return null;
-  return { id };
+  const decisionRaw = payload.decision;
+  const decision: ExecApprovalDecision | null =
+    decisionRaw === "allow-once" || decisionRaw === "allow-always" || decisionRaw === "deny"
+      ? decisionRaw
+      : null;
+  const ts = typeof payload.ts === "number" ? payload.ts : Date.now();
+  return { id, decision, atMs: ts };
 }
 
 function prune(queue: ExecApprovalRequest[]): ExecApprovalRequest[] {
   const now = Date.now();
   return queue.filter((e) => e.expiresAtMs > now);
+}
+
+function normalizeSessionKey(value: string | null | undefined): string {
+  return (value ?? "").trim();
 }
 
 export function makeExecApprovalKey(
@@ -81,6 +101,7 @@ interface ExecApprovalsState {
   queue: ExecApprovalRequest[];
   busyById: Record<string, boolean>;
   runningByKey: Record<string, number>;
+  lastResolvedBySession: Record<string, LastResolvedApproval>;
 }
 
 interface ExecApprovalsActions {
@@ -99,12 +120,14 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
       queue: [],
       busyById: {},
       runningByKey: {},
+      lastResolvedBySession: {},
 
       add: (entry) =>
         set(
           (s) => {
             const next = prune(s.queue).filter((x) => x.id !== entry.id);
             next.push(entry);
+            next.sort((a, b) => b.createdAtMs - a.createdAtMs);
             return { queue: next };
           },
           false,
@@ -123,7 +146,7 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
       clearRunning: (sessionKey, command) =>
         set(
           (s) => {
-            const key = makeExecApprovalKey(sessionKey, command);
+            const key = makeExecApprovalKey(normalizeSessionKey(sessionKey), command);
             if (!s.runningByKey[key]) return s;
             const { [key]: _ignored, ...rest } = s.runningByKey;
             return { ...s, runningByKey: rest };
@@ -135,7 +158,7 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
       clearRunningForSession: (sessionKey) =>
         set(
           (s) => {
-            const prefix = `${sessionKey ?? ""}::`;
+            const prefix = `${normalizeSessionKey(sessionKey)}::`;
             const next = Object.fromEntries(
               Object.entries(s.runningByKey).filter(([key]) => !key.startsWith(prefix)),
             );
@@ -147,36 +170,44 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
         ),
 
       resolve: async (id, decision) => {
+        const snapshot = useExecApprovalsStore.getState();
+        const current = snapshot.queue.find((x) => x.id === id) ?? null;
+        const sessionKey = normalizeSessionKey(current?.request.sessionKey);
+        const command = current?.request.command?.trim() ?? "";
+        const runningKey = command ? makeExecApprovalKey(sessionKey, command) : "";
+
         // If user allows an exec, mark it as running immediately (tool output may arrive later).
-        if (decision === "allow-once" || decision === "allow-always") {
-          const current = useExecApprovalsStore.getState().queue.find((x) => x.id === id) ?? null;
-          if (current) {
-            const key = makeExecApprovalKey(current.request.sessionKey, current.request.command);
-            const atMs = Date.now();
-            set(
-              (s) => ({ runningByKey: { ...s.runningByKey, [key]: atMs } }),
+        if ((decision === "allow-once" || decision === "allow-always") && runningKey) {
+          const atMs = Date.now();
+          set(
+            (s) => ({ runningByKey: { ...s.runningByKey, [runningKey]: atMs } }),
+            false,
+            "resolve/markRunning",
+          );
+          // Best-effort TTL cleanup to avoid stale "running" states.
+          window.setTimeout(() => {
+            useExecApprovalsStore.setState(
+              (s) => {
+                const ts = s.runningByKey[runningKey];
+                if (!ts) return s;
+                if (Date.now() - ts < EXEC_RUNNING_TTL_MS) return s;
+                const { [runningKey]: _ignored, ...rest } = s.runningByKey;
+                return { ...s, runningByKey: rest };
+              },
               false,
-              "resolve/markRunning",
+              "resolve/markRunning/ttl",
             );
-            // Best-effort TTL cleanup to avoid stale "running" states.
-            window.setTimeout(() => {
-              useExecApprovalsStore.setState(
-                (s) => {
-                  const ts = s.runningByKey[key];
-                  if (!ts) return s;
-                  if (Date.now() - ts < EXEC_RUNNING_TTL_MS) return s;
-                  const { [key]: _ignored, ...rest } = s.runningByKey;
-                  return { ...s, runningByKey: rest };
-                },
-                false,
-                "resolve/markRunning/ttl",
-              );
-            }, EXEC_RUNNING_TTL_MS + 1000);
-          }
+          }, EXEC_RUNNING_TTL_MS + 1000);
         }
+
         set((s) => ({ busyById: { ...s.busyById, [id]: true } }), false, "resolve/busy");
+
+        let resolvedAtMs = Date.now();
+        let requestOk = false;
         try {
           await ipc.chat.request("exec.approval.resolve", { id, decision });
+          requestOk = true;
+          resolvedAtMs = Date.now();
         } finally {
           set(
             (s) => {
@@ -187,6 +218,36 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
             "resolve/done",
           );
         }
+
+        if (!requestOk) return;
+
+        set(
+          (s) => {
+            const nextQueue = prune(s.queue).filter((x) => x.id !== id);
+
+            let nextRunningByKey = s.runningByKey;
+            if (decision === "deny" && runningKey && nextRunningByKey[runningKey]) {
+              const { [runningKey]: _ignored, ...rest } = nextRunningByKey;
+              nextRunningByKey = rest;
+            }
+
+            let nextLastResolved = s.lastResolvedBySession;
+            if (sessionKey) {
+              nextLastResolved = {
+                ...s.lastResolvedBySession,
+                [sessionKey]: { id, decision, atMs: resolvedAtMs },
+              };
+            }
+
+            return {
+              queue: nextQueue,
+              runningByKey: nextRunningByKey,
+              lastResolvedBySession: nextLastResolved,
+            };
+          },
+          false,
+          "resolve/commit",
+        );
       },
     }),
     { name: "ExecApprovalsStore" },
@@ -197,11 +258,43 @@ export const useExecApprovalsStore = create<ExecApprovalsStore>()(
 export const selectQueue = (state: ExecApprovalsStore) => state.queue;
 export const selectBusyById = (state: ExecApprovalsStore) => state.busyById;
 export const selectRunningByKey = (state: ExecApprovalsStore) => state.runningByKey;
+export const selectLastResolvedBySession = (state: ExecApprovalsStore) =>
+  state.lastResolvedBySession;
+
+export function getPendingApprovalsForSession(
+  queue: ExecApprovalRequest[],
+  sessionKey: string | null | undefined,
+): ExecApprovalRequest[] {
+  const normalized = normalizeSessionKey(sessionKey);
+  if (!normalized) return [];
+  const active = prune(queue);
+  const filtered = active.filter(
+    (entry) => normalizeSessionKey(entry.request.sessionKey) === normalized,
+  );
+  return [...filtered].sort((a, b) => b.createdAtMs - a.createdAtMs);
+}
+
+export function selectPendingBySession(
+  state: ExecApprovalsStore,
+  sessionKey: string | null | undefined,
+): ExecApprovalRequest[] {
+  return getPendingApprovalsForSession(state.queue, sessionKey);
+}
+
+export function selectLatestBySession(
+  state: ExecApprovalsStore,
+  sessionKey: string | null | undefined,
+): ExecApprovalRequest | null {
+  return getPendingApprovalsForSession(state.queue, sessionKey)[0] ?? null;
+}
 
 export const execApprovalsSelectors = {
   selectQueue,
   selectBusyById,
   selectRunningByKey,
+  selectLastResolvedBySession,
+  selectPendingBySession,
+  selectLatestBySession,
 };
 
 let listenerInitialized = false;
@@ -227,7 +320,65 @@ export function initExecApprovalsListener() {
     if (evt.event === "exec.approval.resolved") {
       const resolved = parseExecApprovalResolved(evt.payload);
       if (!resolved) return;
-      useExecApprovalsStore.getState().remove(resolved.id);
+      useExecApprovalsStore.setState(
+        (s) => {
+          const currentQueue = prune(s.queue);
+          const current = currentQueue.find((entry) => entry.id === resolved.id) ?? null;
+          const nextQueue = currentQueue.filter((entry) => entry.id !== resolved.id);
+
+          let nextRunningByKey = s.runningByKey;
+          const command = current?.request.command?.trim() ?? "";
+          const sessionKey = normalizeSessionKey(current?.request.sessionKey);
+          if (resolved.decision === "deny" && command) {
+            const runningKey = makeExecApprovalKey(sessionKey, command);
+            if (nextRunningByKey[runningKey]) {
+              const { [runningKey]: _ignored, ...rest } = nextRunningByKey;
+              nextRunningByKey = rest;
+            }
+          }
+
+          let nextLastResolved = s.lastResolvedBySession;
+          if (sessionKey && resolved.decision) {
+            nextLastResolved = {
+              ...s.lastResolvedBySession,
+              [sessionKey]: {
+                id: resolved.id,
+                decision: resolved.decision,
+                atMs: resolved.atMs,
+              },
+            };
+          }
+
+          return {
+            queue: nextQueue,
+            runningByKey: nextRunningByKey,
+            lastResolvedBySession: nextLastResolved,
+          };
+        },
+        false,
+        "listener/resolved",
+      );
+      return;
+    }
+
+    if (evt.event === "agent" && isRecord(evt.payload)) {
+      const payload = evt.payload as Record<string, unknown>;
+      if (payload.stream !== "tool") return;
+      const data = isRecord(payload.data) ? (payload.data as Record<string, unknown>) : null;
+      if (!data) return;
+      const toolName = typeof data.name === "string" ? data.name.trim() : "";
+      if (toolName !== "exec") return;
+      const phase = typeof data.phase === "string" ? data.phase : "";
+      const isTerminal = phase === "result" || phase === "error" || phase === "end";
+      if (!isTerminal) return;
+      const sessionKey = normalizeSessionKey(
+        typeof payload.sessionKey === "string" ? payload.sessionKey : null,
+      );
+      if (!sessionKey) return;
+      const args = isRecord(data.args) ? (data.args as Record<string, unknown>) : null;
+      const command = typeof args?.command === "string" ? args.command.trim() : "";
+      if (!command) return;
+      useExecApprovalsStore.getState().clearRunning(sessionKey, command);
     }
   });
 }

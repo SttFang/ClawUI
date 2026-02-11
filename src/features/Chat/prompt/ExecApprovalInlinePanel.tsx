@@ -2,16 +2,11 @@ import { Card, CardContent } from "@clawui/ui";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { useExecApprovalsStore, type ExecApprovalDecision } from "@/store/execApprovals";
-
-type ApprovalEntry = ReturnType<typeof useExecApprovalsStore.getState>["queue"][number];
-
-function pickApprovalForSession(queue: ApprovalEntry[], sessionKey: string): ApprovalEntry | null {
-  if (queue.length === 0) return null;
-  const normalized = sessionKey.trim();
-  if (!normalized) return queue[0] ?? null;
-  return queue.find((entry) => entry.request.sessionKey === normalized) ?? queue[0] ?? null;
-}
+import {
+  getPendingApprovalsForSession,
+  useExecApprovalsStore,
+  type ExecApprovalDecision,
+} from "@/store/execApprovals";
 
 /** Extract the first line (up to 50 chars) as a command prefix hint. */
 function commandPrefix(command: string): string {
@@ -21,8 +16,11 @@ function commandPrefix(command: string): string {
 
 export function useHasPendingExecApproval(sessionKey: string): boolean {
   const queue = useExecApprovalsStore((s) => s.queue);
-  const current = useMemo(() => pickApprovalForSession(queue, sessionKey), [queue, sessionKey]);
-  return Boolean(current);
+  const normalizedSessionKey = sessionKey.trim();
+  return useMemo(
+    () => getPendingApprovalsForSession(queue, normalizedSessionKey).length > 0,
+    [queue, normalizedSessionKey],
+  );
 }
 
 const DECISIONS: ExecApprovalDecision[] = ["allow-once", "allow-always", "deny"];
@@ -30,19 +28,26 @@ const DECISIONS: ExecApprovalDecision[] = ["allow-once", "allow-always", "deny"]
 export function ExecApprovalInlinePanel(props: { sessionKey: string; className?: string }) {
   const { t } = useTranslation("common");
   const { sessionKey, className } = props;
+  const normalizedSessionKey = sessionKey.trim();
   const queue = useExecApprovalsStore((s) => s.queue);
+  const pendingForSession = useMemo(
+    () => getPendingApprovalsForSession(queue, normalizedSessionKey),
+    [queue, normalizedSessionKey],
+  );
+  const current = pendingForSession[0] ?? null;
   const busyById = useExecApprovalsStore((s) => s.busyById);
+  const lastResolved = useExecApprovalsStore((s) => s.lastResolvedBySession[normalizedSessionKey]);
   const resolve = useExecApprovalsStore((s) => s.resolve);
-  const remove = useExecApprovalsStore((s) => s.remove);
-
-  const current = useMemo(() => pickApprovalForSession(queue, sessionKey), [queue, sessionKey]);
   const busy = current ? busyById[current.id] === true : false;
+  const pendingCount = pendingForSession.length;
+  const remainingCount = Math.max(0, pendingCount - 1);
+  const shortId = current ? current.id.slice(-8) : "";
+  const resolvedShortId = lastResolved?.id.slice(-8) ?? "";
 
   const onDecision = async (decision: ExecApprovalDecision) => {
     if (!current || busy) return;
     try {
       await resolve(current.id, decision);
-      remove(current.id);
     } catch {
       // keep pending entry for retry
     }
@@ -75,6 +80,12 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
           <div className="text-xs text-muted-foreground">{current.request.ask}</div>
         )}
 
+        {lastResolved ? (
+          <div className="text-xs text-muted-foreground">
+            {t("execApproval.description", { id: resolvedShortId || lastResolved.id })}
+          </div>
+        ) : null}
+
         {/* Security warning */}
         {current.request.security && (
           <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-900 dark:text-amber-200">
@@ -83,7 +94,13 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
         )}
 
         {/* Compact metadata */}
-        {meta && <div className="text-xs text-muted-foreground">{meta}</div>}
+        <div className="text-xs text-muted-foreground">
+          {meta ? `${meta} · ` : ""}
+          {t("execApproval.description", { id: shortId || current.id })}
+        </div>
+        {remainingCount > 0 ? (
+          <div className="text-xs text-muted-foreground">+ {remainingCount} pending approvals</div>
+        ) : null}
 
         {/* Command code block */}
         <pre className="max-h-28 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs leading-tight">

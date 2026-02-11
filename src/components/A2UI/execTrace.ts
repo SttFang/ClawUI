@@ -1,5 +1,4 @@
 import type { DynamicToolUIPart, UIMessage } from "ai";
-import { useExecApprovalsStore } from "@/store/execApprovals";
 
 export type ExecTraceStatus = "waiting" | "running" | "completed" | "error";
 
@@ -46,6 +45,9 @@ export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): E
   const now = Date.now();
   const existing = traceCache.get(traceKey);
   const command = getCommand(part.input);
+  const incomingFinal =
+    part.state === "output-error" ||
+    (part.state === "output-available" && !isExecPreliminary(part));
 
   const base: ExecTrace = existing ?? {
     traceKey,
@@ -61,6 +63,20 @@ export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): E
     command: command || base.command,
   };
 
+  // Guard against out-of-order events. Once a trace reaches terminal status,
+  // ignore subsequent non-terminal updates for the same toolCallId.
+  if (existing && (existing.status === "completed" || existing.status === "error")) {
+    if (!incomingFinal) return existing;
+    if (existing.status === "completed" && part.state === "output-error") return existing;
+    if (
+      existing.status === "error" &&
+      part.state === "output-available" &&
+      !isExecPreliminary(part)
+    ) {
+      return existing;
+    }
+  }
+
   if (part.state === "input-available" || part.state === "input-streaming") {
     next.status = "running";
     next.startedAtMs = base.startedAtMs || now;
@@ -72,18 +88,12 @@ export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): E
       next.endedAtMs = base.endedAtMs ?? now;
       next.durationMs = Math.max(0, next.endedAtMs - next.startedAtMs);
       next.output = part.output;
-      if (next.command) {
-        useExecApprovalsStore.getState().clearRunning(next.sessionKey, next.command);
-      }
     }
   } else if (part.state === "output-error") {
     next.status = "error";
     next.endedAtMs = base.endedAtMs ?? now;
     next.durationMs = Math.max(0, next.endedAtMs - next.startedAtMs);
     next.errorText = part.errorText;
-    if (next.command) {
-      useExecApprovalsStore.getState().clearRunning(next.sessionKey, next.command);
-    }
   }
 
   traceCache.set(traceKey, next);

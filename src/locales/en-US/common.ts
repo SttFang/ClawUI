@@ -414,6 +414,7 @@ const common = {
       description: "Configure your ClawUI preferences",
       tabs: {
         general: "General",
+        config: "Config Center",
         api: "Models & Auth",
         tokens: "Channels & Tokens",
         gateway: "Gateway",

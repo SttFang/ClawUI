@@ -27,19 +27,19 @@ const router = createHashRouter([
       { path: "agents", element: <AgentsPage /> },
       {
         path: "channels",
-        element: <Navigate to="/settings?tab=tokens&section=channels" replace />,
+        element: <Navigate to="/settings?tab=config&section=channels" replace />,
       },
       {
         path: "tools",
-        element: <Navigate to="/settings?tab=security&section=tools" replace />,
+        element: <Navigate to="/settings?tab=config&section=tools" replace />,
       },
       {
         path: "mcp",
-        element: <Navigate to="/settings?tab=security&section=mcp" replace />,
+        element: <Navigate to="/settings?tab=config&section=mcp" replace />,
       },
       {
         path: "plugins",
-        element: <Navigate to="/settings?tab=security&section=plugins" replace />,
+        element: <Navigate to="/settings?tab=config&section=plugins" replace />,
       },
       { path: "scheduler", element: <Navigate to="/agents?section=cron" replace /> },
       { path: "usage", element: <UsagePage /> },

@@ -7,6 +7,7 @@ import { useSecretsStore } from "@/store/secrets";
 import { useSettingsStore } from "@/store/settings";
 import { AboutTab } from "./AboutTab";
 import { ApiTab } from "./ApiTab";
+import { ConfigTab } from "./config/ConfigTab";
 import { GatewayTab } from "./GatewayTab";
 import { GeneralTab } from "./GeneralTab";
 import { SecurityTab } from "./SecurityTab";
@@ -14,6 +15,7 @@ import { TokensTab } from "./TokensTab";
 
 const SETTINGS_TABS = [
   "general",
+  "config",
   "api",
   "tokens",
   "gateway",
@@ -30,8 +32,8 @@ function isSettingsTab(value: string | null): value is SettingsTab {
 
 function resolveTabFromSection(section: string | null): SettingsTab {
   if (!section) return "general";
-  if (section === "channels") return "tokens";
-  if (section === "tools" || section === "mcp" || section === "plugins") return "security";
+  if (section === "channels" || section === "tools" || section === "mcp" || section === "plugins")
+    return "config";
   return "general";
 }
 
@@ -75,6 +77,7 @@ export default function SettingsPage() {
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="mb-4">
             <TabsTrigger value="general">{t("settings.page.tabs.general")}</TabsTrigger>
+            <TabsTrigger value="config">{t("settings.page.tabs.config")}</TabsTrigger>
             <TabsTrigger value="api">{t("settings.page.tabs.api")}</TabsTrigger>
             <TabsTrigger value="tokens">{t("settings.page.tabs.tokens")}</TabsTrigger>
             <TabsTrigger value="gateway">{t("settings.page.tabs.gateway")}</TabsTrigger>
@@ -85,6 +88,9 @@ export default function SettingsPage() {
 
           <TabsContent value="general">
             <GeneralTab />
+          </TabsContent>
+          <TabsContent value="config">
+            <ConfigTab activeSection={sectionParam} />
           </TabsContent>
           <TabsContent value="api">
             <ApiTab />

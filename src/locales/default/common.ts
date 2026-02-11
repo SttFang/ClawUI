@@ -412,6 +412,7 @@ const common = {
       description: "配置你的 ClawUI 偏好",
       tabs: {
         general: "通用",
+        config: "配置中心",
         api: "模型与认证",
         tokens: "渠道与 Token",
         gateway: "网关",

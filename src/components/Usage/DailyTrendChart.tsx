@@ -27,6 +27,21 @@ interface DailyTrendChartProps {
 const DATA_KEYS = ["output", "input", "cacheWrite", "cacheRead"] as const;
 const BAR_SIZE = 26;
 
+/** Compute cumulative y-values so connectors land on stacked bar top vertices. */
+function addStackTops<T extends Record<string, unknown>>(row: T) {
+  const o = Number(row.output) || 0;
+  const i = Number(row.input) || 0;
+  const cw = Number(row.cacheWrite) || 0;
+  const cr = Number(row.cacheRead) || 0;
+  return {
+    ...row,
+    output_top: o,
+    input_top: o + i,
+    cacheWrite_top: o + i + cw,
+    cacheRead_top: o + i + cw + cr,
+  };
+}
+
 function formatDateByGranularity(dateStr: string, granularity: Granularity): string {
   const d = new Date(dateStr);
   switch (granularity) {
@@ -106,10 +121,12 @@ function BarEdgeConnectorShape(props: any & { barSize: number }) {
           return null;
         }
 
+        const dx = (x2 - x1) * 0.2;
+
         return (
           <path
             key={i}
-            d={`M ${x1} ${y1} L ${x2} ${y2}`}
+            d={`M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`}
             stroke={stroke}
             strokeWidth={width}
             strokeDasharray={dash}
@@ -184,15 +201,17 @@ export function DailyTrendChart({
 
   const chartData = useMemo(() => {
     if (granularity === "month") {
-      return aggregateByMonth(data, mode, locale);
+      return aggregateByMonth(data, mode, locale).map(addStackTops);
     }
-    return data.map((d) => ({
-      date: formatDateByGranularity(d.date, granularity),
-      output: mode === "cost" ? d.outputCost : d.output,
-      input: mode === "cost" ? d.inputCost : d.input,
-      cacheWrite: mode === "cost" ? d.cacheWriteCost : d.cacheWrite,
-      cacheRead: mode === "cost" ? d.cacheReadCost : d.cacheRead,
-    }));
+    return data
+      .map((d) => ({
+        date: formatDateByGranularity(d.date, granularity),
+        output: mode === "cost" ? d.outputCost : d.output,
+        input: mode === "cost" ? d.inputCost : d.input,
+        cacheWrite: mode === "cost" ? d.cacheWriteCost : d.cacheWrite,
+        cacheRead: mode === "cost" ? d.cacheReadCost : d.cacheRead,
+      }))
+      .map(addStackTops);
   }, [data, mode, granularity, locale]);
 
   const stats = useMemo(
@@ -285,12 +304,12 @@ export function DailyTrendChart({
                 radius={key === "cacheRead" ? [2, 2, 0, 0] : undefined}
               />
             ))}
-            {/* Dashed connectors: from right edge of current bar -> left edge of next bar */}
+            {/* Dashed connectors: from right-top vertex of current bar to left-top vertex of next bar */}
             {DATA_KEYS.map((key) => (
               <Line
                 key={`line-${key}`}
                 type="monotone"
-                dataKey={key}
+                dataKey={`${key}_top`}
                 stroke={`var(--color-${key})`}
                 strokeWidth={1.5}
                 strokeDasharray="4 3"

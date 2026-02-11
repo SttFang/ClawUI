@@ -12,6 +12,10 @@ import { useExecApprovalsStore } from "@/store/execApprovals";
 import { ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
 import { AssistantMessageItem } from "./AssistantMessageItem";
+import {
+  APPROVAL_RECOVERY_FOLLOWUPS_MS,
+  shouldRefreshHistoryOnHeartbeat,
+} from "./historyRefreshPolicy";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
 import { UserMessageItem } from "./UserMessageItem";
 
@@ -209,8 +213,7 @@ export function OpenClawChatPanel(props: {
     approvalRecoveryTimersRef.current = [];
 
     void refreshHistory({ force: true, reason: "approval-resolved-immediate" });
-    const followUps = [500, 1500, 3000, 6000];
-    for (const delayMs of followUps) {
+    for (const delayMs of APPROVAL_RECOVERY_FOLLOWUPS_MS) {
       const timer = setTimeout(() => {
         void refreshHistory({ force: true, reason: `approval-resolved-followup-${delayMs}` });
       }, delayMs);
@@ -228,6 +231,21 @@ export function OpenClawChatPanel(props: {
     if (!hasSession || !normalizedSessionKey) return;
     return ipc.gateway.onEvent((frame) => {
       if (frame.type !== "event") return;
+
+      if (frame.event === "heartbeat") {
+        const state = useExecApprovalsStore.getState();
+        if (
+          shouldRefreshHistoryOnHeartbeat({
+            sessionKey: normalizedSessionKey,
+            queue: state.queue,
+            runningByKey: state.runningByKey,
+          })
+        ) {
+          void refreshHistory({ force: true, reason: "heartbeat" });
+        }
+        return;
+      }
+
       if (frame.event === "chat") {
         const payload = frame.payload as { sessionKey?: unknown; state?: unknown } | undefined;
         if (!payload || typeof payload !== "object") return;

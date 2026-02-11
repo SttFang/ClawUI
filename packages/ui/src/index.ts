@@ -29,6 +29,14 @@ export {
 } from "./dialog";
 export { Select, type SelectProps } from "./select";
 export {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+  type CollapsibleProps,
+  type CollapsibleTriggerProps,
+  type CollapsibleContentProps,
+} from "./collapsible";
+export {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
@@ -70,4 +78,14 @@ export {
   ChainOfActionSteps,
   ChainOfActionStep,
   type ChainOfActionStatus,
+  Task,
+  TaskTrigger,
+  TaskContent,
+  TaskItem,
+  TaskItemFile,
+  type TaskProps,
+  type TaskTriggerProps,
+  type TaskContentProps,
+  type TaskItemProps,
+  type TaskItemFileProps,
 } from "./ai-elements";

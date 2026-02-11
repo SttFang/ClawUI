@@ -12,6 +12,35 @@ import { ipc } from "@/lib/ipc";
 import { useChatStore, selectCurrentSession, selectSessions } from "@/store/chat";
 import { useGatewayStore, selectIsGatewayRunning } from "@/store/gateway";
 
+function hasConfiguredModelAuth(modelsStatus: unknown): boolean {
+  if (!modelsStatus || typeof modelsStatus !== "object") return false;
+
+  const auth = (modelsStatus as { auth?: unknown }).auth;
+  if (!auth || typeof auth !== "object") return false;
+
+  const providers = (auth as { providers?: unknown[] }).providers;
+  if (Array.isArray(providers)) {
+    const hasEffectiveProvider = providers.some((p) => {
+      if (!p || typeof p !== "object") return false;
+      const kind = (p as { effective?: { kind?: unknown } }).effective?.kind;
+      return kind === "env" || kind === "profiles" || kind === "token";
+    });
+    if (hasEffectiveProvider) return true;
+  }
+
+  const oauthProviders =
+    (auth as { oauth?: { providers?: unknown[] } }).oauth?.providers ??
+    (auth as { oauthStatus?: { providers?: unknown[] } }).oauthStatus?.providers;
+  if (Array.isArray(oauthProviders)) {
+    return oauthProviders.some((p) => {
+      if (!p || typeof p !== "object") return false;
+      return (p as { status?: unknown }).status === "ok";
+    });
+  }
+
+  return false;
+}
+
 export default function ChatLayout() {
   const navigate = useNavigate();
   const sessions = useChatStore(selectSessions);
@@ -38,7 +67,6 @@ export default function ChatLayout() {
 
   const [configValid, setConfigValid] = useState<boolean | null>(null);
   const [showBanner, setShowBanner] = useState(true);
-  const [didLoadSessions, setDidLoadSessions] = useState(false);
   const [sessionFilter, setSessionFilter] = useState<SessionFilter>("ui");
   const [sessionMetadata, setSessionMetadata] = useState<Record<string, ClawUISessionMetadata>>({});
   const [metaBusyByKey, setMetaBusyByKey] = useState<Record<string, boolean>>({});
@@ -53,12 +81,6 @@ export default function ChatLayout() {
       .map((s) => ({ id: s.id, name: s.name, updatedAt: s.updatedAt, surface: s.surface }));
   }, [sessions, sessionFilter]);
 
-  const hasAnyUiSession = useMemo(() => {
-    return sessions.some(
-      (s) => classifySession({ sessionKey: s.id, surface: s.surface }).source === "ui",
-    );
-  }, [sessions]);
-
   useEffect(() => {
     // If the current session is hidden by the filter, select the newest visible one.
     const currentId = currentSession?.id;
@@ -69,8 +91,13 @@ export default function ChatLayout() {
   }, [currentSession?.id, visibleSessions, selectSession]);
 
   useEffect(() => {
-    void refreshSessions().finally(() => setDidLoadSessions(true));
+    void refreshSessions();
   }, [refreshSessions]);
+
+  useEffect(() => {
+    if (!wsConnected) return;
+    void refreshSessions();
+  }, [wsConnected, refreshSessions]);
 
   const createGatewayUiSession = useCallback(async (): Promise<string> => {
     const cryptoObj = (globalThis as unknown as { crypto?: Crypto }).crypto;
@@ -92,17 +119,15 @@ export default function ChatLayout() {
   }, [refreshSessions, selectSession]);
 
   useEffect(() => {
-    if (!didLoadSessions) return;
-    // Ensure at least one UI session exists, even if the gateway already has other sessions (discord/cron/etc).
-    if (hasAnyUiSession) return;
-    void createGatewayUiSession().catch(() => {});
-  }, [didLoadSessions, hasAnyUiSession, createGatewayUiSession]);
-
-  useEffect(() => {
     async function checkConfig() {
       try {
-        const status = await ipc.onboarding.detect();
-        setConfigValid(status?.configValid ?? false);
+        const [runtimeStatus, modelsStatus] = await Promise.all([
+          ipc.onboarding.detect(),
+          ipc.models.status(),
+        ]);
+        const validFromRuntime = runtimeStatus?.configValid ?? false;
+        const validFromModels = hasConfiguredModelAuth(modelsStatus);
+        setConfigValid(validFromRuntime || validFromModels);
       } catch {
         setConfigValid(false);
       }
@@ -127,6 +152,14 @@ export default function ChatLayout() {
     }
   };
 
+  const startConversation = useCallback(
+    async (content: string) => {
+      const key = await createGatewayUiSession();
+      await ipc.chat.send({ sessionId: key, message: content });
+    },
+    [createGatewayUiSession],
+  );
+
   return (
     <ChatFeature
       sessions={visibleSessions}
@@ -144,6 +177,7 @@ export default function ChatLayout() {
         setSessionFilter("ui");
         void createGatewayUiSession().catch(() => {});
       }}
+      onStartConversation={startConversation}
       onSelectSession={(id) => selectSession(id)}
       onRenameSession={(id, label) => void renameSession(id, label).catch(() => {})}
       onDeleteSession={(id) => deleteSession(id)}

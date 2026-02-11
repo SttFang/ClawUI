@@ -801,6 +801,15 @@ const common = {
     seq: "seq {{seq}}",
     run: "run {{runId}}",
     statePreliminary: "{{state}} (partial)",
+    execAction: {
+      thinking: "Thinking…",
+      completedSingle: "Task completed in {{seconds}}s",
+      completedMulti: "{{count}} tasks completed in {{seconds}}s",
+      showTrace: "Click to expand execution trace",
+      hideTrace: "Hide execution trace",
+      duration: "Duration {{seconds}}s",
+      noOutput: "No output available",
+    },
     toolState: {
       waitingApproval: "Waiting for approval",
       running: "Running",

@@ -63,4 +63,8 @@ export {
   PromptInputSubmit,
   type PromptInputProps,
   type PromptInputTextareaProps,
+  ChainOfAction,
+  ChainOfActionTrigger,
+  ChainOfActionContent,
+  ChainOfActionShimmer,
 } from "./ai-elements";

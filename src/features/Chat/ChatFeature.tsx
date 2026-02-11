@@ -17,6 +17,7 @@ export function ChatFeature(props: ChatFeatureProps) {
     sessionFilter,
     onSessionFilterChange,
     onCreateSession,
+    onStartConversation,
     onSelectSession,
     onRenameSession,
     onDeleteSession,
@@ -52,6 +53,7 @@ export function ChatFeature(props: ChatFeatureProps) {
           onDismissBanner={onDismissBanner}
           onOneClickConfig={onOneClickConfig}
           onManualConfig={onManualConfig}
+          onStartConversation={onStartConversation}
         />
       }
     />

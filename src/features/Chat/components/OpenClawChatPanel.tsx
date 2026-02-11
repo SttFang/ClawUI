@@ -13,21 +13,25 @@ import { MessageParts } from "./MessageParts";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
 
 export function OpenClawChatPanel(props: {
-  sessionKey: string;
+  sessionKey: string | null;
   wsConnected: boolean;
   isGatewayRunning: boolean;
+  onStartConversation: (content: string) => Promise<void>;
 }) {
-  const { sessionKey, wsConnected, isGatewayRunning } = props;
+  const { sessionKey, wsConnected, isGatewayRunning, onStartConversation } = props;
   const { t } = useTranslation("chat");
   const { t: tCommon } = useTranslation("common");
+  const normalizedSessionKey = sessionKey ?? "";
+  const hasSession = normalizedSessionKey.trim().length > 0;
+  const effectiveSessionKey = hasSession ? normalizedSessionKey : "__draft__";
 
   const adapter = useMemo(() => createRendererOpenClawAdapter(), []);
   const transport = useMemo(
-    () => createOpenClawChatTransport({ sessionKey, adapter }),
-    [sessionKey, adapter],
+    () => createOpenClawChatTransport({ sessionKey: effectiveSessionKey, adapter }),
+    [effectiveSessionKey, adapter],
   );
 
-  const chat = useChat({ id: sessionKey, transport });
+  const chat = useChat({ id: effectiveSessionKey, transport });
   const [input, setInput] = useState("");
   const historyInFlightRef = useRef(false);
   const lastHistoryAtRef = useRef(0);
@@ -43,6 +47,7 @@ export function OpenClawChatPanel(props: {
   const isBusy = chat.status === "submitted" || chat.status === "streaming";
 
   const refreshHistory = useCallback(async () => {
+    if (!hasSession || !normalizedSessionKey) return;
     if (historyInFlightRef.current) return;
     const now = Date.now();
     // 防止 `chat.final`/热重载等情况下短时间内重复刷历史导致刷屏与 Gateway 压力。
@@ -55,9 +60,10 @@ export function OpenClawChatPanel(props: {
         const ok = await ipc.chat.connect();
         if (!ok) return;
       }
-      const res = (await ipc.chat.request("chat.history", { sessionKey, limit: 200 })) as {
-        messages?: unknown;
-      };
+      const res = (await ipc.chat.request("chat.history", {
+        sessionKey: normalizedSessionKey,
+        limit: 200,
+      })) as { messages?: unknown };
       const uiMessages = openclawTranscriptToUIMessages(res?.messages);
 
       // Avoid re-render loops: only update local state if the tail signature changed.
@@ -73,25 +79,27 @@ export function OpenClawChatPanel(props: {
     } finally {
       historyInFlightRef.current = false;
     }
-  }, [sessionKey]);
+  }, [hasSession, normalizedSessionKey]);
 
   // OpenClaw Control UI: chat.final 到达后用 history 作为权威状态刷新（避免 delta/agent 流丢字段）。
   useEffect(() => {
+    if (!hasSession) return;
     void refreshHistory();
-  }, [sessionKey, refreshHistory]);
+  }, [hasSession, refreshHistory]);
 
   useEffect(() => {
+    if (!hasSession || !normalizedSessionKey) return;
     return ipc.gateway.onEvent((frame) => {
       if (frame.type !== "event") return;
       if (frame.event !== "chat") return;
       const payload = frame.payload as { sessionKey?: unknown; state?: unknown } | undefined;
       if (!payload || typeof payload !== "object") return;
-      if (payload.sessionKey !== sessionKey) return;
+      if (payload.sessionKey !== normalizedSessionKey) return;
       if (payload.state === "final") {
         void refreshHistory();
       }
     });
-  }, [sessionKey, refreshHistory]);
+  }, [hasSession, normalizedSessionKey, refreshHistory]);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -136,7 +144,11 @@ export function OpenClawChatPanel(props: {
                   >
                     {isUser ? (
                       <div className="inline-block max-w-full rounded-xl bg-primary px-4 py-3 text-primary-foreground">
-                        <MessageParts message={message} streaming={false} sessionKey={sessionKey} />
+                        <MessageParts
+                          message={message}
+                          streaming={false}
+                          sessionKey={effectiveSessionKey}
+                        />
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -144,7 +156,7 @@ export function OpenClawChatPanel(props: {
                           <MessageParts
                             message={message}
                             streaming={streaming}
-                            sessionKey={sessionKey}
+                            sessionKey={effectiveSessionKey}
                           />
                         </div>
                       </div>
@@ -172,17 +184,22 @@ export function OpenClawChatPanel(props: {
       </StickToBottom>
 
       {/* Input area */}
-      <div className="border-t p-4">
+      <div className="px-4 pt-0 pb-4">
         <ChatComposer
-          sessionKey={sessionKey}
+          sessionKey={hasSession ? normalizedSessionKey : ""}
           value={input}
           onChange={setInput}
           disabled={isBusy || !isGatewayRunning || !wsConnected}
-          sessionControlsDisabled={!isGatewayRunning || !wsConnected}
+          showSessionControls={hasSession}
+          sessionControlsDisabled={!hasSession || !isGatewayRunning || !wsConnected}
           onSubmit={async () => {
             const text = input.trim();
             if (!text || isBusy) return;
             setInput("");
+            if (!hasSession) {
+              await onStartConversation(text);
+              return;
+            }
             await chat.sendMessage({ text });
           }}
         />

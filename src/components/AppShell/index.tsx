@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { ExecApprovalPrompt } from "@/components/ExecApprovalPrompt";
 import { NavRail } from "@/components/NavRail";
 import { TitleBar } from "@/components/TitleBar";
 
@@ -34,10 +33,7 @@ export function AppShell({ children }: AppShellProps) {
         <NavRail />
 
         {/* Main Content */}
-        <main className="relative min-w-0 flex-1 overflow-hidden">
-          {children}
-          <ExecApprovalPrompt />
-        </main>
+        <main className="relative min-w-0 flex-1 overflow-hidden">{children}</main>
       </div>
     </div>
   );

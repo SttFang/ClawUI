@@ -796,6 +796,15 @@ const common = {
     seq: "序号 {{seq}}",
     run: "运行 {{runId}}",
     statePreliminary: "{{state}}（部分）",
+    execAction: {
+      thinking: "思考中…",
+      completedSingle: "已完成任务，耗时{{seconds}}秒",
+      completedMulti: "已完成任务（{{count}}项），总耗时{{seconds}}秒",
+      showTrace: "点击展开任务执行链路",
+      hideTrace: "收起任务执行链路",
+      duration: "耗时 {{seconds}} 秒",
+      noOutput: "无可展示输出",
+    },
     toolState: {
       waitingApproval: "等待你允许",
       running: "执行中",

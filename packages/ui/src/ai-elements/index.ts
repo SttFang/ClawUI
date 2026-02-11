@@ -10,3 +10,9 @@ export {
   type PromptInputProps,
   type PromptInputTextareaProps,
 } from "./prompt-input";
+export {
+  ChainOfAction,
+  ChainOfActionTrigger,
+  ChainOfActionContent,
+  ChainOfActionShimmer,
+} from "./chain-of-action";

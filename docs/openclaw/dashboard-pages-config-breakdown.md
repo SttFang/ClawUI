@@ -39,8 +39,9 @@
 3. `agents`（局部改 `agents.*` / `tools.*`，最终 `config.set`）
 4. `nodes`（局部改 `tools.exec.node` 与 `agents.list.*.tools.exec.node`，最终 `config.set`）
 5. `nodes` 里的 `Exec approvals`（写审批文件，不是 `openclaw.json`）
+6. `skills`（`skills.update` 会写 `skills.entries.*` 到 `openclaw.json`）
 
-不改 `openclaw.json` 的页面：`chat/overview/instances/sessions/usage/cron/skills/debug/logs`（这些页面主要是运行态、统计态或子系统数据管理）。
+不改 `openclaw.json` 的页面：`chat/overview/instances/sessions/usage/cron/debug/logs`（这些页面主要是运行态、统计态或子系统数据管理）。
 
 ### 1.3 Dashboard 配置管理的核心机制
 
@@ -203,7 +204,7 @@
 
 ### RPC / 数据流
 
-- `presence.list`
+- `system-presence`
 
 ### 持久化
 
@@ -446,7 +447,7 @@
 
 ### 持久化
 
-- 主要是技能子系统状态，不直接等同 `openclaw.json` 顶层字段。
+- 会写 `openclaw.json` 的 `skills.entries.<skillKey>.*`（例如 `enabled/apiKey/env`），同时影响技能子系统运行态。
 
 ### 典型风险
 
@@ -562,7 +563,7 @@
 | `plugins` | `plugins.enabled` `plugins.allow/deny` `plugins.entries/installs` | 扩展系统能力，同时可控地引入第三方模块。 | 直接全开插件，无 allow/deny 治理。 | 稳定性和安全边界不可控。 |
 | `cron` | `cron.enabled`（及 jobs 存储） | 让“自动执行”稳定可靠。 | 任务有了但 session/channel 目标没定义清楚。 | 任务执行成功但业务侧“没收到结果”。 |
 | `hooks` | `hooks.enabled` `hooks.path` `hooks.token` | 对接外部事件源（Webhook）。 | 路径开放但鉴权薄弱；token 管理混乱。 | 外部可伪造事件或合法事件进不来。 |
-| `web` | `web.*`（http端点/对外接口策略） | 提供开放接口给外部系统集成。 | 端点启用与鉴权策略不一致。 | 集成方调用失败或接口暴露过度。 |
+| `web` | `web.enabled` `web.heartbeatSeconds` `web.reconnect.*` | 控制 Web 客户端连接稳定性（心跳与重连）。 | 重连参数与网络条件不匹配。 | 频繁断连、恢复慢、用户感知不稳定。 |
 | `discovery` | `discovery.*` | 让节点/能力自动发现，减少手工配置。 | 自动发现范围过宽。 | 引入意外节点，路由不稳定。 |
 | `nodeHost` | `nodeHost.browserProxy.*` | 在 node 侧承载浏览器代理等能力。 | 允许 profile 过宽。 | 节点资源被错误消费，权限扩散。 |
 | `browser` | `browser.enabled` `profiles` `cdpUrl/cdpPort` `headless` | 稳定地提供浏览器自动化能力。 | profile 命名/端口冲突；远程 cdp 超时配置不当。 | 浏览器工具间歇性不可用。 |
@@ -574,7 +575,7 @@
 | `diagnostics` | `diagnostics.flags` `otel.*` `cacheTrace.*` | 深入诊断疑难问题（链路、缓存、性能）。 | 全量常开诊断。 | 性能抖动、日志噪声、排障反而变难。 |
 | `wizard` | `wizard.lastRun*` | 记录引导流程状态。 | 误删或脏状态残留。 | 首次引导重复/跳过，影响部署体验。 |
 | `meta` | `meta.lastTouched*` | 记录配置触达元信息。 | 手工改乱元数据。 | 变更追踪困难。 |
-| `bindings` | `tools.exec.node` `agents.list[].tools.exec.node` | 把不同 agent 的执行流量路由到正确节点。 | 默认绑定和 agent 覆写混乱。 | 任务跑到错误机器，资源和安全边界错位。 |
+| `bindings` | `bindings[].agentId` `bindings[].match.*` | 按渠道/账号/会话对象把流量路由到指定 agent。 | 绑定规则命中条件写错（channel/account/peer）。 | 消息被错误 agent 处理，业务角色串线。 |
 | `audio` / `voicewake` / `presence` | 各自子系统字段 | 音频能力、唤醒策略、在线心跳治理。 | 子系统开关和主链路策略不一致。 | 看起来“开了功能”，实际用户感知不可用。 |
 
 ### 按业务场景快速选 section
@@ -583,7 +584,7 @@
 |---|---|
 | “为什么连接不上/远程控制失败？” | `gateway` `auth` `channels` |
 | “为什么 agent 回答质量突然差了？” | `agents` `models` `memory` |
-| “为什么能聊天但不能执行动作？” | `tools` `commands` `bindings` `nodes` |
+| “为什么能聊天但不能执行动作？” | `tools` `commands` `bindings` `gateway.nodes` `nodeHost` |
 | “为什么消息有时发不出去/重复发？” | `channels` `messages` `cron` |
 | “为什么成本突然升高？” | `models` `memory` `tools.web` `usage`（页面） |
 | “为什么线上偶发错误抓不到？” | `logging` `diagnostics` `debug`（页面） |
@@ -612,7 +613,7 @@
 |---|---|---|---|
 | `channels.<provider>.enabled` | 渠道总开关。 | 上线/下线渠道时。 | 开关开了但 token 未配，表现为“开了也不可用”。 |
 | `channels.<provider>.accounts.*` | 多账号隔离（品牌/业务线/环境）。 | 一个渠道多个机器人账号时。 | token 配在 root 但实际走 account 配置。 |
-| `channels.<provider>.dmPolicy` | 私聊触达策略。 | 要限制陌生触发时。 | 设为 `open` 却没配 `allowFrom=["*"]` 或白名单策略冲突。 |
+| `channels.<provider>.dmPolicy` | 私聊触达策略。 | 要限制陌生触发时。 | 不同 provider 的 `open + allowFrom` 约束不同，直接照搬别的渠道配置导致策略失效。 |
 | `channels.<provider>.groupPolicy` | 群聊触发策略。 | 群里误触发过多时。 | 忘记配 `requireMention`，导致群消息风暴。 |
 | `channels.<provider>.allowFrom` | 白名单用户/来源。 | 合规或灰度阶段。 | 标识格式不统一（平台 ID/手机号混用）。 |
 | `channels.<provider>.retry.*` | 失败重试策略。 | 网络抖动、平台限流时。 | retry 过大导致重复消息和长尾延迟。 |

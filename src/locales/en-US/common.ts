@@ -286,19 +286,45 @@ const common = {
     accessControl: {
       title: "Access control",
       description: "Choose how the AI should request tool permissions",
+      realPolicyHint:
+        "Quick modes map to tools.exec.ask / tools.exec.security, but final behavior is still constrained by allow/deny lists.",
     },
     accessModes: {
       auto: {
         label: "Auto",
-        description: "Automatically allow safe tools",
+        description: "Run automatically under current policy, ask only on policy miss",
       },
       ask: {
         label: "Ask",
-        description: "Ask before using any tool",
+        description: "Always ask for confirmation before tool execution",
       },
       deny: {
         label: "Deny",
-        description: "Deny all tool access by default",
+        description: "Deny by default unless explicitly allowed",
+      },
+    },
+    exec: {
+      title: "Exec configuration",
+      description: "Direct mapping to OpenClaw tools.exec fields",
+      hostLabel: "Execution host (tools.exec.host)",
+      askLabel: "Approval mode (tools.exec.ask)",
+      securityLabel: "Security mode (tools.exec.security)",
+      policyHint:
+        "host/security/ask are evaluated together. Even in auto mode, policy misses may still prompt for approval.",
+      hostOptions: {
+        sandbox: "sandbox: run in sandbox",
+        gateway: "gateway: run on gateway side",
+        node: "node: run in local Node process",
+      },
+      askOptions: {
+        off: "off: no proactive prompt",
+        "on-miss": "on-miss: prompt only when policy misses",
+        always: "always: prompt every time",
+      },
+      securityOptions: {
+        deny: "deny: block by default",
+        allowlist: "allowlist: only allow listed tools",
+        full: "full: fully allow",
       },
     },
     sandbox: {
@@ -306,6 +332,16 @@ const common = {
       description: "Run tools in an isolated environment for added security",
       enableTitle: "Enable sandbox",
       enableDescription: "Recommended for untrusted operations",
+    },
+    policyList: {
+      title: "Policy lists (tools.allow / tools.deny)",
+      description: "Edit the real allow/deny lists directly (comma or newline separated).",
+      allowLabel: "allow list",
+      allowPlaceholder: "e.g. group:runtime, web",
+      denyLabel: "deny list",
+      denyPlaceholder: "e.g. exec, mcp",
+      count: "allow {{allow}}, deny {{deny}}",
+      save: "Save policy lists",
     },
     list: {
       title: "Available tools",

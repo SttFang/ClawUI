@@ -1,4 +1,11 @@
-import type { Tool, ToolAccessMode, ToolsConfig } from "./types";
+import type {
+  ExecAskMode,
+  ExecHostMode,
+  ExecSecurityMode,
+  Tool,
+  ToolAccessMode,
+  ToolsConfig,
+} from "./types";
 
 type JsonObject = Record<string, unknown>;
 
@@ -16,13 +23,50 @@ function readString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
-export function deriveToolAccessMode(tools: JsonObject | null): ToolAccessMode {
-  if (!tools) return "auto";
-  const deny = toStringArray(tools.deny);
+function asExecHost(value: unknown): ExecHostMode | null {
+  if (value === "sandbox" || value === "gateway" || value === "node") return value;
+  return null;
+}
+
+function asExecAsk(value: unknown): ExecAskMode | null {
+  if (value === "off" || value === "on-miss" || value === "always") return value;
+  return null;
+}
+
+function asExecSecurity(value: unknown): ExecSecurityMode | null {
+  if (value === "deny" || value === "allowlist" || value === "full") return value;
+  return null;
+}
+
+export function deriveExecHostMode(tools: JsonObject | null): ExecHostMode {
+  const exec = asRecord(tools?.exec);
+  return asExecHost(exec?.host) ?? "sandbox";
+}
+
+export function deriveExecAskMode(tools: JsonObject | null): ExecAskMode {
+  const exec = asRecord(tools?.exec);
+  return asExecAsk(exec?.ask) ?? "on-miss";
+}
+
+export function deriveExecSecurityMode(
+  tools: JsonObject | null,
+  host: ExecHostMode,
+): ExecSecurityMode {
+  const exec = asRecord(tools?.exec);
+  const configured = asExecSecurity(exec?.security);
+  if (configured) return configured;
+  return host === "sandbox" ? "deny" : "allowlist";
+}
+
+export function deriveToolAccessMode(params: {
+  tools: JsonObject | null;
+  execAsk: ExecAskMode;
+  execSecurity: ExecSecurityMode;
+}): ToolAccessMode {
+  const deny = toStringArray(params.tools?.deny);
   if (deny.includes("*")) return "deny";
-  const exec = asRecord(tools.exec);
-  const ask = readString(exec?.ask);
-  if (ask === "always") return "ask";
+  if (params.execAsk === "always") return "ask";
+  if (params.execAsk === "off" && params.execSecurity === "deny") return "deny";
   return "auto";
 }
 
@@ -46,23 +90,15 @@ export function applyEnabledToTools(tools: Tool[], config: ToolsConfig): Tool[] 
 }
 
 export function buildToolsPersistPatch(config: ToolsConfig): JsonObject {
-  const exec: JsonObject = {};
-  if (config.accessMode === "auto") {
-    exec.ask = "on-miss";
-    exec.security = undefined;
-  } else if (config.accessMode === "ask") {
-    exec.ask = "always";
-    exec.security = undefined;
-  } else {
-    exec.ask = "off";
-    exec.security = "deny";
-  }
-
   return {
     tools: {
       allow: config.allowList,
       deny: config.denyList,
-      exec,
+      exec: {
+        host: config.execHost,
+        ask: config.execAsk,
+        security: config.execSecurity,
+      },
     },
     agents: {
       defaults: {

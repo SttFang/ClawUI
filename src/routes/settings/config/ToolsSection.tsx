@@ -1,23 +1,25 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Switch } from "@clawui/ui";
 import {
-  Shield,
-  ShieldCheck,
-  ShieldQuestion,
-  ShieldX,
-  FileText,
-  Globe,
-  Terminal,
-  Database,
-  Image,
-} from "lucide-react";
-import { useEffect } from "react";
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  Select,
+  Switch,
+} from "@clawui/ui";
+import { Shield, ShieldCheck, ShieldQuestion, ShieldX } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   useToolsStore,
-  selectTools,
   selectAccessMode,
   selectToolsConfig,
   selectIsLoading,
+  type ExecAskMode,
+  type ExecHostMode,
+  type ExecSecurityMode,
   type ToolAccessMode,
 } from "@/store/tools";
 
@@ -27,51 +29,45 @@ const accessModes: { value: ToolAccessMode; icon: React.ReactNode }[] = [
   { value: "deny", icon: <ShieldX className="h-5 w-5" /> },
 ];
 
-const categoryIcons: Record<string, React.ReactNode> = {
-  filesystem: <FileText className="h-5 w-5" />,
-  web: <Globe className="h-5 w-5" />,
-  command: <Terminal className="h-5 w-5" />,
-  database: <Database className="h-5 w-5" />,
-  media: <Image className="h-5 w-5" />,
-};
+const execHostOptions: ExecHostMode[] = ["sandbox", "gateway", "node"];
+const execAskOptions: ExecAskMode[] = ["off", "on-miss", "always"];
+const execSecurityOptions: ExecSecurityMode[] = ["deny", "allowlist", "full"];
+
+function parsePolicyList(value: string): string[] {
+  const entries = value
+    .split(/[\n,]/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return Array.from(new Set(entries));
+}
 
 export function ToolsSection() {
   const { t } = useTranslation("common");
-  const tools = useToolsStore(selectTools);
   const accessMode = useToolsStore(selectAccessMode);
   const config = useToolsStore(selectToolsConfig);
   const isLoading = useToolsStore(selectIsLoading);
 
   const loadTools = useToolsStore((s) => s.loadTools);
   const setAccessMode = useToolsStore((s) => s.setAccessMode);
-  const enableTool = useToolsStore((s) => s.enableTool);
-  const disableTool = useToolsStore((s) => s.disableTool);
+  const setExecHost = useToolsStore((s) => s.setExecHost);
+  const setExecAsk = useToolsStore((s) => s.setExecAsk);
+  const setExecSecurity = useToolsStore((s) => s.setExecSecurity);
+  const setPolicyLists = useToolsStore((s) => s.setPolicyLists);
   const toggleSandbox = useToolsStore((s) => s.toggleSandbox);
+  const [allowInput, setAllowInput] = useState("");
+  const [denyInput, setDenyInput] = useState("");
 
   useEffect(() => {
     void loadTools();
   }, [loadTools]);
 
-  const handleToolToggle = (toolId: string, enabled: boolean) => {
-    if (enabled) {
-      void enableTool(toolId);
-    } else {
-      void disableTool(toolId);
-    }
-  };
+  useEffect(() => {
+    setAllowInput(config.allowList.join(", "));
+    setDenyInput(config.denyList.join(", "));
+  }, [config.allowList, config.denyList]);
 
-  const resolveToolI18nKey = (toolId: string) => {
-    switch (toolId) {
-      case "fs":
-      case "web":
-      case "bash":
-      case "database":
-      case "media":
-        return toolId;
-      default:
-        return null;
-    }
-  };
+  const parsedAllowList = useMemo(() => parsePolicyList(allowInput), [allowInput]);
+  const parsedDenyList = useMemo(() => parsePolicyList(denyInput), [denyInput]);
 
   return (
     <>
@@ -112,6 +108,65 @@ export function ToolsSection() {
               );
             })}
           </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            {t("tools.accessControl.realPolicyHint")}
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle>{t("tools.exec.title")}</CardTitle>
+          <CardDescription>{t("tools.exec.description")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <div className="text-sm font-medium">{t("tools.exec.hostLabel")}</div>
+              <Select
+                value={config.execHost}
+                onChange={(event) => void setExecHost(event.target.value as ExecHostMode)}
+                disabled={isLoading}
+              >
+                {execHostOptions.map((host) => (
+                  <option key={host} value={host}>
+                    {t(`tools.exec.hostOptions.${host}`)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm font-medium">{t("tools.exec.askLabel")}</div>
+              <Select
+                value={config.execAsk}
+                onChange={(event) => void setExecAsk(event.target.value as ExecAskMode)}
+                disabled={isLoading}
+              >
+                {execAskOptions.map((ask) => (
+                  <option key={ask} value={ask}>
+                    {t(`tools.exec.askOptions.${ask}`)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm font-medium">{t("tools.exec.securityLabel")}</div>
+              <Select
+                value={config.execSecurity}
+                onChange={(event) => void setExecSecurity(event.target.value as ExecSecurityMode)}
+                disabled={isLoading}
+              >
+                {execSecurityOptions.map((security) => (
+                  <option key={security} value={security}>
+                    {t(`tools.exec.securityOptions.${security}`)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">{t("tools.exec.policyHint")}</p>
         </CardContent>
       </Card>
 
@@ -138,45 +193,48 @@ export function ToolsSection() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("tools.list.title")}</CardTitle>
-          <CardDescription>{t("tools.list.description")}</CardDescription>
+          <CardTitle>{t("tools.policyList.title")}</CardTitle>
+          <CardDescription>{t("tools.policyList.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {tools.map((tool) => (
-            <div key={tool.id} className="flex items-center justify-between p-4 rounded-lg border">
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-lg bg-muted">
-                  {categoryIcons[tool.category] || <Shield className="h-5 w-5" />}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">
-                      {(() => {
-                        const key = resolveToolI18nKey(tool.id);
-                        return key ? t(`tools.builtins.${key}.name`) : tool.name;
-                      })()}
-                    </span>
-                    {tool.requiresConfirmation && (
-                      <span className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-500">
-                        {t("tools.badge.requiresConfirmation")}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {(() => {
-                      const key = resolveToolI18nKey(tool.id);
-                      return key ? t(`tools.builtins.${key}.description`) : tool.description;
-                    })()}
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={tool.enabled}
-                onCheckedChange={(checked) => handleToolToggle(tool.id, checked)}
-                disabled={isLoading}
-              />
+          <div className="space-y-2">
+            <div className="text-sm font-medium">{t("tools.policyList.allowLabel")}</div>
+            <Input
+              value={allowInput}
+              onChange={(event) => setAllowInput(event.target.value)}
+              placeholder={t("tools.policyList.allowPlaceholder")}
+            />
+            <div className="text-xs text-muted-foreground">
+              {t("tools.policyList.count", {
+                allow: parsedAllowList.length,
+                deny: parsedDenyList.length,
+              })}
             </div>
-          ))}
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-sm font-medium">{t("tools.policyList.denyLabel")}</div>
+            <Input
+              value={denyInput}
+              onChange={(event) => setDenyInput(event.target.value)}
+              placeholder={t("tools.policyList.denyPlaceholder")}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              disabled={isLoading}
+              onClick={() =>
+                void setPolicyLists({
+                  allowList: parsedAllowList,
+                  denyList: parsedDenyList,
+                })
+              }
+            >
+              {t("tools.policyList.save")}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </>

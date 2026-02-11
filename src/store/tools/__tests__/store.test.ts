@@ -36,6 +36,7 @@ type ToolsPersistPatch = {
     allow?: string[];
     deny?: string[];
     exec?: {
+      host?: string;
       ask?: string;
       security?: string;
     };
@@ -99,6 +100,9 @@ const initialState = {
     allowList: [] as string[],
     denyList: [] as string[],
     sandboxEnabled: true,
+    execHost: "sandbox" as const,
+    execAsk: "on-miss" as const,
+    execSecurity: "deny" as const,
   },
   isLoading: false,
   error: null,
@@ -135,7 +139,7 @@ describe("ToolsStore", () => {
           tools: {
             allow: ["fs", "web"],
             deny: ["database"],
-            exec: { ask: "always" },
+            exec: { host: "gateway", ask: "always", security: "allowlist" },
           },
           agents: {
             defaults: {
@@ -152,6 +156,9 @@ describe("ToolsStore", () => {
       expect(state.config.allowList).toEqual(["fs", "web"]);
       expect(state.config.denyList).toEqual(["database"]);
       expect(state.config.sandboxEnabled).toBe(false);
+      expect(state.config.execHost).toBe("gateway");
+      expect(state.config.execAsk).toBe("always");
+      expect(state.config.execSecurity).toBe("allowlist");
       expect(state.isLoading).toBe(false);
       expect(state.error).toBeNull();
     });
@@ -163,7 +170,7 @@ describe("ToolsStore", () => {
           tools: {
             allow: [],
             deny: ["fs", "web"],
-            exec: { ask: "on-miss" },
+            exec: { host: "gateway", ask: "on-miss", security: "allowlist" },
           },
         },
       });
@@ -185,7 +192,7 @@ describe("ToolsStore", () => {
           tools: {
             allow: ["database", "media"],
             deny: [],
-            exec: { ask: "on-miss" },
+            exec: { host: "gateway", ask: "on-miss", security: "allowlist" },
           },
         },
       });
@@ -275,6 +282,7 @@ describe("ToolsStore", () => {
       const patch = getLastPersistPatch();
 
       expect(patch.tools?.exec?.ask).toBe("always");
+      expect(patch.tools?.exec?.security).toBe("allowlist");
       expect(patch.tools?.deny).toEqual([]);
       expect(patch.tools?.allow).toEqual([]);
       expect(patch.agents?.defaults?.sandbox?.mode).toBe("non-main");
@@ -290,6 +298,54 @@ describe("ToolsStore", () => {
         "Failed to save access mode:",
         expect.any(Error),
       );
+    });
+
+    it("should map deny mode to deny/off", async () => {
+      await useToolsStore.getState().setAccessMode("deny");
+      const state = useToolsStore.getState();
+      expect(state.config.execAsk).toBe("off");
+      expect(state.config.execSecurity).toBe("deny");
+    });
+  });
+
+  describe("exec settings", () => {
+    it("setExecHost should persist host", async () => {
+      await useToolsStore.getState().setExecHost("gateway");
+
+      const state = useToolsStore.getState();
+      expect(state.config.execHost).toBe("gateway");
+      const patch = getLastPersistPatch();
+      expect(patch.tools?.exec?.host).toBe("gateway");
+    });
+
+    it("setExecAsk should update access mode", async () => {
+      await useToolsStore.getState().setExecAsk("always");
+      expect(useToolsStore.getState().config.accessMode).toBe("ask");
+    });
+
+    it("setExecSecurity should update access mode", async () => {
+      useToolsStore.setState({
+        ...initialState,
+        config: { ...initialState.config, execAsk: "off", execSecurity: "allowlist" },
+      });
+      await useToolsStore.getState().setExecSecurity("deny");
+      expect(useToolsStore.getState().config.accessMode).toBe("deny");
+    });
+  });
+
+  describe("setPolicyLists", () => {
+    it("should replace allow/deny lists", async () => {
+      await useToolsStore.getState().setPolicyLists({
+        allowList: ["group:runtime"],
+        denyList: ["exec"],
+      });
+
+      const state = useToolsStore.getState();
+      expect(state.config.allowList).toEqual(["group:runtime"]);
+      expect(state.config.denyList).toEqual(["exec"]);
+      const patch = getLastPersistPatch();
+      expect(patch.tools?.allow).toEqual(["group:runtime"]);
+      expect(patch.tools?.deny).toEqual(["exec"]);
     });
   });
 

@@ -283,19 +283,45 @@ const common = {
     accessControl: {
       title: "访问控制",
       description: "选择 AI 如何请求工具权限",
+      realPolicyHint:
+        "快捷模式会映射到 tools.exec.ask / tools.exec.security；真实执行结果还会受 allow/deny 列表影响。",
     },
     accessModes: {
       auto: {
         label: "自动",
-        description: "自动允许安全工具",
+        description: "按当前安全策略自动执行，未命中策略时再询问",
       },
       ask: {
         label: "询问",
-        description: "每次使用工具前都询问",
+        description: "每次执行工具前都先询问确认",
       },
       deny: {
         label: "拒绝",
-        description: "默认拒绝所有工具访问",
+        description: "默认拒绝执行，除非你显式放行",
+      },
+    },
+    exec: {
+      title: "Exec 配置",
+      description: "直接映射 OpenClaw 的 tools.exec 配置项",
+      hostLabel: "执行宿主（tools.exec.host）",
+      askLabel: "审批模式（tools.exec.ask）",
+      securityLabel: "安全级别（tools.exec.security）",
+      policyHint:
+        "host/security/ask 会共同决定是否弹审批。即使是自动模式，命中 allowlist 之外也可能触发询问。",
+      hostOptions: {
+        sandbox: "sandbox：在沙盒内执行",
+        gateway: "gateway：在网关侧执行",
+        node: "node：在本地 Node 进程执行",
+      },
+      askOptions: {
+        off: "off：不主动询问",
+        "on-miss": "on-miss：仅策略未命中时询问",
+        always: "always：每次都询问",
+      },
+      securityOptions: {
+        deny: "deny：默认拒绝",
+        allowlist: "allowlist：仅允许白名单",
+        full: "full：完全放开",
       },
     },
     sandbox: {
@@ -303,6 +329,16 @@ const common = {
       description: "在隔离环境中运行工具以提高安全性",
       enableTitle: "启用沙盒",
       enableDescription: "建议用于不可信的操作",
+    },
+    policyList: {
+      title: "策略列表（tools.allow / tools.deny）",
+      description: "直接编辑真实 allow/deny 列表，支持英文逗号或换行分隔。",
+      allowLabel: "allow 列表",
+      allowPlaceholder: "例如：group:runtime, web",
+      denyLabel: "deny 列表",
+      denyPlaceholder: "例如：exec, mcp",
+      count: "allow {{allow}} 项，deny {{deny}} 项",
+      save: "保存策略列表",
     },
     list: {
       title: "可用工具",

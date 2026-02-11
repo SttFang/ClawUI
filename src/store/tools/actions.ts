@@ -1,11 +1,22 @@
 import { ipc } from "@/lib/ipc";
 import { toolsLog } from "@/lib/logger";
 import { useConfigDraftStore } from "@/store/configDraft";
-import type { ToolAccessMode, ToolsInternalActions, ToolsPublicActions, ToolsStore } from "./types";
+import type {
+  ExecAskMode,
+  ExecHostMode,
+  ExecSecurityMode,
+  ToolAccessMode,
+  ToolsInternalActions,
+  ToolsPublicActions,
+  ToolsStore,
+} from "./types";
 import {
   applyEnabledToTools,
   asRecord,
   buildToolsPersistPatch,
+  deriveExecAskMode,
+  deriveExecHostMode,
+  deriveExecSecurityMode,
   deriveSandboxEnabled,
   deriveToolAccessMode,
   toStringArray,
@@ -48,11 +59,21 @@ export function createToolsActions(
           return;
         }
 
+        const execHost = deriveExecHostMode(toolsRaw);
+        const execAsk = deriveExecAskMode(toolsRaw);
+        const execSecurity = deriveExecSecurityMode(toolsRaw, execHost);
         const config = {
-          accessMode: deriveToolAccessMode(toolsRaw),
+          accessMode: deriveToolAccessMode({
+            tools: toolsRaw,
+            execAsk,
+            execSecurity,
+          }),
           allowList: toStringArray(toolsRaw.allow),
           denyList: toStringArray(toolsRaw.deny),
           sandboxEnabled: deriveSandboxEnabled(root),
+          execHost,
+          execAsk,
+          execSecurity,
         };
         const tools = applyEnabledToTools(get().tools, config);
         set({ config, tools, isLoading: false }, false, "tools/load/success");
@@ -68,7 +89,83 @@ export function createToolsActions(
 
     setAccessMode: async (mode: ToolAccessMode) => {
       await withPersist(get, "Failed to save access mode:", async () => {
-        set({ config: { ...get().config, accessMode: mode } }, false, "tools/setAccessMode");
+        const config = get().config;
+        const nextAsk: ExecAskMode =
+          mode === "ask" ? "always" : mode === "deny" ? "off" : "on-miss";
+        const nextSecurity: ExecSecurityMode =
+          mode === "deny"
+            ? "deny"
+            : mode === "ask"
+              ? "allowlist"
+              : config.execHost === "sandbox"
+                ? "deny"
+                : "allowlist";
+        set(
+          {
+            config: {
+              ...config,
+              accessMode: mode,
+              execAsk: nextAsk,
+              execSecurity: nextSecurity,
+            },
+          },
+          false,
+          "tools/setAccessMode",
+        );
+      });
+    },
+
+    setExecHost: async (host: ExecHostMode) => {
+      await withPersist(get, "Failed to save exec host:", async () => {
+        const config = get().config;
+        set({ config: { ...config, execHost: host } }, false, "tools/setExecHost");
+      });
+    },
+
+    setExecAsk: async (ask: ExecAskMode) => {
+      await withPersist(get, "Failed to save exec ask mode:", async () => {
+        const config = get().config;
+        const accessMode: ToolAccessMode =
+          ask === "always"
+            ? "ask"
+            : ask === "off" && config.execSecurity === "deny"
+              ? "deny"
+              : "auto";
+        set({ config: { ...config, execAsk: ask, accessMode } }, false, "tools/setExecAsk");
+      });
+    },
+
+    setExecSecurity: async (security: ExecSecurityMode) => {
+      await withPersist(get, "Failed to save exec security mode:", async () => {
+        const config = get().config;
+        const accessMode: ToolAccessMode =
+          config.execAsk === "always"
+            ? "ask"
+            : config.execAsk === "off" && security === "deny"
+              ? "deny"
+              : "auto";
+        set(
+          { config: { ...config, execSecurity: security, accessMode } },
+          false,
+          "tools/setExecSecurity",
+        );
+      });
+    },
+
+    setPolicyLists: async (lists: { allowList: string[]; denyList: string[] }) => {
+      await withPersist(get, "Failed to save tool policy lists:", async () => {
+        const config = get().config;
+        set(
+          {
+            config: {
+              ...config,
+              allowList: [...lists.allowList],
+              denyList: [...lists.denyList],
+            },
+          },
+          false,
+          "tools/setPolicyLists",
+        );
       });
     },
 

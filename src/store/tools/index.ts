@@ -10,6 +10,9 @@ export {
   toolsSelectors,
 } from "./selectors";
 export type {
+  ExecAskMode,
+  ExecHostMode,
+  ExecSecurityMode,
   Tool,
   ToolAccessMode,
   ToolsConfig,

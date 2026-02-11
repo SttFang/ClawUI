@@ -1,6 +1,6 @@
 import { Button, Card, CardContent, Input } from "@clawui/ui";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
 
@@ -128,6 +128,7 @@ function buildMissingSummary(skill: SkillStatusEntry): string[] {
 
 export function SkillsSection() {
   const { t } = useTranslation("common");
+  const loadingRef = useRef(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -152,27 +153,26 @@ export function SkillsSection() {
     });
   };
 
-  const loadSkillsStatus = useCallback(
-    async (clearMessages = false) => {
-      if (loading) return;
+  const loadSkillsStatus = useCallback(async (clearMessages = false) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
 
-      if (clearMessages) {
-        setMessages({});
-      }
+    if (clearMessages) {
+      setMessages({});
+    }
 
-      setLoading(true);
-      setError(null);
-      try {
-        const payload = (await ipc.chat.request("skills.status", {})) as SkillStatusReport;
-        setReport(payload);
-      } catch (loadError) {
-        setError(getErrorMessage(loadError));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [loading],
-  );
+    setLoading(true);
+    setError(null);
+    try {
+      const payload = (await ipc.chat.request("skills.status", {})) as SkillStatusReport;
+      setReport(payload);
+    } catch (loadError) {
+      setError(getErrorMessage(loadError));
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     void loadSkillsStatus(true);

@@ -496,6 +496,87 @@ describe('createOpenClawChatTransport', () => {
     expect((await reader.read()).done).toBe(true)
   })
 
+  it('should rebind to continuation snapshot runId even without explicit approval event', async () => {
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'client-switch-no-approval'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('继续执行')],
+      abortSignal: undefined,
+    })
+
+    const reader = stream.getReader()
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'client-switch-no-approval',
+        sessionKey: 's1',
+        seq: 1,
+        state: 'delta',
+        message: { content: [{ type: 'text', text: '第一段输出' }] },
+      },
+    })
+    expect(await readNext(reader)).toEqual({ type: 'text-delta', id: 'text-1', delta: '第一段输出' })
+
+    // Simulate gateway switching to an internal run id and sending a full snapshot continuation.
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'internal-switch-no-approval',
+        sessionKey: 's1',
+        seq: 61,
+        state: 'delta',
+        message: { content: [{ type: 'text', text: '第一段输出\n第二段输出' }] },
+      },
+    })
+
+    expect(await readNext(reader)).toEqual({
+      type: 'text-delta',
+      id: 'text-1',
+      delta: '\n第二段输出',
+    })
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'internal-switch-no-approval',
+        sessionKey: 's1',
+        seq: 62,
+        state: 'final',
+        message: { content: [{ type: 'text', text: '第一段输出\n第二段输出' }] },
+      },
+    })
+
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+    expect((await reader.read()).done).toBe(true)
+  })
+
   it('should still bind internal run after long approval pause', async () => {
     vi.useFakeTimers()
     let handler: ((frame: GatewayEventFrame) => void) | null = null

@@ -237,4 +237,32 @@ describe("ConfigDraftStore", () => {
     expect(useConfigDraftStore.getState().snapshot).toEqual(savedSnapshot);
     expect(useConfigDraftStore.getState().draft).toEqual(savedSnapshot.config);
   });
+
+  it("applyDraft should expose CONFIG_GATEWAY_UNAVAILABLE when gateway is offline", async () => {
+    const snapshot = {
+      hash: "hash-1",
+      config: {
+        gateway: {
+          port: 18789,
+        },
+      },
+    };
+    (ipc.config.getSnapshot as Mock).mockResolvedValue(snapshot);
+    const gatewayError = new Error("gateway unavailable") as Error & { code?: string };
+    gatewayError.code = "CONFIG_GATEWAY_UNAVAILABLE";
+    (ipc.config.setDraft as Mock).mockRejectedValue(gatewayError);
+
+    await useConfigDraftStore.getState().loadSnapshot();
+    await useConfigDraftStore.getState().patchDraft({
+      gateway: {
+        port: 19999,
+      },
+    });
+
+    await expect(useConfigDraftStore.getState().applyDraft()).rejects.toThrow(
+      "gateway unavailable",
+    );
+    expect(useConfigDraftStore.getState().errorCode).toBe("CONFIG_GATEWAY_UNAVAILABLE");
+    expect(useConfigDraftStore.getState().isDirty).toBe(true);
+  });
 });

@@ -55,7 +55,8 @@ function readErrorCode(error: unknown): ConfigErrorCode | null {
     code === "CONFIG_BASE_HASH_CONFLICT" ||
     code === "CONFIG_INVALID_RAW" ||
     code === "CONFIG_INVALID_SCHEMA" ||
-    code === "CONFIG_WRITE_FAILED"
+    code === "CONFIG_WRITE_FAILED" ||
+    code === "CONFIG_GATEWAY_UNAVAILABLE"
   ) {
     return code;
   }

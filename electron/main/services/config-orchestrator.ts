@@ -7,9 +7,8 @@ import type {
 } from "@clawui/types/config-v2";
 import { createHash } from "crypto";
 import { existsSync } from "fs";
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { readFile } from "fs/promises";
 import JSON5 from "json5";
-import { dirname } from "path";
 import type { ConfigService } from "./config";
 import { configLog } from "../lib/logger";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
@@ -120,10 +119,7 @@ export class ConfigOrchestrator {
     }
 
     const baseHash = typeof input.baseHash === "string" ? input.baseHash.trim() : "";
-    const gatewayResult = await this.trySetDraftViaGateway({ raw, baseHash });
-    if (gatewayResult) return gatewayResult;
-
-    return this.setDraftLocal({ raw, baseHash });
+    return this.trySetDraftViaGateway({ raw, baseHash });
   }
 
   private async tryGetSnapshotViaGateway(): Promise<ConfigSnapshotV2 | null> {
@@ -156,7 +152,7 @@ export class ConfigOrchestrator {
 
   private async trySetDraftViaGateway(
     input: ConfigSetDraftInputV2,
-  ): Promise<ConfigSetDraftResponseV2 | null> {
+  ): Promise<ConfigSetDraftResponseV2> {
     try {
       await ensureGatewayConnected(this.options.configService);
       await chatWebSocket.request("config.set", {
@@ -175,8 +171,11 @@ export class ConfigOrchestrator {
       if (chatWebSocket.isConnected()) {
         return toOrchestratorFailure(mapGatewayErrorToCode(message), message);
       }
-      configLog.debug("[config.orchestrator.set.gateway.fallback]", message);
-      return null;
+      configLog.warn("[config.orchestrator.set.gateway.unavailable]", message);
+      return toOrchestratorFailure(
+        "CONFIG_GATEWAY_UNAVAILABLE",
+        "gateway unavailable; start or connect gateway and retry",
+      );
     }
   }
 
@@ -261,52 +260,6 @@ export class ConfigOrchestrator {
         issues: [{ path: "$", message }],
         config: {},
       };
-    }
-  }
-
-  private async setDraftLocal(input: ConfigSetDraftInputV2): Promise<ConfigSetDraftResponseV2> {
-    const current = await this.readLocalSnapshot();
-
-    if (current.exists) {
-      if (!input.baseHash) {
-        return toOrchestratorFailure(
-          "CONFIG_BASE_HASH_REQUIRED",
-          "config base hash required; re-run config.get and retry",
-        );
-      }
-      if (!current.hash || input.baseHash !== current.hash) {
-        return toOrchestratorFailure(
-          "CONFIG_BASE_HASH_CONFLICT",
-          "config changed since last load; re-run config.get and retry",
-        );
-      }
-    }
-
-    let parsed: unknown;
-    try {
-      parsed = JSON5.parse(input.raw);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return toOrchestratorFailure("CONFIG_INVALID_RAW", message);
-    }
-
-    if (!isRecord(parsed)) {
-      return toOrchestratorFailure("CONFIG_INVALID_SCHEMA", "config root must be an object");
-    }
-
-    try {
-      await mkdir(dirname(this.options.configPath), { recursive: true });
-      const raw = input.raw.endsWith("\n") ? input.raw : `${input.raw}\n`;
-      await writeFile(this.options.configPath, raw, { encoding: "utf-8", mode: 0o600 });
-      return {
-        ok: true,
-        hash: hashRaw(raw),
-        warnings: [],
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      configLog.error("[config.orchestrator.set.local.write.failed]", message);
-      return toOrchestratorFailure("CONFIG_WRITE_FAILED", message);
     }
   }
 }

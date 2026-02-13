@@ -7,7 +7,8 @@ export type ConfigErrorCode =
   | "CONFIG_BASE_HASH_CONFLICT"
   | "CONFIG_INVALID_RAW"
   | "CONFIG_INVALID_SCHEMA"
-  | "CONFIG_WRITE_FAILED";
+  | "CONFIG_WRITE_FAILED"
+  | "CONFIG_GATEWAY_UNAVAILABLE";
 
 export interface ConfigIssue {
   path: string;

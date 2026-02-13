@@ -23,27 +23,37 @@ describe("gateway ipc handlers", () => {
     vi.clearAllMocks();
   });
 
-  const createConfigService = () => ({
-    initialize: vi.fn<[], Promise<void>>(),
-    getConfig: vi.fn<[], Promise<Record<string, unknown> | null>>(),
-  });
+  const createConfigService = () => {
+    const initialize = vi.fn(async () => undefined);
+    const getConfig = vi.fn(async () => null as Record<string, unknown> | null);
+    return {
+      initialize,
+      getConfig,
+    };
+  };
 
-  const createGateway = () => ({
-    on: vi.fn(),
-    setConfig: vi.fn(),
-    start: vi.fn<[], Promise<void>>().mockResolvedValue(undefined),
-    stop: vi.fn<[], Promise<void>>().mockResolvedValue(undefined),
-    getStatus: vi.fn(),
-    getWebSocketUrl: vi.fn(),
-  });
+  const createGateway = () => {
+    const start = vi.fn(async () => undefined);
+    const stop = vi.fn(async () => undefined);
+    return {
+      on: vi.fn(),
+      setConfig: vi.fn(),
+      start,
+      stop,
+      getStatus: vi.fn(),
+      getWebSocketUrl: vi.fn(),
+    };
+  };
 
   const createIpcMain = () => {
     const handlers = new Map<string, (...args: unknown[]) => Promise<unknown> | unknown>();
     return {
       handlers,
-      handle: vi.fn((event: string, handler: (...args: unknown[]) => Promise<unknown> | unknown) => {
-        handlers.set(event, handler);
-      }),
+      handle: vi.fn(
+        (event: string, handler: (...args: unknown[]) => Promise<unknown> | unknown) => {
+          handlers.set(event, handler);
+        },
+      ),
     };
   };
 

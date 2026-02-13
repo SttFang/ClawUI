@@ -1,7 +1,7 @@
+import type { UIMessage } from "ai";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { UIMessage } from "ai";
 import { MessageParts } from "../MessageParts";
 
 vi.mock("react-i18next", () => ({
@@ -46,7 +46,6 @@ describe("MessageParts", () => {
           output: "done",
         } as const,
       ],
-      createdAt: new Date("2026-01-01T00:00:00.000Z"),
     };
 
     const html = renderToStaticMarkup(
@@ -73,7 +72,6 @@ describe("MessageParts", () => {
           output: "ok",
         } as const,
       ],
-      createdAt: new Date("2026-01-01T00:00:00.002Z"),
     };
 
     const html = renderToStaticMarkup(
@@ -94,7 +92,6 @@ describe("MessageParts", () => {
           text: "   \n  \t  ",
         } as const,
       ],
-      createdAt: new Date("2026-01-01T00:00:00.003Z"),
     };
 
     const html = renderToStaticMarkup(
@@ -119,7 +116,6 @@ describe("MessageParts", () => {
           output: "ok",
         } as const,
       ],
-      createdAt: new Date("2026-01-01T00:00:00.004Z"),
     };
 
     const html = renderToStaticMarkup(

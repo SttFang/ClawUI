@@ -1,15 +1,10 @@
 import type { UIMessage } from "ai";
+import type { DynamicToolUIPart } from "ai";
+import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ExecActionItem,
-  ToolEventCard,
-} from "@/components/A2UI";
-import {
-  isExecPart,
-  isExecPreliminary,
-  upsertExecTrace,
-} from "@/components/A2UI/execTrace";
+import { ExecActionItem, ToolEventCard } from "@/components/A2UI";
+import { isExecPreliminary, upsertExecTrace } from "@/components/A2UI/execTrace";
 import { MessageText } from "./MessageText";
 
 const AUTO_HIDE_DELAY = 1500;
@@ -19,14 +14,36 @@ type RenderableItem =
   | {
       kind: "text";
       key: string;
-      node: JSX.Element;
+      node: ReactElement;
     }
   | {
       kind: "tool";
       key: string;
-      node: JSX.Element;
+      node: ReactElement;
       toolCallId: string;
     };
+
+type TextPartLike = {
+  type: "text";
+  text: string;
+  state?: "streaming";
+};
+
+function isTextPartLike(part: unknown): part is TextPartLike {
+  if (!part || typeof part !== "object") return false;
+  const record = part as Record<string, unknown>;
+  return record.type === "text" && typeof record.text === "string";
+}
+
+function isDynamicToolPartLike(part: unknown): part is DynamicToolUIPart {
+  if (!part || typeof part !== "object") return false;
+  const record = part as Record<string, unknown>;
+  return (
+    record.type === "dynamic-tool" &&
+    typeof record.toolCallId === "string" &&
+    typeof record.toolName === "string"
+  );
+}
 
 function ThinkingIndicator(props: { isStreaming: boolean; duration: number | undefined }) {
   const { t } = useTranslation("common");
@@ -51,12 +68,12 @@ function ThinkingIndicator(props: { isStreaming: boolean; duration: number | und
 }
 
 function pickMessageRenderableItem(
-  part: UIMessage["parts"][number],
+  part: unknown,
   index: number,
   sessionKey: string,
   streaming: boolean,
 ) {
-  if (part.type === "text") {
+  if (isTextPartLike(part)) {
     if (!part.text.trim()) return null;
     return {
       kind: "text" as const,
@@ -71,8 +88,8 @@ function pickMessageRenderableItem(
     };
   }
 
-  if (part.type === "dynamic-tool") {
-    if (isExecPart(part)) {
+  if (isDynamicToolPartLike(part)) {
+    if (part.toolName === "exec") {
       const trace = upsertExecTrace(part, sessionKey);
       if (
         part.state === "input-available" ||
@@ -83,9 +100,10 @@ function pickMessageRenderableItem(
       ) {
         return {
           kind: "tool" as const,
-          key: trace.status === "completed" || trace.status === "error"
-            ? `exec:${part.toolCallId}:final:${index}`
-            : `exec:${part.toolCallId}:${index}`,
+          key:
+            trace.status === "completed" || trace.status === "error"
+              ? `exec:${part.toolCallId}:final:${index}`
+              : `exec:${part.toolCallId}:${index}`,
           toolCallId: part.toolCallId,
           node: (
             <ExecActionItem
@@ -104,7 +122,13 @@ function pickMessageRenderableItem(
       kind: "tool" as const,
       key: `tool:${part.toolCallId}:${index}`,
       toolCallId: part.toolCallId,
-      node: <ToolEventCard key={`tool:${part.toolCallId}:${index}`} part={part} sessionKey={sessionKey} />,
+      node: (
+        <ToolEventCard
+          key={`tool:${part.toolCallId}:${index}`}
+          part={part}
+          sessionKey={sessionKey}
+        />
+      ),
     };
   }
 

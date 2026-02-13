@@ -1,18 +1,12 @@
+import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { ChatComposer } from "../ChatComposer";
-import type {
-  ChangeEvent,
-  KeyboardEvent as ReactKeyboardEvent,
-  ReactNode,
-  RefObject,
-} from "react";
 const useHasPendingExecApprovalMock = vi.fn(() => false);
 
-let capturedTextareaKeyDown:
-  | ((event: ReactKeyboardEvent<HTMLTextAreaElement>) => void)
-  | null = null;
+let capturedTextareaKeyDown: ((event: ReactKeyboardEvent<HTMLTextAreaElement>) => void) | null =
+  null;
 let lastSubmitDisabled: boolean | null = null;
 
 vi.mock("react-i18next", () => ({
@@ -23,7 +17,7 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("@/features/Chat/prompt/ExecApprovalInlinePanel", () => ({
   ExecApprovalInlinePanel: () => null,
-  useHasPendingExecApproval: (..._args: unknown[]) => useHasPendingExecApprovalMock(..._args),
+  useHasPendingExecApproval: () => useHasPendingExecApprovalMock(),
 }));
 
 vi.mock("@clawui/ui", async () => {
@@ -77,11 +71,7 @@ vi.mock("@clawui/ui", async () => {
 });
 
 describe("ChatComposer", () => {
-  const renderComposer = (
-    onSubmit: () => void,
-    hasPending: boolean,
-    value = "hello",
-  ) => {
+  const renderComposer = (onSubmit: () => void, hasPending: boolean, value = "hello") => {
     lastSubmitDisabled = null;
     capturedTextareaKeyDown = null;
     useHasPendingExecApprovalMock.mockReturnValue(hasPending);

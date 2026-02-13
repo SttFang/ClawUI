@@ -1,7 +1,12 @@
 import type { UIMessage } from "ai";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ExecActionItem, ExecCompletedSummary, ToolEventCard } from "@/components/A2UI";
+import {
+  ExecActionItem,
+  ExecCompletedSummary,
+  LifecycleEventCard,
+  ToolEventCard,
+} from "@/components/A2UI";
 import {
   collectCompletedExecTraces,
   isExecPart,
@@ -12,6 +17,26 @@ import { MessageText } from "./MessageText";
 
 const AUTO_HIDE_DELAY = 1500;
 const MS_IN_S = 1000;
+
+type RenderableItem =
+  | {
+      kind: "text";
+      key: string;
+      node: JSX.Element;
+    }
+  | {
+      kind: "tool";
+      key: string;
+      node: JSX.Element;
+      toolCallId: string;
+      hidden?: boolean;
+    }
+  | {
+      kind: "lifecycle";
+      key: string;
+      node: JSX.Element;
+      signature?: string;
+    };
 
 function ThinkingIndicator(props: { isStreaming: boolean; duration: number | undefined }) {
   const { t } = useTranslation("common");
@@ -33,6 +58,157 @@ function ThinkingIndicator(props: { isStreaming: boolean; duration: number | und
       <span>{label}</span>
     </div>
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function pickString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function pickNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function normalizeLifecycleRaw(raw: unknown) {
+  if (!isRecord(raw)) return null;
+  const runId = pickString(raw.runId) ?? pickString(raw.run_id);
+  const sessionId = pickString(raw.sessionKey) ?? pickString(raw.session_id);
+  const phase = pickString(raw.phase) ?? pickString(raw.state);
+  const seq = pickNumber(raw.seq) ?? pickNumber(raw.sequence);
+  const ts = pickNumber(raw.ts) ?? pickNumber(raw.timestamp);
+  const error = isRecord(raw.error) || typeof raw.error === "string" ? raw.error : undefined;
+
+  if (!runId && !sessionId && !phase && seq === undefined && ts === undefined && !error) {
+    return null;
+  }
+
+  return { runId, sessionKey: sessionId, seq, ts, phase, error };
+}
+
+function pickMessageRenderableItem(
+  part: UIMessage["parts"][number],
+  index: number,
+  sessionKey: string,
+  streaming: boolean,
+) {
+  if (part.type === "text") {
+    if (!part.text.trim()) return null;
+    return {
+      kind: "text" as const,
+      key: `text:${index}`,
+      node: (
+        <MessageText
+          key={`text:${index}`}
+          text={part.text}
+          isAnimating={streaming && part.state === "streaming"}
+        />
+      ),
+    };
+  }
+
+  if (part.type === "dynamic-tool") {
+    if (isExecPart(part)) {
+      const trace = upsertExecTrace(part, sessionKey);
+      if (trace.status === "completed" || trace.status === "error") {
+        return {
+          kind: "tool" as const,
+          key: `exec:${part.toolCallId}:final:${index}`,
+          toolCallId: part.toolCallId,
+          hidden: true,
+          node: <></>,
+        };
+      }
+
+      if (
+        part.state === "input-available" ||
+        part.state === "input-streaming" ||
+        (part.state === "output-available" && isExecPreliminary(part))
+      ) {
+        return {
+          kind: "tool" as const,
+          key: `exec:${part.toolCallId}:${index}`,
+          toolCallId: part.toolCallId,
+          node: <ExecActionItem key={`exec:${part.toolCallId}:${index}`} part={part} sessionKey={sessionKey} />,
+        };
+      }
+
+      return null;
+    }
+
+    return {
+      kind: "tool" as const,
+      key: `tool:${part.toolCallId}:${index}`,
+      toolCallId: part.toolCallId,
+      node: <ToolEventCard key={`tool:${part.toolCallId}:${index}`} part={part} sessionKey={sessionKey} />,
+    };
+  }
+
+  if (part.type === "data-openclaw-lifecycle") {
+    const lifecycleData = normalizeLifecycleRaw((part as { data?: unknown }).data ?? part);
+    if (!lifecycleData) return null;
+
+    const phase = lifecycleData.phase;
+    const sigParts = [
+      pickString(lifecycleData.runId) ?? "unknown-run",
+      pickString(lifecycleData.sessionKey) ?? "unknown-session",
+      pickString(phase) ?? "phase-unknown",
+      typeof lifecycleData.seq === "number" ? lifecycleData.seq.toString() : "",
+      typeof lifecycleData.ts === "number" ? lifecycleData.ts.toString() : "",
+    ];
+    const signature = sigParts.join("|");
+
+    return {
+      kind: "lifecycle" as const,
+      key: `lifecycle:${index}`,
+      signature,
+      node: <LifecycleEventCard key={`lifecycle:${index}`} data={lifecycleData} />,
+    };
+  }
+
+  return null;
+}
+
+function aggregateRenderableItems(
+  items: ReturnType<typeof pickMessageRenderableItem>[],
+): RenderableItem[] {
+  const execIndexByToolCallId = new Map<string, number>();
+  const lifecycleSeenSignature = new Set<string>();
+  const result: RenderableItem[] = [];
+
+  for (const item of items) {
+    if (!item) continue;
+
+    if (item.kind === "tool") {
+      const idx = execIndexByToolCallId.get(item.toolCallId);
+      if (idx !== undefined) {
+        if (item.hidden) {
+          result[idx].hidden = true;
+          continue;
+        }
+
+        result[idx] = item;
+        continue;
+      }
+
+      if (item.hidden) continue;
+
+      execIndexByToolCallId.set(item.toolCallId, result.length);
+      result.push(item);
+      continue;
+    }
+
+    if (item.kind === "lifecycle" && item.signature) {
+      if (lifecycleSeenSignature.has(item.signature)) continue;
+      lifecycleSeenSignature.add(item.signature);
+    }
+
+    result.push(item);
+  }
+
+  return result;
 }
 
 export function MessageParts(props: {
@@ -66,56 +242,26 @@ export function MessageParts(props: {
       const timer = setTimeout(() => setShowIndicator(false), AUTO_HIDE_DELAY);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [isThinking]);
 
   const completedExecTraces = collectCompletedExecTraces(message.parts, sessionKey);
+
+  const renderedItems = useMemo(() => {
+    const pre = message.parts.map((part, index) =>
+      pickMessageRenderableItem(part, index, sessionKey, streaming),
+    );
+    return aggregateRenderableItems(pre)
+      .filter((item) => item.kind !== "tool" || !item.hidden)
+      .map((item) => item.node);
+  }, [message.parts, sessionKey, streaming]);
 
   return (
     <div className="space-y-3">
       {showIndicator ? (
         <ThinkingIndicator isStreaming={isThinking} duration={thinkingDuration} />
       ) : null}
-      {message.parts.map((part, index) => {
-        if (part.type === "step-start") return null;
-        if (part.type === "text") {
-          if (!part.text.trim()) return null;
-          return (
-            <MessageText
-              key={index}
-              text={part.text}
-              isAnimating={streaming && part.state === "streaming"}
-            />
-          );
-        }
-        if (part.type === "dynamic-tool") {
-          if (isExecPart(part)) {
-            const trace = upsertExecTrace(part, sessionKey);
-            if (
-              (trace.status === "completed" || trace.status === "error") &&
-              (part.state === "input-available" ||
-                part.state === "input-streaming" ||
-                (part.state === "output-available" && isExecPreliminary(part)))
-            ) {
-              // 同一个 exec 已有最终结果时，隐藏历史中的 start/update 片段，避免一直显示“执行中”。
-              return null;
-            }
-            if (
-              part.state === "input-available" ||
-              part.state === "input-streaming" ||
-              (part.state === "output-available" && isExecPreliminary(part))
-            ) {
-              return <ExecActionItem key={index} part={part} sessionKey={sessionKey} />;
-            }
-            // exec 完成后主消息区只保留 AI 文本；详情通过摘要入口展开。
-            return null;
-          }
-          return <ToolEventCard key={index} part={part} sessionKey={sessionKey} />;
-        }
-        // lifecycle 默认不占消息流位置（后续可放到独立的“运行状态/调试”面板）。
-        if (part.type === "data-openclaw-lifecycle") return null;
-        // v1: ignore other parts (files, reasoning, sources, data parts, static tools).
-        return null;
-      })}
+      {renderedItems}
       {completedExecTraces.length > 0 ? (
         <ExecCompletedSummary traces={completedExecTraces} />
       ) : null}

@@ -132,7 +132,7 @@ describe("useExecSystemHandoff", () => {
       {
         id: "sys-terminal-2",
         role: "system",
-        content: [{ type: "text", text: "System: Exec finished (code 0)" }],
+        content: [{ type: "text", text: "System: Exec finished (code 0) ls -la" }],
         createdAtMs: Date.now(),
       },
     ];
@@ -238,7 +238,12 @@ describe("useExecSystemHandoff", () => {
               {
                 id: "sys-finished",
                 role: "system",
-                content: [{ type: "text", text: "System: Exec finished (code 0)" }],
+                content: [
+                  {
+                    type: "text",
+                    text: "drwxr-xr-x  90 fanghanjun staff 2880 Feb 3 16:23 激活-教育",
+                  },
+                ],
                 createdAtMs: Date.now(),
               },
             ],
@@ -256,7 +261,7 @@ describe("useExecSystemHandoff", () => {
         event: "exec.approval.resolved",
         payload: {
           id: "approval-retry-1",
-          decision: "allow-once",
+          decision: "allowlist",
           request: { sessionKey: "s1", command: "ls -la ~/Desktop" },
         },
       });
@@ -279,7 +284,7 @@ describe("useExecSystemHandoff", () => {
     expect(agentCalls).toHaveLength(1);
     expect(agentCalls[0]?.[1]).toMatchObject({
       sessionKey: "s1",
-      message: "System: Exec finished (code 0)",
+      message: "drwxr-xr-x 90 fanghanjun staff 2880 Feb 3 16:23 激活-教育",
       inputProvenance: { source: "approval-allow" },
     });
 
@@ -294,7 +299,7 @@ describe("useExecSystemHandoff", () => {
       {
         id: "sys-finished-older",
         role: "system",
-        content: [{ type: "text", text: "System: Exec finished (code 0)" }],
+        content: [{ type: "text", text: "System: Exec finished (code 0) ls -la ~/Desktop" }],
         createdAtMs: now - 1000,
       },
       {
@@ -326,7 +331,7 @@ describe("useExecSystemHandoff", () => {
     const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
     expect(agentCalls).toHaveLength(1);
     expect(agentCalls[0]?.[1]).toMatchObject({
-      message: "System: Exec finished (code 0)",
+      message: "System: Exec finished (code 0) ls -la ~/Desktop",
       inputProvenance: { source: "approval-allow" },
     });
 
@@ -378,6 +383,45 @@ describe("useExecSystemHandoff", () => {
       message: "older assistant text",
       inputProvenance: { source: "approval-unknown" },
     });
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should not handoff stale terminal text older than approval resolve time", async () => {
+    const now = Date.now();
+    historyMessages = [
+      {
+        id: "sys-old-terminal",
+        role: "system",
+        content: [{ type: "text", text: "System: Exec finished (code 0) ls -la ~/Desktop" }],
+        createdAtMs: now - 10_000,
+      },
+    ];
+
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "exec.approval.resolved",
+        payload: {
+          id: "approval-stale",
+          ts: now,
+          decision: "allow-once",
+          request: { sessionKey: "s1", command: "ls -la ~/Desktop" },
+        },
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+      await Promise.resolve();
+    });
+
+    const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(0);
 
     act(() => {
       root.unmount();

@@ -200,4 +200,67 @@ describe("execTrace", () => {
 
     expect(shouldSuppressExecPart(currentPending, sessionKey)).toBe(false);
   });
+
+  it("should suppress stale completed trace when same command has newer active trace", () => {
+    const sessionKey = "agent:main:ui:suppress";
+    const oldCompleted = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "assistant:1771007000000:old:tool-1",
+      state: "output-available",
+      input: { command: "ls -la ~/Desktop" },
+      output: "done",
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+    const newPending = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "assistant:1771008000000:new:tool-1",
+      state: "input-available",
+      input: { command: "ls -la ~/Desktop" },
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+
+    upsertExecTrace(oldCompleted, sessionKey);
+    useExecApprovalsStore.setState((state) => ({
+      ...state,
+      queue: [
+        {
+          id: "pending-newer-command",
+          request: { sessionKey, command: "ls -la ~/Desktop" },
+          createdAtMs: Date.now(),
+          expiresAtMs: Date.now() + 60_000,
+        },
+      ],
+    }));
+    upsertExecTrace(newPending, sessionKey);
+
+    expect(shouldSuppressExecPart(oldCompleted, sessionKey)).toBe(true);
+  });
+
+  it("should suppress older pending trace when a newer pending trace exists for same command", () => {
+    const sessionKey = "agent:main:ui:suppress";
+    const olderPending = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "assistant:1771008000000:old:tool-1",
+      state: "input-available",
+      input: { command: "ls -la ~/Desktop" },
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+    const newerPending = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "assistant:1771009000000:new:tool-1",
+      state: "input-available",
+      input: { command: "ls -la ~/Desktop" },
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+
+    upsertExecTrace(olderPending, sessionKey);
+    upsertExecTrace(newerPending, sessionKey);
+
+    expect(shouldSuppressExecPart(olderPending, sessionKey)).toBe(true);
+    expect(shouldSuppressExecPart(newerPending, sessionKey)).toBe(false);
+  });
 });

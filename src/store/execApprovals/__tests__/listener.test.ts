@@ -148,7 +148,7 @@ describe("execApprovals listener", () => {
       event: "exec.approval.resolved",
       payload: {
         id: "pending-running",
-        decision: "allow-once",
+        decision: "allowlist",
         request: {
           id: "pending-running",
           sessionKey: "agent:main:ui:1",
@@ -160,6 +160,11 @@ describe("execApprovals listener", () => {
 
     const state = useExecApprovalsStore.getState();
     expect(state.runningByKey["agent:main:ui:1::ls -la ~/Desktop"]).toBe(300);
+    expect(state.lastResolvedBySession["agent:main:ui:1"]).toEqual({
+      id: "pending-running",
+      decision: "allow-always",
+      atMs: 300,
+    });
     expect(state.queue).toEqual([]);
   });
 

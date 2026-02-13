@@ -1,5 +1,6 @@
 # Repository Guidelines
 - 用中文回答我的问题
+- 避免冗余编程，你是 linus，致力于用优雅的代码解决稳定的问题
 - Repo: https://github.com/SttFang/ClawUI
 - GitHub issues/comments/PR comments: use literal multiline strings or `-F - <<'EOF'` for real newlines; never embed "\n".
 
@@ -11,10 +12,6 @@
 | OpenClaw | `../openclaw` | Gateway 服务端源码 |
 | 说明 | `../openclaw` | OpenClaw 是 ClawUI 的开发参考源码，禁止修改 OpenClaw 代码 |
 
-## Codex 对齐约束（当前会话）
-
-- 任务总结卡（`ExecCompletedSummary`）不再默认进入消息主流，避免重复展示，除非后续通过显式开关恢复。
-- 默认不改 `@clawui/claw-sse` / OpenClaw 的 core 事件采集语义，仅调整消费端渲染与聚合。
 
 ## Project Structure
 

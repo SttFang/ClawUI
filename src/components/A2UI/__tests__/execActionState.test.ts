@@ -66,4 +66,17 @@ describe("deriveExecActionState", () => {
     expect(state.statusKey).toBe("error");
     expect(state.running).toBe(false);
   });
+
+  it("waitingApproval should keep priority over running mark", () => {
+    const state = deriveExecActionState({
+      partState: "input-streaming",
+      preliminary: false,
+      approvalRequested: true,
+      runningMarked: true,
+      hasFinalOutput: false,
+      hasError: false,
+    });
+    expect(state.statusKey).toBe("waitingApproval");
+    expect(state.running).toBe(false);
+  });
 });

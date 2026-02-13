@@ -3,12 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ExecActionItem,
-  ExecCompletedSummary,
   LifecycleEventCard,
   ToolEventCard,
 } from "@/components/A2UI";
 import {
-  collectCompletedExecTraces,
   isExecPart,
   isExecPreliminary,
   upsertExecTrace,
@@ -29,7 +27,6 @@ type RenderableItem =
       key: string;
       node: JSX.Element;
       toolCallId: string;
-      hidden?: boolean;
     }
   | {
       kind: "lifecycle";
@@ -112,26 +109,26 @@ function pickMessageRenderableItem(
   if (part.type === "dynamic-tool") {
     if (isExecPart(part)) {
       const trace = upsertExecTrace(part, sessionKey);
-      if (trace.status === "completed" || trace.status === "error") {
-        return {
-          kind: "tool" as const,
-          key: `exec:${part.toolCallId}:final:${index}`,
-          toolCallId: part.toolCallId,
-          hidden: true,
-          node: <></>,
-        };
-      }
-
       if (
         part.state === "input-available" ||
         part.state === "input-streaming" ||
-        (part.state === "output-available" && isExecPreliminary(part))
+        part.state === "output-error" ||
+        (part.state === "output-available" && isExecPreliminary(part)) ||
+        (part.state === "output-available" && trace.status !== "running")
       ) {
         return {
           kind: "tool" as const,
-          key: `exec:${part.toolCallId}:${index}`,
+          key: trace.status === "completed" || trace.status === "error"
+            ? `exec:${part.toolCallId}:final:${index}`
+            : `exec:${part.toolCallId}:${index}`,
           toolCallId: part.toolCallId,
-          node: <ExecActionItem key={`exec:${part.toolCallId}:${index}`} part={part} sessionKey={sessionKey} />,
+          node: (
+            <ExecActionItem
+              key={`exec:${part.toolCallId}:${index}`}
+              part={part}
+              sessionKey={sessionKey}
+            />
+          ),
         };
       }
 
@@ -184,16 +181,9 @@ function aggregateRenderableItems(
     if (item.kind === "tool") {
       const idx = execIndexByToolCallId.get(item.toolCallId);
       if (idx !== undefined) {
-        if (item.hidden) {
-          result[idx].hidden = true;
-          continue;
-        }
-
         result[idx] = item;
         continue;
       }
-
-      if (item.hidden) continue;
 
       execIndexByToolCallId.set(item.toolCallId, result.length);
       result.push(item);
@@ -245,15 +235,11 @@ export function MessageParts(props: {
     return undefined;
   }, [isThinking]);
 
-  const completedExecTraces = collectCompletedExecTraces(message.parts, sessionKey);
-
   const renderedItems = useMemo(() => {
     const pre = message.parts.map((part, index) =>
       pickMessageRenderableItem(part, index, sessionKey, streaming),
     );
-    return aggregateRenderableItems(pre)
-      .filter((item) => item.kind !== "tool" || !item.hidden)
-      .map((item) => item.node);
+    return aggregateRenderableItems(pre).map((item) => item.node);
   }, [message.parts, sessionKey, streaming]);
 
   return (
@@ -262,9 +248,6 @@ export function MessageParts(props: {
         <ThinkingIndicator isStreaming={isThinking} duration={thinkingDuration} />
       ) : null}
       {renderedItems}
-      {completedExecTraces.length > 0 ? (
-        <ExecCompletedSummary traces={completedExecTraces} />
-      ) : null}
     </div>
   );
 }

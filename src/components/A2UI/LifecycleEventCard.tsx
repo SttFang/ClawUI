@@ -28,7 +28,7 @@ export function LifecycleEventCard(props: { data: OpenClawLifecycleData }) {
   const seq = typeof data.seq === "number" ? data.seq : null;
 
   return (
-    <Card className="rounded-xl">
+    <Card className="rounded-xl border border-border/65 bg-card/90 shadow-sm">
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">

@@ -54,6 +54,8 @@ export function ChatComposer(props: {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const composingRef = useRef(false);
   const hasPendingApproval = useHasPendingExecApproval(sessionKey);
+  const composerDisabled = disabled || hasPendingApproval;
+  const canSubmit = !composerDisabled && value.trim().length > 0;
 
   const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
   const attachmentsRef = useRef<LocalAttachment[]>([]);
@@ -111,7 +113,7 @@ export function ChatComposer(props: {
   };
 
   const submit = async () => {
-    if (disabled || hasPendingApproval) return;
+    if (composerDisabled) return;
     await onSubmit();
     // v1: attachments are UI-only; clear after submit to avoid confusion.
     setAttachments((prev) => {
@@ -134,6 +136,11 @@ export function ChatComposer(props: {
     // 仅纯 Enter 发送；组合键一律保留换行行为（Cmd/Ctrl/Shift/Alt + Enter）。
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
 
+    if (composerDisabled || !value.trim()) {
+      e.preventDefault();
+      return;
+    }
+
     e.preventDefault();
     void submit();
   };
@@ -150,12 +157,17 @@ export function ChatComposer(props: {
           onChange={(e) => onPickFiles(e.target.files)}
         />
 
-        <div className="px-4 pt-3">
+        <div className="space-y-2 px-4 pt-3">
           <Attachments
             items={attachmentItems}
             onRemove={removeAttachment}
             removeLabel={t("removeAttachment")}
           />
+          {hasPendingApproval ? (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-900 dark:text-amber-200">
+              {t("execApproval.pendingInChat")}
+            </div>
+          ) : null}
         </div>
 
         <PromptInputTextarea
@@ -178,7 +190,7 @@ export function ChatComposer(props: {
             <PromptInputAction
               type="button"
               onClick={openFilePicker}
-              disabled={disabled}
+              disabled={composerDisabled}
               aria-label={t("attachFile")}
               title={t("attachFile")}
               className="w-8 px-0"
@@ -189,14 +201,14 @@ export function ChatComposer(props: {
             {showSessionControls ? (
               <SessionControlStrip
                 sessionKey={sessionKey}
-                disabled={sessionControlsDisabled}
+                disabled={sessionControlsDisabled || hasPendingApproval}
                 className="mt-0"
               />
             ) : null}
           </PromptInputTools>
 
           <PromptInputActions className="ml-auto">
-            <PromptInputSubmit disabled={disabled || hasPendingApproval || !value.trim()}>
+            <PromptInputSubmit disabled={!canSubmit}>
               {t("sendMessage")}
             </PromptInputSubmit>
           </PromptInputActions>

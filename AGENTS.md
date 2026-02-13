@@ -9,6 +9,12 @@
 |------|------|------|
 | ClawUI | `.` (本仓库) | Electron 桌面客户端 |
 | OpenClaw | `../openclaw` | Gateway 服务端源码 |
+| 说明 | `../openclaw` | OpenClaw 是 ClawUI 的开发参考源码，禁止修改 OpenClaw 代码 |
+
+## Codex 对齐约束（当前会话）
+
+- 任务总结卡（`ExecCompletedSummary`）不再默认进入消息主流，避免重复展示，除非后续通过显式开关恢复。
+- 默认不改 `@clawui/claw-sse` / OpenClaw 的 core 事件采集语义，仅调整消费端渲染与聚合。
 
 ## Project Structure
 

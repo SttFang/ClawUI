@@ -1,6 +1,8 @@
 import type { ChatNormalizedRunEvent, ChatRunStatus } from "@clawui/types";
+import { chatLog } from "../../lib/logger";
 
-const PENDING_APPROVAL_TTL_MS = 30_000;
+export const DEFAULT_PENDING_APPROVAL_TTL_MS = 120_000;
+export const MAX_PENDING_APPROVAL_COUNT = 128;
 const TERMINAL_RUN_TTL_MS = 10 * 60_000;
 const GC_INTERVAL_MS = 30_000;
 
@@ -16,11 +18,26 @@ export type RunState = {
 
 export type PendingApproval = {
   id: string;
-  sessionKey: string;
+  sessionKey?: string;
   command?: string;
+  requestId?: string;
   traceId?: string;
+  wasSessionBound?: boolean;
   createdAtMs: number;
 };
+
+export type ConsumeApprovalResult =
+  | {
+      consumed: true;
+      reason: "matched" | "fallback";
+      approval: PendingApproval;
+      run: RunState;
+    }
+  | {
+      consumed: false;
+      reason: "not_found" | "session_not_found" | "run_not_found";
+      approval: PendingApproval | null;
+    };
 
 export function isTerminalStatus(status: ChatRunStatus): boolean {
   return status === "completed" || status === "failed" || status === "aborted";
@@ -53,15 +70,48 @@ export class ChatRunState {
     return `${sessionKey}::agent::${runId}`;
   }
 
+  private isPendingApprovalFresh(approval: PendingApproval, now = Date.now()): boolean {
+    return now - approval.createdAtMs <= DEFAULT_PENDING_APPROVAL_TTL_MS;
+  }
+
+  private removeExpiredPendingApprovals(now = Date.now()): void {
+    for (const [id, approval] of this.pendingApprovals) {
+      if (!this.isPendingApprovalFresh(approval, now)) {
+        this.pendingApprovals.delete(id);
+      }
+    }
+  }
+
+  private enforcePendingApprovalCapacity(): void {
+    if (this.pendingApprovals.size <= MAX_PENDING_APPROVAL_COUNT) return;
+
+    const orderedApprovals = [...this.pendingApprovals.entries()].sort(
+      ([, a], [, b]) => a.createdAtMs - b.createdAtMs,
+    );
+    const overflow = orderedApprovals.length - MAX_PENDING_APPROVAL_COUNT;
+    for (let i = 0; i < overflow; i++) {
+      const [id] = orderedApprovals[i];
+      this.pendingApprovals.delete(id);
+    }
+  }
+
+  private getMostRecentActiveRun(): RunState | null {
+    let selected: RunState | null = null;
+    for (const run of this.runsByTrace.values()) {
+      if (isTerminalStatus(run.status)) continue;
+      if (!selected || run.lastEventAtMs > selected.lastEventAtMs) {
+        selected = run;
+      }
+    }
+    return selected;
+  }
+
   gc(now = Date.now()): void {
     if (now - this.lastGcAtMs < GC_INTERVAL_MS) return;
     this.lastGcAtMs = now;
 
-    for (const [id, approval] of this.pendingApprovals) {
-      if (now - approval.createdAtMs > PENDING_APPROVAL_TTL_MS) {
-        this.pendingApprovals.delete(id);
-      }
-    }
+    this.removeExpiredPendingApprovals(now);
+    this.enforcePendingApprovalCapacity();
 
     for (const [traceId, run] of this.runsByTrace) {
       if (!isTerminalStatus(run.status)) continue;
@@ -164,63 +214,178 @@ export class ChatRunState {
     this.traceBySessionAgent.set(this.agentKey(sessionKey, runId), run.traceId);
   }
 
-  findRunFromRecentApproval(sessionKey: string): RunState | null {
+  findRunFromRecentApproval(sessionKey?: string): RunState | null {
     const now = Date.now();
     let selected: RunState | null = null;
     for (const approval of this.pendingApprovals.values()) {
-      if (approval.sessionKey !== sessionKey) continue;
-      if (now - approval.createdAtMs > PENDING_APPROVAL_TTL_MS) continue;
+      if (!this.isPendingApprovalFresh(approval, now)) continue;
       if (!approval.traceId) continue;
+      if (sessionKey && approval.sessionKey !== sessionKey) continue;
       const run = this.runsByTrace.get(approval.traceId);
       if (!run || isTerminalStatus(run.status)) continue;
       if (!selected || run.lastEventAtMs > selected.lastEventAtMs) {
         selected = run;
       }
     }
-    return selected;
+
+    if (!selected && sessionKey) {
+      return this.getLatestActiveRun(sessionKey) ?? this.getMostRecentActiveRun();
+    }
+
+    return selected ?? this.getMostRecentActiveRun();
   }
 
-  hasRecentApprovalContext(sessionKey: string): boolean {
+  hasRecentApprovalContext(sessionKey?: string): boolean {
     const now = Date.now();
     for (const approval of this.pendingApprovals.values()) {
-      if (approval.sessionKey !== sessionKey) continue;
-      if (now - approval.createdAtMs <= PENDING_APPROVAL_TTL_MS) return true;
+      if (!this.isPendingApprovalFresh(approval, now)) continue;
+      if (sessionKey && approval.sessionKey !== sessionKey) continue;
+      return true;
     }
     return false;
   }
 
   recordApprovalRequest(params: {
     id: string;
-    sessionKey: string;
+    sessionKey?: string;
     command?: string;
+    requestId?: string;
   }): RunState | null {
-    let run = this.getLatestActiveRun(params.sessionKey);
-    if (!run) {
-      run = this.ensureRun({ sessionKey: params.sessionKey, clientRunId: params.id });
-    }
-    const traceId = run.traceId;
-    this.pendingApprovals.set(params.id, {
+    const normalizedSessionKey = params.sessionKey?.trim();
+    const fallbackRun = normalizedSessionKey
+      ? this.getLatestActiveRun(normalizedSessionKey) ??
+        this.ensureRun({ sessionKey: normalizedSessionKey, clientRunId: params.id })
+      : this.getMostRecentActiveRun();
+
+    const pending: PendingApproval = {
       id: params.id,
-      sessionKey: params.sessionKey,
+      sessionKey: fallbackRun?.sessionKey,
+      requestId: params.requestId,
       command: params.command,
-      traceId,
+      traceId: fallbackRun?.traceId,
+      wasSessionBound: Boolean(normalizedSessionKey && fallbackRun),
       createdAtMs: Date.now(),
-    });
-    return run;
+    };
+
+    this.pendingApprovals.set(params.id, pending);
+    this.enforcePendingApprovalCapacity();
+
+    chatLog.debug(
+      "[chat.approval.record]",
+      `approvalId=${params.id}`,
+      `requestSessionKey=${normalizedSessionKey ?? "<missing>"}`,
+      `boundSession=${pending.sessionKey ?? "<none>"}`,
+      `runId=${pending.traceId ?? "<none>"}`,
+      `requestId=${params.requestId ?? "<none>"}`,
+      `wasSessionBound=${String(!!pending.wasSessionBound)}`,
+    );
+
+    return fallbackRun ?? null;
   }
 
   consumeApproval(params: {
     id: string;
-  }): { approval: PendingApproval; run: RunState | null } | null {
+    sessionKey?: string;
+    traceId?: string;
+  }): ConsumeApprovalResult {
     const approval = this.pendingApprovals.get(params.id);
-    if (!approval) return null;
+    if (!approval) {
+      return {
+        consumed: false,
+        reason: "not_found",
+        approval: null,
+      };
+    }
+
+    if (!this.isPendingApprovalFresh(approval)) {
+      this.pendingApprovals.delete(params.id);
+      return {
+        consumed: false,
+        reason: "run_not_found",
+        approval,
+      };
+    }
+
     this.pendingApprovals.delete(params.id);
 
-    const run =
-      (approval.traceId ? this.runsByTrace.get(approval.traceId) : null) ??
-      this.getLatestActiveRun(approval.sessionKey);
+    const requestedSession = params.sessionKey?.trim();
+    let run: RunState | null = null;
+    let matchedByExactTrace = false;
 
-    return { approval, run: run ?? null };
+    if (params.traceId || approval.traceId) {
+      const runByTrace = this.getRunByTraceOrSession(
+        params.traceId ?? approval.traceId,
+        requestedSession,
+      );
+      if (runByTrace) {
+        run = runByTrace;
+        matchedByExactTrace = true;
+      }
+    }
+
+    if (!run && approval.traceId) {
+      const runByApprovalTrace = this.runsByTrace.get(approval.traceId);
+      if (runByApprovalTrace && !isTerminalStatus(runByApprovalTrace.status)) {
+        run = runByApprovalTrace;
+        matchedByExactTrace = true;
+      }
+    }
+
+    if (!run && requestedSession) {
+      run = this.getLatestActiveRun(requestedSession);
+    }
+
+    if (!run && approval.sessionKey) {
+      run = this.findRunFromRecentApproval(approval.sessionKey);
+    }
+
+    if (!run) {
+      const fallbackSession = requestedSession ?? approval.sessionKey;
+      const reason = fallbackSession ? "session_not_found" : "run_not_found";
+      chatLog.warn(
+        "[chat.approval.consume.miss]",
+        `approvalId=${approval.id}`,
+        `requestedSession=${fallbackSession ?? "<missing>"}`,
+        `reason=${reason}`,
+      );
+      return {
+        consumed: false,
+        reason,
+        approval,
+      };
+    }
+
+    chatLog.debug(
+      "[chat.approval.consume]",
+      `approvalId=${approval.id}`,
+      `session=${run.sessionKey}`,
+      `run=${run.traceId}`,
+      `matched=${String(matchedByExactTrace)}`,
+      `fallback=${String(!matchedByExactTrace)}`,
+      `requestId=${approval.requestId ?? "<none>"}`,
+      `wasSessionBound=${String(!!approval.wasSessionBound)}`,
+    );
+
+    return {
+      consumed: true,
+      reason: matchedByExactTrace ? "matched" : "fallback",
+      approval,
+      run,
+    };
+  }
+
+  private getRunByTraceOrSession(traceId?: string, sessionKey?: string): RunState | null {
+    if (traceId) {
+      const runByTrace = this.runsByTrace.get(traceId);
+      if (runByTrace && !isTerminalStatus(runByTrace.status)) return runByTrace;
+    }
+
+    if (sessionKey) {
+      const runBySession = this.getLatestActiveRun(sessionKey);
+      if (runBySession) return runBySession;
+    }
+
+    return null;
   }
 
   eventBase(

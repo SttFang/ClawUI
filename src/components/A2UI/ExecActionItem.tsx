@@ -81,9 +81,16 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
   const approvalShortId = currentApproval ? currentApproval.id.slice(-8) : "";
 
   return (
-    <Task open={expanded} onOpenChange={setExpanded}>
-      <TaskTrigger title={command || "exec"} />
-      <TaskContent>
+    <Task
+      open={expanded}
+      onOpenChange={setExpanded}
+      className="rounded-xl border border-border/70 bg-card/90 shadow-sm transition-colors dark:bg-card"
+    >
+      <TaskTrigger
+        title={command || "exec"}
+        className="px-3.5 py-3 hover:bg-muted/45 border-b border-transparent"
+      />
+      <TaskContent className="space-y-2 px-3.5 py-3">
         <div className="space-y-2">
           <TaskItem className="inline-flex items-center gap-2 text-xs">
             <span>{statusLabel}</span>

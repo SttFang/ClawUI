@@ -1,6 +1,7 @@
 import type { ChatNormalizedRunEvent } from "@clawui/types";
 import type { GatewayEventFrame } from "../chat-websocket";
 import { ChatRunState, normalizeRunStatus } from "./run-state";
+import { chatLog } from "../../lib/logger";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -76,12 +77,49 @@ export class ChatEventAdapter {
   onApprovalResolveRequest(params: {
     approvalId?: string;
     decision?: "allow-once" | "allow-always" | "deny";
+    sessionKey?: string;
+    commandHint?: string;
+    traceId?: string;
   }): ChatNormalizedRunEvent[] {
-    if (!params.approvalId) return [];
-    const consumed = this.state.consumeApproval({ id: params.approvalId });
-    if (!consumed?.run) return [];
+    const approvalId = params.approvalId?.trim();
+    if (!approvalId) return [];
+    const sessionKey = params.sessionKey?.trim();
 
-    const run = consumed.run;
+    const consumed = this.state.consumeApproval({
+      id: approvalId,
+      sessionKey,
+      traceId: params.traceId?.trim(),
+    });
+
+    const fallbackSession = consumed.consumed
+      ? undefined
+      : sessionKey ?? consumed.approval?.sessionKey ?? undefined;
+    if (!consumed.consumed && consumed.reason === "not_found") {
+      chatLog.warn(
+        "[chat.approval.resolve.no_run]",
+        `approvalId=${approvalId}`,
+        `sessionKey=${fallbackSession ?? "<unknown>"}`,
+        `reason=${consumed.reason}`,
+        `traceId=${params.traceId ?? "<none>"}`,
+      );
+      return [];
+    }
+
+    const run = consumed.consumed
+      ? consumed.run
+      : this.state.findRunFromRecentApproval(fallbackSession);
+    if (!run) {
+      chatLog.warn(
+        "[chat.approval.resolve.no_run]",
+        `approvalId=${approvalId}`,
+        `sessionKey=${sessionKey ?? "<unknown>"}`,
+        `reason=${consumed.reason}`,
+        `traceId=${params.traceId ?? "<none>"}`,
+      );
+      return [];
+    }
+
+    const command = consumed.consumed ? consumed.approval.command : params.commandHint;
     if (params.decision === "deny") {
       run.status = normalizeRunStatus(run.status, "aborted");
     } else {
@@ -93,9 +131,11 @@ export class ChatEventAdapter {
       {
         kind: "run.approval_resolved",
         ...this.state.eventBase(run),
-        approvalId: params.approvalId,
+        approvalId,
         decision: params.decision,
-        command: consumed.approval.command,
+        command,
+        correlationConfidence:
+          consumed.consumed && consumed.reason === "matched" ? "exact" : "fallback",
       },
     ];
   }
@@ -323,16 +363,35 @@ export class ChatEventAdapter {
 
   private ingestExecApprovalRequested(frame: GatewayEventFrame): ChatNormalizedRunEvent[] {
     if (!isRecord(frame.payload)) return [];
-    const id = typeof frame.payload.id === "string" ? frame.payload.id : "";
+    const id =
+      typeof frame.payload.id === "string"
+        ? frame.payload.id
+        : isRecord(frame.payload.request) &&
+            typeof frame.payload.request.id === "string"
+          ? frame.payload.request.id
+          : "";
     const request = isRecord(frame.payload.request) ? frame.payload.request : null;
     const sessionKey = request && typeof request.sessionKey === "string" ? request.sessionKey : "";
-    const command = request && typeof request.command === "string" ? request.command : undefined;
-    if (!id || !sessionKey) return [];
+    const command = isRecord(frame.payload.request)
+      ? typeof request?.command === "string"
+        ? request?.command
+        : typeof frame.payload.command === "string"
+          ? frame.payload.command
+          : ""
+      : "";
+    const requestId =
+      request && typeof request.id === "string"
+        ? request.id
+        : typeof frame.payload.requestId === "string"
+          ? frame.payload.requestId
+          : undefined;
+    if (!id) return [];
 
     const run = this.state.recordApprovalRequest({
       id,
       sessionKey,
-      command,
+      command: command || undefined,
+      requestId,
     });
     if (!run) return [];
 
@@ -350,13 +409,43 @@ export class ChatEventAdapter {
 
   private ingestExecApprovalResolved(frame: GatewayEventFrame): ChatNormalizedRunEvent[] {
     if (!isRecord(frame.payload)) return [];
-    const id = typeof frame.payload.id === "string" ? frame.payload.id : "";
+    const id =
+      typeof frame.payload.id === "string"
+        ? frame.payload.id
+        : isRecord(frame.payload.request) && typeof frame.payload.request.id === "string"
+          ? frame.payload.request.id
+          : "";
     if (!id) return [];
     const decisionRaw = frame.payload.decision;
     const decision =
       decisionRaw === "allow-once" || decisionRaw === "allow-always" || decisionRaw === "deny"
         ? decisionRaw
         : undefined;
-    return this.onApprovalResolveRequest({ approvalId: id, decision });
+    const request = isRecord(frame.payload.request) ? frame.payload.request : null;
+    const sessionKey =
+      request && typeof request.sessionKey === "string"
+        ? request.sessionKey
+        : typeof frame.payload.sessionKey === "string"
+          ? frame.payload.sessionKey
+          : "";
+    const command =
+      request && typeof request.command === "string"
+        ? request.command
+        : typeof frame.payload.command === "string"
+          ? frame.payload.command
+          : undefined;
+    const traceId =
+      request && typeof request.traceId === "string"
+        ? request.traceId
+        : typeof frame.payload.traceId === "string"
+          ? frame.payload.traceId
+          : undefined;
+    return this.onApprovalResolveRequest({
+      approvalId: id,
+      decision,
+      sessionKey,
+      commandHint: command,
+      traceId,
+    });
   }
 }

@@ -65,7 +65,9 @@ export function OpenClawChatPanel(props: {
         initial="smooth"
       >
         <StickToBottom.Content className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-          {hasSession ? <RunTimelinePanel sessionKey={normalizedSessionKey} /> : null}
+          {hasSession && chat.messages.length > 0 ? (
+            <RunTimelinePanel sessionKey={normalizedSessionKey} />
+          ) : null}
           {chat.messages.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
               <MessageSquare className="mx-auto mb-4 h-12 w-12 opacity-50" />

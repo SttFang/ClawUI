@@ -225,6 +225,56 @@ describe('openclawTranscriptToUIMessages', () => {
     ])
   })
 
+  it('should suppress redundant tool receipt text when tool output exists', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'm-tool-redundant',
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'System: Exec finished (code 0)' },
+          { type: 'tool_result', text: 'System: Exec finished (code 0)' },
+        ],
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toEqual([
+      {
+        type: 'dynamic-tool',
+        toolName: 'tool',
+        toolCallId: 'm-tool-redundant',
+        state: 'output-available',
+        input: {},
+        output: 'System: Exec finished (code 0)',
+        providerExecuted: true,
+      },
+    ])
+  })
+
+  it('should use runId as toolCallId fallback when tool id is missing', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        role: 'toolResult',
+        runId: 'run-fallback-id',
+        toolName: 'exec',
+        result: 'done',
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toEqual([
+      {
+        type: 'dynamic-tool',
+        toolName: 'exec',
+        toolCallId: 'run-fallback-id',
+        state: 'output-available',
+        input: {},
+        output: 'done',
+        providerExecuted: true,
+      },
+    ])
+  })
+
   it('should filter user messages from internal_system provenance', () => {
     const ui = openclawTranscriptToUIMessages([
       {

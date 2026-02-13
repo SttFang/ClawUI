@@ -38,6 +38,17 @@ function isInternalSystemUserRecord(record: Record<string, unknown>): boolean {
   return kind === INTERNAL_SYSTEM_KIND;
 }
 
+function isAllowedHistoryRole(role: string): boolean {
+  return (
+    role === "assistant" ||
+    role === "system" ||
+    role === "tool" ||
+    role === "toolresult" ||
+    role === "tool_result" ||
+    role === "tool_result_error"
+  );
+}
+
 function resolveMessageRunId(record: Record<string, unknown>): string | undefined {
   const candidates = [
     record.runId,
@@ -99,8 +110,8 @@ export function pickLastHistoryText(params: {
     if (messageSession && messageSession !== params.sessionKey) continue;
     if (isInternalSystemUserRecord(raw)) continue;
 
-    const role = typeof raw.role === "string" ? raw.role.toLowerCase() : "";
-    if (!role) continue;
+    const role = typeof raw.role === "string" ? raw.role.trim().toLowerCase() : "";
+    if (!isAllowedHistoryRole(role)) continue;
 
     const candidateRunId = resolveMessageRunId(raw);
     if (params.runId && candidateRunId && candidateRunId !== params.runId) continue;

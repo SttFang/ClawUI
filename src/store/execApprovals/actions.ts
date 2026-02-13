@@ -74,8 +74,10 @@ export function createExecApprovalsActions(
       const sessionKey = normalizeSessionKey(current?.request.sessionKey);
       const command = current?.request.command?.trim() ?? "";
       const runningKey = command ? makeExecApprovalKey(sessionKey, command) : "";
+      const shouldMarkRunning =
+        (decision === "allow-once" || decision === "allow-always") && !!runningKey;
 
-      if ((decision === "allow-once" || decision === "allow-always") && runningKey) {
+      if (shouldMarkRunning) {
         const atMs = Date.now();
         set(
           (state) => ({ runningByKey: { ...state.runningByKey, [runningKey]: atMs } }),
@@ -106,10 +108,13 @@ export function createExecApprovalsActions(
 
       let resolvedAtMs = Date.now();
       let requestOk = false;
+      let requestError: unknown = null;
       try {
         await ipc.chat.request("exec.approval.resolve", { id, decision });
         requestOk = true;
         resolvedAtMs = Date.now();
+      } catch (error) {
+        requestError = error;
       } finally {
         set(
           (state) => {
@@ -121,7 +126,21 @@ export function createExecApprovalsActions(
         );
       }
 
-      if (!requestOk) return;
+      if (!requestOk) {
+        if (shouldMarkRunning) {
+          set(
+            (state) => {
+              if (!state.runningByKey[runningKey]) return state;
+              const { [runningKey]: _ignored, ...rest } = state.runningByKey;
+              return { ...state, runningByKey: rest };
+            },
+            false,
+            "execApprovals/resolve/rollbackRunning",
+          );
+        }
+        if (requestError) throw requestError;
+        return;
+      }
 
       set(
         (state) => {

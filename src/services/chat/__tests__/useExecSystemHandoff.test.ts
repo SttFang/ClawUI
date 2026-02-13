@@ -49,7 +49,13 @@ describe("useExecSystemHandoff", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     historyMessages = [];
-    hoisted.requestSpy.mockClear();
+    hoisted.requestSpy.mockReset();
+    hoisted.requestSpy.mockImplementation(
+      async (method: string, _params?: Record<string, unknown>) => {
+        if (method === "chat.history") return { messages: historyMessages };
+        return { ok: true };
+      },
+    );
     hoisted.gatewayEventListener = null;
     hoisted.normalizedEventListener = null;
   });
@@ -149,6 +155,111 @@ describe("useExecSystemHandoff", () => {
 
     const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
     expect(agentCalls).toHaveLength(1);
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should skip regular user history text and fallback to allowed roles", async () => {
+    const now = Date.now();
+    historyMessages = [
+      {
+        id: "assistant-old",
+        role: "assistant",
+        content: [{ type: "text", text: "older assistant text" }],
+        createdAtMs: now - 1_000,
+      },
+      {
+        id: "user-latest",
+        role: "user",
+        content: [{ type: "text", text: "latest user text should not handoff" }],
+        createdAtMs: now,
+      },
+    ];
+
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "exec.approval.resolved",
+        payload: {
+          id: "approval-unknown",
+          decision: "unexpected-decision",
+          request: { sessionKey: "s1" },
+        },
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+      await Promise.resolve();
+    });
+
+    const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(1);
+    expect(agentCalls[0]?.[1]).toMatchObject({
+      sessionKey: "s1",
+      message: "older assistant text",
+      inputProvenance: { source: "approval-unknown" },
+    });
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should allow retry after first agent request failure", async () => {
+    let agentAttempt = 0;
+    hoisted.requestSpy.mockImplementation(
+      async (method: string, _params?: Record<string, unknown>) => {
+        if (method === "chat.history") return { messages: historyMessages };
+        if (method === "agent") {
+          agentAttempt += 1;
+          if (agentAttempt === 1) throw new Error("network failed");
+        }
+        return { ok: true };
+      },
+    );
+
+    const { root } = mountHook("s1", true);
+
+    const emitToolResult = () => {
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "agent",
+        payload: {
+          sessionKey: "s1",
+          runId: "run-1",
+          stream: "tool",
+          data: {
+            name: "exec",
+            phase: "result",
+            result: "command done",
+          },
+        },
+      });
+    };
+
+    act(() => {
+      emitToolResult();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+      await Promise.resolve();
+    });
+
+    act(() => {
+      emitToolResult();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+      await Promise.resolve();
+    });
+
+    const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(2);
 
     act(() => {
       root.unmount();

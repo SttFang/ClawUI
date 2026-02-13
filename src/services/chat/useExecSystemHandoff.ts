@@ -37,7 +37,6 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
 
       const digest = hashText(payload.sessionKey, payload.runId, text);
       if (isCooldownActive(digest)) return;
-      cooldownByDigestRef.current.set(digest, Date.now());
 
       try {
         await ipc.chat.request("agent", {
@@ -57,6 +56,7 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
           `source=${payload.source}`,
           `message=${text.slice(0, 120)}`,
         );
+        cooldownByDigestRef.current.set(digest, Date.now());
       } catch (error) {
         chatLog.warn(
           "[exec.system.handoff.failed]",

@@ -125,4 +125,72 @@ describe("execApprovals listener", () => {
       atMs: 200,
     });
   });
+
+  it("marks command as running when allow decision is resolved from gateway", () => {
+    const now = Date.now();
+    useExecApprovalsStore.setState({
+      ...initialState,
+      queue: [
+        {
+          id: "pending-running",
+          request: { sessionKey: "agent:main:ui:1", command: "ls -la ~/Desktop" },
+          createdAtMs: now,
+          expiresAtMs: now + 60_000,
+        },
+      ],
+      busyById: {},
+      runningByKey: {},
+      lastResolvedBySession: {},
+    });
+
+    hoisted.gatewayHandler?.({
+      type: "event",
+      event: "exec.approval.resolved",
+      payload: {
+        id: "pending-running",
+        decision: "allow-once",
+        request: {
+          id: "pending-running",
+          sessionKey: "agent:main:ui:1",
+          command: "ls -la ~/Desktop",
+        },
+        ts: 300,
+      },
+    });
+
+    const state = useExecApprovalsStore.getState();
+    expect(state.runningByKey["agent:main:ui:1::ls -la ~/Desktop"]).toBe(300);
+    expect(state.queue).toEqual([]);
+  });
+
+  it("does not clear running on exec phase=end without result payload", () => {
+    useExecApprovalsStore.setState({
+      ...initialState,
+      queue: [],
+      busyById: {},
+      runningByKey: {
+        "agent:main:ui:1::ls -la ~/Desktop": 400,
+      },
+      lastResolvedBySession: {},
+    });
+
+    hoisted.gatewayHandler?.({
+      type: "event",
+      event: "agent",
+      payload: {
+        stream: "tool",
+        sessionKey: "agent:main:ui:1",
+        data: {
+          name: "exec",
+          phase: "end",
+          args: {
+            command: "ls -la ~/Desktop",
+          },
+        },
+      },
+    });
+
+    const state = useExecApprovalsStore.getState();
+    expect(state.runningByKey["agent:main:ui:1::ls -la ~/Desktop"]).toBe(400);
+  });
 });

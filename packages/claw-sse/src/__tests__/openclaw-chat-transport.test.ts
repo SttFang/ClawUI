@@ -996,7 +996,7 @@ describe('createOpenClawChatTransport', () => {
     vi.useRealTimers()
   })
 
-  it('should clear running tool on phase=end and finish via lifecycle fallback', async () => {
+  it('should not emit terminal output for exec phase=end without payload', async () => {
     vi.useFakeTimers()
     let handler: ((frame: GatewayEventFrame) => void) | null = null
 
@@ -1077,14 +1077,6 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
-    expect(await readNext(reader)).toEqual({
-      type: 'tool-output-available',
-      toolCallId: 'tc-end-only',
-      output: 'No output - tool completed successfully.',
-      providerExecuted: true,
-      dynamic: true,
-    })
-
     await vi.advanceTimersByTimeAsync(21_500)
 
     expect((await readNext(reader)).type).toBe('text-end')
@@ -1093,6 +1085,98 @@ describe('createOpenClawChatTransport', () => {
     expect((await reader.read()).done).toBe(true)
 
     vi.useRealTimers()
+  })
+
+  it('should emit fallback output when exec phase=result has no payload', async () => {
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'run-result-only'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('run exec')],
+      abortSignal: undefined,
+    })
+
+    const reader = stream.getReader()
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-result-only',
+        seq: 1,
+        stream: 'tool',
+        ts: Date.now(),
+        data: {
+          phase: 'start',
+          name: 'exec',
+          toolCallId: 'tc-result-no-output',
+          args: { command: 'ls -la ~/Desktop' },
+        },
+      },
+    })
+    expect((await readNext(reader)).type).toBe('tool-input-available')
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-result-only',
+        seq: 2,
+        stream: 'tool',
+        ts: Date.now(),
+        data: {
+          phase: 'result',
+          name: 'exec',
+          toolCallId: 'tc-result-no-output',
+        },
+      },
+    })
+
+    expect(await readNext(reader)).toEqual({
+      type: 'tool-output-available',
+      toolCallId: 'tc-result-no-output',
+      output: 'No output - tool completed successfully.',
+      providerExecuted: true,
+      dynamic: true,
+    })
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'run-result-only',
+        sessionKey: 's1',
+        seq: 3,
+        state: 'final',
+        message: { content: [{ type: 'text', text: 'done' }] },
+      },
+    })
+
+    expect((await readNext(reader)).type).toBe('text-delta')
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+    expect((await reader.read()).done).toBe(true)
   })
 
   it('should ignore agent assistant stream for text and rely on chat.delta snapshots', async () => {

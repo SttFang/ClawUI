@@ -180,6 +180,21 @@ export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends (infer U)[] ? U[] : T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
 
+function getBrowserFallbackRuntimeStatus(): RuntimeStatus {
+  return {
+    nodeInstalled: true,
+    nodeVersion: null,
+    nodePath: null,
+    openclawInstalled: true,
+    openclawVersion: null,
+    openclawPath: null,
+    configExists: true,
+    configValid: true,
+    configSchemaVersion: null,
+    configPath: "",
+  };
+}
+
 // Get the electron API from the preload script
 export function getElectronAPI(): ElectronAPI | null {
   if (typeof window !== "undefined" && "electron" in window) {
@@ -349,7 +364,10 @@ export const ipc = {
   onboarding: {
     async detect() {
       const api = getElectronAPI();
-      return api?.onboarding.detect();
+      if (api?.onboarding.detect) return api.onboarding.detect();
+      // Browser renderer-only debug fallback:
+      // keep app route available when preload bridge is absent.
+      return getBrowserFallbackRuntimeStatus();
     },
     async install() {
       const api = getElectronAPI();

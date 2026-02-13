@@ -495,9 +495,19 @@ export function createOpenClawChatStream(params: {
         }
 
         if (phase === 'result' || phase === 'end' || phase === 'error') {
+          const isError = tool.isError === true || phase === 'error'
+          const hasResult = typeof tool.result !== 'undefined'
+          const hasPartialResult = typeof tool.partialResult !== 'undefined'
+
+          // For exec/bash, `phase=end` can be an envelope close event without final payload.
+          // Do not promote it to completed output in that case.
+          if (phase === 'end' && !isError && !hasResult && !hasPartialResult) {
+            pendingToolCalls.delete(toolCallId)
+            return
+          }
+
           pendingToolCalls.delete(toolCallId)
           noteToolTerminalActivity()
-          const isError = tool.isError === true || phase === 'error'
           if (isError) {
             const errorText =
               typeof tool.result === 'string'
@@ -515,10 +525,8 @@ export function createOpenClawChatStream(params: {
             return
           }
 
-          const hasResult = typeof tool.result !== 'undefined'
-          const hasPartialResult = typeof tool.partialResult !== 'undefined'
           const fallbackOutput =
-            toolName === 'exec' || toolName === 'bash'
+            phase === 'result' && (toolName === 'exec' || toolName === 'bash')
               ? 'No output - tool completed successfully.'
               : ''
           const output = hasResult ? tool.result : hasPartialResult ? tool.partialResult : fallbackOutput

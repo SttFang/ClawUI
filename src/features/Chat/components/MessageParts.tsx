@@ -4,7 +4,11 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExecActionItem, ToolEventCard } from "@/components/A2UI";
-import { isExecPreliminary, upsertExecTrace } from "@/components/A2UI/execTrace";
+import {
+  isExecPreliminary,
+  shouldSuppressExecPart,
+  upsertExecTrace,
+} from "@/components/A2UI/execTrace";
 import { MessageText } from "./MessageText";
 
 const AUTO_HIDE_DELAY = 1500;
@@ -114,6 +118,9 @@ function pickMessageRenderableItem(
 
   if (isDynamicToolPartLike(part)) {
     if (isExecLikeToolName(part.toolName)) {
+      if (shouldSuppressExecPart(part, sessionKey)) {
+        return null;
+      }
       const trace = upsertExecTrace(part, sessionKey);
       if (
         part.state === "input-available" ||
@@ -186,6 +193,14 @@ function aggregateRenderableItems(
   return result;
 }
 
+function primeExecTrace(parts: UIMessage["parts"], sessionKey: string): void {
+  for (const part of parts) {
+    if (!isDynamicToolPartLike(part)) continue;
+    if (!isExecLikeToolName(part.toolName)) continue;
+    upsertExecTrace(part, sessionKey);
+  }
+}
+
 export function MessageParts(props: {
   message: UIMessage;
   streaming: boolean;
@@ -223,6 +238,7 @@ export function MessageParts(props: {
   const renderedItems = useMemo(() => {
     const hasToolPart = message.parts.some((part) => isDynamicToolPartLike(part));
     const foldToolReceiptText = message.role !== "user" && hasToolPart;
+    primeExecTrace(message.parts, sessionKey);
     const pre = message.parts.map((part, index) =>
       pickMessageRenderableItem(part, index, sessionKey, streaming, {
         foldToolReceiptText,

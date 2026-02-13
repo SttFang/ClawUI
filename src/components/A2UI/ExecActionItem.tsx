@@ -57,6 +57,7 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
     preliminary: part.state === "output-available" ? isExecPreliminary(part) : false,
     approvalRequested,
     runningMarked: Boolean(runningAtMs) && trace.status !== "completed" && trace.status !== "error",
+    traceRunning: trace.status === "running",
     hasFinalOutput:
       (part.state === "output-available" && !isExecPreliminary(part)) ||
       trace.status === "completed",

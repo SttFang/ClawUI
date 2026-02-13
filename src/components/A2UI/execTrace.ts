@@ -1,33 +1,54 @@
 import type { DynamicToolUIPart, UIMessage } from "ai";
+import type { ExecTraceRecord } from "@/store/a2uiExecTrace/types";
+import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
+import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
+import { normalizeSessionKey } from "@/store/execApprovals/helpers";
 
-export type ExecTraceStatus = "waiting" | "running" | "completed" | "error";
+export type { ExecTraceStatus } from "@/store/a2uiExecTrace/types";
 
-export type ExecTrace = {
-  traceKey: string;
-  sessionKey: string;
-  toolCallId: string;
-  command: string;
-  status: ExecTraceStatus;
-  startedAtMs: number;
-  endedAtMs?: number;
-  durationMs?: number;
-  output?: unknown;
-  errorText?: string;
-};
+export type ExecTrace = ExecTraceRecord;
 
-type ExecTraceCache = ExecTrace;
+function makeCommandKey(sessionKey: string, command: string): string {
+  return `${sessionKey}::${command.trim()}`;
+}
 
-const traceCache = new Map<string, ExecTraceCache>();
+function isCommandActive(sessionKey: string, command: string): boolean {
+  const normalizedSessionKey = normalizeSessionKey(sessionKey);
+  const normalizedCommand = command.trim();
+  if (!normalizedSessionKey || !normalizedCommand) return false;
+
+  const state = useExecApprovalsStore.getState();
+  const hasPending = state.queue.some(
+    (entry) =>
+      normalizeSessionKey(entry.request.sessionKey) === normalizedSessionKey &&
+      (entry.request.command ?? "").trim() === normalizedCommand,
+  );
+  if (hasPending) return true;
+
+  const runningKey = makeExecApprovalKey(normalizedSessionKey, normalizedCommand);
+  return Boolean(state.runningByKey[runningKey]);
+}
+
+function parseToolOrder(toolCallId: string): number | null {
+  const assistantMatch = toolCallId.match(/assistant:(\d{10,})/);
+  if (assistantMatch) {
+    const parsed = Number.parseInt(assistantMatch[1], 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  const tsMatch = toolCallId.match(/:(\d{10,})(?::|$)/);
+  if (tsMatch) {
+    const parsed = Number.parseInt(tsMatch[1], 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
 
 export function clearTracesForSession(sessionKey: string): void {
   const normalizedSessionKey = sessionKey.trim();
   if (!normalizedSessionKey) return;
-  const prefix = `${normalizedSessionKey}::`;
-  for (const key of traceCache.keys()) {
-    if (key.startsWith(prefix)) {
-      traceCache.delete(key);
-    }
-  }
+  useA2UIExecTraceStore.getState().clearSession(normalizedSessionKey);
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {
@@ -56,7 +77,7 @@ export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): E
   const normalizedSessionKey = sessionKey ?? "";
   const traceKey = `${normalizedSessionKey}::${part.toolCallId}`;
   const now = Date.now();
-  const existing = traceCache.get(traceKey);
+  const existing = useA2UIExecTraceStore.getState().tracesByKey[traceKey];
   const command = getCommand(part.input);
   const incomingFinal =
     part.state === "output-error" ||
@@ -66,6 +87,7 @@ export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): E
     traceKey,
     sessionKey: normalizedSessionKey,
     toolCallId: part.toolCallId,
+    toolOrder: parseToolOrder(part.toolCallId),
     command: command || "exec",
     status: "running",
     startedAtMs: now,
@@ -109,8 +131,58 @@ export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): E
     next.errorText = part.errorText;
   }
 
-  traceCache.set(traceKey, next);
+  useA2UIExecTraceStore.getState().setTrace(next);
+  if ((next.status === "completed" || next.status === "error") && next.command.trim()) {
+    const commandKey = makeCommandKey(normalizedSessionKey, next.command);
+    const endedAtMs = next.endedAtMs ?? now;
+    const current = useA2UIExecTraceStore.getState().terminalByCommand[commandKey];
+    const incomingOrder = next.toolOrder;
+    const shouldReplace = (() => {
+      if (!current) return true;
+      if (incomingOrder !== null && current.toolOrder !== null) {
+        return incomingOrder >= current.toolOrder;
+      }
+      if (incomingOrder !== null && current.toolOrder === null) {
+        return true;
+      }
+      if (incomingOrder === null && current.toolOrder !== null) {
+        return false;
+      }
+      return endedAtMs >= current.endedAtMs;
+    })();
+
+    if (shouldReplace) {
+      useA2UIExecTraceStore.getState().setTerminal(commandKey, {
+        traceKey,
+        endedAtMs,
+        toolOrder: incomingOrder,
+      });
+    }
+  }
   return next;
+}
+
+export function shouldSuppressExecPart(part: DynamicToolUIPart, sessionKey?: string): boolean {
+  const trace = upsertExecTrace(part, sessionKey);
+  if (trace.status === "completed" || trace.status === "error") return false;
+
+  const command = trace.command.trim();
+  if (!command) return false;
+  const normalizedSessionKey = sessionKey ?? "";
+  const commandKey = makeCommandKey(normalizedSessionKey, command);
+  const terminal = useA2UIExecTraceStore.getState().terminalByCommand[commandKey];
+  if (!terminal) return false;
+  if (terminal.traceKey === trace.traceKey) return false;
+  if (isCommandActive(normalizedSessionKey, command)) return false;
+
+  if (
+    trace.toolOrder !== null &&
+    terminal.toolOrder !== null &&
+    trace.toolOrder > terminal.toolOrder
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export function collectCompletedExecTraces(

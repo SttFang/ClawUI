@@ -25,6 +25,7 @@ const router = createHashRouter([
     errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <ChatPage /> },
+      { path: "chat", element: <Navigate to="/" replace /> },
       { path: "agents", element: <AgentsPage /> },
       ...SETTINGS_ALIAS_ROUTES.map((route) => ({
         path: route.path,

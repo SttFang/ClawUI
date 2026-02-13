@@ -8,6 +8,7 @@ describe("deriveExecActionState", () => {
       preliminary: false,
       approvalRequested: false,
       runningMarked: false,
+      traceRunning: false,
       hasFinalOutput: false,
       hasError: false,
     });
@@ -21,6 +22,7 @@ describe("deriveExecActionState", () => {
       preliminary: false,
       approvalRequested: true,
       runningMarked: false,
+      traceRunning: false,
       hasFinalOutput: false,
       hasError: false,
     });
@@ -34,6 +36,7 @@ describe("deriveExecActionState", () => {
       preliminary: true,
       approvalRequested: false,
       runningMarked: false,
+      traceRunning: false,
       hasFinalOutput: false,
       hasError: false,
     });
@@ -47,6 +50,7 @@ describe("deriveExecActionState", () => {
       preliminary: false,
       approvalRequested: false,
       runningMarked: true,
+      traceRunning: false,
       hasFinalOutput: true,
       hasError: false,
     });
@@ -60,6 +64,7 @@ describe("deriveExecActionState", () => {
       preliminary: false,
       approvalRequested: false,
       runningMarked: true,
+      traceRunning: false,
       hasFinalOutput: false,
       hasError: true,
     });
@@ -73,6 +78,7 @@ describe("deriveExecActionState", () => {
       preliminary: false,
       approvalRequested: true,
       runningMarked: true,
+      traceRunning: false,
       hasFinalOutput: false,
       hasError: false,
     });
@@ -86,10 +92,25 @@ describe("deriveExecActionState", () => {
       preliminary: false,
       approvalRequested: true,
       runningMarked: false,
+      traceRunning: false,
       hasFinalOutput: true,
       hasError: false,
     });
     expect(state.statusKey).toBe("completed");
     expect(state.running).toBe(false);
+  });
+
+  it("traceRunning should keep running state even without running mark", () => {
+    const state = deriveExecActionState({
+      partState: "input-available",
+      preliminary: false,
+      approvalRequested: false,
+      runningMarked: false,
+      traceRunning: true,
+      hasFinalOutput: false,
+      hasError: false,
+    });
+    expect(state.statusKey).toBe("running");
+    expect(state.running).toBe(true);
   });
 });

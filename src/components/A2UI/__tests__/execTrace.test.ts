@@ -1,10 +1,22 @@
 import type { DynamicToolUIPart } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clearTracesForSession, upsertExecTrace } from "../execTrace";
+import { initialState as execApprovalsInitialState } from "@/store/execApprovals/initialState";
+import { useExecApprovalsStore } from "@/store/execApprovals/store";
+import { clearTracesForSession, shouldSuppressExecPart, upsertExecTrace } from "../execTrace";
 
 describe("execTrace", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    useExecApprovalsStore.setState({
+      ...execApprovalsInitialState,
+      queue: [],
+      busyById: {},
+      runningByKey: {},
+      lastResolvedBySession: {},
+    });
+    clearTracesForSession("agent:main:ui:test");
+    clearTracesForSession("agent:main:ui:session-a");
+    clearTracesForSession("agent:main:ui:suppress");
   });
 
   it("should mark exec trace as completed when final output arrives", () => {
@@ -99,5 +111,93 @@ describe("execTrace", () => {
 
     expect(completed.status).toBe("completed");
     expect(restarted.status).toBe("running");
+  });
+
+  it("should suppress stale non-terminal exec part when same command has newer terminal trace", () => {
+    const sessionKey = "agent:main:ui:suppress";
+    const oldInput = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "tool-old",
+      state: "input-available",
+      input: { command: "ls -la ~/Desktop" },
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+    const newFinal = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "tool-new",
+      state: "output-available",
+      input: { command: "ls -la ~/Desktop" },
+      output: "done",
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+
+    upsertExecTrace(oldInput, sessionKey);
+    upsertExecTrace(newFinal, sessionKey);
+
+    expect(shouldSuppressExecPart(oldInput, sessionKey)).toBe(true);
+    expect(shouldSuppressExecPart(newFinal, sessionKey)).toBe(false);
+  });
+
+  it("should not suppress a newer pending trace when terminal trace is older", () => {
+    const sessionKey = "agent:main:ui:suppress";
+    const oldFinal = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "assistant:1771000000000:old:tool-1",
+      state: "output-available",
+      input: { command: "ls -la ~/Desktop" },
+      output: "done",
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+    const newPending = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "assistant:1771000009999:new:tool-1",
+      state: "input-available",
+      input: { command: "ls -la ~/Desktop" },
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+
+    upsertExecTrace(oldFinal, sessionKey);
+
+    expect(shouldSuppressExecPart(newPending, sessionKey)).toBe(false);
+  });
+
+  it("should keep current pending trace visible when command is active in approvals store", () => {
+    const sessionKey = "agent:main:ui:suppress";
+    const terminalUnknownOrder = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "call_unknown_order",
+      state: "output-available",
+      input: { command: "ls -la ~/Desktop" },
+      output: "done",
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+    const currentPending = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "assistant:1771007777777:tool-1",
+      state: "input-available",
+      input: { command: "ls -la ~/Desktop" },
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+
+    upsertExecTrace(terminalUnknownOrder, sessionKey);
+    useExecApprovalsStore.setState((state) => ({
+      ...state,
+      queue: [
+        {
+          id: "pending-visible",
+          request: { sessionKey, command: "ls -la ~/Desktop" },
+          createdAtMs: Date.now(),
+          expiresAtMs: Date.now() + 60_000,
+        },
+      ],
+    }));
+
+    expect(shouldSuppressExecPart(currentPending, sessionKey)).toBe(false);
   });
 });

@@ -7,6 +7,7 @@ export function deriveExecActionState(input: {
   preliminary: boolean;
   approvalRequested: boolean;
   runningMarked: boolean;
+  traceRunning: boolean;
   hasFinalOutput: boolean;
   hasError: boolean;
 }): {
@@ -14,8 +15,15 @@ export function deriveExecActionState(input: {
   statusKey: "waitingApproval" | "pending" | "running" | "completed" | "error";
   running: boolean;
 } {
-  const { partState, preliminary, approvalRequested, runningMarked, hasFinalOutput, hasError } =
-    input;
+  const {
+    partState,
+    preliminary,
+    approvalRequested,
+    runningMarked,
+    traceRunning,
+    hasFinalOutput,
+    hasError,
+  } = input;
 
   if (hasError || partState === "output-error") {
     return { status: "error", statusKey: "error", running: false };
@@ -30,6 +38,7 @@ export function deriveExecActionState(input: {
   }
 
   const running =
+    traceRunning ||
     partState === "input-streaming" ||
     (partState === "output-available" && preliminary) ||
     runningMarked;

@@ -69,11 +69,18 @@ export function initExecApprovalsListener() {
           const sessionKey = normalizeSessionKey(
             current?.request.sessionKey ?? resolved.sessionKey,
           );
-          if (resolved.decision === "deny" && command) {
+          if (command) {
             const runningKey = makeExecApprovalKey(sessionKey, command);
-            if (nextRunningByKey[runningKey]) {
-              const { [runningKey]: _ignored, ...rest } = nextRunningByKey;
-              nextRunningByKey = rest;
+            if (resolved.decision === "deny") {
+              if (nextRunningByKey[runningKey]) {
+                const { [runningKey]: _ignored, ...rest } = nextRunningByKey;
+                nextRunningByKey = rest;
+              }
+            } else if (resolved.decision === "allow-once" || resolved.decision === "allow-always") {
+              nextRunningByKey = {
+                ...nextRunningByKey,
+                [runningKey]: resolved.atMs,
+              };
             }
           }
 
@@ -132,7 +139,14 @@ export function initExecApprovalsListener() {
     if (toolName !== "exec") return;
 
     const phase = typeof data.phase === "string" ? data.phase : "";
-    const isTerminal = phase === "result" || phase === "error" || phase === "end";
+    const hasResultPayload =
+      Object.prototype.hasOwnProperty.call(data, "result") ||
+      Object.prototype.hasOwnProperty.call(data, "partialResult");
+    const isExplicitError = phase === "error" || data.isError === true;
+    const isTerminal =
+      phase === "result" ||
+      phase === "error" ||
+      (phase === "end" && (hasResultPayload || isExplicitError));
     if (!isTerminal) return;
 
     const sessionKey = normalizeSessionKey(

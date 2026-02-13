@@ -2,6 +2,7 @@ import type { UIMessage } from "ai";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { clearTracesForSession } from "@/components/A2UI/execTrace";
 import { MessageParts } from "../MessageParts";
 
 vi.mock("react-i18next", () => ({
@@ -23,6 +24,60 @@ vi.mock("@/components/A2UI", async () => {
 });
 
 describe("MessageParts", () => {
+  it("suppresses stale input-only exec card after newer terminal card is rendered", () => {
+    const sessionKey = "agent:main:ui:messageparts-suppress";
+    clearTracesForSession(sessionKey);
+
+    const staleInput: UIMessage = {
+      id: "msg-old",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolName: "exec",
+          toolCallId: "tool-old",
+          state: "input-available",
+          providerExecuted: true,
+          input: { command: "ls -la ~/Desktop" },
+        } as const,
+      ],
+    };
+
+    // Seed stale input first (older message already in list).
+    renderToStaticMarkup(
+      createElement(MessageParts, { message: staleInput, streaming: false, sessionKey }),
+    );
+
+    const latestFinal: UIMessage = {
+      id: "msg-new",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolName: "exec",
+          toolCallId: "tool-new",
+          state: "output-available",
+          providerExecuted: true,
+          input: { command: "ls -la ~/Desktop" },
+          output: "done",
+        } as const,
+      ],
+    };
+
+    // Newer terminal message arrives.
+    renderToStaticMarkup(
+      createElement(MessageParts, { message: latestFinal, streaming: false, sessionKey }),
+    );
+
+    // Older message re-renders and should be suppressed.
+    const html = renderToStaticMarkup(
+      createElement(MessageParts, { message: staleInput, streaming: false, sessionKey }),
+    );
+
+    expect(html).not.toContain("exec:tool-old:input-available");
+    clearTracesForSession(sessionKey);
+  });
+
   it("keeps a single render node per exec toolCallId", () => {
     const message: UIMessage = {
       id: "msg-1",
@@ -55,6 +110,43 @@ describe("MessageParts", () => {
 
     expect(matches).not.toBeNull();
     expect(matches?.length).toBe(1);
+  });
+
+  it("suppresses older pending exec card in same message when newer terminal exists", () => {
+    const sessionKey = "agent:main:ui:messageparts-same-message";
+    clearTracesForSession(sessionKey);
+
+    const message: UIMessage = {
+      id: "msg-same-message",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolName: "exec",
+          toolCallId: "assistant:1771000000000:old:tool-1",
+          state: "input-available",
+          providerExecuted: true,
+          input: { command: "ls -la ~/Desktop" },
+        } as const,
+        {
+          type: "dynamic-tool",
+          toolName: "exec",
+          toolCallId: "assistant:1771000000999:new:tool-1",
+          state: "output-available",
+          providerExecuted: true,
+          input: { command: "ls -la ~/Desktop" },
+          output: "done",
+        } as const,
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MessageParts, { message, streaming: false, sessionKey }),
+    );
+
+    expect(html).not.toContain("exec:assistant:1771000000000:old:tool-1:input-available");
+    expect(html).toContain("exec:assistant:1771000000999:new:tool-1:output-available");
+    clearTracesForSession(sessionKey);
   });
 
   it("does not render completed summary in default message flow", () => {

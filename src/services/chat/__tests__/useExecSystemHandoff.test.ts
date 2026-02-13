@@ -133,10 +133,12 @@ describe("useExecSystemHandoff", () => {
       inputProvenance: {
         kind: "internal_system",
         sourceSessionKey: "s1",
-        runId: "run-1",
-        source: "approval-allow",
+        sourceTool: "approval-allow",
       },
     });
+    expect(typeof (agentCalls[0]?.[1] as { idempotencyKey?: unknown })?.idempotencyKey).toBe(
+      "string",
+    );
 
     act(() => {
       root.unmount();
@@ -223,7 +225,7 @@ describe("useExecSystemHandoff", () => {
     expect(agentCalls[0]?.[1]).toMatchObject({
       sessionKey: "s1",
       message: "System: Exec finished (code 0)",
-      inputProvenance: { source: "agent-tool-terminal", runId: "run-chat-finished" },
+      inputProvenance: { sourceTool: "agent-tool-terminal" },
     });
 
     act(() => {
@@ -301,7 +303,7 @@ describe("useExecSystemHandoff", () => {
     expect(agentCalls[0]?.[1]).toMatchObject({
       sessionKey: "s1",
       message: "drwxr-xr-x 90 fanghanjun staff 2880 Feb 3 16:23 激活-教育",
-      inputProvenance: { source: "approval-allow" },
+      inputProvenance: { sourceTool: "approval-allow" },
     });
 
     act(() => {
@@ -348,7 +350,7 @@ describe("useExecSystemHandoff", () => {
     expect(agentCalls).toHaveLength(1);
     expect(agentCalls[0]?.[1]).toMatchObject({
       message: "System: Exec finished (code 0) ls -la ~/Desktop",
-      inputProvenance: { source: "approval-allow" },
+      inputProvenance: { sourceTool: "approval-allow" },
     });
 
     act(() => {
@@ -397,7 +399,7 @@ describe("useExecSystemHandoff", () => {
     expect(agentCalls[0]?.[1]).toMatchObject({
       sessionKey: "s1",
       message: "older assistant text",
-      inputProvenance: { source: "approval-unknown" },
+      inputProvenance: { sourceTool: "approval-unknown" },
     });
 
     act(() => {
@@ -539,11 +541,11 @@ describe("useExecSystemHandoff", () => {
     expect(agentCalls).toHaveLength(2);
     expect(agentCalls[0]?.[1]).toMatchObject({
       message: "Execution denied for command: python bad.py",
-      inputProvenance: { source: "approval-deny" },
+      inputProvenance: { sourceTool: "approval-deny" },
     });
     expect(agentCalls[1]?.[1]).toMatchObject({
       message: "Execution timed out while waiting for approval.",
-      inputProvenance: { source: "approval-timeout" },
+      inputProvenance: { sourceTool: "approval-timeout" },
     });
 
     act(() => {

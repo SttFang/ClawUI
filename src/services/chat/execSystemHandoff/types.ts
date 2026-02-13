@@ -10,4 +10,5 @@ export type HandOffPayload = {
   runId?: string;
   source: HandOffSource;
   text?: string;
+  retryCount?: number;
 };

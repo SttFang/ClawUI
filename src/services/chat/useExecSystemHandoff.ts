@@ -24,8 +24,10 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
 
   const latestRunIdRef = useRef<string | null>(null);
   const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pendingPayloadRef = useRef<HandOffPayload | null>(null);
   const cooldownByDigestRef = useRef<Map<string, number>>(new Map());
+  const ALLOW_RESULT_RETRY_DELAYS_MS = [300, 1200];
 
   const isCooldownActive = useCallback((digest: string) => {
     const at = cooldownByDigestRef.current.get(digest);
@@ -83,16 +85,33 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
           sessionKey: payload.sessionKey,
           runId: payload.runId,
         });
+        const terminalHistoryText = pickLastHistoryText({
+          messages: response?.messages,
+          sessionKey: payload.sessionKey,
+          runId: payload.runId,
+          predicate: (text) => isLikelyTerminalResultText(text),
+        });
         const normalizedPayloadText = normalizeText(payload.text ?? "");
         const normalizedHistoryText = normalizeText(historyText ?? "");
-        const historyTerminalText = isLikelyTerminalResultText(normalizedHistoryText)
-          ? normalizedHistoryText
-          : "";
+        const historyTerminalText = normalizeText(terminalHistoryText ?? "");
 
         // For approval allow events, only handoff terminal output to avoid
         // echoing "Execution approved..." as the assistant continuation.
         if (payload.source === "approval-allow") {
-          if (!historyTerminalText) return;
+          if (!historyTerminalText) {
+            const retryCount = payload.retryCount ?? 0;
+            const retryDelay = ALLOW_RESULT_RETRY_DELAYS_MS[retryCount];
+            if (retryDelay) {
+              const timer = setTimeout(() => {
+                void refreshAndSend({
+                  ...payload,
+                  retryCount: retryCount + 1,
+                });
+              }, retryDelay);
+              retryTimersRef.current.push(timer);
+            }
+            return;
+          }
           await sendAgentInput(payload, historyTerminalText);
           return;
         }
@@ -118,6 +137,8 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
         return;
       pendingPayloadRef.current = payload;
       if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+      for (const timer of retryTimersRef.current) clearTimeout(timer);
+      retryTimersRef.current = [];
 
       pendingTimerRef.current = setTimeout(() => {
         pendingTimerRef.current = null;
@@ -180,8 +201,20 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
       if (typeof event.clientRunId === "string" && event.clientRunId.trim()) {
         latestRunIdRef.current = event.clientRunId.trim();
       }
+      if (event.kind === "run.approval_resolved") {
+        const handoff = resolveApprovalHandoff({
+          decision: event.decision ?? null,
+          command: event.command,
+        });
+        scheduleHandoff({
+          sessionKey: normalizedSessionKey,
+          runId: event.clientRunId?.trim() || latestRunIdRef.current || undefined,
+          source: handoff.source,
+          text: handoff.text,
+        });
+      }
     });
-  }, [hasSession, normalizedSessionKey]);
+  }, [hasSession, normalizedSessionKey, scheduleHandoff]);
 
   useEffect(() => {
     if (!hasSession || !normalizedSessionKey) return;
@@ -222,6 +255,8 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
   useEffect(
     () => () => {
       if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+      for (const timer of retryTimersRef.current) clearTimeout(timer);
+      retryTimersRef.current = [];
       pendingPayloadRef.current = null;
       latestRunIdRef.current = null;
       cooldownByDigestRef.current.clear();

@@ -97,6 +97,7 @@ export function pickLastHistoryText(params: {
   messages: unknown;
   sessionKey: string;
   runId?: string;
+  predicate?: (text: string, raw: Record<string, unknown>) => boolean;
 }): string | null {
   if (!Array.isArray(params.messages)) return null;
 
@@ -118,6 +119,7 @@ export function pickLastHistoryText(params: {
 
     const text = messageText(raw);
     if (!text) continue;
+    if (params.predicate && !params.predicate(text, raw)) continue;
 
     const atMs = readTimestamp(raw);
     if (!best || atMs > best.atMs) best = { atMs, text };

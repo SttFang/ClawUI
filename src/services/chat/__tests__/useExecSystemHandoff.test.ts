@@ -3,6 +3,10 @@ import { createRoot } from "react-dom/client";
 import { act } from "react-dom/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatNormalizedRunEvent, GatewayEventFrame } from "@/lib/ipc";
+import { initialState as a2uiExecTraceInitialState } from "@/store/a2uiExecTrace/initialState";
+import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
+import { initialState as execApprovalsInitialState } from "@/store/execApprovals/initialState";
+import { useExecApprovalsStore } from "@/store/execApprovals/store";
 import { useExecSystemHandoff } from "../useExecSystemHandoff";
 
 type GatewayCallback = (frame: GatewayEventFrame) => void;
@@ -58,6 +62,18 @@ describe("useExecSystemHandoff", () => {
     );
     hoisted.gatewayEventListener = null;
     hoisted.normalizedEventListener = null;
+    useExecApprovalsStore.setState({
+      ...execApprovalsInitialState,
+      queue: [],
+      busyById: {},
+      runningByKey: {},
+      lastResolvedBySession: {},
+    });
+    useA2UIExecTraceStore.setState({
+      ...a2uiExecTraceInitialState,
+      tracesByKey: {},
+      terminalByCommand: {},
+    });
   });
 
   function mountHook(sessionKey: string, hasSession: boolean) {
@@ -529,6 +545,55 @@ describe("useExecSystemHandoff", () => {
       message: "Execution timed out while waiting for approval.",
       inputProvenance: { source: "approval-timeout" },
     });
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should mark command terminal and clear running key after approval allow handoff", async () => {
+    const now = Date.now();
+    useExecApprovalsStore.setState((state) => ({
+      ...state,
+      runningByKey: {
+        "s1::ls -la ~/Desktop": now,
+      },
+    }));
+    historyMessages = [
+      {
+        id: "sys-finished-generic",
+        role: "system",
+        content: [
+          { type: "text", text: "drwxr-xr-x 90 fanghanjun staff 2880 Feb 3 16:23 激活-教育" },
+        ],
+        createdAtMs: now + 1000,
+      },
+    ];
+
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "exec.approval.resolved",
+        payload: {
+          id: "approval-clear-running",
+          decision: "allow-always",
+          request: { sessionKey: "s1", command: "ls -la ~/Desktop" },
+          ts: now + 500,
+        },
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+      await Promise.resolve();
+    });
+
+    expect(useExecApprovalsStore.getState().runningByKey["s1::ls -la ~/Desktop"]).toBeUndefined();
+    const terminal = useA2UIExecTraceStore.getState().terminalByCommand["s1::ls -la ~/Desktop"];
+    expect(terminal).toBeDefined();
+    expect(typeof terminal?.traceKey).toBe("string");
 
     act(() => {
       root.unmount();

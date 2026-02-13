@@ -125,4 +125,58 @@ describe("MessageParts", () => {
 
     expect(execCount).toBe(1);
   });
+
+  it("folds tool receipt text when tool card exists in the same message", () => {
+    const message: UIMessage = {
+      id: "msg-tool-receipt",
+      role: "assistant",
+      parts: [
+        {
+          type: "text",
+          text: "System: Exec finished (code 0)",
+        } as const,
+        {
+          type: "dynamic-tool",
+          toolName: "exec",
+          toolCallId: "tool-receipt",
+          state: "output-available",
+          providerExecuted: true,
+          input: { command: "ls -la" },
+          output: "System: Exec finished (code 0)",
+        } as const,
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MessageParts, { message, streaming: false, sessionKey: "s1" }),
+    );
+
+    expect(html).not.toContain("System: Exec finished (code 0)");
+    expect(html).toContain("exec:tool-receipt:output-available");
+  });
+
+  it("treats bash tool as exec-style action card", () => {
+    const message: UIMessage = {
+      id: "msg-bash-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolName: "bash",
+          toolCallId: "tool-bash-1",
+          state: "output-available",
+          providerExecuted: true,
+          input: { command: "pwd" },
+          output: "/tmp",
+        } as const,
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MessageParts, { message, streaming: false, sessionKey: "s1" }),
+    );
+
+    expect(html).toContain("exec:tool-bash-1:output-available");
+    expect(html).not.toContain("tool:bash:tool-bash-1");
+  });
 });

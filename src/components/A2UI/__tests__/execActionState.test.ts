@@ -79,4 +79,17 @@ describe("deriveExecActionState", () => {
     expect(state.statusKey).toBe("waitingApproval");
     expect(state.running).toBe(false);
   });
+
+  it("final output should win over stale approval flag", () => {
+    const state = deriveExecActionState({
+      partState: "output-available",
+      preliminary: false,
+      approvalRequested: true,
+      runningMarked: false,
+      hasFinalOutput: true,
+      hasError: false,
+    });
+    expect(state.statusKey).toBe("completed");
+    expect(state.running).toBe(false);
+  });
 });

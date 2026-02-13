@@ -118,6 +118,9 @@ async function run() {
     const newText = "System: Exec finished (gateway id=e2e-approval-1, session=fast-coral, code 0)";
 
     await page.waitForSelector(`text=${oldText}`, { timeout: 15_000 });
+    await page.evaluate(() => {
+      window.__CLAWUI_E2E__.resetAgentRequests();
+    });
 
     await page.evaluate(() => {
       const harness = window.__CLAWUI_E2E__;
@@ -128,6 +131,19 @@ async function run() {
         decision: "allow-once",
         status: "running",
       });
+      harness.emitGatewayEvent({
+        type: "event",
+        event: "exec.approval.resolved",
+        payload: {
+          id: "e2e-approval-1",
+          decision: "allow-once",
+          request: {
+            id: "e2e-approval-1",
+            sessionKey: harness.sessionKey,
+            command: "ls -la ~/Desktop",
+          },
+        },
+      });
     });
 
     await page.waitForSelector(`text=${newText}`, { timeout: 10_000 });
@@ -135,6 +151,26 @@ async function run() {
     const oldCount = await page.locator(`text=${oldText}`).count();
     if (oldCount !== 0) {
       throw new Error("Old pending system text is still visible after approval-resolved refresh.");
+    }
+
+    // approval->terminal handoff may require delayed retry when history final text arrives later
+    await delay(1800);
+
+    const agentRequestCount = await page.evaluate(() =>
+      window.__CLAWUI_E2E__.getAgentRequestCount(),
+    );
+    if (agentRequestCount < 1) {
+      throw new Error("Expected at least one internal agent handoff request after approval.");
+    }
+    const firstAgentRequest = await page.evaluate(
+      () => window.__CLAWUI_E2E__.getAgentRequests()[0],
+    );
+    const firstMessage =
+      firstAgentRequest && typeof firstAgentRequest.message === "string"
+        ? firstAgentRequest.message
+        : "";
+    if (!firstMessage.toLowerCase().includes("exec finished")) {
+      throw new Error(`Unexpected first agent handoff message: ${firstMessage}`);
     }
 
     await page.screenshot({ path: screenshotPath, fullPage: true });

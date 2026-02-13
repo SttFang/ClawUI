@@ -93,14 +93,14 @@ describe("useExecSystemHandoff", () => {
         sessionKey: "s1",
         clientRunId: "run-1",
       });
-      hoisted.gatewayEventListener?.({
-        type: "event",
-        event: "exec.approval.resolved",
-        payload: {
-          id: "approval-1",
-          decision: "allow-once",
-          request: { sessionKey: "s1", command: "openclaw status" },
-        },
+      hoisted.normalizedEventListener?.({
+        kind: "run.approval_resolved",
+        traceId: "trace-approval-1",
+        timestampMs: Date.now(),
+        sessionKey: "s1",
+        clientRunId: "run-1",
+        decision: "allow-once",
+        command: "openclaw status",
       });
     });
 
@@ -208,6 +208,126 @@ describe("useExecSystemHandoff", () => {
       sessionKey: "s1",
       message: "System: Exec finished (code 0)",
       inputProvenance: { source: "agent-tool-terminal", runId: "run-chat-finished" },
+    });
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should retry approval-allow handoff when terminal result appears later", async () => {
+    let historyCalls = 0;
+    hoisted.requestSpy.mockImplementation(
+      async (method: string, _params?: Record<string, unknown>) => {
+        if (method === "chat.history") {
+          historyCalls += 1;
+          if (historyCalls === 1) {
+            return {
+              messages: [
+                {
+                  id: "sys-pending",
+                  role: "system",
+                  content: [{ type: "text", text: "Approval required (id=abc)." }],
+                  createdAtMs: Date.now(),
+                },
+              ],
+            };
+          }
+          return {
+            messages: [
+              {
+                id: "sys-finished",
+                role: "system",
+                content: [{ type: "text", text: "System: Exec finished (code 0)" }],
+                createdAtMs: Date.now(),
+              },
+            ],
+          };
+        }
+        return { ok: true };
+      },
+    );
+
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "exec.approval.resolved",
+        payload: {
+          id: "approval-retry-1",
+          decision: "allow-once",
+          request: { sessionKey: "s1", command: "ls -la ~/Desktop" },
+        },
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+      await Promise.resolve();
+    });
+
+    let agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(0);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+      await Promise.resolve();
+    });
+
+    agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(1);
+    expect(agentCalls[0]?.[1]).toMatchObject({
+      sessionKey: "s1",
+      message: "System: Exec finished (code 0)",
+      inputProvenance: { source: "approval-allow" },
+    });
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should prefer latest terminal history text over newer non-terminal assistant text", async () => {
+    const now = Date.now();
+    historyMessages = [
+      {
+        id: "sys-finished-older",
+        role: "system",
+        content: [{ type: "text", text: "System: Exec finished (code 0)" }],
+        createdAtMs: now - 1000,
+      },
+      {
+        id: "assistant-newer",
+        role: "assistant",
+        content: [{ type: "text", text: "结果：你的桌面已经很干净了。" }],
+        createdAtMs: now,
+      },
+    ];
+
+    const { root } = mountHook("s1", true);
+    act(() => {
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "exec.approval.resolved",
+        payload: {
+          id: "approval-terminal-priority",
+          decision: "allow-once",
+          request: { sessionKey: "s1", command: "ls -la ~/Desktop" },
+        },
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+      await Promise.resolve();
+    });
+
+    const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(1);
+    expect(agentCalls[0]?.[1]).toMatchObject({
+      message: "System: Exec finished (code 0)",
+      inputProvenance: { source: "approval-allow" },
     });
 
     act(() => {

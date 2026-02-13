@@ -113,6 +113,7 @@
       [secondarySessionKey]: 0,
     },
     sentMessages: [],
+    agentRequests: [],
   };
 
   const listeners = {
@@ -316,6 +317,10 @@
             (state.historyRequestsBySession[requestedKey] || 0) + 1;
           return { messages: clone(bucket?.[mode] || []) };
         }
+        if (method === "agent") {
+          state.agentRequests.push(clone(params || {}));
+          return { ok: true };
+        }
         if (method === "chat.abort") return { ok: true };
         if (method === "sessions.patch") return { ok: true };
         if (method === "sessions.reset") return { ok: true };
@@ -424,6 +429,15 @@
     },
     getSentMessages() {
       return clone(state.sentMessages);
+    },
+    getAgentRequests() {
+      return clone(state.agentRequests);
+    },
+    getAgentRequestCount() {
+      return state.agentRequests.length;
+    },
+    resetAgentRequests() {
+      state.agentRequests = [];
     },
     getHistoryRequestCount(targetSessionKey = sessionKey) {
       return state.historyRequestsBySession[targetSessionKey] || 0;

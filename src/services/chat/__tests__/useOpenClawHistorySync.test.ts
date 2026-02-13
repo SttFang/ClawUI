@@ -1,26 +1,32 @@
-import { act } from "react-dom/test-utils";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
+import { act } from "react-dom/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatNormalizedRunEvent, GatewayEventFrame } from "@/lib/ipc";
-import { useOpenClawHistorySync } from "../useOpenClawHistorySync";
 import { useExecApprovalsStore } from "@/store/execApprovals";
 import { initialState } from "@/store/execApprovals/initialState";
+import { useOpenClawHistorySync } from "../useOpenClawHistorySync";
 
 type GatewayCallback = (frame: GatewayEventFrame) => void;
 type NormalizedCallback = (event: ChatNormalizedRunEvent) => void;
 
-let gatewayEventListener: GatewayCallback | null = null;
-let normalizedEventListener: NormalizedCallback | null = null;
-const requestSpy = vi.fn(async () => ({ messages: [] as unknown[] }));
+if (typeof globalThis !== "undefined") {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+}
+
+const hoisted = vi.hoisted(() => ({
+  gatewayEventListener: null as GatewayCallback | null,
+  normalizedEventListener: null as NormalizedCallback | null,
+  requestSpy: vi.fn(async () => ({ messages: [] as unknown[] })),
+}));
 
 vi.mock("@/lib/ipc", () => ({
   ipc: {
     gateway: {
       onEvent: vi.fn((callback: GatewayCallback) => {
-        gatewayEventListener = callback;
+        hoisted.gatewayEventListener = callback;
         return () => {
-          gatewayEventListener = null;
+          hoisted.gatewayEventListener = null;
         };
       }),
       onStatusChange: vi.fn(() => () => {}),
@@ -35,16 +41,16 @@ vi.mock("@/lib/ipc", () => ({
       connect: vi.fn(async () => true),
       disconnect: vi.fn(async () => true),
       send: vi.fn(),
-      request: requestSpy,
+      request: hoisted.requestSpy,
       isConnected: vi.fn(async () => false),
       onStream: vi.fn(() => () => {}),
       onConnected: vi.fn(() => () => {}),
       onDisconnected: vi.fn(() => () => {}),
       onError: vi.fn(() => () => {}),
       onNormalizedEvent: vi.fn((callback: NormalizedCallback) => {
-        normalizedEventListener = callback;
+        hoisted.normalizedEventListener = callback;
         return () => {
-          normalizedEventListener = null;
+          hoisted.normalizedEventListener = null;
         };
       }),
     },
@@ -72,9 +78,9 @@ describe("useOpenClawHistorySync", () => {
       runningByKey: {},
       lastResolvedBySession: {},
     });
-    requestSpy.mockClear();
-    gatewayEventListener = null;
-    normalizedEventListener = null;
+    hoisted.requestSpy.mockClear();
+    hoisted.gatewayEventListener = null;
+    hoisted.normalizedEventListener = null;
   });
 
   function mountHook(sessionKey: string, hasSession: boolean) {
@@ -107,11 +113,11 @@ describe("useOpenClawHistorySync", () => {
       await Promise.resolve();
     });
 
-    requestSpy.mockClear();
+    hoisted.requestSpy.mockClear();
 
     await act(async () => {
-      expect(gatewayEventListener).toBeTypeOf("function");
-      gatewayEventListener?.({
+      expect(hoisted.gatewayEventListener).toBeTypeOf("function");
+      hoisted.gatewayEventListener?.({
         type: "event",
         event: "exec.approval.resolved",
         payload: {
@@ -123,12 +129,12 @@ describe("useOpenClawHistorySync", () => {
       await Promise.resolve();
     });
 
-    expect(requestSpy).toHaveBeenCalledTimes(1);
+    expect(hoisted.requestSpy).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
     });
-    expect(requestSpy).toHaveBeenCalledTimes(2);
+    expect(hoisted.requestSpy).toHaveBeenCalledTimes(2);
     act(() => {
       root.unmount();
     });
@@ -142,31 +148,27 @@ describe("useOpenClawHistorySync", () => {
     await act(async () => {
       await Promise.resolve();
       await vi.advanceTimersByTimeAsync(1);
-      requestSpy.mockClear();
-      expect(normalizedEventListener).toBeTypeOf("function");
-      expect(gatewayEventListener).toBeTypeOf("function");
-      normalizedEventListener?.({
-        kind: "run.approval_resolved",
-        sessionKey,
-        traceId: "trace-1",
-        timestampMs: Date.now(),
-        clientRunId: "client-run-1",
-        status: "running",
-        source: "gateway",
-        correlationConfidence: "exact",
-      } as ChatNormalizedRunEvent);
-      gatewayEventListener?.({
+    });
+
+    hoisted.requestSpy.mockClear();
+
+    await act(async () => {
+      expect(hoisted.gatewayEventListener).toBeTypeOf("function");
+      hoisted.gatewayEventListener?.({
         type: "event",
         event: "exec.approval.resolved",
         payload: {
           id: "approval-id-2",
         },
       });
-      await vi.advanceTimersByTimeAsync(1);
       await Promise.resolve();
     });
 
-    expect(requestSpy).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    expect(hoisted.requestSpy).toHaveBeenCalledTimes(2);
     act(() => {
       root.unmount();
     });

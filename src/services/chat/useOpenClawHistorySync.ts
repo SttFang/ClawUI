@@ -386,6 +386,37 @@ export function useOpenClawHistorySync(params: {
         return;
       }
 
+      if (frame.event === "exec.approval.resolved") {
+        const payload = frame.payload as
+          | {
+              sessionKey?: unknown;
+            }
+          | undefined;
+        const payloadSession =
+          payload && typeof payload === "object" && typeof payload.sessionKey === "string"
+            ? payload.sessionKey
+            : undefined;
+        if (payloadSession && payloadSession !== normalizedSessionKey) return;
+
+        extendRecoveryWindow(APPROVAL_RECOVERY_WINDOW_MS);
+        for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
+        approvalRecoveryTimersRef.current = [];
+        void refreshHistory({
+          force: true,
+          reason: "approval-resolved-raw",
+          allowRetry: true,
+        });
+        const fallbackTimer = setTimeout(() => {
+          void refreshHistory({
+            force: true,
+            reason: "approval-resolved-raw-followup",
+            allowRetry: false,
+          });
+        }, 250);
+        approvalRecoveryTimersRef.current.push(fallbackTimer);
+        return;
+      }
+
       if (frame.event === "chat") {
         const payload = frame.payload as { sessionKey?: unknown; state?: unknown } | undefined;
         if (!payload || typeof payload !== "object") return;

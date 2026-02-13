@@ -113,4 +113,115 @@ describe('openclawTranscriptToUIMessages', () => {
     expect(ui[1]?.id).toBeTruthy()
     expect(ui[1]?.id).not.toBe(ui[0]?.id)
   })
+
+  it('should map toolResult role with result field into dynamic-tool output', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'tool-result-1',
+        role: 'toolResult',
+        toolCallId: 'tc-res-1',
+        toolName: 'exec',
+        result: { stdout: 'ok' },
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.role).toBe('assistant')
+    expect(ui[0]?.parts).toEqual([
+      {
+        type: 'dynamic-tool',
+        toolName: 'exec',
+        toolCallId: 'tc-res-1',
+        state: 'output-available',
+        input: {},
+        output: { stdout: 'ok' },
+        providerExecuted: true,
+      },
+    ])
+  })
+
+  it('should extract text from tool_result content blocks', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'm-tool-content',
+        role: 'assistant',
+        content: [
+          { type: 'toolcall', name: 'read', arguments: { path: 'a.txt' } },
+          {
+            type: 'tool_result',
+            content: [
+              { type: 'text', text: 'line1' },
+              { type: 'text', text: 'line2' },
+            ],
+          },
+        ],
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toEqual([
+      {
+        type: 'dynamic-tool',
+        toolName: 'read',
+        toolCallId: 'm-tool-content',
+        state: 'output-available',
+        input: { path: 'a.txt' },
+        output: 'line1\nline2',
+        providerExecuted: true,
+      },
+    ])
+  })
+
+  it('should fallback exec output when tool result has no output payload', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'm-tool-empty',
+        role: 'toolResult',
+        toolCallId: 'tc-empty',
+        toolName: 'exec',
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toEqual([
+      {
+        type: 'dynamic-tool',
+        toolName: 'exec',
+        toolCallId: 'tc-empty',
+        state: 'output-available',
+        input: {},
+        output: 'No output - tool completed successfully.',
+        providerExecuted: true,
+      },
+    ])
+  })
+
+  it('should preserve both text and tool result parts in one message', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'm-tool-mixed',
+        role: 'toolResult',
+        toolCallId: 'tc-mixed',
+        toolName: 'exec',
+        content: [
+          { type: 'text', text: '执行完成：' },
+          { type: 'tool_result_error', text: 'permission denied' },
+        ],
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toEqual([
+      { type: 'text', text: '执行完成：' },
+      {
+        type: 'dynamic-tool',
+        toolName: 'exec',
+        toolCallId: 'tc-mixed',
+        state: 'output-available',
+        input: {},
+        output: 'permission denied',
+        providerExecuted: true,
+      },
+    ])
+  })
 })

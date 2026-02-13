@@ -173,4 +173,74 @@ describe("useOpenClawHistorySync", () => {
       root.unmount();
     });
   });
+
+  it("keeps recovery refresh active at 5s, 30s, 90s heartbeat checkpoints", async () => {
+    vi.useFakeTimers();
+    const sessionKey = "agent:main:ui:history-5-30-90";
+
+    const { root } = mountHook(sessionKey, true);
+    await act(async () => {
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    hoisted.requestSpy.mockClear();
+
+    await act(async () => {
+      expect(hoisted.gatewayEventListener).toBeTypeOf("function");
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "exec.approval.resolved",
+        payload: {
+          id: "approval-id-3",
+          sessionKey,
+          decision: "allow-once",
+        },
+      });
+      await Promise.resolve();
+    });
+    expect(hoisted.requestSpy).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    expect(hoisted.requestSpy).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_750);
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "heartbeat",
+        payload: {},
+      });
+      await Promise.resolve();
+    });
+    expect(hoisted.requestSpy).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(25_000);
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "heartbeat",
+        payload: {},
+      });
+      await Promise.resolve();
+    });
+    expect(hoisted.requestSpy).toHaveBeenCalledTimes(4);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "heartbeat",
+        payload: {},
+      });
+      await Promise.resolve();
+    });
+    expect(hoisted.requestSpy).toHaveBeenCalledTimes(5);
+
+    act(() => {
+      root.unmount();
+    });
+  });
 });

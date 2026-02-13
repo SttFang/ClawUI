@@ -1415,6 +1415,113 @@ describe('createOpenClawChatTransport', () => {
     vi.useRealTimers()
   })
 
+  it('should append divergent assistant fallback text after approval activity', async () => {
+    vi.useFakeTimers()
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'run-assistant-approval'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('hello')],
+      abortSignal: undefined,
+    })
+
+    const reader = stream.getReader()
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    const ts = Date.now()
+    handler?.({
+      type: 'event',
+      event: 'exec.approval.requested',
+      payload: {
+        id: 'approval-a1',
+        request: { sessionKey: 's1', command: 'openclaw status' },
+        createdAtMs: ts,
+        expiresAtMs: ts + 60_000,
+      },
+    })
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-assistant-approval',
+        sessionKey: 's1',
+        seq: 1,
+        stream: 'assistant',
+        ts,
+        data: { text: 'System: Exec finished (code 0)' },
+      },
+    })
+    await vi.advanceTimersByTimeAsync(350)
+
+    expect(await readNext(reader)).toEqual({
+      type: 'text-delta',
+      id: 'text-1',
+      delta: 'System: Exec finished (code 0)',
+    })
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-assistant-approval',
+        sessionKey: 's1',
+        seq: 2,
+        stream: 'assistant',
+        ts: ts + 1,
+        data: { text: '状态检查已完成，服务运行正常。' },
+      },
+    })
+    await vi.advanceTimersByTimeAsync(350)
+
+    expect(await readNext(reader)).toEqual({
+      type: 'text-delta',
+      id: 'text-1',
+      delta: '\n\n状态检查已完成，服务运行正常。',
+    })
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-assistant-approval',
+        sessionKey: 's1',
+        seq: 3,
+        stream: 'lifecycle',
+        ts: ts + 2,
+        data: { phase: 'end' },
+      },
+    })
+
+    expect((await readNext(reader)).type).toBe('data-openclaw-lifecycle')
+    await vi.advanceTimersByTimeAsync(21_500)
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+    expect((await reader.read()).done).toBe(true)
+
+    vi.useRealTimers()
+  })
+
   it('should wait for chat.final if lifecycle end arrives first (avoid truncation)', async () => {
     let handler: ((frame: GatewayEventFrame) => void) | null = null
 

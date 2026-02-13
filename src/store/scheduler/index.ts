@@ -122,8 +122,9 @@ export const useSchedulerStore = create<SchedulerStore>()(
       loadTasks: async () => {
         set({ isLoading: true, error: null }, false, "loadTasks");
         try {
-          const config = await ipc.config.get();
-          if (config?.cron?.enabled === false) {
+          const snapshot = await ipc.config.getSnapshot();
+          const root = snapshot.config as { cron?: { enabled?: boolean } } | null;
+          if (root?.cron?.enabled === false) {
             set({ isLoading: false }, false, "loadTasks/disabled");
             return;
           }

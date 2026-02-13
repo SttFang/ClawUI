@@ -17,7 +17,8 @@ export const configSlice: StateCreator<
 > = (set, get) => ({
   loadConfig: async () => {
     try {
-      const cfg = (await ipc.config.get()) ?? null;
+      const snapshot = await ipc.config.getSnapshot();
+      const cfg = (snapshot.config ?? null) as unknown as AgentsStore["config"];
       set({ config: cfg, configError: null }, false, "loadConfig");
       get().listAgents();
     } catch (e) {

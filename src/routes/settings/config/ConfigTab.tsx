@@ -7,6 +7,7 @@ import {
   resolveConfigSection,
   type ConfigSection,
 } from "@/router/settingsRouteSchema";
+import { useConfigDraftStore } from "@/store/configDraft";
 import { ChannelsSection } from "./ChannelsSection";
 import { PluginsSection } from "./PluginsSection";
 import { SkillsSection } from "./SkillsSection";
@@ -40,6 +41,7 @@ export function ConfigTab(props: { activeSection: string | null }) {
   const { activeSection } = props;
   const { t } = useTranslation("common");
   const [searchParams, setSearchParams] = useSearchParams();
+  const loadSchema = useConfigDraftStore((state) => state.loadSchema);
 
   const sectionRefs = useRef<Partial<Record<ConfigSection, HTMLElement | null>>>({});
 
@@ -47,6 +49,10 @@ export function ConfigTab(props: { activeSection: string | null }) {
     () => resolveConfigSection(activeSection),
     [activeSection],
   );
+
+  useEffect(() => {
+    void loadSchema();
+  }, [loadSchema]);
 
   useEffect(() => {
     const element = sectionRefs.current[selectedSection];

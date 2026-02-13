@@ -28,7 +28,12 @@ describe("buildAgentsExportPayload", () => {
         enabled: 1,
         items: [{ type: "discord", name: "Discord", configured: true, enabled: true }],
       },
-      tools: { accessMode: "ask", sandboxEnabled: false, enabledTools: ["bash"] },
+      tools: {
+        accessMode: "ask",
+        sandboxEnabled: false,
+        allowList: ["group:runtime"],
+        denyList: [],
+      },
       pluginsInstalled: [{ id: "p1", name: "Plugin1", version: "1.0.0" }],
       mcpServers: [{ id: "m1", name: "m1", command: "node", args: ["server.js"], enabled: true }],
       skills,

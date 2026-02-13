@@ -16,7 +16,7 @@ import { useAgentsStore, agentsSelectors } from "@/store/agents";
 import { useChannelsStore, selectChannels } from "@/store/channels";
 import { useMCPStore, selectServers as selectMcpServers } from "@/store/mcp";
 import { usePluginsStore, selectInstalledPlugins } from "@/store/plugins";
-import { useToolsStore, selectToolsConfig, selectTools } from "@/store/tools";
+import { useToolsStore, selectToolsConfig } from "@/store/tools";
 
 function downloadJson(filename: string, data: unknown): void {
   const content = JSON.stringify(data, null, 2);
@@ -48,7 +48,6 @@ export function AgentsFeature() {
 
   const channels = useChannelsStore(selectChannels);
   const loadChannels = useChannelsStore((s) => s.loadChannels);
-  const tools = useToolsStore(selectTools);
   const toolsConfig = useToolsStore(selectToolsConfig);
   const loadTools = useToolsStore((s) => s.loadTools);
   const installedPlugins = usePluginsStore(selectInstalledPlugins);
@@ -103,7 +102,8 @@ export function AgentsFeature() {
         tools: {
           accessMode: toolsConfig.accessMode,
           sandboxEnabled: toolsConfig.sandboxEnabled,
-          enabledTools: tools.filter((x) => x.enabled).map((x) => x.name),
+          allowList: toolsConfig.allowList,
+          denyList: toolsConfig.denyList,
         },
         pluginsInstalled: installedPlugins.map((p) => ({
           id: p.id,
@@ -133,8 +133,9 @@ export function AgentsFeature() {
       mcpServers,
       selectedAgent,
       skills,
-      tools,
       toolsConfig.accessMode,
+      toolsConfig.allowList,
+      toolsConfig.denyList,
       toolsConfig.sandboxEnabled,
     ],
   );

@@ -1,11 +1,10 @@
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@clawui/ui";
 import { Shield } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useToolsStore, selectToolsConfig, selectTools } from "@/store/tools";
+import { useToolsStore, selectToolsConfig } from "@/store/tools";
 
 export function AgentCapabilities() {
   const { t } = useTranslation("common");
-  const tools = useToolsStore(selectTools);
   const toolsConfig = useToolsStore(selectToolsConfig);
 
   return (
@@ -40,8 +39,10 @@ export function AgentCapabilities() {
           </div>
         </div>
         <div className="text-sm">
-          <span className="text-muted-foreground">{t("agents.tools.enabledTools")}: </span>
-          <span>{tools.filter((x) => x.enabled).length}</span>
+          <span className="text-muted-foreground">Policy entries: </span>
+          <span>
+            allow {toolsConfig.allowList.length}, deny {toolsConfig.denyList.length}
+          </span>
         </div>
         <div className="text-xs text-muted-foreground">{t("agents.tools.policyNote")}</div>
       </CardContent>

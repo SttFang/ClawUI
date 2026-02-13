@@ -7,7 +7,7 @@ export interface Tool {
   id: string;
   name: string;
   description: string;
-  category: "filesystem" | "web" | "command" | "database" | "media" | "mcp";
+  category: string;
   enabled: boolean;
   requiresConfirmation: boolean;
 }

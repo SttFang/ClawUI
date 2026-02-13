@@ -30,7 +30,8 @@ export type AgentsExportPayload = {
     tools: {
       accessMode: string;
       sandboxEnabled: boolean;
-      enabledTools: string[];
+      allowList: string[];
+      denyList: string[];
     };
   };
   extensions: {

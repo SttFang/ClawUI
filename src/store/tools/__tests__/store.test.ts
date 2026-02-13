@@ -52,42 +52,42 @@ type ToolsPersistPatch = {
 
 const defaultTools: Tool[] = [
   {
-    id: "fs",
-    name: "File System",
+    id: "group:fs",
+    name: "File Operations",
     description: "Read, write, and manage files on the system",
     category: "filesystem",
     enabled: true,
     requiresConfirmation: false,
   },
   {
-    id: "web",
-    name: "Web Access",
+    id: "group:web",
+    name: "Web Operations",
     description: "Browse websites and fetch web content",
-    category: "web",
+    category: "group:web",
     enabled: true,
     requiresConfirmation: false,
   },
   {
-    id: "bash",
-    name: "Command Execution",
+    id: "group:runtime",
+    name: "Runtime Operations",
     description: "Execute shell commands and scripts",
     category: "command",
     enabled: true,
     requiresConfirmation: true,
   },
   {
-    id: "database",
-    name: "Database",
+    id: "group:sessions",
+    name: "Session Operations",
     description: "Query and manage database connections",
-    category: "database",
+    category: "group:sessions",
     enabled: false,
     requiresConfirmation: true,
   },
   {
-    id: "media",
-    name: "Media Processing",
+    id: "group:memory",
+    name: "Memory Operations",
     description: "Process images, audio, and video files",
-    category: "media",
+    category: "group:memory",
     enabled: false,
     requiresConfirmation: false,
   },
@@ -137,8 +137,8 @@ describe("ToolsStore", () => {
       (ipc.config.getSnapshot as Mock).mockResolvedValue({
         config: {
           tools: {
-            allow: ["fs", "web"],
-            deny: ["database"],
+            allow: ["group:fs", "group:web"],
+            deny: ["group:sessions"],
             exec: { host: "gateway", ask: "always", security: "allowlist" },
           },
           agents: {
@@ -153,8 +153,8 @@ describe("ToolsStore", () => {
 
       const state = useToolsStore.getState();
       expect(state.config.accessMode).toBe("ask");
-      expect(state.config.allowList).toEqual(["fs", "web"]);
-      expect(state.config.denyList).toEqual(["database"]);
+      expect(state.config.allowList).toEqual(["group:fs", "group:web"]);
+      expect(state.config.denyList).toEqual(["group:sessions"]);
       expect(state.config.sandboxEnabled).toBe(false);
       expect(state.config.execHost).toBe("gateway");
       expect(state.config.execAsk).toBe("always");
@@ -169,7 +169,7 @@ describe("ToolsStore", () => {
         config: {
           tools: {
             allow: [],
-            deny: ["fs", "web"],
+            deny: ["group:fs", "group:web"],
             exec: { host: "gateway", ask: "on-miss", security: "allowlist" },
           },
         },
@@ -178,8 +178,8 @@ describe("ToolsStore", () => {
       await useToolsStore.getState().loadTools();
 
       const state = useToolsStore.getState();
-      const fsTool = state.tools.find((t) => t.id === "fs");
-      const webTool = state.tools.find((t) => t.id === "web");
+      const fsTool = state.tools.find((t) => t.id === "group:fs");
+      const webTool = state.tools.find((t) => t.id === "group:web");
 
       expect(fsTool?.enabled).toBe(false);
       expect(webTool?.enabled).toBe(false);
@@ -190,7 +190,7 @@ describe("ToolsStore", () => {
       (ipc.config.getSnapshot as Mock).mockResolvedValue({
         config: {
           tools: {
-            allow: ["database", "media"],
+            allow: ["group:sessions", "group:memory"],
             deny: [],
             exec: { host: "gateway", ask: "on-miss", security: "allowlist" },
           },
@@ -200,8 +200,8 @@ describe("ToolsStore", () => {
       await useToolsStore.getState().loadTools();
 
       const state = useToolsStore.getState();
-      const dbTool = state.tools.find((t) => t.id === "database");
-      const mediaTool = state.tools.find((t) => t.id === "media");
+      const dbTool = state.tools.find((t) => t.id === "group:sessions");
+      const mediaTool = state.tools.find((t) => t.id === "group:memory");
 
       expect(dbTool?.enabled).toBe(true);
       expect(mediaTool?.enabled).toBe(true);
@@ -351,90 +351,90 @@ describe("ToolsStore", () => {
 
   describe("enableTool", () => {
     it("should enable a tool", async () => {
-      await useToolsStore.getState().enableTool("database");
+      await useToolsStore.getState().enableTool("group:sessions");
 
       const state = useToolsStore.getState();
-      const dbTool = state.tools.find((t) => t.id === "database");
+      const dbTool = state.tools.find((t) => t.id === "group:sessions");
       expect(dbTool?.enabled).toBe(true);
     });
 
     it("should add tool to allow list", async () => {
-      await useToolsStore.getState().enableTool("database");
-      expect(useToolsStore.getState().config.allowList).toContain("database");
+      await useToolsStore.getState().enableTool("group:sessions");
+      expect(useToolsStore.getState().config.allowList).toContain("group:sessions");
     });
 
     it("should remove tool from deny list", async () => {
       useToolsStore.setState({
         ...initialState,
-        config: { ...initialState.config, denyList: ["database", "media"] },
+        config: { ...initialState.config, denyList: ["group:sessions", "group:memory"] },
       });
 
-      await useToolsStore.getState().enableTool("database");
+      await useToolsStore.getState().enableTool("group:sessions");
 
       const state = useToolsStore.getState();
-      expect(state.config.denyList).not.toContain("database");
-      expect(state.config.denyList).toContain("media");
+      expect(state.config.denyList).not.toContain("group:sessions");
+      expect(state.config.denyList).toContain("group:memory");
     });
 
     it("should not duplicate in allow list", async () => {
       useToolsStore.setState({
         ...initialState,
-        config: { ...initialState.config, allowList: ["database"] },
+        config: { ...initialState.config, allowList: ["group:sessions"] },
       });
 
-      await useToolsStore.getState().enableTool("database");
+      await useToolsStore.getState().enableTool("group:sessions");
 
       const allowList = useToolsStore.getState().config.allowList;
-      expect(allowList.filter((id) => id === "database")).toHaveLength(1);
+      expect(allowList.filter((id) => id === "group:sessions")).toHaveLength(1);
     });
 
     it("should persist config", async () => {
-      await useToolsStore.getState().enableTool("database");
+      await useToolsStore.getState().enableTool("group:sessions");
 
       expect(mockDraft.applyPatch).toHaveBeenCalledTimes(1);
       const patch = getLastPersistPatch();
-      expect(patch.tools?.allow).toEqual(expect.arrayContaining(["database"]));
-      expect(patch.tools?.deny).not.toContain("database");
+      expect(patch.tools?.allow).toEqual(expect.arrayContaining(["group:sessions"]));
+      expect(patch.tools?.deny).not.toContain("group:sessions");
     });
   });
 
   describe("disableTool", () => {
     it("should disable a tool", async () => {
-      await useToolsStore.getState().disableTool("fs");
+      await useToolsStore.getState().disableTool("group:fs");
 
       const state = useToolsStore.getState();
-      const fsTool = state.tools.find((t) => t.id === "fs");
+      const fsTool = state.tools.find((t) => t.id === "group:fs");
       expect(fsTool?.enabled).toBe(false);
     });
 
     it("should add tool to deny list", async () => {
-      await useToolsStore.getState().disableTool("fs");
-      expect(useToolsStore.getState().config.denyList).toContain("fs");
+      await useToolsStore.getState().disableTool("group:fs");
+      expect(useToolsStore.getState().config.denyList).toContain("group:fs");
     });
 
     it("should remove tool from allow list", async () => {
       useToolsStore.setState({
         ...initialState,
-        config: { ...initialState.config, allowList: ["fs", "web"] },
+        config: { ...initialState.config, allowList: ["group:fs", "group:web"] },
       });
 
-      await useToolsStore.getState().disableTool("fs");
+      await useToolsStore.getState().disableTool("group:fs");
 
       const state = useToolsStore.getState();
-      expect(state.config.allowList).not.toContain("fs");
-      expect(state.config.allowList).toContain("web");
+      expect(state.config.allowList).not.toContain("group:fs");
+      expect(state.config.allowList).toContain("group:web");
     });
 
     it("should not duplicate in deny list", async () => {
       useToolsStore.setState({
         ...initialState,
-        config: { ...initialState.config, denyList: ["fs"] },
+        config: { ...initialState.config, denyList: ["group:fs"] },
       });
 
-      await useToolsStore.getState().disableTool("fs");
+      await useToolsStore.getState().disableTool("group:fs");
 
       const denyList = useToolsStore.getState().config.denyList;
-      expect(denyList.filter((id) => id === "fs")).toHaveLength(1);
+      expect(denyList.filter((id) => id === "group:fs")).toHaveLength(1);
     });
   });
 
@@ -465,60 +465,60 @@ describe("ToolsStore", () => {
 
   describe("addToAllowList", () => {
     it("should add tool to allow list", async () => {
-      await useToolsStore.getState().addToAllowList("database");
-      expect(useToolsStore.getState().config.allowList).toContain("database");
+      await useToolsStore.getState().addToAllowList("group:sessions");
+      expect(useToolsStore.getState().config.allowList).toContain("group:sessions");
     });
 
     it("should remove from deny list if present", async () => {
       useToolsStore.setState({
         ...initialState,
-        config: { ...initialState.config, denyList: ["database"] },
+        config: { ...initialState.config, denyList: ["group:sessions"] },
       });
 
-      await useToolsStore.getState().addToAllowList("database");
+      await useToolsStore.getState().addToAllowList("group:sessions");
 
       const state = useToolsStore.getState();
-      expect(state.config.allowList).toContain("database");
-      expect(state.config.denyList).not.toContain("database");
+      expect(state.config.allowList).toContain("group:sessions");
+      expect(state.config.denyList).not.toContain("group:sessions");
     });
 
     it("should not add if already in allow list", async () => {
       useToolsStore.setState({
         ...initialState,
-        config: { ...initialState.config, allowList: ["database"] },
+        config: { ...initialState.config, allowList: ["group:sessions"] },
       });
 
-      await useToolsStore.getState().addToAllowList("database");
+      await useToolsStore.getState().addToAllowList("group:sessions");
       expect(mockDraft.applyPatch).not.toHaveBeenCalled();
     });
   });
 
   describe("addToDenyList", () => {
     it("should add tool to deny list", async () => {
-      await useToolsStore.getState().addToDenyList("fs");
-      expect(useToolsStore.getState().config.denyList).toContain("fs");
+      await useToolsStore.getState().addToDenyList("group:fs");
+      expect(useToolsStore.getState().config.denyList).toContain("group:fs");
     });
 
     it("should remove from allow list if present", async () => {
       useToolsStore.setState({
         ...initialState,
-        config: { ...initialState.config, allowList: ["fs"] },
+        config: { ...initialState.config, allowList: ["group:fs"] },
       });
 
-      await useToolsStore.getState().addToDenyList("fs");
+      await useToolsStore.getState().addToDenyList("group:fs");
 
       const state = useToolsStore.getState();
-      expect(state.config.denyList).toContain("fs");
-      expect(state.config.allowList).not.toContain("fs");
+      expect(state.config.denyList).toContain("group:fs");
+      expect(state.config.allowList).not.toContain("group:fs");
     });
 
     it("should not add if already in deny list", async () => {
       useToolsStore.setState({
         ...initialState,
-        config: { ...initialState.config, denyList: ["fs"] },
+        config: { ...initialState.config, denyList: ["group:fs"] },
       });
 
-      await useToolsStore.getState().addToDenyList("fs");
+      await useToolsStore.getState().addToDenyList("group:fs");
       expect(mockDraft.applyPatch).not.toHaveBeenCalled();
     });
   });
@@ -527,14 +527,14 @@ describe("ToolsStore", () => {
     it("should remove tool from allow list", async () => {
       useToolsStore.setState({
         ...initialState,
-        config: { ...initialState.config, allowList: ["fs", "web"] },
+        config: { ...initialState.config, allowList: ["group:fs", "group:web"] },
       });
 
-      await useToolsStore.getState().removeFromAllowList("fs");
+      await useToolsStore.getState().removeFromAllowList("group:fs");
 
       const allowList = useToolsStore.getState().config.allowList;
-      expect(allowList).not.toContain("fs");
-      expect(allowList).toContain("web");
+      expect(allowList).not.toContain("group:fs");
+      expect(allowList).toContain("group:web");
     });
   });
 
@@ -542,14 +542,14 @@ describe("ToolsStore", () => {
     it("should remove tool from deny list", async () => {
       useToolsStore.setState({
         ...initialState,
-        config: { ...initialState.config, denyList: ["database", "media"] },
+        config: { ...initialState.config, denyList: ["group:sessions", "group:memory"] },
       });
 
-      await useToolsStore.getState().removeFromDenyList("database");
+      await useToolsStore.getState().removeFromDenyList("group:sessions");
 
       const denyList = useToolsStore.getState().config.denyList;
-      expect(denyList).not.toContain("database");
-      expect(denyList).toContain("media");
+      expect(denyList).not.toContain("group:sessions");
+      expect(denyList).toContain("group:memory");
     });
   });
 
@@ -581,16 +581,16 @@ describe("ToolsStore", () => {
       const { selectEnabledTools } = await import("../index");
       const enabledTools = selectEnabledTools(useToolsStore.getState());
       expect(enabledTools).toHaveLength(3);
-      expect(enabledTools.map((t) => t.id)).toContain("fs");
-      expect(enabledTools.map((t) => t.id)).toContain("web");
-      expect(enabledTools.map((t) => t.id)).toContain("bash");
+      expect(enabledTools.map((t) => t.id)).toContain("group:fs");
+      expect(enabledTools.map((t) => t.id)).toContain("group:web");
+      expect(enabledTools.map((t) => t.id)).toContain("group:runtime");
     });
 
     it("selectToolById should return specific tool", async () => {
       const { selectToolById } = await import("../index");
 
-      const fsTool = selectToolById("fs")(useToolsStore.getState());
-      expect(fsTool?.name).toBe("File System");
+      const fsTool = selectToolById("group:fs")(useToolsStore.getState());
+      expect(fsTool?.name).toBe("File Operations");
 
       const nonExistent = selectToolById("nonexistent")(useToolsStore.getState());
       expect(nonExistent).toBeUndefined();

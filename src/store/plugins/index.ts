@@ -4,11 +4,11 @@ import { ipc } from "@/lib/ipc";
 import { useConfigDraftStore } from "@/store/configDraft";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
 import type { Plugin, PluginCategory, PluginsPersistState, PluginsState } from "./types";
-import { defaultPlugins } from "./defaultPlugins";
 import {
   createInstallRecord,
   deriveInstalled,
   readBoolean,
+  parsePluginCatalogFromSchema,
   readPluginsConfigState,
 } from "./helpers";
 
@@ -34,7 +34,7 @@ interface PluginsInternalActions {
 type PluginsStore = PluginsState & PluginsPublicActions & PluginsInternalActions;
 
 const initialState: PluginsState = {
-  plugins: defaultPlugins,
+  plugins: [],
   isLoading: false,
   error: null,
   searchQuery: "",
@@ -73,26 +73,37 @@ export const usePluginsStore = create<PluginsStore>()(
       loadPlugins: async () => {
         set({ isLoading: true, error: null }, false, "loadPlugins");
         try {
-          const snapshot = await ipc.config.getSnapshot();
+          const [snapshot, schema] = await Promise.all([
+            ipc.config.getSnapshot(),
+            ipc.config.getSchema(),
+          ]);
+          const catalogPlugins = parsePluginCatalogFromSchema(schema);
           const { entries, installs } = readPluginsConfigState(snapshot.config);
-          get().internal_dispatchPlugins(
-            (plugins) =>
-              plugins.map((plugin) => {
-                const entry = entries[plugin.id];
-                const hasInstallRecord = Boolean(installs[plugin.id]);
-                return {
-                  ...plugin,
-                  enabled: readBoolean(entry?.enabled) ?? plugin.enabled,
-                  installed: deriveInstalled({
-                    baseInstalled: plugin.installed,
-                    entry,
-                    hasInstallRecord,
-                  }),
-                  config: entry?.config ?? plugin.config,
-                };
-              }),
-            "loadPlugins/dispatch",
-          );
+          get().internal_dispatchPlugins(() => {
+            return catalogPlugins.map((plugin) => {
+              const entry = entries[plugin.id];
+              const installRecord = installs[plugin.id];
+              const hasInstallRecord = Boolean(installRecord);
+              return {
+                ...plugin,
+                enabled: readBoolean(entry?.enabled) ?? false,
+                installed: deriveInstalled({
+                  baseInstalled: false,
+                  entry,
+                  hasInstallRecord,
+                }),
+                version:
+                  typeof installRecord?.version === "string" && installRecord.version.trim()
+                    ? installRecord.version
+                    : plugin.version,
+                author:
+                  typeof installRecord?.source === "string" && installRecord.source.trim()
+                    ? installRecord.source
+                    : plugin.author,
+                config: entry?.config ?? plugin.config,
+              };
+            });
+          }, "loadPlugins/dispatch");
           set({ isLoading: false }, false, "loadPlugins/success");
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to load plugins";

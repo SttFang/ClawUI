@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import type { Plugin } from "../index";
 import { usePluginsStore } from "../index";
 
 const mockDraft = vi.hoisted(() => ({
@@ -8,10 +7,74 @@ const mockDraft = vi.hoisted(() => ({
   applyPatch: vi.fn<(patch: unknown) => Promise<void>>(async () => {}),
 }));
 
+const schemaFixture = {
+  schema: {
+    properties: {
+      plugins: {
+        properties: {
+          entries: {
+            properties: {
+              "notion-sync": {
+                properties: {
+                  config: {
+                    type: "object",
+                    required: ["apiKey"],
+                    properties: {
+                      apiKey: {
+                        type: "string",
+                      },
+                      databaseId: {
+                        type: "string",
+                      },
+                    },
+                  },
+                },
+              },
+              "web-search": {
+                properties: {
+                  config: {
+                    type: "object",
+                    properties: {
+                      searchEngine: {
+                        type: "string",
+                        enum: ["google", "bing"],
+                      },
+                      maxResults: {
+                        type: "number",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  uiHints: {
+    "plugins.entries.notion-sync": {
+      label: "Notion Sync",
+      help: "Sync data with Notion",
+    },
+    "plugins.entries.notion-sync.config.apiKey": {
+      label: "API Key",
+      help: "Notion API key",
+    },
+    "plugins.entries.web-search": {
+      label: "Web Search",
+      help: "Search web content",
+    },
+  },
+  version: "test",
+  generatedAt: "2026-02-13T00:00:00.000Z",
+};
+
 vi.mock("@/lib/ipc", () => ({
   ipc: {
     config: {
       getSnapshot: vi.fn(),
+      getSchema: vi.fn(),
     },
   },
 }));
@@ -28,12 +91,10 @@ vi.mock("@/store/configDraft", () => ({
   },
 }));
 
-const initialPlugins = JSON.parse(JSON.stringify(usePluginsStore.getState().plugins)) as Plugin[];
-
 describe("PluginsStore", () => {
   beforeEach(() => {
     usePluginsStore.setState({
-      plugins: JSON.parse(JSON.stringify(initialPlugins)) as Plugin[],
+      plugins: [],
       isLoading: false,
       error: null,
       searchQuery: "",
@@ -45,8 +106,9 @@ describe("PluginsStore", () => {
     vi.clearAllMocks();
   });
 
-  it("loadPlugins should map config snapshot into plugin state", async () => {
+  it("loadPlugins should build plugin list from schema and map snapshot entries", async () => {
     const { ipc } = await import("@/lib/ipc");
+    (ipc.config.getSchema as Mock).mockResolvedValue(schemaFixture);
     (ipc.config.getSnapshot as Mock).mockResolvedValue({
       config: {
         plugins: {
@@ -59,9 +121,12 @@ describe("PluginsStore", () => {
               enabled: true,
               config: { apiKey: "ntn_key", databaseId: "db_1" },
             },
+            ghost: {
+              enabled: true,
+            },
           },
           installs: {
-            "notion-sync": { source: "path", spec: "local" },
+            "notion-sync": { source: "path", spec: "local", version: "1.2.3" },
           },
         },
       },
@@ -72,17 +137,32 @@ describe("PluginsStore", () => {
     const state = usePluginsStore.getState();
     const webSearch = state.plugins.find((plugin) => plugin.id === "web-search");
     const notionSync = state.plugins.find((plugin) => plugin.id === "notion-sync");
+    const ghost = state.plugins.find((plugin) => plugin.id === "ghost");
 
-    expect(webSearch?.enabled).toBe(false);
-    expect(webSearch?.installed).toBe(true);
+    expect(state.plugins).toHaveLength(2);
+    expect(ghost).toBeUndefined();
+    expect(webSearch?.installed).toBe(false);
     expect(webSearch?.config).toEqual({ searchEngine: "bing", maxResults: 3 });
-
     expect(notionSync?.enabled).toBe(true);
     expect(notionSync?.installed).toBe(true);
-    expect(notionSync?.config).toEqual({ apiKey: "ntn_key", databaseId: "db_1" });
+    expect(notionSync?.version).toBe("1.2.3");
+    expect(notionSync?.configSchema?.apiKey?.required).toBe(true);
   });
 
   it("installPlugin should persist entries and installs via configDraft", async () => {
+    const { ipc } = await import("@/lib/ipc");
+    (ipc.config.getSchema as Mock).mockResolvedValue(schemaFixture);
+    (ipc.config.getSnapshot as Mock).mockResolvedValue({
+      config: {
+        plugins: {
+          entries: {},
+          installs: {},
+        },
+      },
+    });
+
+    await usePluginsStore.getState().loadPlugins();
+
     mockDraft.snapshotConfig = {
       plugins: {
         entries: {
@@ -123,17 +203,22 @@ describe("PluginsStore", () => {
   });
 
   it("uninstallPlugin should remove install record and disable entry", async () => {
-    usePluginsStore.setState((state) => ({
-      plugins: state.plugins.map((plugin) =>
-        plugin.id === "notion-sync"
-          ? {
-              ...plugin,
-              installed: true,
-              enabled: true,
-            }
-          : plugin,
-      ),
-    }));
+    const { ipc } = await import("@/lib/ipc");
+    (ipc.config.getSchema as Mock).mockResolvedValue(schemaFixture);
+    (ipc.config.getSnapshot as Mock).mockResolvedValue({
+      config: {
+        plugins: {
+          entries: {
+            "notion-sync": { enabled: true, config: { apiKey: "token" } },
+          },
+          installs: {
+            "notion-sync": { source: "path", spec: "clawui:notion-sync" },
+          },
+        },
+      },
+    });
+
+    await usePluginsStore.getState().loadPlugins();
 
     mockDraft.snapshotConfig = {
       plugins: {

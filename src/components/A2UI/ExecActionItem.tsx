@@ -85,7 +85,7 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
 
   return (
     <Task open={expanded} onOpenChange={setExpanded}>
-      <TaskTrigger title={command || "exec"} />
+      <TaskTrigger title={command || t("a2ui.execAction.noCommand")} />
       <TaskContent className="space-y-2">
         <div className="space-y-2">
           <TaskItem className="inline-flex items-center gap-2 text-xs">

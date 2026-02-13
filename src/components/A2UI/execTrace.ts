@@ -126,7 +126,7 @@ export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): E
     sessionKey: normalizedSessionKey,
     toolCallId: part.toolCallId,
     toolOrder: parseToolOrder(part.toolCallId),
-    command: command || "exec",
+    command: command || "",
     status: "running",
     startedAtMs: now,
   };

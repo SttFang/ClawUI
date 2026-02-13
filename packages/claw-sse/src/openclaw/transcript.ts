@@ -124,6 +124,10 @@ function resolveMessageToolCallId(record: Record<string, unknown>, msgId: string
       record.tool_call_id,
       record.toolUseId,
       record.tool_use_id,
+      record.runId,
+      record.run_id,
+      record.clientRunId,
+      record.client_run_id,
       record.id
     ) ?? `${msgId}:tool`
   )
@@ -177,6 +181,54 @@ function normalizeMessageRole(rawRole: string): UIMessage['role'] | null {
   return null
 }
 
+function normalizeComparableText(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+function stringifyOutputForCompare(output: unknown): string {
+  if (typeof output === 'string') return normalizeComparableText(output)
+  if (typeof output === 'number' || typeof output === 'boolean') {
+    return normalizeComparableText(String(output))
+  }
+  if (output == null) return ''
+  try {
+    return normalizeComparableText(JSON.stringify(output))
+  } catch {
+    return normalizeComparableText(String(output))
+  }
+}
+
+function isLikelyToolReceiptText(text: string): boolean {
+  const normalized = normalizeComparableText(text)
+  if (!normalized) return false
+  return (
+    normalized.startsWith('system:') ||
+    normalized.includes('approval required') ||
+    normalized.includes('approve to run') ||
+    normalized.includes('exec finished') ||
+    normalized.includes('exec denied') ||
+    normalized.includes('enoent:') ||
+    (normalized.startsWith('{') && normalized.includes('"status"') && normalized.includes('"tool"'))
+  )
+}
+
+function shouldKeepTextAlongsideToolParts(text: string, toolOutputs: unknown[]): boolean {
+  const normalizedText = normalizeComparableText(text)
+  if (!normalizedText) return false
+  if (isLikelyToolReceiptText(normalizedText)) return false
+
+  for (const output of toolOutputs) {
+    const normalizedOutput = stringifyOutputForCompare(output)
+    if (!normalizedOutput) continue
+    if (normalizedText === normalizedOutput) return false
+    if (normalizedText.includes(normalizedOutput) || normalizedOutput.includes(normalizedText)) {
+      return false
+    }
+  }
+
+  return true
+}
+
 function readInternalProvenanceKind(record: Record<string, unknown>): string {
   const candidates = [
     record.inputProvenance,
@@ -226,11 +278,6 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
 
       const parts: UIMessage['parts'] = []
 
-      const text = extractTextFromBlocks(contentBlocks, record.content)
-      if (text) {
-        parts.push({ type: 'text', text })
-      }
-
       // Best-effort: lift toolcall/toolresult blocks into dynamic-tool parts so UI can render cards.
       const toolCalls = contentBlocks.filter(isToolCallBlock)
       const toolResults = contentBlocks.filter(isToolResultBlock)
@@ -242,6 +289,7 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
         const messageToolOutput = extractMessageToolOutput(record)
         const messageToolInput = extractMessageToolInput(record)
         const iterations = Math.max(toolCalls.length, toolResults.length, hasToolRole ? 1 : 0)
+        const toolOutputs: unknown[] = []
 
         for (let i = 0; i < iterations; i += 1) {
           const call = toolCalls[i] ?? {}
@@ -268,6 +316,7 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
           const isToolResultLike = toolResults.length > 0 || hasToolRole
           const maybeOutput = i === 0 ? resultOutput ?? messageToolOutput : resultOutput
           const output = isToolResultLike ? maybeAddExecFallbackOutput(toolName, maybeOutput) : undefined
+          if (typeof output !== 'undefined') toolOutputs.push(output)
 
           const toolCallId =
             callToolCallId ??
@@ -295,6 +344,16 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
               providerExecuted: true,
             })
           }
+        }
+
+        const text = extractTextFromBlocks(contentBlocks, record.content)
+        if (text && shouldKeepTextAlongsideToolParts(text, toolOutputs)) {
+          parts.unshift({ type: 'text', text })
+        }
+      } else {
+        const text = extractTextFromBlocks(contentBlocks, record.content)
+        if (text) {
+          parts.push({ type: 'text', text })
         }
       }
 

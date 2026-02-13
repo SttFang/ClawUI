@@ -1,12 +1,20 @@
 import type { ChannelConfig } from "@/lib/ipc";
 
-export type ChannelType = "telegram" | "discord" | "whatsapp" | "slack" | "wechat" | "signal";
+export type SupportedChannelType =
+  | "telegram"
+  | "discord"
+  | "whatsapp"
+  | "slack"
+  | "wechat"
+  | "signal";
+export type ChannelType = SupportedChannelType | (string & {});
 
 export interface Channel {
   type: ChannelType;
   name: string;
   description: string;
   icon: string;
+  isEditable: boolean;
   isConfigured: boolean;
   isEnabled: boolean;
   config: ChannelConfig | null;

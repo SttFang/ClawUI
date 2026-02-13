@@ -92,9 +92,16 @@ export function ChannelsSection() {
                       ? t("channels.status.configured")
                       : t("channels.status.notConfigured")}
                   </span>
-                  <Button variant="outline" size="sm" onClick={() => handleConfigure(channel.type)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleConfigure(channel.type)}
+                    disabled={!channel.isEditable}
+                  >
                     <Settings className="w-4 h-4 mr-2" />
-                    {t("channels.actions.configure")}
+                    {channel.isEditable
+                      ? t("channels.actions.configure")
+                      : t("channels.status.readOnly", { defaultValue: "只读" })}
                   </Button>
                 </div>
               </CardContent>

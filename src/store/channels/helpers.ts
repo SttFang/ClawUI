@@ -2,6 +2,7 @@ import type { ChannelConfig } from "@/lib/ipc";
 import type { Channel, ChannelType } from "./types";
 
 type JsonObject = Record<string, unknown>;
+const EDITABLE_CHANNELS = new Set<string>(["telegram", "discord"]);
 
 function asRecord(value: unknown): JsonObject | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -108,7 +109,7 @@ function mapActualChannelToUi(channelId: string, rawChannel: unknown): ChannelCo
 export function mapSnapshotToChannels(baseChannels: Channel[], config: unknown): Channel[] {
   const root = asRecord(config) ?? {};
   const channels = asRecord(root.channels) ?? {};
-  return baseChannels.map((channel) => {
+  const baseMapped = baseChannels.map((channel) => {
     const channelConfig = mapActualChannelToUi(channel.type, channels[channel.type]);
     return {
       ...channel,
@@ -117,6 +118,25 @@ export function mapSnapshotToChannels(baseChannels: Channel[], config: unknown):
       config: channelConfig,
     };
   });
+
+  const knownTypes = new Set(baseMapped.map((channel) => channel.type));
+  const discovered = Object.keys(channels)
+    .filter((channelType) => !knownTypes.has(channelType))
+    .map((channelType) => {
+      const channelConfig = mapActualChannelToUi(channelType, channels[channelType]);
+      return {
+        type: channelType as ChannelType,
+        name: channelType,
+        description: `Discovered from openclaw.json: ${channelType}`,
+        icon: "🔌",
+        isEditable: false,
+        isConfigured: Boolean(channelConfig),
+        isEnabled: channelConfig?.enabled ?? false,
+        config: channelConfig,
+      } satisfies Channel;
+    });
+
+  return [...baseMapped, ...discovered];
 }
 
 export function buildActualChannelPatch(
@@ -173,6 +193,10 @@ export function buildActualChannelPatch(
     if (typeof config.requireMention === "boolean") {
       patch.groups = { "*": { requireMention: config.requireMention } };
     }
+    return patch;
+  }
+
+  if (!EDITABLE_CHANNELS.has(type)) {
     return patch;
   }
 

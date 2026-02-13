@@ -72,11 +72,11 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
         await ipc.chat.request("agent", {
           sessionKey: payload.sessionKey,
           message: text,
+          idempotencyKey: `handoff:${digest}`,
           inputProvenance: {
             kind: INTERNAL_SYSTEM_KIND,
             sourceSessionKey: payload.sessionKey,
-            runId: payload.runId,
-            source: payload.source,
+            sourceTool: payload.source,
           },
         });
         chatLog.info(

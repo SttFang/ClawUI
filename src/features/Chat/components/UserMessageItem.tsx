@@ -4,11 +4,9 @@ import { MessageParts } from "./MessageParts";
 export function UserMessageItem(props: { message: UIMessage; sessionKey: string }) {
   const { message, sessionKey } = props;
   return (
-    <div className="flex justify-end gap-3">
-      <div className="ml-auto min-w-0 max-w-[85%] text-right sm:max-w-[75%]">
-        <div className="inline-block max-w-full rounded-xl border border-primary/30 bg-primary/95 px-4 py-3 text-primary-foreground">
-          <MessageParts message={message} streaming={false} sessionKey={sessionKey} />
-        </div>
+    <div className="group is-user ml-auto flex w-full max-w-[95%] flex-col justify-end gap-2">
+      <div className="ml-auto flex w-fit max-w-full min-w-0 flex-col gap-2 overflow-hidden rounded-lg bg-secondary px-4 py-3 text-sm text-foreground">
+        <MessageParts message={message} streaming={false} sessionKey={sessionKey} />
       </div>
     </div>
   );

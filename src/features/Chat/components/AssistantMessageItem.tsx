@@ -8,12 +8,10 @@ export function AssistantMessageItem(props: {
 }) {
   const { message, sessionKey, streaming } = props;
   return (
-    <div className="flex justify-start gap-3">
-      <div className="mr-auto min-w-0 max-w-[85%] text-left sm:max-w-[75%]">
-        <div className="space-y-3">
-          <div className="inline-block w-full max-w-full rounded-xl border border-border/65 bg-background px-4 py-3">
-            <MessageParts message={message} streaming={streaming} sessionKey={sessionKey} />
-          </div>
+    <div className="group is-assistant flex w-full justify-center">
+      <div className="w-full max-w-[95%] min-w-0 text-sm text-foreground">
+        <div className="flex w-full min-w-0 flex-col gap-2 overflow-hidden">
+          <MessageParts message={message} streaming={streaming} sessionKey={sessionKey} />
         </div>
       </div>
     </div>

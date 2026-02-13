@@ -4,7 +4,7 @@ import { useSchedulerStore } from "../index";
 vi.mock("@/lib/ipc", () => ({
   ipc: {
     config: {
-      get: vi.fn(),
+      getSnapshot: vi.fn(),
     },
     state: {
       get: vi.fn(),
@@ -21,7 +21,7 @@ describe("SchedulerStore", () => {
 
   it("loads tasks from clawui.json via ipc.state.get", async () => {
     const { ipc } = await import("@/lib/ipc");
-    (ipc.config.get as Mock).mockResolvedValue({ cron: { enabled: true } });
+    (ipc.config.getSnapshot as Mock).mockResolvedValue({ config: { cron: { enabled: true } } });
     (ipc.state.get as Mock).mockResolvedValue({
       scheduler: {
         tasks: [

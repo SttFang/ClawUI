@@ -117,6 +117,9 @@ async function run() {
     const finishedText =
       "System: Exec finished (gateway id=e2e-approval-1, session=fast-coral, code 0)";
     await page.waitForSelector(`text=${pendingText}`, { timeout: 15_000 });
+    await page.evaluate(() => {
+      window.__CLAWUI_E2E__.resetAgentRequests();
+    });
 
     // Scenario 1/2: approval resolved should trigger immediate refresh and render finish text
     const beforeCount = await page.evaluate(() => window.__CLAWUI_E2E__.getHistoryRequestCount());
@@ -129,6 +132,19 @@ async function run() {
         decision: "allow-once",
         status: "running",
       });
+      harness.emitGatewayEvent({
+        type: "event",
+        event: "exec.approval.resolved",
+        payload: {
+          id: "e2e-approval-1",
+          decision: "allow-once",
+          request: {
+            id: "e2e-approval-1",
+            sessionKey: harness.sessionKey,
+            command: "ls -la ~/Desktop",
+          },
+        },
+      });
     });
 
     await page.waitForFunction(
@@ -137,6 +153,19 @@ async function run() {
       { timeout: 1_000 },
     );
     await page.waitForSelector(`text=${finishedText}`, { timeout: 10_000 });
+    await page.waitForFunction(() => window.__CLAWUI_E2E__.getAgentRequestCount() > 0, {
+      timeout: 3_000,
+    });
+    const firstAgentRequest = await page.evaluate(
+      () => window.__CLAWUI_E2E__.getAgentRequests()[0],
+    );
+    const firstMessage =
+      firstAgentRequest && typeof firstAgentRequest.message === "string"
+        ? firstAgentRequest.message
+        : "";
+    if (!firstMessage.toLowerCase().includes("exec finished")) {
+      throw new Error(`Unexpected first agent handoff message: ${firstMessage}`);
+    }
 
     const oldCount = await page.locator(`text=${pendingText}`).count();
     if (oldCount !== 0) {

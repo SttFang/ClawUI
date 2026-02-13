@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ExecActionItem,
-  LifecycleEventCard,
   ToolEventCard,
 } from "@/components/A2UI";
 import {
@@ -27,12 +26,6 @@ type RenderableItem =
       key: string;
       node: JSX.Element;
       toolCallId: string;
-    }
-  | {
-      kind: "lifecycle";
-      key: string;
-      node: JSX.Element;
-      signature?: string;
     };
 
 function ThinkingIndicator(props: { isStreaming: boolean; duration: number | undefined }) {
@@ -55,34 +48,6 @@ function ThinkingIndicator(props: { isStreaming: boolean; duration: number | und
       <span>{label}</span>
     </div>
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function pickString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
-}
-
-function pickNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
-}
-
-function normalizeLifecycleRaw(raw: unknown) {
-  if (!isRecord(raw)) return null;
-  const runId = pickString(raw.runId) ?? pickString(raw.run_id);
-  const sessionId = pickString(raw.sessionKey) ?? pickString(raw.session_id);
-  const phase = pickString(raw.phase) ?? pickString(raw.state);
-  const seq = pickNumber(raw.seq) ?? pickNumber(raw.sequence);
-  const ts = pickNumber(raw.ts) ?? pickNumber(raw.timestamp);
-  const error = isRecord(raw.error) || typeof raw.error === "string" ? raw.error : undefined;
-
-  if (!runId && !sessionId && !phase && seq === undefined && ts === undefined && !error) {
-    return null;
-  }
-
-  return { runId, sessionKey: sessionId, seq, ts, phase, error };
 }
 
 function pickMessageRenderableItem(
@@ -143,28 +108,6 @@ function pickMessageRenderableItem(
     };
   }
 
-  if (part.type === "data-openclaw-lifecycle") {
-    const lifecycleData = normalizeLifecycleRaw((part as { data?: unknown }).data ?? part);
-    if (!lifecycleData) return null;
-
-    const phase = lifecycleData.phase;
-    const sigParts = [
-      pickString(lifecycleData.runId) ?? "unknown-run",
-      pickString(lifecycleData.sessionKey) ?? "unknown-session",
-      pickString(phase) ?? "phase-unknown",
-      typeof lifecycleData.seq === "number" ? lifecycleData.seq.toString() : "",
-      typeof lifecycleData.ts === "number" ? lifecycleData.ts.toString() : "",
-    ];
-    const signature = sigParts.join("|");
-
-    return {
-      kind: "lifecycle" as const,
-      key: `lifecycle:${index}`,
-      signature,
-      node: <LifecycleEventCard key={`lifecycle:${index}`} data={lifecycleData} />,
-    };
-  }
-
   return null;
 }
 
@@ -172,7 +115,6 @@ function aggregateRenderableItems(
   items: ReturnType<typeof pickMessageRenderableItem>[],
 ): RenderableItem[] {
   const execIndexByToolCallId = new Map<string, number>();
-  const lifecycleSeenSignature = new Set<string>();
   const result: RenderableItem[] = [];
 
   for (const item of items) {
@@ -188,11 +130,6 @@ function aggregateRenderableItems(
       execIndexByToolCallId.set(item.toolCallId, result.length);
       result.push(item);
       continue;
-    }
-
-    if (item.kind === "lifecycle" && item.signature) {
-      if (lifecycleSeenSignature.has(item.signature)) continue;
-      lifecycleSeenSignature.add(item.signature);
     }
 
     result.push(item);

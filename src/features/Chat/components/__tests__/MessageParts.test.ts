@@ -19,8 +19,6 @@ vi.mock("@/components/A2UI", async () => {
       createElement("div", null, `exec:${part.toolCallId}:${part.state}`),
     ToolEventCard: ({ part }: { part: { toolName: string; toolCallId: string } }) =>
       createElement("div", null, `tool:${part.toolName}:${part.toolCallId}`),
-    LifecycleEventCard: ({ data }: { data: { phase?: string } }) =>
-      createElement("div", null, `lifecycle:${data.phase}`),
   };
 });
 
@@ -58,43 +56,6 @@ describe("MessageParts", () => {
 
     expect(matches).not.toBeNull();
     expect(matches?.length).toBe(1);
-  });
-
-  it("deduplicates lifecycle events with the same signature", () => {
-    const message: UIMessage = {
-      id: "msg-2",
-      role: "assistant",
-      parts: [
-        {
-          type: "data-openclaw-lifecycle",
-          data: {
-            runId: "run-1",
-            sessionKey: "s1",
-            phase: "start",
-            seq: 1,
-            ts: 1000,
-          },
-        } as const,
-        {
-          type: "data-openclaw-lifecycle",
-          data: {
-            runId: "run-1",
-            sessionKey: "s1",
-            phase: "start",
-            seq: 1,
-            ts: 1000,
-          },
-        } as const,
-      ],
-      createdAt: new Date("2026-01-01T00:00:00.001Z"),
-    };
-
-    const html = renderToStaticMarkup(
-      createElement(MessageParts, { message, streaming: false, sessionKey: "s1" }),
-    );
-    const lifecycleCount = html.match(/lifecycle:start/g)?.length ?? 0;
-
-    expect(lifecycleCount).toBe(1);
   });
 
   it("does not render completed summary in default message flow", () => {

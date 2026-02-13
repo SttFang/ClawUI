@@ -10,7 +10,6 @@ import { useOpenClawHistorySync } from "@/services/chat/useOpenClawHistorySync";
 import { ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
 import { AssistantMessageItem } from "./AssistantMessageItem";
-import { RunTimelinePanel } from "./RunTimelinePanel";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
 import { UserMessageItem } from "./UserMessageItem";
 
@@ -65,9 +64,6 @@ export function OpenClawChatPanel(props: {
         initial="smooth"
       >
         <StickToBottom.Content className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-1">
-          {hasSession && chat.messages.length > 0 ? (
-            <RunTimelinePanel sessionKey={normalizedSessionKey} />
-          ) : null}
           {chat.messages.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
               <MessageSquare className="mx-auto mb-4 h-12 w-12 opacity-50" />

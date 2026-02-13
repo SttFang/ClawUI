@@ -113,6 +113,50 @@ describe("ChatEventNormalizer", () => {
     expect(lifecycle[0]?.kind).toBe("run.lifecycle");
   });
 
+  it("keeps unknown agent lifecycle events by creating a fallback run", () => {
+    const normalizer = new ChatEventNormalizer();
+    const sessionKey = "agent:main:ui:test-fallback";
+
+    const lifecycle = normalizer.ingestGatewayEvent({
+      type: "event",
+      event: "agent",
+      payload: {
+        sessionKey,
+        runId: "agent-unknown-run",
+        stream: "lifecycle",
+        data: { phase: "end" },
+      },
+    });
+
+    expect(lifecycle).toHaveLength(1);
+    expect(lifecycle[0]?.kind).toBe("run.lifecycle");
+    expect(lifecycle[0]?.status).toBe("completed");
+    expect(lifecycle[0]?.clientRunId).toBe("agent-unknown-run");
+    expect(lifecycle[0]?.agentRunId).toBe("agent-unknown-run");
+  });
+
+  it("emits waiting_approval even when no chat run exists yet", () => {
+    const normalizer = new ChatEventNormalizer();
+    const sessionKey = "agent:main:ui:test-pending";
+
+    const waiting = normalizer.ingestGatewayEvent({
+      type: "event",
+      event: "exec.approval.requested",
+      payload: {
+        id: "approval-new",
+        request: {
+          sessionKey,
+          command: "echo hi",
+        },
+      },
+    });
+
+    expect(waiting).toHaveLength(1);
+    expect(waiting[0]?.kind).toBe("run.waiting_approval");
+    expect(waiting[0]?.approvalId).toBe("approval-new");
+    expect(waiting[0]?.clientRunId).toBe("approval-new");
+  });
+
   it("normalizes tool_use_id into metadata.toolCallId", () => {
     const normalizer = new ChatEventNormalizer();
     const sessionKey = "agent:main:ui:test";

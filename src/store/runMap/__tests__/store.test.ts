@@ -112,4 +112,35 @@ describe("runMap store", () => {
     expect(session?.toolCallsById["TC-USE-1"]?.toolName).toBe("read");
     expect(session?.toolCallsById["TC-USE-1"]?.phase).toBe("start");
   });
+
+  it("does not promote approval fallback run as root chat run", () => {
+    const sessionKey = "agent:main:ui:s4";
+
+    useRunMapStore.getState().ingestGatewayFrame({
+      type: "event",
+      event: "exec.approval.requested",
+      payload: {
+        id: "AP-root-check",
+        request: {
+          sessionKey,
+          command: "pwd",
+        },
+        createdAtMs: 1000,
+      },
+    });
+
+    useRunMapStore.getState().ingestNormalizedEvent({
+      kind: "run.started",
+      traceId: "trace-root",
+      timestampMs: 1100,
+      sessionKey,
+      clientRunId: "R-root",
+      status: "started",
+      source: "synthetic",
+      correlationConfidence: "exact",
+    });
+
+    const session = useRunMapStore.getState().sessions[sessionKey];
+    expect(session?.rootChatRunId).toBe("R-root");
+  });
 });

@@ -9,7 +9,9 @@ import {
 
 describe("historyRefreshPolicy", () => {
   it("uses bounded approval recovery follow-ups", () => {
-    expect(APPROVAL_RECOVERY_FOLLOWUPS_MS).toEqual([800, 2_000, 5_000, 10_000, 15_000]);
+    expect(APPROVAL_RECOVERY_FOLLOWUPS_MS).toEqual([
+      800, 2_000, 5_000, 10_000, 15_000, 30_000, 45_000, 60_000,
+    ]);
   });
 
   it("refreshes on heartbeat when pending approval matches session", () => {

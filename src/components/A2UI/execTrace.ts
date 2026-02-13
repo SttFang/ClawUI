@@ -29,6 +29,44 @@ function isCommandActive(sessionKey: string, command: string): boolean {
   return Boolean(state.runningByKey[runningKey]);
 }
 
+function isTraceNewer(candidate: ExecTrace, current: ExecTrace): boolean {
+  if (candidate.toolOrder !== null && current.toolOrder !== null) {
+    return candidate.toolOrder > current.toolOrder;
+  }
+  if (candidate.toolOrder !== null && current.toolOrder === null) return true;
+  if (candidate.toolOrder === null && current.toolOrder !== null) return false;
+  if (candidate.startedAtMs !== current.startedAtMs) {
+    return candidate.startedAtMs > current.startedAtMs;
+  }
+  return candidate.traceKey > current.traceKey;
+}
+
+function hasSiblingActiveTrace(sessionKey: string, command: string, current: ExecTrace): boolean {
+  const traces = useA2UIExecTraceStore.getState().tracesByKey;
+  const normalizedCommand = command.trim();
+  for (const trace of Object.values(traces)) {
+    if (trace.traceKey === current.traceKey) continue;
+    if (trace.sessionKey !== sessionKey) continue;
+    if (trace.command.trim() !== normalizedCommand) continue;
+    if (trace.status === "completed" || trace.status === "error") continue;
+    return true;
+  }
+  return false;
+}
+
+function hasNewerActiveTrace(sessionKey: string, command: string, current: ExecTrace): boolean {
+  const traces = useA2UIExecTraceStore.getState().tracesByKey;
+  const normalizedCommand = command.trim();
+  for (const trace of Object.values(traces)) {
+    if (trace.traceKey === current.traceKey) continue;
+    if (trace.sessionKey !== sessionKey) continue;
+    if (trace.command.trim() !== normalizedCommand) continue;
+    if (trace.status === "completed" || trace.status === "error") continue;
+    if (isTraceNewer(trace, current)) return true;
+  }
+  return false;
+}
+
 function parseToolOrder(toolCallId: string): number | null {
   const assistantMatch = toolCallId.match(/assistant:(\d{10,})/);
   if (assistantMatch) {
@@ -164,11 +202,17 @@ export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): E
 
 export function shouldSuppressExecPart(part: DynamicToolUIPart, sessionKey?: string): boolean {
   const trace = upsertExecTrace(part, sessionKey);
-  if (trace.status === "completed" || trace.status === "error") return false;
-
-  const command = trace.command.trim();
-  if (!command) return false;
   const normalizedSessionKey = sessionKey ?? "";
+  const command = trace.command.trim();
+
+  if (trace.status === "completed" || trace.status === "error") {
+    if (!command) return false;
+    if (!isCommandActive(normalizedSessionKey, command)) return false;
+    return hasSiblingActiveTrace(normalizedSessionKey, command, trace);
+  }
+
+  if (!command) return false;
+  if (hasNewerActiveTrace(normalizedSessionKey, command, trace)) return true;
   const commandKey = makeCommandKey(normalizedSessionKey, command);
   const terminal = useA2UIExecTraceStore.getState().terminalByCommand[commandKey];
   if (!terminal) return false;

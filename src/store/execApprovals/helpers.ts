@@ -10,6 +10,45 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function normalizeApprovalDecision(value: unknown): ExecApprovalDecision | null {
+  if (typeof value !== "string") return null;
+  const token = value
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+  if (
+    token === "allow-always" ||
+    token === "allowalways" ||
+    token === "always" ||
+    token === "allowlist" ||
+    token === "approved-always"
+  ) {
+    return "allow-always";
+  }
+  if (
+    token === "allow-once" ||
+    token === "allowonce" ||
+    token === "once" ||
+    token === "allow" ||
+    token === "approved"
+  ) {
+    return "allow-once";
+  }
+  if (
+    token === "deny" ||
+    token === "denied" ||
+    token === "reject" ||
+    token === "rejected" ||
+    token === "timeout" ||
+    token === "approval-timeout" ||
+    token === "timed-out" ||
+    token === "timedout"
+  ) {
+    return "deny";
+  }
+  return null;
+}
+
 function parseRequestPayload(value: Record<string, unknown>): ExecApprovalRequestPayload | null {
   const command = typeof value.command === "string" ? value.command.trim() : "";
   if (!command) return null;
@@ -61,11 +100,7 @@ export function parseExecApprovalResolved(payload: unknown): {
     ? "payload.id"
     : "payload.request.id";
 
-  const decisionRaw = payload.decision;
-  const decision: ExecApprovalDecision | null =
-    decisionRaw === "allow-once" || decisionRaw === "allow-always" || decisionRaw === "deny"
-      ? decisionRaw
-      : null;
+  const decision = normalizeApprovalDecision(payload.decision);
   const sessionKey = normalizeSessionKey(
     requestRaw && typeof requestRaw.sessionKey === "string"
       ? requestRaw.sessionKey

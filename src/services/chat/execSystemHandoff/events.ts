@@ -4,13 +4,42 @@ import { collectText, isRecord, normalizeSessionKey, normalizeText } from "./uti
 
 function parseApprovalDecision(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  const normalized = value.trim();
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+  if (
+    normalized === "allow-always" ||
+    normalized === "allowalways" ||
+    normalized === "always" ||
+    normalized === "allowlist" ||
+    normalized === "approved-always"
+  ) {
+    return "allow-always";
+  }
+  if (
+    normalized === "allow-once" ||
+    normalized === "allowonce" ||
+    normalized === "once" ||
+    normalized === "allow" ||
+    normalized === "approved"
+  ) {
+    return "allow-once";
+  }
+  if (normalized === "timeout" || normalized === "approval-timeout" || normalized === "timed-out") {
+    return "timeout";
+  }
+  if (normalized === "deny" || normalized === "denied" || normalized === "reject") {
+    return "deny";
+  }
   return APPROVAL_DECISIONS.has(normalized) ? normalized : null;
 }
 
 export function parseApprovalEvent(payload: unknown): {
   id: string;
   decision: string | null;
+  atMs: number;
+  atMsFromPayload: boolean;
   command?: string;
   sessionKey?: string;
 } | null {
@@ -40,7 +69,22 @@ export function parseApprovalEvent(payload: unknown): {
         : undefined,
   );
 
-  return { id, decision, command: command || undefined, sessionKey: sessionKey || undefined };
+  const tsFromPayload =
+    typeof payload.ts === "number" && Number.isFinite(payload.ts)
+      ? payload.ts
+      : typeof payload.resolvedAtMs === "number" && Number.isFinite(payload.resolvedAtMs)
+        ? payload.resolvedAtMs
+        : null;
+  const atMs = tsFromPayload ?? Date.now();
+
+  return {
+    id,
+    decision,
+    atMs,
+    atMsFromPayload: tsFromPayload !== null,
+    command: command || undefined,
+    sessionKey: sessionKey || undefined,
+  };
 }
 
 export function resolveApprovalHandoff(params: { decision: string | null; command?: string }): {

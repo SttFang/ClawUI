@@ -47,18 +47,48 @@ export function parseExecApprovalResolved(payload: unknown): {
   id: string;
   decision: ExecApprovalDecision | null;
   atMs: number;
+  sessionKey?: string;
+  command?: string;
+  idSource: "payload.id" | "payload.request.id";
 } | null {
   if (!isRecord(payload)) return null;
-  const id = typeof payload.id === "string" ? payload.id.trim() : "";
+  const requestRaw = isRecord(payload.request) ? payload.request : null;
+  const directId = typeof payload.id === "string" ? payload.id.trim() : "";
+  const nestedId = requestRaw && typeof requestRaw.id === "string" ? requestRaw.id.trim() : "";
+  const id = directId || nestedId;
   if (!id) return null;
+  const idSource: "payload.id" | "payload.request.id" = directId
+    ? "payload.id"
+    : "payload.request.id";
 
   const decisionRaw = payload.decision;
   const decision: ExecApprovalDecision | null =
     decisionRaw === "allow-once" || decisionRaw === "allow-always" || decisionRaw === "deny"
       ? decisionRaw
       : null;
+  const sessionKey = normalizeSessionKey(
+    requestRaw && typeof requestRaw.sessionKey === "string"
+      ? requestRaw.sessionKey
+      : typeof payload.sessionKey === "string"
+        ? payload.sessionKey
+        : null,
+  );
+  const commandRaw =
+    requestRaw && typeof requestRaw.command === "string"
+      ? requestRaw.command
+      : typeof payload.command === "string"
+        ? payload.command
+        : "";
+  const command = commandRaw.trim();
   const ts = typeof payload.ts === "number" ? payload.ts : Date.now();
-  return { id, decision, atMs: ts };
+  return {
+    id,
+    decision,
+    atMs: ts,
+    sessionKey: sessionKey || undefined,
+    command: command || undefined,
+    idSource,
+  };
 }
 
 export function prune(queue: ExecApprovalRequest[]): ExecApprovalRequest[] {

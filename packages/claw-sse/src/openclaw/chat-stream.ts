@@ -63,6 +63,7 @@ export function createOpenClawChatStream(params: {
       let lifecycleEndAt = 0
       let lastChatEventAt = 0
       let lastApprovalActivityAt = 0
+      let lastToolTerminalActivityAt = 0
       let pendingChatAliasRunId: string | null = null
       let pendingChatAliasEvent: OpenClawChatEvent | null = null
       const pendingToolCalls = new Set<string>()
@@ -71,10 +72,16 @@ export function createOpenClawChatStream(params: {
       let unsubscribe: (() => void) | null = null
       const CHAT_ALIAS_GRACE_MS = 250
       const APPROVAL_ALIAS_WINDOW_MS = 120_000
+      const DIVERGENT_ASSISTANT_APPEND_WINDOW_MS = 120_000
 
       const hasRecentApprovalActivity = () => {
         if (!lastApprovalActivityAt) return false
         return Date.now() - lastApprovalActivityAt <= APPROVAL_ALIAS_WINDOW_MS
+      }
+
+      const hasRecentToolTerminalActivity = () => {
+        if (!lastToolTerminalActivityAt) return false
+        return Date.now() - lastToolTerminalActivityAt <= DIVERGENT_ASSISTANT_APPEND_WINDOW_MS
       }
 
       const isStaleAgentEvent = (ts: unknown) => {
@@ -98,6 +105,10 @@ export function createOpenClawChatStream(params: {
           return
         }
         lastApprovalActivityAt = Date.now()
+      }
+
+      const noteToolTerminalActivity = () => {
+        lastToolTerminalActivityAt = Date.now()
       }
 
       const clearPendingChatAlias = () => {
@@ -406,8 +417,22 @@ export function createOpenClawChatStream(params: {
             if (delta) controller.enqueue({ type: 'text-delta', id: textPartId, delta })
             return
           }
-          // Ambiguous divergence: do not append blind chunks, otherwise old/stale runs can
-          // pollute the current assistant message.
+
+          const normalizedFallbackText = fallbackText.trim()
+          if (!normalizedFallbackText) return
+
+          const canAppendDivergentText =
+            (hasRecentApprovalActivity() || hasRecentToolTerminalActivity()) &&
+            !currentText.includes(normalizedFallbackText)
+          if (canAppendDivergentText) {
+            const separator = currentText.endsWith('\n') ? '\n' : '\n\n'
+            currentText = `${currentText}${separator}${normalizedFallbackText}`
+            controller.enqueue({ type: 'text-delta', id: textPartId, delta: `${separator}${normalizedFallbackText}` })
+            return
+          }
+
+          // Ambiguous divergence without approval/tool terminal context: avoid blind append,
+          // otherwise old/stale runs can pollute the current assistant message.
           return
         }, 300)
       }
@@ -471,6 +496,7 @@ export function createOpenClawChatStream(params: {
 
         if (phase === 'result' || phase === 'end' || phase === 'error') {
           pendingToolCalls.delete(toolCallId)
+          noteToolTerminalActivity()
           const isError = tool.isError === true || phase === 'error'
           if (isError) {
             const errorText =

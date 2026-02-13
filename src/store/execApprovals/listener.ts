@@ -1,5 +1,6 @@
 import type { GatewayEventFrame } from "@/lib/ipc";
 import { ipc } from "@/lib/ipc";
+import { chatLog } from "@/lib/logger";
 import {
   isRecord,
   makeExecApprovalKey,
@@ -38,12 +39,34 @@ export function initExecApprovalsListener() {
       useExecApprovalsStore.setState(
         (state) => {
           const currentQueue = prune(state.queue);
-          const current = currentQueue.find((entry) => entry.id === resolved.id) ?? null;
-          const nextQueue = currentQueue.filter((entry) => entry.id !== resolved.id);
+          let current = currentQueue.find((entry) => entry.id === resolved.id) ?? null;
+          let matchedBy: "id" | "session-command" | "unmatched" = current ? "id" : "unmatched";
+
+          if (!current && resolved.sessionKey && resolved.command) {
+            const normalizedResolvedSession = normalizeSessionKey(resolved.sessionKey);
+            const normalizedResolvedCommand = resolved.command.trim();
+            const fallback = currentQueue
+              .filter((entry) => {
+                const entrySession = normalizeSessionKey(entry.request.sessionKey);
+                const entryCommand = entry.request.command?.trim() ?? "";
+                return (
+                  entrySession === normalizedResolvedSession &&
+                  entryCommand === normalizedResolvedCommand
+                );
+              })
+              .sort((a, b) => b.createdAtMs - a.createdAtMs)[0];
+            if (fallback) {
+              current = fallback;
+              matchedBy = "session-command";
+            }
+          }
+
+          const resolvedEntryId = current?.id ?? resolved.id;
+          const nextQueue = currentQueue.filter((entry) => entry.id !== resolvedEntryId);
 
           let nextRunningByKey = state.runningByKey;
-          const command = current?.request.command?.trim() ?? "";
-          const sessionKey = normalizeSessionKey(current?.request.sessionKey);
+          const command = (current?.request.command ?? resolved.command ?? "").trim();
+          const sessionKey = normalizeSessionKey(current?.request.sessionKey ?? resolved.sessionKey);
           if (resolved.decision === "deny" && command) {
             const runningKey = makeExecApprovalKey(sessionKey, command);
             if (nextRunningByKey[runningKey]) {
@@ -57,11 +80,30 @@ export function initExecApprovalsListener() {
             nextLastResolved = {
               ...state.lastResolvedBySession,
               [sessionKey]: {
-                id: resolved.id,
+                id: resolvedEntryId,
                 decision: resolved.decision,
                 atMs: resolved.atMs,
               },
             };
+          }
+
+          chatLog.debug(
+            "[exec.approvals.resolved]",
+            `id=${resolved.id}`,
+            `idSource=${resolved.idSource}`,
+            `matchedBy=${matchedBy}`,
+            `resolvedEntryId=${resolvedEntryId}`,
+            `sessionKey=${sessionKey || "<none>"}`,
+            `command=${command || "<none>"}`,
+          );
+          if (!current) {
+            chatLog.warn(
+              "[exec.approvals.resolved.unmatched]",
+              `id=${resolved.id}`,
+              `idSource=${resolved.idSource}`,
+              `sessionKey=${resolved.sessionKey ?? "<none>"}`,
+              `command=${resolved.command ?? "<none>"}`,
+            );
           }
 
           return {

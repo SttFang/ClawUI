@@ -1,6 +1,7 @@
 import type { UIMessage } from 'ai'
 
 type ContentBlock = Record<string, unknown> & { type?: unknown }
+const EXEC_NO_OUTPUT_TEXT = 'No output - tool completed successfully.'
 
 function pickNonEmptyString(...values: unknown[]): string | null {
   for (const v of values) {
@@ -77,13 +78,103 @@ function isToolCallBlock(block: ContentBlock): boolean {
 
 function isToolResultBlock(block: ContentBlock): boolean {
   const t = typeof block.type === 'string' ? block.type.toLowerCase() : ''
-  return t === 'toolresult' || t === 'tool_result'
+  return t === 'toolresult' || t === 'tool_result' || t === 'tool_result_error'
 }
 
-function extractToolResultText(block: ContentBlock): string | undefined {
+function extractTextFromMixedContent(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) return value
+  if (!Array.isArray(value)) return null
+
+  const parts: string[] = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const record = item as Record<string, unknown>
+    const t = typeof record.type === 'string' ? record.type.toLowerCase() : ''
+    if ((t === 'text' || t === 'output_text' || t === 'input_text' || t === '') && typeof record.text === 'string') {
+      if (record.text.trim()) parts.push(record.text)
+      continue
+    }
+    if (typeof record.content === 'string' && record.content.trim()) {
+      parts.push(record.content)
+    }
+  }
+
+  if (parts.length === 0) return null
+  return parts.join('\n')
+}
+
+function extractToolResultOutput(block: ContentBlock): unknown {
   if (typeof block.text === 'string') return block.text
   if (typeof block.content === 'string') return block.content
+  if (typeof block.result === 'string') return block.result
+  if (typeof block.output === 'string') return block.output
+  if (block.result != null) return block.result
+  if (block.output != null) return block.output
+  if (block.content != null) {
+    const textFromContent = extractTextFromMixedContent(block.content)
+    if (textFromContent) return textFromContent
+  }
   return undefined
+}
+
+function resolveMessageToolCallId(record: Record<string, unknown>, msgId: string): string {
+  return (
+    pickNonEmptyString(
+      record.toolCallId,
+      record.tool_call_id,
+      record.toolUseId,
+      record.tool_use_id,
+      record.id
+    ) ?? `${msgId}:tool`
+  )
+}
+
+function resolveMessageToolName(record: Record<string, unknown>): string {
+  return (
+    pickNonEmptyString(record.toolName, record.tool_name, record.name, record.tool) ?? 'tool'
+  )
+}
+
+function extractMessageToolOutput(record: Record<string, unknown>): unknown {
+  if (record.result != null) return record.result
+  if (record.output != null) return record.output
+  if (typeof record.content === 'string' && record.content.trim()) return record.content
+  if (typeof record.text === 'string' && record.text.trim()) return record.text
+
+  const content = record.content
+  if (Array.isArray(content)) {
+    for (const item of content) {
+      if (!item || typeof item !== 'object') continue
+      const result = extractToolResultOutput(item as ContentBlock)
+      if (typeof result !== 'undefined') return result
+    }
+  }
+
+  return undefined
+}
+
+function extractMessageToolInput(record: Record<string, unknown>): unknown {
+  if (record.arguments != null) return record.arguments
+  if (record.args != null) return record.args
+  if (record.input != null) return record.input
+  return undefined
+}
+
+function maybeAddExecFallbackOutput(toolName: string, output: unknown): unknown {
+  if (typeof output !== 'undefined') return output
+  const normalizedToolName = toolName.trim().toLowerCase()
+  if (normalizedToolName === 'exec' || normalizedToolName === 'bash') {
+    return EXEC_NO_OUTPUT_TEXT
+  }
+  return undefined
+}
+
+function normalizeMessageRole(rawRole: string): UIMessage['role'] | null {
+  if (rawRole === 'user' || rawRole === 'assistant' || rawRole === 'system') return rawRole
+  if (rawRole === 'tool' || rawRole === 'toolresult' || rawRole === 'tool_result') {
+    return 'assistant'
+  }
+  return null
 }
 
 export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[] {
@@ -95,9 +186,8 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
       if (!m || typeof m !== 'object') return null
       const record = m as Record<string, unknown>
 
-      const roleRaw = typeof record.role === 'string' ? record.role : ''
-      const role =
-        roleRaw === 'user' || roleRaw === 'assistant' || roleRaw === 'system' ? roleRaw : null
+      const roleRaw = typeof record.role === 'string' ? record.role.toLowerCase() : ''
+      const role = normalizeMessageRole(roleRaw)
       if (!role) return null
       const rawMsgId = resolveStableMessageId(record, role, idx)
       const seenCount = idSeenCount.get(rawMsgId) ?? 0
@@ -116,28 +206,40 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
       // Best-effort: lift toolcall/toolresult blocks into dynamic-tool parts so UI can render cards.
       const toolCalls = contentBlocks.filter(isToolCallBlock)
       const toolResults = contentBlocks.filter(isToolResultBlock)
+      const hasToolRole = roleRaw === 'tool' || roleRaw === 'toolresult' || roleRaw === 'tool_result'
 
-      if (toolCalls.length > 0 || toolResults.length > 0) {
-        const baseToolCallId =
-          typeof record.toolCallId === 'string' && record.toolCallId.trim()
-            ? record.toolCallId.trim()
-            : `${msgId}:tool`
+      if (toolCalls.length > 0 || toolResults.length > 0 || hasToolRole) {
+        const baseToolCallId = resolveMessageToolCallId(record, msgId)
+        const baseToolName = resolveMessageToolName(record)
+        const messageToolOutput = extractMessageToolOutput(record)
+        const messageToolInput = extractMessageToolInput(record)
+        const iterations = Math.max(toolCalls.length, toolResults.length, hasToolRole ? 1 : 0)
 
-        for (let i = 0; i < Math.max(toolCalls.length, 1); i += 1) {
+        for (let i = 0; i < iterations; i += 1) {
           const call = toolCalls[i] ?? {}
+          const result = toolResults[i] ?? {}
           const callToolCallId = pickNonEmptyString(
             (call as Record<string, unknown>).toolCallId,
-            (call as Record<string, unknown>).tool_call_id
+            (call as Record<string, unknown>).tool_call_id,
+            (call as Record<string, unknown>).toolUseId,
+            (call as Record<string, unknown>).tool_use_id,
+            (result as Record<string, unknown>).toolCallId,
+            (result as Record<string, unknown>).tool_call_id,
+            (result as Record<string, unknown>).toolUseId,
+            (result as Record<string, unknown>).tool_use_id
           )
           const toolName =
             (typeof call.name === 'string' && call.name.trim()) ||
+            (typeof result.name === 'string' && result.name.trim()) ||
             (typeof record.toolName === 'string' && record.toolName.trim()) ||
             (typeof record.tool_name === 'string' && String(record.tool_name).trim()) ||
-            'tool'
+            baseToolName
 
-          const args = (call.arguments ?? call.args) as unknown
-          const result = toolResults[i]
-          const outText = result ? extractToolResultText(result) : undefined
+          const args = (call.arguments ?? call.args ?? messageToolInput) as unknown
+          const resultOutput = extractToolResultOutput(result)
+          const isToolResultLike = toolResults.length > 0 || hasToolRole
+          const maybeOutput = i === 0 ? resultOutput ?? messageToolOutput : resultOutput
+          const output = isToolResultLike ? maybeAddExecFallbackOutput(toolName, maybeOutput) : undefined
 
           const toolCallId =
             callToolCallId ??
@@ -145,14 +247,14 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
 
           // Keep strict part typing: `output-available` requires an `output` field,
           // while `input-available` must not include it.
-          if (outText) {
+          if (typeof output !== 'undefined') {
             parts.push({
               type: 'dynamic-tool',
               toolName,
               toolCallId,
               state: 'output-available',
               input: args ?? {},
-              output: outText,
+              output,
               providerExecuted: true,
             })
           } else {

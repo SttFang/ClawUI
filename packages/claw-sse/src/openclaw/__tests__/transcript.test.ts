@@ -224,4 +224,24 @@ describe('openclawTranscriptToUIMessages', () => {
       },
     ])
   })
+
+  it('should filter user messages from internal_system provenance', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'u-internal',
+        role: 'user',
+        content: [{ type: 'text', text: 'internal tool handoff' }],
+        inputProvenance: { kind: 'internal_system' },
+      },
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: [{ type: 'text', text: '继续执行完成。' }],
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.id).toBe('a1')
+    expect(ui[0]?.role).toBe('assistant')
+  })
 })

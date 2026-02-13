@@ -74,6 +74,15 @@ describe("useExecSystemHandoff", () => {
   }
 
   it("should handoff approval-resolved once and call agent with internal provenance", async () => {
+    historyMessages = [
+      {
+        id: "sys-terminal-1",
+        role: "system",
+        content: [{ type: "text", text: "System: Exec finished (code 0)" }],
+        createdAtMs: Date.now(),
+      },
+    ];
+
     const { root } = mountHook("s1", true);
 
     act(() => {
@@ -104,7 +113,7 @@ describe("useExecSystemHandoff", () => {
     expect(agentCalls).toHaveLength(1);
     expect(agentCalls[0]?.[1]).toMatchObject({
       sessionKey: "s1",
-      message: "Execution approved for: openclaw status",
+      message: "System: Exec finished (code 0)",
       inputProvenance: {
         kind: "internal_system",
         sourceSessionKey: "s1",
@@ -119,6 +128,15 @@ describe("useExecSystemHandoff", () => {
   });
 
   it("should dedupe duplicated approval events in cooldown window", async () => {
+    historyMessages = [
+      {
+        id: "sys-terminal-2",
+        role: "system",
+        content: [{ type: "text", text: "System: Exec finished (code 0)" }],
+        createdAtMs: Date.now(),
+      },
+    ];
+
     const { root } = mountHook("s1", true);
 
     act(() => {
@@ -155,6 +173,42 @@ describe("useExecSystemHandoff", () => {
 
     const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
     expect(agentCalls).toHaveLength(1);
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should handoff terminal system text from chat events", async () => {
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "chat",
+        payload: {
+          sessionKey: "s1",
+          runId: "run-chat-finished",
+          state: "final",
+          message: {
+            content: [{ type: "text", text: "System: Exec finished (code 0)" }],
+          },
+        },
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+      await Promise.resolve();
+    });
+
+    const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(1);
+    expect(agentCalls[0]?.[1]).toMatchObject({
+      sessionKey: "s1",
+      message: "System: Exec finished (code 0)",
+      inputProvenance: { source: "agent-tool-terminal", runId: "run-chat-finished" },
+    });
 
     act(() => {
       root.unmount();

@@ -1231,6 +1231,77 @@ describe('createOpenClawChatTransport', () => {
     vi.useRealTimers()
   })
 
+  it('should drop assistant fallback text from non-current run', async () => {
+    vi.useFakeTimers()
+    let handler: ((frame: GatewayEventFrame) => void) | null = null
+
+    const transport = createOpenClawChatTransport({
+      sessionKey: 's1',
+      adapter: {
+        onGatewayEvent(h) {
+          handler = h
+          return () => {
+            handler = null
+          }
+        },
+        async sendChat() {
+          return 'run-current'
+        },
+      },
+    })
+
+    const stream = await transport.sendMessages({
+      trigger: 'submit-message',
+      chatId: 'c1',
+      messageId: undefined,
+      messages: [createUserMessage('hello')],
+      abortSignal: undefined,
+    })
+
+    const reader = stream.getReader()
+    expect((await readNext(reader)).type).toBe('start')
+    expect((await readNext(reader)).type).toBe('start-step')
+    expect((await readNext(reader)).type).toBe('text-start')
+
+    handler?.({
+      type: 'event',
+      event: 'agent',
+      payload: {
+        runId: 'run-other',
+        sessionKey: 's1',
+        seq: 1,
+        stream: 'assistant',
+        ts: Date.now(),
+        data: { text: 'stale other run text' },
+      },
+    })
+    await vi.advanceTimersByTimeAsync(350)
+
+    handler?.({
+      type: 'event',
+      event: 'chat',
+      payload: {
+        runId: 'run-current',
+        sessionKey: 's1',
+        seq: 2,
+        state: 'final',
+        message: { content: [{ type: 'text', text: 'fresh current run text' }] },
+      },
+    })
+
+    expect(await readNext(reader)).toEqual({
+      type: 'text-delta',
+      id: 'text-1',
+      delta: 'fresh current run text',
+    })
+    expect((await readNext(reader)).type).toBe('text-end')
+    expect((await readNext(reader)).type).toBe('finish-step')
+    expect((await readNext(reader)).type).toBe('finish')
+    expect((await reader.read()).done).toBe(true)
+
+    vi.useRealTimers()
+  })
+
   it('should ignore stale buffered agent events from previous runs', async () => {
     vi.useFakeTimers()
     let handler: ((frame: GatewayEventFrame) => void) | null = null

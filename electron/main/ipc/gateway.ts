@@ -23,7 +23,18 @@ export function registerGatewayHandlers(
     });
   });
 
+  const refreshGatewayConfig = async () => {
+    await configService.initialize();
+    const cfg = await configService.getConfig();
+    if (!cfg) {
+      throw new Error("Gateway config unavailable");
+    }
+    gateway.setConfig(cfg);
+    return cfg;
+  };
+
   ipcMain.handle("gateway:start", async () => {
+    await refreshGatewayConfig();
     await gateway.start();
   });
 
@@ -40,7 +51,7 @@ export function registerGatewayHandlers(
   });
 
   ipcMain.handle("gateway:install-service", async () => {
-    const cfg = await configService.getConfig();
+    const cfg = await refreshGatewayConfig();
     const port = cfg?.gateway?.port ?? DEFAULT_GATEWAY_PORT;
     if (typeof port !== "number" || port < 1 || port > 65535) {
       throw new Error(`Invalid gateway port: ${port}`);

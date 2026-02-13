@@ -198,4 +198,114 @@ describe("config-core", () => {
     const manager = new ConfigCoreManager(store, { readSource: "auto" });
     expect(manager.getEnvValue("OPENAI_API_KEY")).toBe("draft-key");
   });
+
+  it("ConfigCoreManager should apply path patches across core config sections", async () => {
+    const { store, state, patchDraftPath } = createMockStore({
+      gateway: {
+        port: 18789,
+        bind: "loopback",
+        auth: {
+          mode: "token",
+          token: "old-token",
+        },
+      },
+      agents: {
+        defaults: {
+          workspace: "~/.openclaw/workspace",
+          model: {
+            primary: "anthropic/claude-4",
+            fallbacks: ["openai/gpt-4o"],
+          },
+        },
+      },
+      session: {
+        scope: "per-sender",
+        store: "~/.openclaw/agents/{agentId}/sessions/sessions.json",
+        reset: {
+          mode: "idle",
+          idleMinutes: 120,
+        },
+      },
+      channels: {
+        telegram: {
+          enabled: false,
+        },
+      },
+      tools: {
+        allow: ["group:fs", "web_*"],
+        deny: ["exec"],
+      },
+      cron: {
+        enabled: true,
+        store: "~/.openclaw/cron/jobs.json",
+      },
+      hooks: {
+        enabled: true,
+        token: "hook-token",
+        path: "/hooks",
+      },
+      mcp: {
+        enabled: false,
+      },
+      env: {
+        vars: {
+          OPENAI_API_KEY: "snapshot-openai",
+        },
+        shellEnv: {
+          enabled: true,
+        },
+      },
+    });
+
+    const manager = new ConfigCoreManager(store);
+
+    await manager.applyPathPatches([
+      { path: ["gateway", "port"], value: 19999 },
+      { path: ["gateway", "auth", "token"], value: "new-token" },
+      { path: ["agents", "defaults", "workspace"], value: "~/workspace-updated" },
+      { path: ["session", "scope"], value: "per-channel-peer" },
+      { path: ["channels", "telegram", "enabled"], value: true },
+      { path: ["tools", "allow"], value: ["group:fs", "web_*", "group:mcp"] },
+      { path: ["cron", "enabled"], value: false },
+      { path: ["hooks", "path"], value: "/hooks-v2" },
+      { path: ["mcp", "servers", "github", "command"], value: "node github-mcp-server" },
+      { path: ["env", "vars", "OPENROUTER_API_KEY"], value: "new-openrouter" },
+    ]);
+
+    expect(patchDraftPath).toHaveBeenCalledTimes(10);
+    expect(patchDraftPath).toHaveBeenNthCalledWith(1, ["gateway", "port"], 19999);
+    expect(patchDraftPath).toHaveBeenNthCalledWith(2, ["gateway", "auth", "token"], "new-token");
+    expect(patchDraftPath).toHaveBeenNthCalledWith(3, ["agents", "defaults", "workspace"], "~/workspace-updated");
+    expect(patchDraftPath).toHaveBeenNthCalledWith(4, ["session", "scope"], "per-channel-peer");
+    expect(patchDraftPath).toHaveBeenNthCalledWith(5, ["channels", "telegram", "enabled"], true);
+    expect(patchDraftPath).toHaveBeenNthCalledWith(6, ["tools", "allow"], ["group:fs", "web_*", "group:mcp"]);
+    expect(patchDraftPath).toHaveBeenNthCalledWith(7, ["cron", "enabled"], false);
+    expect(patchDraftPath).toHaveBeenNthCalledWith(8, ["hooks", "path"], "/hooks-v2");
+    expect(patchDraftPath).toHaveBeenNthCalledWith(9, ["mcp", "servers", "github", "command"], "node github-mcp-server");
+    expect(patchDraftPath).toHaveBeenNthCalledWith(10, ["env", "vars", "OPENROUTER_API_KEY"], "new-openrouter");
+
+    const expected = deepClone(state.snapshot.config);
+    expected.gateway.port = 19999;
+    expected.gateway.auth = {
+      ...expected.gateway.auth,
+      token: "new-token",
+    };
+    expected.agents.defaults.workspace = "~/workspace-updated";
+    expected.session.scope = "per-channel-peer";
+    expected.channels.telegram.enabled = true;
+    expected.tools.allow = ["group:fs", "web_*", "group:mcp"];
+    expected.cron.enabled = false;
+    expected.hooks.path = "/hooks-v2";
+    expected.mcp = {
+      ...expected.mcp,
+      servers: {
+        github: {
+          command: "node github-mcp-server",
+        },
+      },
+    };
+    expected.env.vars.OPENROUTER_API_KEY = "new-openrouter";
+
+    expect(state.draft).toEqual(expected);
+  });
 });

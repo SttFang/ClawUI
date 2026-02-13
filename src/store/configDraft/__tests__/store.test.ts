@@ -94,4 +94,145 @@ describe("ConfigDraftStore", () => {
       },
     });
   });
+
+  it("applyPatch should persist merged full config and reload snapshot after save", async () => {
+    const baseSnapshot = {
+      hash: "hash-1",
+      config: {
+        gateway: {
+          mode: "local",
+          port: 18789,
+          bind: "loopback",
+          auth: {
+            mode: "token",
+            token: "token-1",
+          },
+        },
+        agents: {
+          defaults: {
+            workspace: "~/.openclaw/workspace",
+            model: {
+              primary: "anthropic/claude-4-5-20250929",
+              fallbacks: ["openai/gpt-4o"],
+            },
+          },
+        },
+        session: {
+          scope: "per-sender",
+          store: "~/.openclaw/agents/{agentId}/sessions/sessions.json",
+          reset: {
+            mode: "idle",
+            idleMinutes: 120,
+          },
+        },
+        channels: {
+          telegram: {
+            enabled: true,
+          },
+        },
+        tools: {
+          allow: ["group:fs", "web_*"],
+          deny: ["exec"],
+        },
+        cron: {
+          enabled: true,
+          store: "~/.openclaw/cron/jobs.json",
+        },
+        hooks: {
+          enabled: true,
+          token: "hooks-token",
+          path: "/hooks",
+        },
+        mcp: {
+          enabled: false,
+        },
+        env: {
+          vars: {
+            OPENAI_API_KEY: "old-openai",
+            OPENROUTER_API_KEY: "old-openrouter",
+          },
+        },
+      },
+    };
+
+    const savedSnapshot = {
+      ...baseSnapshot,
+      hash: "hash-2",
+      config: {
+        ...baseSnapshot.config,
+        gateway: {
+          ...baseSnapshot.config.gateway,
+          port: 19999,
+        },
+        agents: {
+          ...baseSnapshot.config.agents,
+          defaults: {
+            ...baseSnapshot.config.agents.defaults,
+            workspace: "~/workspace-updated",
+          },
+        },
+        mcp: {
+          ...baseSnapshot.config.mcp,
+          enabled: true,
+          servers: {
+            github: {
+              command: "node github-mcp",
+            },
+          },
+        },
+        env: {
+          ...baseSnapshot.config.env,
+          vars: {
+            ...baseSnapshot.config.env.vars,
+            OPENAI_API_KEY: "new-openai",
+            GITHUB_TOKEN: "gh-token",
+          },
+        },
+      },
+    };
+
+    (ipc.config.getSnapshot as Mock).mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(savedSnapshot);
+
+    useConfigDraftStore.setState({
+      snapshot: null,
+      draft: null,
+    });
+
+    await useConfigDraftStore.getState().applyPatch({
+      gateway: {
+        port: 19999,
+      },
+      agents: {
+        defaults: {
+          workspace: "~/workspace-updated",
+        },
+      },
+      mcp: {
+        enabled: true,
+        servers: {
+          github: {
+            command: "node github-mcp",
+          },
+        },
+      },
+      env: {
+        vars: {
+          OPENAI_API_KEY: "new-openai",
+          GITHUB_TOKEN: "gh-token",
+        },
+      },
+    });
+
+    expect(ipc.config.setDraft).toHaveBeenCalledTimes(1);
+
+    const payload = (ipc.config.setDraft as Mock).mock.calls[0][0];
+    const writtenConfig = JSON.parse(payload.raw as string);
+
+    expect(payload.baseHash).toBe("hash-1");
+    expect(payload.raw.endsWith("\n")).toBe(true);
+    expect(writtenConfig).toEqual(savedSnapshot.config);
+    expect(useConfigDraftStore.getState().isDirty).toBe(false);
+    expect(useConfigDraftStore.getState().snapshot).toEqual(savedSnapshot);
+    expect(useConfigDraftStore.getState().draft).toEqual(savedSnapshot.config);
+  });
 });

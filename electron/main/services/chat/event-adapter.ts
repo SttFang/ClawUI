@@ -12,6 +12,7 @@ function pickToolCallId(record: Record<string, unknown>): string {
     record.tool_call_id,
     record.toolUseId,
     record.tool_use_id,
+    record.id,
     record.toolId,
   ];
   for (const candidate of candidates) {
@@ -228,7 +229,11 @@ export class ChatEventAdapter {
       run = this.state.ensureRun({ sessionKey, clientRunId: runId });
       this.state.linkAgentAlias(run, sessionKey, runId);
     }
-    if (!run) return [];
+    if (!run) {
+      correlationConfidence = "fallback";
+      run = this.state.ensureRun({ sessionKey, clientRunId: runId });
+      this.state.linkAgentAlias(run, sessionKey, runId);
+    }
 
     this.state.touchRun(run);
     if (!run.agentRunId) run.agentRunId = runId;
@@ -283,7 +288,9 @@ export class ChatEventAdapter {
 
     if (stream === "lifecycle") {
       const phase = typeof data.phase === "string" ? data.phase : "";
-      if (phase === "error") {
+      if (phase === "end") {
+        run.status = normalizeRunStatus(run.status, "completed");
+      } else if (phase === "error") {
         run.status = normalizeRunStatus(run.status, "failed");
       } else {
         run.status = normalizeRunStatus(run.status, "running");

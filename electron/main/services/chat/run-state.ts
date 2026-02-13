@@ -194,8 +194,11 @@ export class ChatRunState {
     sessionKey: string;
     command?: string;
   }): RunState | null {
-    const run = this.getLatestActiveRun(params.sessionKey);
-    const traceId = run?.traceId;
+    let run = this.getLatestActiveRun(params.sessionKey);
+    if (!run) {
+      run = this.ensureRun({ sessionKey: params.sessionKey, clientRunId: params.id });
+    }
+    const traceId = run.traceId;
     this.pendingApprovals.set(params.id, {
       id: params.id,
       sessionKey: params.sessionKey,

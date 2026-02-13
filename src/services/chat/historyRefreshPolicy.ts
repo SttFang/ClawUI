@@ -3,12 +3,14 @@ import type { ExecApprovalRequest } from "@/store/execApprovals";
 const HEARTBEAT_BASE_THROTTLE_MS = 2_500;
 const RECOVERY_HEARTBEAT_BASE_THROTTLE_MS = 1_200;
 const HEARTBEAT_BACKOFF_MULTIPLIER = 1.5;
-const HEARTBEAT_BACKOFF_MAX_MS = 30_000;
+const RECOVERY_HEARTBEAT_BACKOFF_MAX_MS = 10_000;
 const HEARTBEAT_BACKOFF_MAX_STEPS = 10;
 
 const unchangedBySession = new Map<string, number>();
 
-export const APPROVAL_RECOVERY_FOLLOWUPS_MS = [800, 2_000, 5_000, 10_000, 15_000] as const;
+export const APPROVAL_RECOVERY_FOLLOWUPS_MS = [
+  800, 2_000, 5_000, 10_000, 15_000, 30_000, 45_000, 60_000,
+] as const;
 
 function getSessionBackoffKey(sessionKey: string): string {
   return sessionKey.trim();
@@ -42,7 +44,7 @@ export function getEffectiveHeartbeatThrottleMs(params: {
 
   const unchanged = unchangedBySession.get(key) ?? 0;
   const dynamic = RECOVERY_HEARTBEAT_BASE_THROTTLE_MS * HEARTBEAT_BACKOFF_MULTIPLIER ** unchanged;
-  return Math.min(Math.round(dynamic), HEARTBEAT_BACKOFF_MAX_MS);
+  return Math.min(Math.round(dynamic), RECOVERY_HEARTBEAT_BACKOFF_MAX_MS);
 }
 
 export function shouldRefreshHistoryOnHeartbeat(params: {

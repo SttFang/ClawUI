@@ -43,6 +43,7 @@ function resolveToolCallId(record: Record<string, unknown> | null): string {
     record.tool_call_id,
     record.toolUseId,
     record.tool_use_id,
+    record.id,
     record.toolId,
   ];
   for (const candidate of candidates) {
@@ -143,6 +144,16 @@ function appendTimeline(session: SessionRunMap, event: TimelineEvent): void {
   if (session.timeline.length > MAX_TIMELINE_EVENTS) {
     session.timeline = session.timeline.slice(-MAX_TIMELINE_EVENTS);
   }
+}
+
+function resolveRelatedRunIdForApproval(session: SessionRunMap): string | undefined {
+  if (session.rootChatRunId && session.runsById[session.rootChatRunId]) {
+    return session.rootChatRunId;
+  }
+  const latest = Object.values(session.runsById)
+    .filter((run) => run.type === "chat")
+    .sort((a, b) => b.updatedAtMs - a.updatedAtMs)[0];
+  return latest?.runId;
 }
 
 function resolveCanonicalRunId(session: SessionRunMap, candidateRunId: string): string {
@@ -310,10 +321,6 @@ export const useRunMapStore = create<RunMapStore>()(
             const session = cloneSession(baseSession);
             const atMs = event.timestampMs || Date.now();
 
-            if (!session.rootChatRunId) {
-              session.rootChatRunId = canonicalRunId;
-            }
-
             const run = ensureRunNode({
               session,
               sessionKey,
@@ -325,6 +332,10 @@ export const useRunMapStore = create<RunMapStore>()(
               agentRunId: event.agentRunId?.trim() || undefined,
               atMs,
             });
+
+            if (!session.rootChatRunId && (run.type === "chat" || event.kind === "run.started")) {
+              session.rootChatRunId = run.runId;
+            }
 
             appendTimeline(session, {
               id: `${event.traceId}:${event.kind}:${atMs}`,
@@ -402,7 +413,7 @@ export const useRunMapStore = create<RunMapStore>()(
               const session = cloneSession(baseSession);
               const atMs =
                 typeof payload.createdAtMs === "number" ? payload.createdAtMs : Date.now();
-              const relatedRunId = session.rootChatRunId || undefined;
+              const relatedRunId = resolveRelatedRunIdForApproval(session);
               const approval = upsertApproval({
                 session,
                 approvalId: id,

@@ -69,27 +69,40 @@ export class ChatWebSocketService extends EventEmitter {
     const t0 = Date.now();
 
     try {
-      await this.request("chat.send", {
+      const payload = (await this.request("chat.send", {
         sessionKey: request.sessionId,
         message: request.message,
         deliver: false,
         idempotencyKey: messageId,
-      });
+      })) as { runId?: unknown } | undefined;
+      const ackRunId =
+        typeof payload?.runId === "string" && payload.runId.trim()
+          ? payload.runId.trim()
+          : messageId;
+      if (ackRunId !== messageId) {
+        chatLog.warn(
+          "[chat.send.runid_mismatch]",
+          `sessionId=${request.sessionId}`,
+          `idempotencyKey=${messageId}`,
+          `ackRunId=${ackRunId}`,
+        );
+      }
 
       chatLog.info(
         "[chat.send.ok]",
         `sessionId=${request.sessionId}`,
+        `runId=${ackRunId}`,
         `durationMs=${Date.now() - t0}`,
       );
       const normalizedEvents = this.normalizer.onChatSendAccepted({
         sessionKey: request.sessionId,
-        clientRunId: messageId,
+        clientRunId: ackRunId,
       });
       for (const normalizedEvent of normalizedEvents) {
         this.emit("normalized-event", normalizedEvent);
       }
 
-      return messageId;
+      return ackRunId;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       chatLog.warn(

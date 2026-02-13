@@ -22,9 +22,14 @@ type LastResolvedApproval = {
 };
 
 const DEFAULT_REFRESH_THROTTLE_MS = 800;
+const CHAT_HISTORY_LIMIT = 1_000;
 const APPROVAL_RECOVERY_WINDOW_MS = 120_000;
 const TERMINAL_RECOVERY_WINDOW_MS = 20_000;
 const FORCE_FOLLOWUP_THRESHOLD_MS = 10_000;
+const MIN_PREV_MESSAGES_FOR_DROP_GUARD = 6;
+const DROP_GUARD_MIN_DELTA = 4;
+const DROP_GUARD_RATIO_THRESHOLD = 0.6;
+const DROP_GUARD_RETRY_DELAY_MS = 350;
 
 function isExecToolFinished(event: ChatNormalizedRunEvent): boolean {
   if (event.kind !== "run.tool_finished") return false;
@@ -36,11 +41,46 @@ function isExecToolFinished(event: ChatNormalizedRunEvent): boolean {
   return toolName === "" || toolName === "exec";
 }
 
+function getLifecyclePhase(event: ChatNormalizedRunEvent): string {
+  if (event.kind !== "run.lifecycle") return "";
+  if (!event.metadata || typeof event.metadata !== "object") return "";
+  const phase = (event.metadata as Record<string, unknown>).phase;
+  return typeof phase === "string" ? phase : "";
+}
+
+function isTerminalLifecycleEvent(event: ChatNormalizedRunEvent): boolean {
+  const phase = getLifecyclePhase(event);
+  return phase === "end" || phase === "error";
+}
+
+function hasRecentTailOverlap(previous: UIMessage[], next: UIMessage[]): boolean {
+  const tailIds = previous
+    .slice(-3)
+    .map((message) => message.id)
+    .filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+  if (tailIds.length === 0) return true;
+  const nextIds = new Set(next.map((message) => message.id));
+  return tailIds.some((id) => nextIds.has(id));
+}
+
+function isLikelyTransientHistoryDrop(previous: UIMessage[], next: UIMessage[]): boolean {
+  if (previous.length < MIN_PREV_MESSAGES_FOR_DROP_GUARD) return false;
+  if (next.length >= previous.length) return false;
+  if (next.length === 0) return true;
+
+  const delta = previous.length - next.length;
+  if (delta < DROP_GUARD_MIN_DELTA) return false;
+  if (next.length / previous.length > DROP_GUARD_RATIO_THRESHOLD) return false;
+
+  return !hasRecentTailOverlap(previous, next);
+}
+
 function shouldRefreshOnNormalizedEvent(event: ChatNormalizedRunEvent): boolean {
   return (
     event.kind === "run.completed" ||
     event.kind === "run.failed" ||
     event.kind === "run.aborted" ||
+    isTerminalLifecycleEvent(event) ||
     event.kind === "run.approval_resolved" ||
     event.kind === "run.waiting_approval" ||
     event.kind === "run.tool_finished"
@@ -52,6 +92,7 @@ function shouldForceRefreshOnNormalizedEvent(event: ChatNormalizedRunEvent): boo
     event.kind === "run.completed" ||
     event.kind === "run.failed" ||
     event.kind === "run.aborted" ||
+    isTerminalLifecycleEvent(event) ||
     event.kind === "run.approval_resolved"
   );
 }
@@ -61,6 +102,7 @@ function shouldClearRunningOnNormalizedEvent(event: ChatNormalizedRunEvent): boo
     event.kind === "run.completed" ||
     event.kind === "run.failed" ||
     event.kind === "run.aborted" ||
+    isTerminalLifecycleEvent(event) ||
     isExecToolFinished(event)
   );
 }
@@ -81,6 +123,7 @@ export function useOpenClawHistorySync(params: {
   const historyInFlightRef = useRef(false);
   const lastHistoryAtRef = useRef(0);
   const lastHistorySigRef = useRef("");
+  const lastAppliedMessagesRef = useRef<UIMessage[]>([]);
   const pendingRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const approvalRecoveryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const lastHandledApprovalIdRef = useRef<string | null>(null);
@@ -161,14 +204,43 @@ export function useOpenClawHistorySync(params: {
         await ensureChatConnected();
         const res = (await ipc.chat.request("chat.history", {
           sessionKey: normalizedSessionKey,
-          limit: 200,
+          limit: CHAT_HISTORY_LIMIT,
         })) as { messages?: unknown };
         const uiMessages = openclawTranscriptToUIMessages(res?.messages);
 
         const sig = buildHistoryFingerprint(uiMessages);
-        const changed = sig !== lastHistorySigRef.current;
+        let changed = sig !== lastHistorySigRef.current;
+        if (changed) {
+          const previousMessages = lastAppliedMessagesRef.current;
+          const shouldGuardDrop =
+            !force &&
+            reason !== "session-init" &&
+            isLikelyTransientHistoryDrop(previousMessages, uiMessages);
+          if (shouldGuardDrop) {
+            changed = false;
+            chatLog.warn(
+              "[chat.history.suspect_drop]",
+              `session=${normalizedSessionKey}`,
+              `reason=${reason}`,
+              `prev=${previousMessages.length}`,
+              `next=${uiMessages.length}`,
+            );
+            if (allowRetry && !pendingRefreshTimerRef.current) {
+              pendingRefreshTimerRef.current = setTimeout(() => {
+                pendingRefreshTimerRef.current = null;
+                void refreshHistory({
+                  force: true,
+                  reason: `${reason}-suspect-drop-retry`,
+                  allowRetry: false,
+                });
+              }, DROP_GUARD_RETRY_DELAY_MS);
+            }
+          }
+        }
+
         if (changed) {
           lastHistorySigRef.current = sig;
+          lastAppliedMessagesRef.current = uiMessages;
           setMessagesRef.current(uiMessages);
         }
 
@@ -208,6 +280,7 @@ export function useOpenClawHistorySync(params: {
 
     lastHistoryAtRef.current = 0;
     lastHistorySigRef.current = "";
+    lastAppliedMessagesRef.current = [];
     historyInFlightRef.current = false;
     lastHandledApprovalIdRef.current = null;
     recoveryUntilMsRef.current = 0;

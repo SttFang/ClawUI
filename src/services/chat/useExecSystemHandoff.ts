@@ -9,7 +9,9 @@ import {
   INTERNAL_SYSTEM_KIND,
 } from "./execSystemHandoff/constants";
 import {
+  isLikelyTerminalResultText,
   parseApprovalEvent,
+  parseChatTerminalEvent,
   readToolEventText,
   resolveApprovalHandoff,
 } from "./execSystemHandoff/events";
@@ -81,7 +83,24 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
           sessionKey: payload.sessionKey,
           runId: payload.runId,
         });
-        await sendAgentInput(payload, payload.text || historyText || "");
+        const normalizedPayloadText = normalizeText(payload.text ?? "");
+        const normalizedHistoryText = normalizeText(historyText ?? "");
+        const historyTerminalText = isLikelyTerminalResultText(normalizedHistoryText)
+          ? normalizedHistoryText
+          : "";
+
+        // For approval allow events, only handoff terminal output to avoid
+        // echoing "Execution approved..." as the assistant continuation.
+        if (payload.source === "approval-allow") {
+          if (!historyTerminalText) return;
+          await sendAgentInput(payload, historyTerminalText);
+          return;
+        }
+
+        await sendAgentInput(
+          payload,
+          historyTerminalText || normalizedPayloadText || normalizedHistoryText || "",
+        );
       } catch (error) {
         chatLog.warn(
           "[exec.system.handoff.history.failed]",
@@ -172,6 +191,19 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
         handleApprovalResolved(frame.payload);
         return;
       }
+
+      if (frame.event === "chat") {
+        const parsed = parseChatTerminalEvent(frame.payload);
+        if (!parsed || parsed.sessionKey !== normalizedSessionKey) return;
+        scheduleHandoff({
+          sessionKey: parsed.sessionKey,
+          runId: parsed.runId ?? latestRunIdRef.current ?? undefined,
+          source: "agent-tool-terminal",
+          text: parsed.text,
+        });
+        return;
+      }
+
       if (frame.event !== "agent" || !isRecord(frame.payload)) return;
       const payload = frame.payload as Record<string, unknown>;
       const eventSession =
@@ -179,7 +211,13 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
       if (!eventSession || eventSession !== normalizedSessionKey) return;
       handleToolTerminal(payload);
     });
-  }, [handleApprovalResolved, handleToolTerminal, hasSession, normalizedSessionKey]);
+  }, [
+    handleApprovalResolved,
+    handleToolTerminal,
+    hasSession,
+    normalizedSessionKey,
+    scheduleHandoff,
+  ]);
 
   useEffect(
     () => () => {

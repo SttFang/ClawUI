@@ -100,3 +100,61 @@ export function readToolEventText(payload: unknown): string | null {
   if (phase === "end") return EXEC_TOOL_FALLBACK;
   return null;
 }
+
+export function isLikelyApprovalPromptText(text: string): boolean {
+  const normalized = normalizeText(text).toLowerCase();
+  if (!normalized) return false;
+  return normalized.includes("approval required") || normalized.includes("approve to run");
+}
+
+export function isLikelyTerminalResultText(text: string): boolean {
+  const normalized = normalizeText(text).toLowerCase();
+  if (!normalized) return false;
+  if (isLikelyApprovalPromptText(normalized)) return false;
+  return (
+    normalized.includes("exec finished") ||
+    normalized.includes("exec denied") ||
+    normalized.includes("exec failed") ||
+    normalized.includes("timed out while waiting for approval") ||
+    normalized.includes("no output - tool completed successfully") ||
+    normalized.includes("enoent:") ||
+    (normalized.includes('"status"') &&
+      (normalized.includes('"error"') ||
+        normalized.includes('"ok"') ||
+        normalized.includes('"code"')))
+  );
+}
+
+function readChatMessageText(message: unknown): string | null {
+  if (!isRecord(message)) return null;
+  const parts: string[] = [];
+  collectText(message.content, parts);
+  collectText(message.text, parts);
+  collectText(message.result, parts);
+  collectText(message.output, parts);
+  const text = normalizeText(parts.join("\n"));
+  return text || null;
+}
+
+export function parseChatTerminalEvent(payload: unknown): {
+  sessionKey: string;
+  runId?: string;
+  text: string;
+} | null {
+  if (!isRecord(payload)) return null;
+  const sessionKey = normalizeSessionKey(
+    typeof payload.sessionKey === "string" ? payload.sessionKey : null,
+  );
+  if (!sessionKey) return null;
+
+  const state = typeof payload.state === "string" ? payload.state.trim().toLowerCase() : "";
+  if (state !== "final" && state !== "error" && state !== "aborted") return null;
+
+  const text = readChatMessageText(payload.message);
+  if (!text || !isLikelyTerminalResultText(text)) return null;
+
+  const runId =
+    typeof payload.runId === "string" && payload.runId.trim() ? payload.runId.trim() : undefined;
+
+  return { sessionKey, runId, text };
+}

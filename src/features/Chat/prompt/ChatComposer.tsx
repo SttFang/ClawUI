@@ -208,9 +208,7 @@ export function ChatComposer(props: {
           </PromptInputTools>
 
           <PromptInputActions className="ml-auto">
-            <PromptInputSubmit disabled={!canSubmit}>
-              {t("sendMessage")}
-            </PromptInputSubmit>
+            <PromptInputSubmit disabled={!canSubmit}>{t("sendMessage")}</PromptInputSubmit>
           </PromptInputActions>
         </PromptInputFooter>
       </PromptInput>

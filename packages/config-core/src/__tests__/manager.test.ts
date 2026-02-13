@@ -275,14 +275,30 @@ describe("config-core", () => {
     expect(patchDraftPath).toHaveBeenCalledTimes(10);
     expect(patchDraftPath).toHaveBeenNthCalledWith(1, ["gateway", "port"], 19999);
     expect(patchDraftPath).toHaveBeenNthCalledWith(2, ["gateway", "auth", "token"], "new-token");
-    expect(patchDraftPath).toHaveBeenNthCalledWith(3, ["agents", "defaults", "workspace"], "~/workspace-updated");
+    expect(patchDraftPath).toHaveBeenNthCalledWith(
+      3,
+      ["agents", "defaults", "workspace"],
+      "~/workspace-updated",
+    );
     expect(patchDraftPath).toHaveBeenNthCalledWith(4, ["session", "scope"], "per-channel-peer");
     expect(patchDraftPath).toHaveBeenNthCalledWith(5, ["channels", "telegram", "enabled"], true);
-    expect(patchDraftPath).toHaveBeenNthCalledWith(6, ["tools", "allow"], ["group:fs", "web_*", "group:mcp"]);
+    expect(patchDraftPath).toHaveBeenNthCalledWith(
+      6,
+      ["tools", "allow"],
+      ["group:fs", "web_*", "group:mcp"],
+    );
     expect(patchDraftPath).toHaveBeenNthCalledWith(7, ["cron", "enabled"], false);
     expect(patchDraftPath).toHaveBeenNthCalledWith(8, ["hooks", "path"], "/hooks-v2");
-    expect(patchDraftPath).toHaveBeenNthCalledWith(9, ["mcp", "servers", "github", "command"], "node github-mcp-server");
-    expect(patchDraftPath).toHaveBeenNthCalledWith(10, ["env", "vars", "OPENROUTER_API_KEY"], "new-openrouter");
+    expect(patchDraftPath).toHaveBeenNthCalledWith(
+      9,
+      ["mcp", "servers", "github", "command"],
+      "node github-mcp-server",
+    );
+    expect(patchDraftPath).toHaveBeenNthCalledWith(
+      10,
+      ["env", "vars", "OPENROUTER_API_KEY"],
+      "new-openrouter",
+    );
 
     const expected = deepClone(state.snapshot.config);
     expected.gateway.port = 19999;

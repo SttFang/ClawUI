@@ -253,8 +253,8 @@ export class ChatRunState {
   }): RunState | null {
     const normalizedSessionKey = params.sessionKey?.trim();
     const fallbackRun = normalizedSessionKey
-      ? this.getLatestActiveRun(normalizedSessionKey) ??
-        this.ensureRun({ sessionKey: normalizedSessionKey, clientRunId: params.id })
+      ? (this.getLatestActiveRun(normalizedSessionKey) ??
+        this.ensureRun({ sessionKey: normalizedSessionKey, clientRunId: params.id }))
       : this.getMostRecentActiveRun();
 
     const pending: PendingApproval = {

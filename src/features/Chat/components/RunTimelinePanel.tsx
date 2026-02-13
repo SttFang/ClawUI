@@ -1,5 +1,5 @@
-import { Task, TaskContent, TaskItem, TaskTrigger } from "@clawui/ui";
 import type { TimelineEvent } from "@clawui/types/run-map";
+import { Task, TaskContent, TaskItem, TaskTrigger } from "@clawui/ui";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useRunMapStore } from "@/store/runMap";
@@ -37,14 +37,12 @@ function runTypeLabel(type: "chat" | "approval" | "agent" | "system"): string {
   return "system";
 }
 
-function selectRunTimelineEvents(
-  params: {
-    timeline: TimelineEvent[];
-    runId: string;
-    approvalIds: string[];
-    toolCallIds: string[];
-  },
-) {
+function selectRunTimelineEvents(params: {
+  timeline: TimelineEvent[];
+  runId: string;
+  approvalIds: string[];
+  toolCallIds: string[];
+}) {
   const approvalIdSet = new Set(params.approvalIds);
   const toolCallIdSet = new Set(params.toolCallIds);
   const seen = new Set<string>();

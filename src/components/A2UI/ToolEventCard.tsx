@@ -114,21 +114,13 @@ export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: str
         : state;
 
   return (
-    <Task
-      className="rounded-xl border border-border/70 bg-card/90 shadow-sm transition-colors dark:bg-card"
-      defaultOpen={state !== "output-error"}
-    >
-      <TaskTrigger
-        title={title}
-        className="px-3.5 py-3 hover:bg-muted/45 border-b border-transparent"
-      />
-      <TaskContent className="space-y-2 px-3.5 py-3">
+    <Task defaultOpen={state !== "output-error"}>
+      <TaskTrigger title={title} />
+      <TaskContent className="space-y-2">
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <TaskItem className="truncate">
-              <span className="text-xs">
-                {part.toolName}
-              </span>
+              <span className="text-xs">{part.toolName}</span>
               <span className="text-xs text-muted-foreground">{`· ${part.toolCallId}`}</span>
             </TaskItem>
             <StatePill

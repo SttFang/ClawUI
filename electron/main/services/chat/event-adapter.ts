@@ -1,7 +1,7 @@
 import type { ChatNormalizedRunEvent } from "@clawui/types";
 import type { GatewayEventFrame } from "../chat-websocket";
-import { ChatRunState, normalizeRunStatus } from "./run-state";
 import { chatLog } from "../../lib/logger";
+import { ChatRunState, normalizeRunStatus } from "./run-state";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -93,7 +93,7 @@ export class ChatEventAdapter {
 
     const fallbackSession = consumed.consumed
       ? undefined
-      : sessionKey ?? consumed.approval?.sessionKey ?? undefined;
+      : (sessionKey ?? consumed.approval?.sessionKey ?? undefined);
     if (!consumed.consumed && consumed.reason === "not_found") {
       chatLog.warn(
         "[chat.approval.resolve.no_run]",
@@ -366,8 +366,7 @@ export class ChatEventAdapter {
     const id =
       typeof frame.payload.id === "string"
         ? frame.payload.id
-        : isRecord(frame.payload.request) &&
-            typeof frame.payload.request.id === "string"
+        : isRecord(frame.payload.request) && typeof frame.payload.request.id === "string"
           ? frame.payload.request.id
           : "";
     const request = isRecord(frame.payload.request) ? frame.payload.request : null;

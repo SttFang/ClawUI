@@ -66,7 +66,9 @@ export function initExecApprovalsListener() {
 
           let nextRunningByKey = state.runningByKey;
           const command = (current?.request.command ?? resolved.command ?? "").trim();
-          const sessionKey = normalizeSessionKey(current?.request.sessionKey ?? resolved.sessionKey);
+          const sessionKey = normalizeSessionKey(
+            current?.request.sessionKey ?? resolved.sessionKey,
+          );
           if (resolved.decision === "deny" && command) {
             const runningKey = makeExecApprovalKey(sessionKey, command);
             if (nextRunningByKey[runningKey]) {

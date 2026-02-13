@@ -191,7 +191,9 @@ describe("ConfigDraftStore", () => {
       },
     };
 
-    (ipc.config.getSnapshot as Mock).mockResolvedValueOnce(baseSnapshot).mockResolvedValueOnce(savedSnapshot);
+    (ipc.config.getSnapshot as Mock)
+      .mockResolvedValueOnce(baseSnapshot)
+      .mockResolvedValueOnce(savedSnapshot);
 
     useConfigDraftStore.setState({
       snapshot: null,

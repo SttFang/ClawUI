@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { ipc, type ChatNormalizedRunEvent, type GatewayEventFrame } from "@/lib/ipc";
 import { chatLog } from "@/lib/logger";
+import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
+import { useExecApprovalsStore } from "@/store/execApprovals";
 import type { HandOffPayload } from "./execSystemHandoff/types";
 import {
   HANDOFF_COOLDOWN_MS,
@@ -17,6 +19,29 @@ import {
 } from "./execSystemHandoff/events";
 import { pickLastHistoryText } from "./execSystemHandoff/history";
 import { hashText, isRecord, normalizeSessionKey, normalizeText } from "./execSystemHandoff/utils";
+
+function markExecCommandTerminal(sessionKey: string, command: string, atMs = Date.now()): void {
+  const normalizedSessionKey = normalizeSessionKey(sessionKey);
+  const normalizedCommand = command.trim();
+  if (!normalizedSessionKey || !normalizedCommand) return;
+  const commandKey = `${normalizedSessionKey}::${normalizedCommand}`;
+  useA2UIExecTraceStore.getState().setTerminal(commandKey, {
+    traceKey: `history-terminal:${atMs}:${commandKey}`,
+    endedAtMs: atMs,
+    toolOrder: null,
+  });
+}
+
+function isSystemLikeResultRecord(raw: Record<string, unknown>): boolean {
+  const role = typeof raw.role === "string" ? raw.role.trim().toLowerCase() : "";
+  return (
+    role === "system" ||
+    role === "tool" ||
+    role === "toolresult" ||
+    role === "tool_result" ||
+    role === "tool_result_error"
+  );
+}
 
 export function useExecSystemHandoff(params: { sessionKey: string; hasSession: boolean }) {
   const { sessionKey, hasSession } = params;
@@ -107,7 +132,8 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
                 sessionKey: payload.sessionKey,
                 runId: payload.runId,
                 minAtMs: approvalMinAtMs,
-                predicate: (text) => {
+                predicate: (text, raw) => {
+                  if (!isSystemLikeResultRecord(raw)) return false;
                   const normalized = normalizeText(text).toLowerCase();
                   if (!normalized) return false;
                   if (normalized.includes("execution approved")) return false;
@@ -139,6 +165,10 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
               retryTimersRef.current.push(timer);
             }
             return;
+          }
+          if (payload.command) {
+            markExecCommandTerminal(payload.sessionKey, payload.command);
+            useExecApprovalsStore.getState().clearRunning(payload.sessionKey, payload.command);
           }
           await sendAgentInput(payload, selectedApprovalText);
           return;

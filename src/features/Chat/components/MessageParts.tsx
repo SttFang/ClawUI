@@ -29,6 +29,23 @@ type TextPartLike = {
   state?: "streaming";
 };
 
+function normalizeToolReceiptText(value: string): string {
+  return value.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function isLikelyToolReceiptText(value: string): boolean {
+  const normalized = normalizeToolReceiptText(value);
+  if (!normalized) return false;
+  return (
+    normalized.startsWith("system:") ||
+    normalized.includes("approval required") ||
+    normalized.includes("approve to run") ||
+    normalized.includes("exec finished") ||
+    normalized.includes("enoent:") ||
+    (normalized.startsWith("{") && normalized.includes('"status"') && normalized.includes('"tool"'))
+  );
+}
+
 function isTextPartLike(part: unknown): part is TextPartLike {
   if (!part || typeof part !== "object") return false;
   const record = part as Record<string, unknown>;
@@ -43,6 +60,11 @@ function isDynamicToolPartLike(part: unknown): part is DynamicToolUIPart {
     typeof record.toolCallId === "string" &&
     typeof record.toolName === "string"
   );
+}
+
+function isExecLikeToolName(name: string): boolean {
+  const normalized = name.trim().toLowerCase();
+  return normalized === "exec" || normalized === "bash";
 }
 
 function ThinkingIndicator(props: { isStreaming: boolean; duration: number | undefined }) {
@@ -72,9 +94,11 @@ function pickMessageRenderableItem(
   index: number,
   sessionKey: string,
   streaming: boolean,
+  options?: { foldToolReceiptText?: boolean },
 ) {
   if (isTextPartLike(part)) {
     if (!part.text.trim()) return null;
+    if (options?.foldToolReceiptText && isLikelyToolReceiptText(part.text)) return null;
     return {
       kind: "text" as const,
       key: `text:${index}`,
@@ -89,7 +113,7 @@ function pickMessageRenderableItem(
   }
 
   if (isDynamicToolPartLike(part)) {
-    if (part.toolName === "exec") {
+    if (isExecLikeToolName(part.toolName)) {
       const trace = upsertExecTrace(part, sessionKey);
       if (
         part.state === "input-available" ||
@@ -197,11 +221,15 @@ export function MessageParts(props: {
   }, [isThinking]);
 
   const renderedItems = useMemo(() => {
+    const hasToolPart = message.parts.some((part) => isDynamicToolPartLike(part));
+    const foldToolReceiptText = message.role !== "user" && hasToolPart;
     const pre = message.parts.map((part, index) =>
-      pickMessageRenderableItem(part, index, sessionKey, streaming),
+      pickMessageRenderableItem(part, index, sessionKey, streaming, {
+        foldToolReceiptText,
+      }),
     );
     return aggregateRenderableItems(pre).map((item) => item.node);
-  }, [message.parts, sessionKey, streaming]);
+  }, [message.parts, message.role, sessionKey, streaming]);
 
   return (
     <div className="space-y-3">

@@ -17,16 +17,16 @@ export function deriveExecActionState(input: {
   const { partState, preliminary, approvalRequested, runningMarked, hasFinalOutput, hasError } =
     input;
 
-  if (approvalRequested) {
-    return { status: "waiting_approval", statusKey: "waitingApproval", running: false };
-  }
-
   if (hasError || partState === "output-error") {
     return { status: "error", statusKey: "error", running: false };
   }
 
   if (hasFinalOutput) {
     return { status: "completed", statusKey: "completed", running: false };
+  }
+
+  if (approvalRequested) {
+    return { status: "waiting_approval", statusKey: "waitingApproval", running: false };
   }
 
   const running =

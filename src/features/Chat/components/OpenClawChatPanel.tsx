@@ -12,6 +12,7 @@ import { ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
 import { AssistantMessageItem } from "./AssistantMessageItem";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
+import { SystemMessageItem } from "./SystemMessageItem";
 import { UserMessageItem } from "./UserMessageItem";
 
 export function OpenClawChatPanel(props: {
@@ -84,6 +85,11 @@ export function OpenClawChatPanel(props: {
               if (message.role === "user") {
                 return (
                   <UserMessageItem key={key} message={message} sessionKey={effectiveSessionKey} />
+                );
+              }
+              if (message.role === "system") {
+                return (
+                  <SystemMessageItem key={key} message={message} sessionKey={effectiveSessionKey} />
                 );
               }
 

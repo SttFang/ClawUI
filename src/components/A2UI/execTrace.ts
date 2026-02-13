@@ -47,7 +47,9 @@ export function isExecPreliminary(part: DynamicToolUIPart): boolean {
 }
 
 export function isExecPart(part: UIMessage["parts"][number]): part is DynamicToolUIPart {
-  return part.type === "dynamic-tool" && part.toolName === "exec";
+  if (part.type !== "dynamic-tool") return false;
+  const name = part.toolName.trim().toLowerCase();
+  return name === "exec" || name === "bash";
 }
 
 export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): ExecTrace {

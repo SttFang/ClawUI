@@ -28,6 +28,7 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
   const parsed = parseExecInput(part.input);
   const command = parsed.command || trace.command;
   const normalizedSessionKey = sessionKey ?? "";
+  const isInputPhase = part.state === "input-available" || part.state === "input-streaming";
 
   const queue = useExecApprovalsStore((s) => s.queue);
   const pendingApprovals = useMemo(
@@ -37,9 +38,10 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
   const runningByKey = useExecApprovalsStore((s) => s.runningByKey);
 
   const currentApproval = useMemo(() => {
+    if (!isInputPhase) return null;
     if (!command) return null;
     return pendingApprovals.find((entry) => entry.request.command === command) ?? null;
-  }, [command, pendingApprovals]);
+  }, [command, isInputPhase, pendingApprovals]);
 
   const approvalRequested = Boolean(currentApproval);
 

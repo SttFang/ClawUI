@@ -177,6 +177,33 @@ function normalizeMessageRole(rawRole: string): UIMessage['role'] | null {
   return null
 }
 
+function readInternalProvenanceKind(record: Record<string, unknown>): string {
+  const candidates = [
+    record.inputProvenance,
+    record.provenance,
+    typeof record.meta === 'object' && record.meta
+      ? (record.meta as Record<string, unknown>).inputProvenance
+      : null,
+    typeof record.metadata === 'object' && record.metadata
+      ? (record.metadata as Record<string, unknown>).inputProvenance
+      : null,
+    record.meta,
+    record.metadata,
+  ]
+
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== 'object') continue
+    const kind = (candidate as Record<string, unknown>).kind
+    if (typeof kind === 'string' && kind.trim()) return kind.trim().toLowerCase()
+  }
+  return ''
+}
+
+function shouldSkipInternalSystemUser(record: Record<string, unknown>, role: UIMessage['role']): boolean {
+  if (role !== 'user') return false
+  return readInternalProvenanceKind(record) === 'internal_system'
+}
+
 export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[] {
   const input = Array.isArray(rawMessages) ? rawMessages : []
   const idSeenCount = new Map<string, number>()
@@ -189,6 +216,7 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
       const roleRaw = typeof record.role === 'string' ? record.role.toLowerCase() : ''
       const role = normalizeMessageRole(roleRaw)
       if (!role) return null
+      if (shouldSkipInternalSystemUser(record, role)) return null
       const rawMsgId = resolveStableMessageId(record, role, idx)
       const seenCount = idSeenCount.get(rawMsgId) ?? 0
       idSeenCount.set(rawMsgId, seenCount + 1)

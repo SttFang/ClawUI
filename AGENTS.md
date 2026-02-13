@@ -165,6 +165,8 @@
 - 在需要把 Web 页面/组件输出成可交付物（静态产物、截图、报告）并流程化时：使用 `web-artifacts-builder`。
 - 在新增/重构/审查 `src/store/**`（尤其 action 分层、slice 拆分、store action 测试）时：使用 `store-best-practice`。
 
+-进行 Playwright 测试时，统一使用 Playwright CLI Skill。
+
 安装新 skill：
 ```bash
 npx skills search <keyword>

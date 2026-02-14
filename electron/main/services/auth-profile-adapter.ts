@@ -14,10 +14,33 @@ type ApiKeyCredential = {
   metadata?: Record<string, string>;
 };
 
+type TokenCredential = {
+  type: "token";
+  provider: string;
+  token: string;
+  expires?: number;
+  email?: string;
+};
+
+type OAuthCredential = {
+  type: "oauth";
+  provider: string;
+  access: string;
+  refresh: string;
+  expires: number;
+  clientId?: string;
+  email?: string;
+  projectId?: string;
+  accountId?: string;
+};
+
+export type AuthProfileCredential = ApiKeyCredential | TokenCredential | OAuthCredential;
+
 export type AuthProfileStore = {
   version: number;
-  profiles: Record<string, ApiKeyCredential>;
+  profiles: Record<string, AuthProfileCredential>;
   order?: Record<string, string[]>;
+  lastGood?: Record<string, string>;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -65,12 +88,12 @@ export class AuthProfileAdapter {
     await writeFile(this.storePath, content, { encoding: "utf-8", mode: 0o600 });
   }
 
-  async getProfile(profileId: string): Promise<ApiKeyCredential | null> {
+  async getProfile(profileId: string): Promise<AuthProfileCredential | null> {
     const store = await this.read();
     return store.profiles[profileId] ?? null;
   }
 
-  async setProfile(profileId: string, credential: ApiKeyCredential): Promise<void> {
+  async setProfile(profileId: string, credential: AuthProfileCredential): Promise<void> {
     const store = await this.read();
     store.profiles[profileId] = credential;
     store.version = AUTH_STORE_VERSION;
@@ -91,6 +114,10 @@ export class AuthProfileAdapter {
     const store = await this.read();
     const profileId = `${provider}:default`;
     const profile = store.profiles[profileId];
-    return Boolean(profile?.key);
+    if (!profile) return false;
+    if (profile.type === "api_key") return Boolean(profile.key);
+    if (profile.type === "token") return Boolean(profile.token);
+    if (profile.type === "oauth") return Boolean(profile.access);
+    return false;
   }
 }

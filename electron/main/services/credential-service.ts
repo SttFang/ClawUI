@@ -1,5 +1,6 @@
 import type {
   CredentialMeta,
+  CredentialMode,
   LlmCredentialMeta,
   ChannelCredentialMeta,
   ProxyCredentialMeta,
@@ -16,7 +17,7 @@ import { homedir } from "os";
 import { dirname, join } from "path";
 import type { ConfigService } from "./config";
 import { configLog } from "../lib/logger";
-import { AuthProfileAdapter } from "./auth-profile-adapter";
+import { AuthProfileAdapter, type AuthProfileCredential } from "./auth-profile-adapter";
 
 const ENV_ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY";
 const ENV_OPENAI_API_KEY = "OPENAI_API_KEY";
@@ -41,6 +42,24 @@ function maskSecret(value: string): string {
 
 function profileIdForProvider(provider: string): string {
   return `${provider}:default`;
+}
+
+function credentialHasValue(cred: AuthProfileCredential): boolean {
+  if (cred.type === "api_key") return Boolean(cred.key);
+  if (cred.type === "token") return Boolean(cred.token);
+  if (cred.type === "oauth") return Boolean(cred.access);
+  return false;
+}
+
+function credentialSecret(cred: AuthProfileCredential): string {
+  if (cred.type === "api_key") return cred.key ?? "";
+  if (cred.type === "token") return cred.token;
+  if (cred.type === "oauth") return cred.access;
+  return "";
+}
+
+function credentialMode(cred: AuthProfileCredential): CredentialMode {
+  return cred.type === "api_key" ? "api_key" : cred.type;
 }
 
 export class CredentialService {
@@ -68,14 +87,16 @@ export class CredentialService {
     for (const provider of LLM_PROVIDERS) {
       const profileId = profileIdForProvider(provider);
       const profile = await this.authProfiles.getProfile(profileId);
-      const hasKey = Boolean(profile?.key);
+      const hasKey = profile ? credentialHasValue(profile) : false;
       results.push({
         category: "llm",
         provider,
         profileId,
-        mode: "api_key",
-        maskedKey: hasKey ? maskSecret(profile!.key!) : "",
+        mode: profile ? credentialMode(profile) : "api_key",
+        maskedKey: hasKey ? maskSecret(credentialSecret(profile!)) : "",
         hasKey,
+        expires: profile && "expires" in profile ? profile.expires : undefined,
+        email: profile?.email,
       } satisfies LlmCredentialMeta);
     }
 
@@ -213,7 +234,7 @@ export class CredentialService {
 
       const profileId = profileIdForProvider(provider);
       const existing = await this.authProfiles.getProfile(profileId);
-      if (existing?.key) continue; // auth-profiles already has a key
+      if (existing && credentialHasValue(existing)) continue; // auth-profiles already has a key
 
       await this.authProfiles.setProfile(profileId, {
         type: "api_key",

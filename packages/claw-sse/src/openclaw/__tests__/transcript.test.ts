@@ -622,4 +622,130 @@ describe('openclawTranscriptToUIMessages', () => {
     expect(ui[0]?.role).toBe('user')
     expect(ui[0]?.parts).toEqual([{ type: 'text', text: 'hello from text field' }])
   })
+
+  // --- tool input preservation ---
+
+  it('should preserve input from toolResult record when toolcall has no arguments', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'tr-with-input',
+        role: 'toolResult',
+        toolCallId: 'tc-inp-1',
+        toolName: 'exec',
+        input: { command: 'ls' },
+        result: 'file.txt',
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    const part = ui[0]?.parts[0]
+    expect(part?.type).toBe('dynamic-tool')
+    if (part?.type === 'dynamic-tool') {
+      expect(part.input).toEqual({ command: 'ls' })
+      expect(part.output).toBe('file.txt')
+    }
+  })
+
+  it('should merge input→output with different real IDs when output input is empty', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'call_AAA',
+        role: 'assistant',
+        toolCallId: 'call_AAA',
+        toolName: 'read',
+        content: [{ type: 'toolcall', name: 'read', arguments: { path: '/tmp/a.txt' } }],
+      },
+      {
+        id: 'call_BBB',
+        role: 'toolResult',
+        toolCallId: 'call_BBB',
+        toolName: 'read',
+        result: 'file contents',
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    const part = ui[0]?.parts[0]
+    expect(part?.type).toBe('dynamic-tool')
+    if (part?.type === 'dynamic-tool') {
+      expect(part.state).toBe('output-available')
+      expect(part.input).toEqual({ path: '/tmp/a.txt' })
+      expect(part.output).toBe('file contents')
+    }
+  })
+
+  it('should not crash on standalone toolResult without input', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'tr-no-input',
+        role: 'toolResult',
+        toolCallId: 'tc-no-inp',
+        toolName: 'cron',
+        result: 'done',
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    const part = ui[0]?.parts[0]
+    expect(part?.type).toBe('dynamic-tool')
+    if (part?.type === 'dynamic-tool') {
+      expect(part.input).toEqual({})
+      expect(part.output).toBe('done')
+    }
+  })
+
+  it('should not incorrectly merge interleaved batch exec calls', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'a-input-A',
+        role: 'assistant',
+        toolCallId: 'call_A',
+        toolName: 'exec',
+        content: [{ type: 'toolcall', name: 'exec', arguments: { command: 'ls' } }],
+      },
+      {
+        id: 'a-input-B',
+        role: 'assistant',
+        toolCallId: 'call_B',
+        toolName: 'exec',
+        content: [{ type: 'toolcall', name: 'exec', arguments: { command: 'git status' } }],
+      },
+      {
+        id: 'tr-output-A',
+        role: 'toolResult',
+        toolCallId: 'call_A',
+        toolName: 'exec',
+        result: 'file.txt',
+      },
+      {
+        id: 'tr-output-B',
+        role: 'toolResult',
+        toolCallId: 'call_B',
+        toolName: 'exec',
+        result: 'On branch master',
+      },
+    ])
+
+    // Should produce exactly 2 tool parts (A and B), each with correct input+output
+    const toolParts = ui.flatMap(m => m.parts).filter(p => p.type === 'dynamic-tool')
+    expect(toolParts).toHaveLength(2)
+
+    const partA = toolParts.find(
+      p => p.type === 'dynamic-tool' && p.toolCallId === 'call_A'
+    )
+    const partB = toolParts.find(
+      p => p.type === 'dynamic-tool' && p.toolCallId === 'call_B'
+    )
+
+    expect(partA).toBeDefined()
+    expect(partB).toBeDefined()
+    if (partA?.type === 'dynamic-tool') {
+      expect(partA.input).toEqual({ command: 'ls' })
+      expect(partA.output).toBe('file.txt')
+    }
+    if (partB?.type === 'dynamic-tool') {
+      expect(partB.input).toEqual({ command: 'git status' })
+      expect(partB.output).toBe('On branch master')
+    }
+  })
 })

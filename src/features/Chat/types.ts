@@ -48,11 +48,4 @@ export type ChatFeatureUIActions = {
   onStartConversation: (content: string) => Promise<void>;
 };
 
-export type ChatFeatureProps = {
-  sessionState: ChatFeatureSessionState;
-  sessionActions: ChatFeatureSessionActions;
-  uiState: ChatFeatureUIState;
-  uiActions: ChatFeatureUIActions;
-};
-
 export type MessagePartsProps = { message: UIMessage; streaming: boolean };

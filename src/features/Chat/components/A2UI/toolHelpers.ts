@@ -93,6 +93,21 @@ function extractWebSearchSummary(input: unknown): string {
   return query ? `search "${query}"` : "web search";
 }
 
+function buildGenericFallbackSummary(part: DynamicToolUIPart): string {
+  const record = toRecord(part.input);
+  const displayName = part.toolName.trim().replace(/_/g, " ");
+  if (!record) return displayName;
+  for (const key of ["action", "command", "query", "prompt", "url", "path", "name", "text"]) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) {
+      const trimmed = value.trim();
+      const short = trimmed.length > 30 ? `${trimmed.slice(0, 30)}…` : trimmed;
+      return `${displayName} ${short}`;
+    }
+  }
+  return displayName;
+}
+
 export function buildToolSummary(part: DynamicToolUIPart): string {
   const name = part.toolName.trim().toLowerCase();
 
@@ -128,13 +143,87 @@ export function buildToolSummary(part: DynamicToolUIPart): string {
     const url = record && typeof record.url === "string" ? record.url.trim() : "";
     return url ? `navigate ${shortenUrl(url)}` : "navigate";
   }
-  if (name === "fetch") {
+  if (name === "fetch" || name === "web_fetch") {
     const record = toRecord(part.input);
     const url = record && typeof record.url === "string" ? record.url.trim() : "";
     return url ? `fetch ${shortenUrl(url)}` : "fetch";
   }
 
-  return part.toolName;
+  if (name === "memory_search") {
+    const query = extractSearchQuery(part.input);
+    return query ? `memory search "${query}"` : "memory search";
+  }
+  if (name === "memory_get") {
+    const record = toRecord(part.input);
+    const key = record && typeof record.key === "string" ? record.key.trim() : "";
+    return key ? `memory get "${key}"` : "memory get";
+  }
+  if (name === "agents_list") {
+    return "list agents";
+  }
+  if (name === "cron") {
+    const record = toRecord(part.input);
+    const action = record && typeof record.action === "string" ? record.action.trim() : "";
+    const cronName = record && typeof record.name === "string" ? record.name.trim() : "";
+    if (action && cronName) return `cron ${action} "${cronName}"`;
+    if (action) return `cron ${action}`;
+    return "cron";
+  }
+  if (name === "nodes") {
+    const record = toRecord(part.input);
+    const action = record && typeof record.action === "string" ? record.action.trim() : "";
+    return action ? `nodes ${action}` : "nodes";
+  }
+  if (name === "canvas") {
+    const record = toRecord(part.input);
+    const action = record && typeof record.action === "string" ? record.action.trim() : "";
+    return action ? `canvas ${action}` : "canvas";
+  }
+  if (name === "gateway") {
+    const record = toRecord(part.input);
+    const action = record && typeof record.action === "string" ? record.action.trim() : "";
+    return action ? `gateway ${action}` : "gateway";
+  }
+  if (name === "message") {
+    const record = toRecord(part.input);
+    const to = record && typeof record.to === "string" ? record.to.trim() : "";
+    return to ? `message ${to}` : "message";
+  }
+  if (name === "image") {
+    const record = toRecord(part.input);
+    const prompt = record && typeof record.prompt === "string" ? record.prompt.trim() : "";
+    if (prompt) {
+      const short = prompt.length > 30 ? `${prompt.slice(0, 30)}…` : prompt;
+      return `image "${short}"`;
+    }
+    return "image";
+  }
+  if (name === "tts") {
+    const record = toRecord(part.input);
+    const text = record && typeof record.text === "string" ? record.text.trim() : "";
+    if (text) {
+      const short = text.length > 30 ? `${text.slice(0, 30)}…` : text;
+      return `tts "${short}"`;
+    }
+    return "tts";
+  }
+  if (name === "sessions_send") {
+    const record = toRecord(part.input);
+    const sessionKey =
+      record && typeof record.sessionKey === "string" ? record.sessionKey.trim() : "";
+    return sessionKey ? `send to ${sessionKey}` : "sessions send";
+  }
+  if (name === "sessions_spawn") {
+    const record = toRecord(part.input);
+    const prompt = record && typeof record.prompt === "string" ? record.prompt.trim() : "";
+    if (prompt) {
+      const short = prompt.length > 30 ? `${prompt.slice(0, 30)}…` : prompt;
+      return `spawn "${short}"`;
+    }
+    return "sessions spawn";
+  }
+
+  return buildGenericFallbackSummary(part);
 }
 
 export function getCwdFromInput(input: unknown): string | undefined {

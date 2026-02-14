@@ -71,7 +71,11 @@ vi.mock("@clawui/ui", async () => {
 });
 
 describe("ChatComposer", () => {
-  const renderComposer = (onSubmit: () => void, hasPending: boolean, value = "hello") => {
+  const renderComposer = (
+    onSubmit: (payload: { text: string; images: unknown[] }) => void,
+    hasPending: boolean,
+    value = "hello",
+  ) => {
     lastSubmitDisabled = null;
     capturedTextareaKeyDown = null;
     useHasPendingExecApprovalMock.mockReturnValue(hasPending);
@@ -90,7 +94,7 @@ describe("ChatComposer", () => {
   };
 
   it("blocks Enter submit when approval is pending", async () => {
-    const onSubmit = vi.fn();
+    const onSubmit = vi.fn((_payload: { text: string; images: unknown[] }) => {});
     renderComposer(onSubmit, true);
 
     expect(lastSubmitDisabled).toBe(true);
@@ -111,7 +115,7 @@ describe("ChatComposer", () => {
   });
 
   it("sends on bare Enter when no approval block exists", async () => {
-    const onSubmit = vi.fn();
+    const onSubmit = vi.fn((_payload: { text: string; images: unknown[] }) => {});
     renderComposer(onSubmit, false);
 
     const event = {
@@ -127,10 +131,11 @@ describe("ChatComposer", () => {
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({ text: "hello", images: [] });
   });
 
   it("keeps Shift+Enter as multiline when approval is pending", async () => {
-    const onSubmit = vi.fn();
+    const onSubmit = vi.fn((_payload: { text: string; images: unknown[] }) => {});
     renderComposer(onSubmit, true);
 
     const event = {
@@ -150,7 +155,7 @@ describe("ChatComposer", () => {
   });
 
   it("blocks IME Enter from submitting", async () => {
-    const onSubmit = vi.fn();
+    const onSubmit = vi.fn((_payload: { text: string; images: unknown[] }) => {});
     renderComposer(onSubmit, false);
 
     const event = {
@@ -169,7 +174,7 @@ describe("ChatComposer", () => {
   });
 
   it("prevents submit when input is blank", async () => {
-    const onSubmit = vi.fn();
+    const onSubmit = vi.fn((_payload: { text: string; images: unknown[] }) => {});
     renderComposer(onSubmit, false, "   ");
 
     const event = {

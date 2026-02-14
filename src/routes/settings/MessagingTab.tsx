@@ -1,10 +1,5 @@
 import {
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -140,11 +135,7 @@ export function MessagingTab() {
               : error}
           </span>
           {(error.includes("Credentials API") || error.includes("credentials")) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/settings?tab=general")}
-            >
+            <Button variant="ghost" size="sm" onClick={() => navigate("/settings?tab=general")}>
               {t("settings.page.messaging.checkGateway")}
             </Button>
           )}
@@ -283,28 +274,26 @@ function ChannelCard({
   t: (key: string, opts?: Record<string, unknown>) => string;
 }) {
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {icon}
-            <div>
-              <CardTitle className="text-lg">{label}</CardTitle>
-              <CardDescription>
-                {isConfigured
-                  ? t("channels.status.configured")
-                  : t("channels.status.notConfigured")}
-              </CardDescription>
-            </div>
-          </div>
-          <Switch
-            checked={isEnabled}
-            onCheckedChange={(checked) => (checked ? onEnable() : onDisable())}
-            disabled={!isConfigured}
-          />
+    <div className="rounded-lg border px-4 py-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          {icon}
+          <span className="text-sm font-medium">{label}</span>
+          <span className="text-xs text-muted-foreground">
+            {isConfigured
+              ? t("channels.status.configured")
+              : t("channels.status.notConfigured")}
+          </span>
         </div>
-      </CardHeader>
-      <CardContent className={fields.length >= 3 ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}>
+        <Switch
+          checked={isEnabled}
+          onCheckedChange={(checked) => (checked ? onEnable() : onDisable())}
+          disabled={!isConfigured}
+        />
+      </div>
+      <div
+        className={fields.length >= 3 ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}
+      >
         {fields.map((f) => {
           const key = `${channelType}:${f.field}`;
           return (
@@ -327,7 +316,7 @@ function ChannelCard({
             {t("channels.actions.configure")}
           </Button>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

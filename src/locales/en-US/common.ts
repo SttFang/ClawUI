@@ -286,6 +286,7 @@ const common = {
     accessControl: {
       title: "Access control",
       description: "Choose how the AI should request tool permissions",
+      hint: "Controls whether AI asks for your confirmation before using tools",
       realPolicyHint:
         "Quick modes map to tools.exec.ask / tools.exec.security, but final behavior is still constrained by allow/deny lists.",
     },

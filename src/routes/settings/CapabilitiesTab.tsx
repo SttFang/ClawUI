@@ -178,7 +178,7 @@ export function CapabilitiesTab() {
               })}
             </div>
             <p className="text-xs text-muted-foreground mt-3">
-              {t("tools.accessControl.realPolicyHint")}
+              {t("tools.accessControl.hint")}
             </p>
           </CardContent>
         </Card>
@@ -204,6 +204,10 @@ export function CapabilitiesTab() {
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-4 pt-4">
+            <p className="text-xs text-muted-foreground">
+              {t("tools.accessControl.realPolicyHint")}
+            </p>
+
             {/* Exec Configuration */}
             <Card>
               <CardHeader>

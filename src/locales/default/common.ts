@@ -283,6 +283,7 @@ const common = {
     accessControl: {
       title: "访问控制",
       description: "选择 AI 如何请求工具权限",
+      hint: "此选项控制 AI 使用工具前是否需要你确认",
       realPolicyHint:
         "快捷模式会映射到 tools.exec.ask / tools.exec.security；真实执行结果还会受 allow/deny 列表影响。",
     },

@@ -129,6 +129,14 @@ export function readToolEventText(payload: unknown): string | null {
   if (!TOOL_NAMES.has(name)) return null;
 
   const isError = payload.isError === true || phase === "error";
+  const hasResultPayload =
+    Object.prototype.hasOwnProperty.call(payload, "result") ||
+    Object.prototype.hasOwnProperty.call(payload, "output") ||
+    Object.prototype.hasOwnProperty.call(payload, "partialResult");
+  const isTerminal =
+    phase === "result" || phase === "error" || (phase === "end" && (isError || hasResultPayload));
+  if (!isTerminal) return null;
+
   const result =
     payload.result !== undefined
       ? payload.result
@@ -141,7 +149,7 @@ export function readToolEventText(payload: unknown): string | null {
 
   if (fallback) return isError ? `Exec failed: ${fallback}` : fallback;
   if (isError) return "Exec failed.";
-  if (phase === "end") return EXEC_TOOL_FALLBACK;
+  if (phase === "end" && hasResultPayload) return EXEC_TOOL_FALLBACK;
   return null;
 }
 
@@ -201,4 +209,19 @@ export function parseChatTerminalEvent(payload: unknown): {
     typeof payload.runId === "string" && payload.runId.trim() ? payload.runId.trim() : undefined;
 
   return { sessionKey, runId, text };
+}
+
+export function readHeartbeatExecPreview(payload: unknown, minAtMs?: number): string | null {
+  if (!isRecord(payload)) return null;
+  const reason = typeof payload.reason === "string" ? payload.reason.trim().toLowerCase() : "";
+  if (reason !== "exec-event") return null;
+
+  const ts =
+    typeof payload.ts === "number" && Number.isFinite(payload.ts) ? payload.ts : Date.now();
+  if (typeof minAtMs === "number" && Number.isFinite(minAtMs) && ts < minAtMs) return null;
+
+  const preview = normalizeText(typeof payload.preview === "string" ? payload.preview : "");
+  if (!preview) return null;
+  if (isLikelyApprovalPromptText(preview)) return null;
+  return preview;
 }

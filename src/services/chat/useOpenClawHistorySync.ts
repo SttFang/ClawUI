@@ -351,6 +351,24 @@ export function useOpenClawHistorySync(params: {
       if (frame.type !== "event") return;
 
       if (frame.event === "heartbeat") {
+        const heartbeatPayload =
+          frame.payload && typeof frame.payload === "object"
+            ? (frame.payload as { reason?: unknown })
+            : null;
+        const heartbeatReason =
+          heartbeatPayload && typeof heartbeatPayload.reason === "string"
+            ? heartbeatPayload.reason.trim().toLowerCase()
+            : "";
+        if (heartbeatReason === "exec-event") {
+          extendRecoveryWindow(TERMINAL_RECOVERY_WINDOW_MS);
+          void refreshHistory({
+            force: true,
+            reason: "heartbeat-exec-event",
+            allowRetry: true,
+          });
+          return;
+        }
+
         const state = useExecApprovalsStore.getState();
         if (
           shouldRefreshHistoryOnHeartbeat({

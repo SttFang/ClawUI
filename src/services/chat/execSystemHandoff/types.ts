@@ -8,6 +8,10 @@ export type HandOffSource =
 export type HandOffPayload = {
   sessionKey: string;
   runId?: string;
+  approvalId?: string;
+  approvalAtMs?: number;
+  approvalAtMsFromPayload?: boolean;
+  command?: string;
   source: HandOffSource;
   text?: string;
   retryCount?: number;

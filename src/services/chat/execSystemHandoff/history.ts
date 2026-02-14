@@ -97,6 +97,8 @@ export function pickLastHistoryText(params: {
   messages: unknown;
   sessionKey: string;
   runId?: string;
+  requireRunIdMatch?: boolean;
+  minAtMs?: number;
   predicate?: (text: string, raw: Record<string, unknown>) => boolean;
 }): string | null {
   if (!Array.isArray(params.messages)) return null;
@@ -115,13 +117,17 @@ export function pickLastHistoryText(params: {
     if (!isAllowedHistoryRole(role)) continue;
 
     const candidateRunId = resolveMessageRunId(raw);
-    if (params.runId && candidateRunId && candidateRunId !== params.runId) continue;
+    if (params.runId) {
+      if (params.requireRunIdMatch === true && candidateRunId !== params.runId) continue;
+      if (candidateRunId && candidateRunId !== params.runId) continue;
+    }
 
     const text = messageText(raw);
     if (!text) continue;
     if (params.predicate && !params.predicate(text, raw)) continue;
 
     const atMs = readTimestamp(raw);
+    if (typeof params.minAtMs === "number" && atMs < params.minAtMs) continue;
     if (!best || atMs > best.atMs) best = { atMs, text };
   }
 

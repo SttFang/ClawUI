@@ -145,43 +145,38 @@ export function CapabilitiesTab() {
           <p className="text-muted-foreground">{t("tools.description")}</p>
         </div>
 
-        <Card className="mb-4">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5" />
-              <CardTitle>{t("tools.accessControl.title")}</CardTitle>
-            </div>
-            <CardDescription>{t("tools.accessControl.description")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4">
-              {accessModes.map((mode) => {
-                const labelKey = `tools.accessModes.${mode.value}.label` as const;
-                const descKey = `tools.accessModes.${mode.value}.description` as const;
-                return (
-                  <button
-                    key={mode.value}
-                    onClick={() => void setAccessMode(mode.value)}
-                    className={`p-4 rounded-lg border text-left transition-colors ${
-                      accessMode === mode.value
-                        ? "border-primary bg-primary/5"
-                        : "hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      {mode.icon}
-                      <span className="font-medium">{t(labelKey)}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{t(descKey)}</p>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              {t("tools.accessControl.hint")}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="mb-4">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 text-muted-foreground" />
+            <h3 className="text-sm font-medium text-muted-foreground">
+              {t("tools.accessControl.title")}
+            </h3>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {accessModes.map((mode) => {
+            const labelKey = `tools.accessModes.${mode.value}.label` as const;
+            const descKey = `tools.accessModes.${mode.value}.description` as const;
+            return (
+              <button
+                key={mode.value}
+                onClick={() => void setAccessMode(mode.value)}
+                className={`p-3 rounded-lg border text-left transition-colors ${
+                  accessMode === mode.value
+                    ? "border-primary bg-primary/5"
+                    : "hover:border-primary/50"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  {mode.icon}
+                  <span className="text-sm font-medium">{t(labelKey)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{t(descKey)}</p>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">{t("tools.accessControl.hint")}</p>
       </section>
 
       {/* Skills */}

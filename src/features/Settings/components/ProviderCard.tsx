@@ -1,6 +1,6 @@
 import type { ProviderAuthInfo, OAuthProviderStatus } from "@clawui/types/models";
-import { Card, CardContent, Button, Input } from "@clawui/ui";
-import { CheckCircle2, Loader2, Clock, Edit3, Eye, EyeOff, LogIn, RefreshCw } from "lucide-react";
+import { Button, Input } from "@clawui/ui";
+import { CheckCircle2, Loader2, Edit3, Eye, EyeOff, LogIn, RefreshCw } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
@@ -112,29 +112,19 @@ export function ProviderCard({
 
   return (
     <>
-      <Card>
-        <CardContent className="pt-4 pb-4 space-y-3">
-          {/* Header: icon + name + status */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {Icon ? <Icon size={20} /> : <div className="w-5 h-5 rounded bg-muted" />}
-              <span className="font-medium">{label}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${status.bg}`} />
-              <span className={`text-sm ${status.color}`}>{statusLabel}</span>
-            </div>
+      <div className="rounded-lg border px-4 py-3 space-y-2">
+        {/* Header: icon + name + auth + status */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            {Icon ? <Icon size={18} /> : <div className="w-[18px] h-[18px] rounded bg-muted" />}
+            <span className="text-sm font-medium">{label}</span>
+            <span className="text-xs text-muted-foreground font-mono">{authDesc}</span>
           </div>
-
-          {/* Auth description */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            {status.kind === "expired" ? (
-              <Clock className="h-3.5 w-3.5" />
-            ) : (
-              <span className="text-xs">{t("settings.providerCard.authLabel")}</span>
-            )}
-            <span className="font-mono text-xs">{authDesc}</span>
+          <div className="flex items-center gap-1.5">
+            <div className={`w-1.5 h-1.5 rounded-full ${status.bg}`} />
+            <span className={`text-xs ${status.color}`}>{statusLabel}</span>
           </div>
+        </div>
 
           {/* OAuth provider: login + refresh */}
           {isOAuthAuth && (
@@ -228,8 +218,7 @@ export function ProviderCard({
               {t("settings.providerCard.unsupportedSaveHint")}
             </p>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
       {supportsDeviceCode && (
         <OAuthLoginDialog

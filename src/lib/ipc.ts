@@ -3,7 +3,7 @@
 
 import type { UpdateInfo } from "@clawui/types/app";
 import type { ChatRequest, ChatStreamEvent } from "@clawui/types/chat";
-import type { ChatNormalizedRunEvent } from "@clawui/types/chat-normalized";
+import type { ChatNormalizedRunEvent } from "@clawui/types/chat-normalized/event";
 import type { ClawUIState, ClawUISessionMetadata } from "@clawui/types/clawui";
 import type { OpenClawConfig, OnboardingOpenClawConfig, ChannelConfig } from "@clawui/types/config";
 import type {

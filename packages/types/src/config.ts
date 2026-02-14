@@ -2,6 +2,9 @@
 // Configuration Types
 // ============================================
 
+export * from "./config-v2";
+export * from "./config-canonical";
+
 /**
  * Channel configuration for messaging platforms
  */

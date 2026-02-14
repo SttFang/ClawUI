@@ -6,7 +6,6 @@
 export * from "./onboarding";
 export * from "./chat";
 export * from "./config";
-export * from "./config-v2";
 export * from "./gateway";
 export * from "./subscription";
 export * from "./app";

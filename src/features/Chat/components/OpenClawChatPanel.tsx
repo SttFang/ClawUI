@@ -8,12 +8,33 @@ import { StickToBottom } from "use-stick-to-bottom";
 import { cn } from "@/lib/utils";
 import { useExecSystemHandoff } from "@/services/chat/useExecSystemHandoff";
 import { useOpenClawHistorySync } from "@/services/chat/useOpenClawHistorySync";
-import { ChatComposer } from "../prompt/ChatComposer";
+import { type ComposerImageAttachment, ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
 import { AssistantMessageItem } from "./AssistantMessageItem";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
 import { SystemMessageItem } from "./SystemMessageItem";
 import { UserMessageItem } from "./UserMessageItem";
+
+export function buildMessageWithPendingImagePlaceholders(params: {
+  text: string;
+  images: ComposerImageAttachment[];
+}): string {
+  const normalizedText = params.text.trim();
+  if (!params.images.length) return normalizedText;
+
+  const imageLines: string[] = [];
+  for (const image of params.images) {
+    imageLines.push(`- id: ${image.id}`);
+    imageLines.push(`  filename: ${image.filename}`);
+    imageLines.push(`  mediaType: ${image.mediaType}`);
+    imageLines.push(`  size: ${image.size}`);
+  }
+
+  const block = ["[image_attachments_pending]", ...imageLines, "[/image_attachments_pending]"].join(
+    "\n",
+  );
+  return normalizedText ? `${normalizedText}\n\n${block}` : block;
+}
 
 export function OpenClawChatPanel(props: {
   sessionKey: string | null;
@@ -129,15 +150,15 @@ export function OpenClawChatPanel(props: {
           disabled={isBusy || !isGatewayRunning || !wsConnected}
           showSessionControls={hasSession}
           sessionControlsDisabled={!hasSession || !isGatewayRunning || !wsConnected}
-          onSubmit={async () => {
-            const text = input.trim();
-            if (!text || isBusy) return;
+          onSubmit={async (payload) => {
+            const content = buildMessageWithPendingImagePlaceholders(payload);
+            if (!content || isBusy) return;
             setInput("");
             if (!hasSession) {
-              await onStartConversation(text);
+              await onStartConversation(content);
               return;
             }
-            await chat.sendMessage({ text });
+            await chat.sendMessage({ text: content });
           }}
         />
       </div>

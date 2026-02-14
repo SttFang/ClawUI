@@ -18,9 +18,19 @@ import { ExecApprovalInlinePanel, useHasPendingExecApproval } from "./ExecApprov
 
 type LocalAttachment = {
   id: string;
+  image: ComposerImageAttachment;
   item: AttachmentItem;
   objectUrl?: string;
 };
+
+export type ComposerImageAttachment = {
+  id: string;
+  filename: string;
+  mediaType: string;
+  size: number;
+};
+
+const MAX_IMAGE_ATTACHMENTS = 5;
 
 function createLocalId(): string {
   const cryptoObj = (globalThis as unknown as { crypto?: Crypto }).crypto;
@@ -32,7 +42,7 @@ export function ChatComposer(props: {
   sessionKey: string;
   value: string;
   onChange: (value: string) => void;
-  onSubmit: () => Promise<void> | void;
+  onSubmit: (payload: { text: string; images: ComposerImageAttachment[] }) => Promise<void> | void;
   disabled: boolean;
   showSessionControls?: boolean;
   sessionControlsDisabled: boolean;
@@ -55,10 +65,11 @@ export function ChatComposer(props: {
   const composingRef = useRef(false);
   const hasPendingApproval = useHasPendingExecApproval(sessionKey);
   const composerDisabled = disabled || hasPendingApproval;
-  const canSubmit = !composerDisabled && value.trim().length > 0;
 
   const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
   const attachmentsRef = useRef<LocalAttachment[]>([]);
+
+  const canSubmit = !composerDisabled && (value.trim().length > 0 || attachments.length > 0);
 
   useEffect(() => {
     attachmentsRef.current = attachments;
@@ -93,28 +104,50 @@ export function ChatComposer(props: {
   const onPickFiles = (files: FileList | null) => {
     if (!files?.length) return;
     const next: LocalAttachment[] = [];
+    const remainingSlots = Math.max(0, MAX_IMAGE_ATTACHMENTS - attachmentsRef.current.length);
+    if (remainingSlots === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    let acceptedCount = 0;
     for (const file of Array.from(files)) {
+      if (!file.type.toLowerCase().startsWith("image/")) continue;
+      if (acceptedCount >= remainingSlots) break;
       const id = createLocalId();
       const objectUrl = URL.createObjectURL(file);
+      const image: ComposerImageAttachment = {
+        id,
+        filename: file.name || "image",
+        mediaType: file.type || "image/*",
+        size: Number.isFinite(file.size) ? file.size : 0,
+      };
       next.push({
         id,
+        image,
         objectUrl,
         item: {
           id,
-          filename: file.name || "file",
+          filename: image.filename,
           mediaType: file.type || undefined,
           url: objectUrl,
         },
       });
+      acceptedCount += 1;
     }
-    setAttachments((prev) => [...prev, ...next]);
+    if (next.length > 0) {
+      setAttachments((prev) => [...prev, ...next]);
+    }
     // reset so the same file can be picked twice
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const submit = async () => {
     if (composerDisabled) return;
-    await onSubmit();
+    await onSubmit({
+      text: value.trim(),
+      images: attachments.map((attachment) => attachment.image),
+    });
     // v1: attachments are UI-only; clear after submit to avoid confusion.
     setAttachments((prev) => {
       for (const a of prev) if (a.objectUrl) URL.revokeObjectURL(a.objectUrl);
@@ -136,7 +169,7 @@ export function ChatComposer(props: {
     // 仅纯 Enter 发送；组合键一律保留换行行为（Cmd/Ctrl/Shift/Alt + Enter）。
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
 
-    if (composerDisabled || !value.trim()) {
+    if (composerDisabled || (value.trim().length === 0 && attachmentsRef.current.length === 0)) {
       e.preventDefault();
       return;
     }
@@ -154,6 +187,7 @@ export function ChatComposer(props: {
           type="file"
           className="hidden"
           multiple
+          accept="image/*"
           onChange={(e) => onPickFiles(e.target.files)}
         />
 

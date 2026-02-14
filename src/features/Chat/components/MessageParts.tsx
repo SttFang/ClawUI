@@ -2,19 +2,9 @@ import type { DynamicToolUIPart, UIMessage } from "ai";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ExecTraceUpdatePayload } from "@/store/a2uiExecTrace/types";
-import { ExecActionItem, ToolEventCard } from "@/components/A2UI";
-import {
-  applyExecTraceUpdateToContext,
-  buildExecTraceKey,
-  createExecTraceContext,
-  deriveNextExecTrace,
-  isExecPreliminary,
-  type ExecTrace,
-  shouldSuppressExecPart,
-} from "@/components/A2UI/execTrace";
+import { ToolEventCard } from "@/components/A2UI";
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
-import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
+import { useExecToolRenderItems } from "./hooks/useExecToolRenderItems";
 import { MessageText } from "./MessageText";
 
 const AUTO_HIDE_DELAY = 1500;
@@ -72,6 +62,11 @@ function isDynamicToolPartLike(part: unknown): part is DynamicToolUIPart {
   );
 }
 
+function isExecToolName(toolName: string): boolean {
+  const normalized = toolName.trim().toLowerCase();
+  return normalized === "exec" || normalized === "bash";
+}
+
 function normalizeToolCallId(value: string): string {
   const normalized = value.trim();
   if (!normalized) return normalized;
@@ -83,57 +78,26 @@ function normalizeToolCallId(value: string): string {
   return normalized;
 }
 
-function readCommandFromInput(input: unknown): string {
-  if (!input || typeof input !== "object") return "";
-  const value = (input as Record<string, unknown>).command;
-  return typeof value === "string" ? value.trim() : "";
-}
+function aggregateRenderableItems(items: (RenderableItem | null)[]): RenderableItem[] {
+  const toolIndexById = new Map<string, number>();
+  const result: RenderableItem[] = [];
 
-function traceStatusPriority(trace: ExecTrace): number {
-  if (trace.status === "error") return 4;
-  if (trace.status === "completed") return 3;
-  if (trace.status === "running") return 2;
-  return 1;
-}
-
-function pickPreferredTrace(current: ExecTrace, candidate: ExecTrace): ExecTrace {
-  const currentPriority = traceStatusPriority(current);
-  const candidatePriority = traceStatusPriority(candidate);
-  if (candidatePriority !== currentPriority) {
-    return candidatePriority > currentPriority ? candidate : current;
-  }
-  if (candidate.toolOrder !== null && current.toolOrder !== null) {
-    if (candidate.toolOrder !== current.toolOrder) {
-      return candidate.toolOrder > current.toolOrder ? candidate : current;
+  for (const item of items) {
+    if (!item) continue;
+    if (item.kind === "tool") {
+      const idx = toolIndexById.get(item.toolCallId);
+      if (idx !== undefined) {
+        result[idx] = item;
+        continue;
+      }
+      toolIndexById.set(item.toolCallId, result.length);
+      result.push(item);
+      continue;
     }
-  } else if (candidate.toolOrder !== null && current.toolOrder === null) {
-    return candidate;
-  } else if (candidate.toolOrder === null && current.toolOrder !== null) {
-    return current;
+    result.push(item);
   }
-  if (candidate.startedAtMs !== current.startedAtMs) {
-    return candidate.startedAtMs > current.startedAtMs ? candidate : current;
-  }
-  if ((candidate.endedAtMs ?? 0) !== (current.endedAtMs ?? 0)) {
-    return (candidate.endedAtMs ?? 0) > (current.endedAtMs ?? 0) ? candidate : current;
-  }
-  return candidate.traceKey > current.traceKey ? candidate : current;
-}
 
-function mergePendingUpdate(
-  updates: Map<string, ExecTraceUpdatePayload>,
-  incoming: ExecTraceUpdatePayload,
-): void {
-  const current = updates.get(incoming.trace.traceKey);
-  if (!current) {
-    updates.set(incoming.trace.traceKey, incoming);
-    return;
-  }
-  const preferredTrace = pickPreferredTrace(current.trace, incoming.trace);
-  updates.set(incoming.trace.traceKey, {
-    trace: preferredTrace,
-    terminal: incoming.terminal ?? current.terminal,
-  });
+  return result;
 }
 
 function ThinkingIndicator(props: { isStreaming: boolean; duration: number | undefined }) {
@@ -158,44 +122,19 @@ function ThinkingIndicator(props: { isStreaming: boolean; duration: number | und
   );
 }
 
-function aggregateRenderableItems(items: (RenderableItem | null)[]): RenderableItem[] {
-  const execIndexByToolCallId = new Map<string, number>();
-  const result: RenderableItem[] = [];
-
-  for (const item of items) {
-    if (!item) continue;
-
-    if (item.kind === "tool") {
-      const idx = execIndexByToolCallId.get(item.toolCallId);
-      if (idx !== undefined) {
-        result[idx] = item;
-        continue;
-      }
-
-      execIndexByToolCallId.set(item.toolCallId, result.length);
-      result.push(item);
-      continue;
-    }
-
-    result.push(item);
-  }
-
-  return result;
-}
-
 export function MessageParts(props: {
   message: UIMessage;
   streaming: boolean;
   sessionKey: string;
 }) {
   const { message, streaming, sessionKey } = props;
+  const execItemsByIndex = useExecToolRenderItems({ message, sessionKey });
 
   const hasVisibleText = message.parts.some(
-    (p) => p.type === "text" && typeof p.text === "string" && Boolean(p.text.trim()),
+    (part) => part.type === "text" && typeof part.text === "string" && Boolean(part.text.trim()),
   );
   const isThinking = streaming && !hasVisibleText;
 
-  // Duration tracking
   const startTimeRef = useRef<number | null>(null);
   const [thinkingDuration, setThinkingDuration] = useState<number | undefined>(undefined);
   const [showIndicator, setShowIndicator] = useState(false);
@@ -217,19 +156,17 @@ export function MessageParts(props: {
     return undefined;
   }, [isThinking]);
 
-  const renderResult = useMemo(() => {
+  const nodes = useMemo(() => {
     const hasToolPart = message.parts.some((part) => isDynamicToolPartLike(part));
     const foldToolReceiptText = message.role !== "user" && hasToolPart;
-    const context = createExecTraceContext();
-    const pendingUpdatesByTraceKey = new Map<string, ExecTraceUpdatePayload>();
     const nextItems: (RenderableItem | null)[] = Array.from(
       { length: message.parts.length },
       () => null,
     );
-    const now = Date.now();
 
     for (let index = message.parts.length - 1; index >= 0; index -= 1) {
       const part = message.parts[index];
+
       if (isTextPartLike(part)) {
         if (!part.text.trim()) continue;
         if (foldToolReceiptText && isLikelyToolReceiptText(part.text)) continue;
@@ -249,105 +186,50 @@ export function MessageParts(props: {
 
       if (!isDynamicToolPartLike(part)) continue;
       const policy = classifyToolRender(part.toolName);
-      if (policy.kind === "hidden") {
-        continue;
-      }
-      if (policy.kind !== "exec_card") {
-        const stableToolCallId = normalizeToolCallId(part.toolCallId);
-        const normalizedPart =
-          stableToolCallId && stableToolCallId !== part.toolCallId
-            ? ({ ...part, toolCallId: stableToolCallId } as DynamicToolUIPart)
-            : part;
+      if (policy.kind === "hidden") continue;
+
+      if (policy.kind === "exec_card" && isExecToolName(part.toolName)) {
+        const execNode = execItemsByIndex[index];
+        if (!execNode) continue;
         nextItems[index] = {
           kind: "tool",
-          key: `tool:${stableToolCallId || part.toolCallId}:${index}`,
-          toolCallId: stableToolCallId || part.toolCallId,
-          node: (
-            <ToolEventCard
-              key={`tool:${stableToolCallId || part.toolCallId}:${index}`}
-              part={normalizedPart}
-              sessionKey={sessionKey}
-              renderMode={policy.kind === "read_compact" ? "read_compact" : "generic"}
-              maxPreviewChars={policy.maxPreviewChars}
-            />
-          ),
+          key: `exec:${index}`,
+          toolCallId: `exec:${index}`,
+          node: execNode,
         };
         continue;
       }
 
-      const traceKey = buildExecTraceKey(sessionKey, part.toolCallId);
-      const existing = context.tracesByKey[traceKey];
-      const commandCandidate = readCommandFromInput(part.input) || existing?.command || "";
-      const commandKey = commandCandidate ? `${sessionKey}::${commandCandidate}` : "";
-      const currentTerminal = commandKey ? context.terminalByCommand[commandKey] : undefined;
-      const derived = deriveNextExecTrace({
-        part,
-        sessionKey,
-        existing,
-        currentTerminal,
-        now,
-      });
-      applyExecTraceUpdateToContext(context, derived);
-      mergePendingUpdate(pendingUpdatesByTraceKey, {
-        trace: derived.nextTrace,
-        terminal:
-          derived.commandKey && derived.nextTerminal
-            ? { commandKey: derived.commandKey, terminal: derived.nextTerminal }
-            : undefined,
-      });
-
-      if (
-        shouldSuppressExecPart(part, sessionKey, {
-          trace: derived.nextTrace,
-          tracesByKey: context.tracesByKey,
-          terminalByCommand: context.terminalByCommand,
-        })
-      ) {
-        continue;
-      }
-
-      if (
-        part.state === "input-available" ||
-        part.state === "input-streaming" ||
-        part.state === "output-error" ||
-        (part.state === "output-available" && isExecPreliminary(part)) ||
-        (part.state === "output-available" && derived.nextTrace.status !== "running")
-      ) {
-        nextItems[index] = {
-          kind: "tool",
-          key:
-            derived.nextTrace.status === "completed" || derived.nextTrace.status === "error"
-              ? `exec:${part.toolCallId}:final:${index}`
-              : `exec:${part.toolCallId}:${index}`,
-          toolCallId: part.toolCallId,
-          node: (
-            <ExecActionItem
-              key={`exec:${part.toolCallId}:${index}`}
-              part={part}
-              sessionKey={sessionKey}
-            />
-          ),
-        };
-      }
+      const stableToolCallId = normalizeToolCallId(part.toolCallId);
+      const normalizedPart =
+        stableToolCallId && stableToolCallId !== part.toolCallId
+          ? ({ ...part, toolCallId: stableToolCallId } as DynamicToolUIPart)
+          : part;
+      nextItems[index] = {
+        kind: "tool",
+        key: `tool:${stableToolCallId || part.toolCallId}:${index}`,
+        toolCallId: stableToolCallId || part.toolCallId,
+        node: (
+          <ToolEventCard
+            key={`tool:${stableToolCallId || part.toolCallId}:${index}`}
+            part={normalizedPart}
+            sessionKey={sessionKey}
+            renderMode={policy.kind === "read_compact" ? "read_compact" : "generic"}
+            maxPreviewChars={policy.maxPreviewChars}
+          />
+        ),
+      };
     }
 
-    return {
-      nodes: aggregateRenderableItems(nextItems).map((item) => item.node),
-      pendingUpdates: Array.from(pendingUpdatesByTraceKey.values()),
-    };
-  }, [message.parts, message.role, sessionKey, streaming]);
-
-  useEffect(() => {
-    if (!renderResult.pendingUpdates.length) return;
-    useA2UIExecTraceStore.getState().batchSet(renderResult.pendingUpdates);
-  }, [renderResult.pendingUpdates]);
+    return aggregateRenderableItems(nextItems).map((item) => item.node);
+  }, [execItemsByIndex, message.parts, message.role, sessionKey, streaming]);
 
   return (
     <div className="space-y-3">
       {showIndicator ? (
         <ThinkingIndicator isStreaming={isThinking} duration={thinkingDuration} />
       ) : null}
-      {renderResult.nodes}
+      {nodes}
     </div>
   );
 }

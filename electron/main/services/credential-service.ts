@@ -30,8 +30,20 @@ const CHANNEL_TOKEN_ENV_MAP: Record<string, Record<string, string>> = {
   slack: { botToken: "SLACK_BOT_TOKEN", appToken: "SLACK_APP_TOKEN" },
 };
 
-const LLM_PROVIDERS = ["anthropic", "openai"] as const;
 const CHANNEL_TYPES = ["discord", "telegram", "slack"] as const;
+
+/** Known API key prefix patterns for validation. Unknown providers pass freely. */
+const KEY_PREFIX_MAP: Record<string, string[]> = {
+  anthropic: ["sk-ant-"],
+  openai: ["sk-"],
+  google: ["AI"],
+};
+
+/** Legacy env variable names for LLM providers (for migration cleanup). */
+const LEGACY_LLM_ENV_MAP: Record<string, string> = {
+  anthropic: ENV_ANTHROPIC_API_KEY,
+  openai: ENV_OPENAI_API_KEY,
+};
 
 function maskSecret(value: string): string {
   if (value.length <= 8) return "***";
@@ -83,20 +95,19 @@ export class CredentialService {
   async getAllCredentials(): Promise<CredentialMeta[]> {
     const results: CredentialMeta[] = [];
 
-    // LLM credentials
-    for (const provider of LLM_PROVIDERS) {
-      const profileId = profileIdForProvider(provider);
-      const profile = await this.authProfiles.getProfile(profileId);
-      const hasKey = profile ? credentialHasValue(profile) : false;
+    // LLM credentials — dynamic discovery from auth-profiles
+    const store = await this.authProfiles.read();
+    for (const [profileId, cred] of Object.entries(store.profiles)) {
+      const hasKey = credentialHasValue(cred);
       results.push({
         category: "llm",
-        provider,
+        provider: cred.provider,
         profileId,
-        mode: profile ? credentialMode(profile) : "api_key",
-        maskedKey: hasKey ? maskSecret(credentialSecret(profile!)) : "",
+        mode: credentialMode(cred),
+        maskedKey: hasKey ? maskSecret(credentialSecret(cred)) : "",
         hasKey,
-        expires: profile && "expires" in profile ? profile.expires : undefined,
-        email: profile?.email,
+        expires: "expires" in cred ? cred.expires : undefined,
+        email: cred.email,
       } satisfies LlmCredentialMeta);
     }
 
@@ -149,11 +160,13 @@ export class CredentialService {
     await this.encCacheSet(`llm:${input.provider}`, input.apiKey);
 
     // Remove legacy env key if present
-    const envKey = input.provider === "anthropic" ? ENV_ANTHROPIC_API_KEY : ENV_OPENAI_API_KEY;
-    const config = await this.configService.getConfig();
-    if (config?.env?.[envKey]) {
-      await this.configService.patchEnv({ [envKey]: null });
-      configLog.info("[credential.legacy.cleaned]", `envKey=${envKey}`);
+    const legacyEnvKey = LEGACY_LLM_ENV_MAP[input.provider];
+    if (legacyEnvKey) {
+      const config = await this.configService.getConfig();
+      if (config?.env?.[legacyEnvKey]) {
+        await this.configService.patchEnv({ [legacyEnvKey]: null });
+        configLog.info("[credential.legacy.cleaned]", `envKey=${legacyEnvKey}`);
+      }
     }
   }
 
@@ -196,7 +209,7 @@ export class CredentialService {
       if (channelType && tokenField) {
         await this.setChannelToken({
           channelType,
-          tokenField: tokenField as "botToken" | "appToken",
+          tokenField,
           value: "",
         });
       }
@@ -208,13 +221,10 @@ export class CredentialService {
   }
 
   validateLlmKey(provider: string, key: string): ValidateKeyResult {
-    if (provider === "anthropic") {
-      return { valid: key.startsWith("sk-ant-") };
-    }
-    if (provider === "openai") {
-      return { valid: key.startsWith("sk-") };
-    }
-    return { valid: false, error: `Unknown provider: ${provider}` };
+    const prefixes = KEY_PREFIX_MAP[provider];
+    if (!prefixes) return { valid: true }; // unknown provider — don't block
+    const valid = prefixes.some((p) => key.startsWith(p));
+    return valid ? { valid: true } : { valid: false, error: `Invalid key prefix for ${provider}` };
   }
 
   // --- Legacy migration (Step 1.4) ---

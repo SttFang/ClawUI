@@ -1,6 +1,5 @@
 import type { ConfigSetDraftInputV2 } from "@clawui/types/config-v2";
 import type { IpcMain } from "electron";
-import type { OpenClawConfigBridge } from "../services/config-bridge";
 import { ConfigOrchestrator } from "../services/config-orchestrator";
 
 function isDraftPayload(value: unknown): value is ConfigSetDraftInputV2 {
@@ -12,8 +11,8 @@ function isDraftPayload(value: unknown): value is ConfigSetDraftInputV2 {
 
 export function registerConfigHandlers(
   ipcMain: IpcMain,
-  bridge: OpenClawConfigBridge,
   orchestrator: ConfigOrchestrator,
+  configPath: string,
 ): void {
   ipcMain.handle("config:snapshot", async () => {
     return orchestrator.getSnapshot();
@@ -37,6 +36,6 @@ export function registerConfigHandlers(
   });
 
   ipcMain.handle("config:path", () => {
-    return bridge.getConfigPath();
+    return configPath;
   });
 }

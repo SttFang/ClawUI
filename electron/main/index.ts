@@ -17,7 +17,6 @@ import { registerCredentialHandlers } from "./ipc/credentials";
 import { initLogger, mainLog } from "./lib/logger";
 import { chatWebSocket } from "./services/chat-websocket";
 import { ClawUIStateService } from "./services/clawui-state";
-import { OpenClawConfigBridge } from "./services/config-bridge";
 import { ConfigOrchestrator } from "./services/config-orchestrator";
 import { CredentialService } from "./services/credential-service";
 import { configurator } from "./services/configurator";
@@ -33,7 +32,6 @@ initLogger();
 const gatewayService = new GatewayService();
 const profilesService = new OpenClawProfilesService();
 const configService = profilesService.getConfigService("main");
-const configBridge = new OpenClawConfigBridge(configService.getConfigPath());
 const configOrchestrator = new ConfigOrchestrator({
   configPath: configService.getConfigPath(),
   configService,
@@ -73,7 +71,7 @@ app.whenReady().then(async () => {
 
   // Register IPC handlers
   registerGatewayHandlers(ipcMain, gatewayService, configService);
-  registerConfigHandlers(ipcMain, configBridge, configOrchestrator);
+  registerConfigHandlers(ipcMain, configOrchestrator, configService.getConfigPath());
   registerAppHandlers(ipcMain, updaterService);
   registerOnboardingHandlers();
   registerStateHandlers(ipcMain, clawUIStateService);

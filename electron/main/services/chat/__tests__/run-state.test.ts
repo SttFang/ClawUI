@@ -46,4 +46,34 @@ describe("ChatRunState", () => {
     expect(consumed.consumed).toBe(false);
     expect(consumed.reason).toBe("not_found");
   });
+
+  it("consumes approval using trace-bound run even after run becomes terminal", () => {
+    const state = new ChatRunState();
+    const run = state.ensureRun({
+      sessionKey: "session-terminal",
+      clientRunId: "client-run-terminal",
+    });
+
+    state.recordApprovalRequest({
+      id: "approval-terminal",
+      sessionKey: "session-terminal",
+      command: "python3 -c \"print('ok')\"",
+    });
+
+    run.status = "completed";
+    state.touchRun(run);
+
+    const consumed = state.consumeApproval({
+      id: "approval-terminal",
+      sessionKey: "session-terminal",
+      traceId: run.traceId,
+    });
+    expect(consumed.consumed).toBe(true);
+    if (!consumed.consumed) {
+      throw new Error("approval-terminal should be consumed");
+    }
+    expect(consumed.reason).toBe("matched");
+    expect(consumed.run.traceId).toBe(run.traceId);
+    expect(consumed.run.status).toBe("completed");
+  });
 });

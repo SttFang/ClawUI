@@ -71,4 +71,25 @@ describe("ChatEventAdapter approval recovery", () => {
     expect(resolved[0].correlationConfidence).toBe("fallback");
     expect(resolved[0].sessionKey).toBe("session-fallback");
   });
+
+  it("recovers approval resolve from direct request context when pending approval is missing", () => {
+    const adapter = new ChatEventAdapter();
+    adapter.onChatSendAccepted({
+      sessionKey: "session-direct-resolve",
+      clientRunId: "client-run-direct-resolve",
+    });
+
+    const resolved = adapter.onApprovalResolveRequest({
+      approvalId: "approval-direct-resolve",
+      decision: "allow-once",
+      sessionKey: "session-direct-resolve",
+      commandHint: "python3 -c \"print('ok')\"",
+    });
+
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0].kind).toBe("run.approval_resolved");
+    expect(resolved[0].correlationConfidence).toBe("fallback");
+    expect(resolved[0].sessionKey).toBe("session-direct-resolve");
+    expect(resolved[0].command).toBe("python3 -c \"print('ok')\"");
+  });
 });

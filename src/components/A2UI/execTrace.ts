@@ -4,12 +4,11 @@ import type {
   ExecTerminalRecord,
   ExecTraceRecord,
   ExecTraceUpdatePayload,
-} from "@/store/a2uiExecTrace/types";
+} from "@/store/exec";
 import { getCommandFromInput, makeExecApprovalKey, normalizeSessionKey } from "@/lib/exec";
-import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
-import { useExecApprovalsStore } from "@/store/execApprovals";
+import { useA2UIExecTraceStore, useExecApprovalsStore } from "@/store/exec";
 
-export type { ExecTraceStatus } from "@/store/a2uiExecTrace/types";
+export type { ExecTraceStatus } from "@/store/exec";
 
 export type ExecTrace = ExecTraceRecord;
 

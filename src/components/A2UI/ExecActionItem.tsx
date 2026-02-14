@@ -1,7 +1,7 @@
 import { Task, TaskContent, TaskItem, TaskTrigger } from "@clawui/ui";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ExecLifecycleRecord } from "@/store/execLifecycle";
+import type { ExecLifecycleRecord } from "@/store/exec";
 import { extractPrimaryExecCommand, titleizeCommandName } from "./execDisplay";
 
 export function ExecActionItem(props: { record: ExecLifecycleRecord }) {

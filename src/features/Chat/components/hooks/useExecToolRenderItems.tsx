@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ExecActionItem } from "@/components/A2UI";
 import { getCommandFromInput, isExecToolName } from "@/lib/exec";
-import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
+import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/exec";
 import {
   buildFallbackAttemptId,
   buildSessionCommandKey,
@@ -15,7 +15,7 @@ import {
   useExecLifecycleStore,
   type ExecLifecycleRecord,
   type ExecLifecycleStatus,
-} from "@/store/execLifecycle";
+} from "@/store/exec";
 
 type UseExecToolRenderItemsInput = {
   message: UIMessage;

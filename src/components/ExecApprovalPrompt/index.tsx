@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@clawui/ui";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { useExecApprovalsStore, type ExecApprovalDecision } from "@/store/execApprovals";
+import { useExecApprovalsStore, type ExecApprovalDecision } from "@/store/exec";
 
 /** Extract the first line (up to 50 chars) as a command prefix hint. */
 function commandPrefix(command: string): string {

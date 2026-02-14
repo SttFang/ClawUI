@@ -1,4 +1,4 @@
-import type { ExecApprovalRequest } from "@/store/execApprovals";
+import type { ExecApprovalRequest } from "@/store/exec";
 
 const HEARTBEAT_BASE_THROTTLE_MS = 2_500;
 const RECOVERY_HEARTBEAT_BASE_THROTTLE_MS = 1_200;

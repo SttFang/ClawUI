@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { SiReact } from "react-icons/si";
 import { getCommandFromInput, isExecToolName, isReadToolName, toRecord } from "@/lib/exec";
 import { cn } from "@/lib/utils";
-import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
+import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/exec";
 import { EXEC_RUNNING_TTL_MS } from "@/store/execApprovals/helpers";
 
 const RUNNING_TICK_MS = 1000;

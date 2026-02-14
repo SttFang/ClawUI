@@ -7,18 +7,31 @@
  * unified imports from `@/store/exec`.
  */
 
-// Re-export original stores as compatibility layer
+// --- ExecApprovals ---
 export { useExecApprovalsStore } from "@/store/execApprovals";
 export { initExecApprovalsListener } from "@/store/execApprovals";
 export { makeExecApprovalKey } from "@/store/execApprovals";
+export {
+  selectQueue,
+  selectBusyById,
+  selectRunningByKey,
+  selectLastResolvedBySession,
+  getPendingApprovalsForSession,
+  selectPendingBySession,
+  selectLatestBySession,
+  execApprovalsSelectors,
+} from "@/store/execApprovals";
 export type {
   ExecApprovalDecision,
   ExecApprovalRequest,
   ExecApprovalRequestPayload,
+  LastResolvedApproval,
   ExecApprovalsState,
+  ExecApprovalsActions,
   ExecApprovalsStore,
 } from "@/store/execApprovals";
 
+// --- ExecLifecycle ---
 export { useExecLifecycleStore } from "@/store/execLifecycle";
 export { initExecLifecycleListener } from "@/store/execLifecycle";
 export {
@@ -31,29 +44,26 @@ export {
   mergeExecLifecycleRecord,
   projectExecLifecycleRecord,
 } from "@/store/execLifecycle";
+export {
+  selectAttemptIdByApprovalId,
+  selectAttemptIdByGatewayId,
+  selectAttemptIdByToolCallId,
+  selectExecLifecycleByKey,
+  selectExecLifecycleBySession,
+  selectLatestAttemptIdBySessionCommand,
+} from "@/store/execLifecycle";
 export type {
   ExecLifecycleRecord,
   ExecLifecycleStatus,
   ExecLifecycleStore,
 } from "@/store/execLifecycle";
 
+// --- A2UIExecTrace ---
 export { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
 export type {
   ExecTraceRecord,
   ExecTraceStatus,
   ExecTerminalRecord,
+  ExecTraceUpdatePayload,
   A2UIExecTraceState,
 } from "@/store/a2uiExecTrace/types";
-
-// Re-export shared utilities
-export {
-  isExecToolName,
-  isReadToolName,
-  getCommandFromInput,
-  normalizeSessionKey,
-  normalizeCommand,
-  normalizeToolCallId,
-  makeExecApprovalKey as makeExecKey,
-  toRecord,
-  isRecord,
-} from "@/lib/exec";

@@ -6,7 +6,7 @@ import {
   getPendingApprovalsForSession,
   useExecApprovalsStore,
   type ExecApprovalDecision,
-} from "@/store/execApprovals";
+} from "@/store/exec";
 
 /** Extract the first line (up to 50 chars) as a command prefix hint. */
 function commandPrefix(command: string): string {

@@ -3,9 +3,11 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExecTool, ExecGroup, ToolGroup } from "@/features/Chat/components/A2UI";
+import { buildToolSummary } from "@/features/Chat/components/A2UI/toolHelpers";
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
 import { isExecToolName, normalizeToolCallId } from "@/lib/exec";
 import { isLikelyToolReceiptText } from "@/lib/exec/systemTextParsing";
+import { cn } from "@/lib/utils";
 import { MessageText } from "./MessageText";
 
 const AUTO_HIDE_DELAY = 1500;
@@ -299,13 +301,24 @@ export function MessageParts(props: {
 // Minimal generic tool card for non-explore, non-exec tools
 function GenericToolCard(props: { part: DynamicToolUIPart }) {
   const { part } = props;
-  const title = part.title?.trim() ? part.title : part.toolName;
-  const state = part.state;
+  const summary = buildToolSummary(part);
+  const isDone = part.state === "output-available";
+  const isError = part.state === "output-error";
 
   return (
     <div className="space-y-1 text-sm">
-      <div className="text-muted-foreground">{title}</div>
-      {state === "output-error" && (
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <span
+          className={cn(
+            "inline-block size-2 shrink-0 rounded-full",
+            isDone && "bg-emerald-500",
+            isError && "bg-destructive",
+            !isDone && !isError && "animate-pulse bg-blue-500",
+          )}
+        />
+        <span className="truncate">{summary}</span>
+      </div>
+      {isError && (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
           {part.errorText}
         </div>

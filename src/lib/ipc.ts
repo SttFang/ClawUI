@@ -98,8 +98,6 @@ export interface ElectronAPI {
     onEvent: (callback: (event: GatewayEventFrame) => void) => () => void;
   };
   config: {
-    get: () => Promise<OpenClawConfig>;
-    set: (config: Partial<OpenClawConfig>) => Promise<void>;
     getSnapshot: () => Promise<ConfigSnapshotV2>;
     getSchema: () => Promise<ConfigSchemaV2>;
     setDraft: (input: ConfigSetDraftInputV2) => Promise<ConfigSetDraftResponseV2>;
@@ -266,16 +264,6 @@ export const ipc = {
     },
   },
   config: {
-    async get() {
-      const api = getElectronAPI();
-      return api?.config.get();
-    },
-    async set(config: Partial<OpenClawConfig>) {
-      const api = getElectronAPI();
-      if (api) {
-        await api.config.set(config);
-      }
-    },
     async getSnapshot() {
       const api = getElectronAPI();
       if (!api) throw new Error("Electron API not available");

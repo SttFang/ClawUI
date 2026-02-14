@@ -113,4 +113,19 @@ describe("deriveExecActionState", () => {
     expect(state.statusKey).toBe("running");
     expect(state.running).toBe(true);
   });
+
+  it("coveredByCommandTerminal should force completed even when traceRunning", () => {
+    const state = deriveExecActionState({
+      partState: "input-available",
+      preliminary: false,
+      approvalRequested: false,
+      runningMarked: true,
+      traceRunning: true,
+      hasFinalOutput: false,
+      coveredByCommandTerminal: true,
+      hasError: false,
+    });
+    expect(state.statusKey).toBe("completed");
+    expect(state.running).toBe(false);
+  });
 });

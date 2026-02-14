@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "fs/promises";
 import { dirname, join } from "path";
 import lockfile from "proper-lockfile";
 import { configLog } from "../lib/logger";
+import { isRecord } from "../utils/type-guards";
 
 const AUTH_STORE_VERSION = 1;
 const AUTH_PROFILE_FILENAME = "auth-profiles.json";
@@ -48,10 +49,6 @@ export type AuthProfileStore = {
   order?: Record<string, string[]>;
   lastGood?: Record<string, string>;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 const EMPTY_STORE: AuthProfileStore = { version: AUTH_STORE_VERSION, profiles: {} };
 

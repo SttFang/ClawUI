@@ -5,6 +5,7 @@ import { readFile } from "fs/promises";
 import JSON5 from "json5";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { configLog } from "../lib/logger";
+import { isRecord } from "../utils/type-guards";
 import { ConfigService, type OpenClawConfig } from "./config";
 
 const ENV_ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY";
@@ -13,10 +14,6 @@ const ENV_PROXY_URL = "OPENCLAW_PROXY_URL";
 const ENV_PROXY_TOKEN = "OPENCLAW_PROXY_TOKEN";
 
 type JsonObject = Record<string, unknown>;
-
-function isRecord(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function inferSchemaVersion(raw: JsonObject): string {
   if (isRecord(raw.gateway) && isRecord((raw.gateway as JsonObject).auth)) {

@@ -12,6 +12,7 @@ import JSON5 from "json5";
 import type { ConfigService } from "./config";
 import { configLog } from "../lib/logger";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
+import { isRecord } from "../utils/type-guards";
 import { chatWebSocket } from "./chat-websocket";
 import { redactSnapshot, restoreRedactedValues, REDACTED_SENTINEL } from "./snapshot-redact";
 
@@ -35,10 +36,6 @@ type ConfigRpcSchema = {
 };
 
 const DEFAULT_SCHEMA_VERSION = "clawui-fallback-v1";
-
-function isRecord(value: unknown): value is JsonObject {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
 
 function asConfigObject(value: unknown): JsonObject {
   return isRecord(value) ? value : {};

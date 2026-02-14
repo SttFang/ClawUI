@@ -1,11 +1,8 @@
 import type { ChatNormalizedRunEvent } from "@clawui/types";
 import type { GatewayEventFrame } from "../chat-websocket";
 import { chatLog } from "../../lib/logger";
+import { isRecord } from "../../utils/type-guards";
 import { ChatRunState, normalizeRunStatus } from "./run-state";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 function pickToolCallId(record: Record<string, unknown>): string {
   const candidates = [

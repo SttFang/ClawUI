@@ -15,6 +15,11 @@ export class ChatEventNormalizer {
   onApprovalResolveRequest(params: {
     approvalId?: string;
     decision?: "allow-once" | "allow-always" | "deny";
+    sessionKey?: string;
+    commandHint?: string;
+    traceId?: string;
+    runId?: string;
+    toolCallId?: string;
   }): ChatNormalizedRunEvent[] {
     return this.adapter.onApprovalResolveRequest(params);
   }

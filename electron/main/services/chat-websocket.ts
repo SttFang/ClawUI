@@ -57,7 +57,37 @@ export class ChatWebSocketService extends EventEmitter {
   }
 
   async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
-    return this.transport.request(method, params);
+    const gatewayParams =
+      method === "exec.approval.resolve" && params
+        ? {
+            id: params.id,
+            decision: params.decision,
+          }
+        : params;
+    const payload = await this.transport.request(method, gatewayParams);
+
+    if (method === "exec.approval.resolve" && params) {
+      const approvalId = typeof params.id === "string" ? params.id : undefined;
+      const decisionRaw = params.decision;
+      const decision =
+        decisionRaw === "allow-once" || decisionRaw === "allow-always" || decisionRaw === "deny"
+          ? decisionRaw
+          : undefined;
+      const normalizedEvents = this.normalizer.onApprovalResolveRequest({
+        approvalId,
+        decision,
+        sessionKey: typeof params.sessionKey === "string" ? params.sessionKey : undefined,
+        commandHint: typeof params.command === "string" ? params.command : undefined,
+        traceId: typeof params.traceId === "string" ? params.traceId : undefined,
+        runId: typeof params.runId === "string" ? params.runId : undefined,
+        toolCallId: typeof params.toolCallId === "string" ? params.toolCallId : undefined,
+      });
+      for (const normalizedEvent of normalizedEvents) {
+        this.emit("normalized-event", normalizedEvent);
+      }
+    }
+
+    return payload;
   }
 
   async sendMessage(request: ChatRequest): Promise<string> {

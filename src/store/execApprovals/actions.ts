@@ -73,6 +73,9 @@ export function createExecApprovalsActions(
       const current = snapshot.queue.find((item) => item.id === id) ?? null;
       const sessionKey = normalizeSessionKey(current?.request.sessionKey);
       const command = current?.request.command?.trim() ?? "";
+      const traceId = current?.request.traceId?.trim() ?? "";
+      const runId = current?.request.runId?.trim() ?? "";
+      const toolCallId = current?.request.toolCallId?.trim() ?? "";
       const runningKey = command ? makeExecApprovalKey(sessionKey, command) : "";
       const shouldMarkRunning =
         (decision === "allow-once" || decision === "allow-always") && !!runningKey;
@@ -110,7 +113,15 @@ export function createExecApprovalsActions(
       let requestOk = false;
       let requestError: unknown = null;
       try {
-        await ipc.chat.request("exec.approval.resolve", { id, decision });
+        await ipc.chat.request("exec.approval.resolve", {
+          id,
+          decision,
+          sessionKey: sessionKey || undefined,
+          command: command || undefined,
+          traceId: traceId || undefined,
+          runId: runId || undefined,
+          toolCallId: toolCallId || undefined,
+        });
         requestOk = true;
         resolvedAtMs = Date.now();
       } catch (error) {

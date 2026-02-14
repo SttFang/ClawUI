@@ -155,6 +155,17 @@ export class ChatRunState {
     return run;
   }
 
+  getLatestRun(sessionKey: string): RunState | null {
+    const traceId = this.latestTraceBySession.get(sessionKey);
+    if (!traceId) return null;
+    return this.runsByTrace.get(traceId) ?? null;
+  }
+
+  resolveRunByTrace(traceId?: string): RunState | null {
+    if (!traceId) return null;
+    return this.runsByTrace.get(traceId) ?? null;
+  }
+
   ensureRun(params: { sessionKey: string; clientRunId: string; startedAtMs?: number }): RunState {
     const { sessionKey, clientRunId } = params;
     const key = this.clientKey(sessionKey, clientRunId);
@@ -308,7 +319,7 @@ export class ChatRunState {
 
     this.pendingApprovals.delete(params.id);
 
-    const requestedSession = params.sessionKey?.trim();
+    const requestedSession = params.sessionKey?.trim() || undefined;
     let run: RunState | null = null;
     let matchedByExactTrace = false;
 
@@ -325,18 +336,20 @@ export class ChatRunState {
 
     if (!run && approval.traceId) {
       const runByApprovalTrace = this.runsByTrace.get(approval.traceId);
-      if (runByApprovalTrace && !isTerminalStatus(runByApprovalTrace.status)) {
+      if (runByApprovalTrace) {
         run = runByApprovalTrace;
         matchedByExactTrace = true;
       }
     }
 
     if (!run && requestedSession) {
-      run = this.getLatestActiveRun(requestedSession);
+      run = this.getLatestActiveRun(requestedSession) ?? this.getLatestRun(requestedSession);
     }
 
     if (!run && approval.sessionKey) {
-      run = this.findRunFromRecentApproval(approval.sessionKey);
+      run =
+        this.findRunFromRecentApproval(approval.sessionKey) ??
+        this.getLatestRun(approval.sessionKey);
     }
 
     if (!run) {
@@ -377,11 +390,11 @@ export class ChatRunState {
   private getRunByTraceOrSession(traceId?: string, sessionKey?: string): RunState | null {
     if (traceId) {
       const runByTrace = this.runsByTrace.get(traceId);
-      if (runByTrace && !isTerminalStatus(runByTrace.status)) return runByTrace;
+      if (runByTrace) return runByTrace;
     }
 
     if (sessionKey) {
-      const runBySession = this.getLatestActiveRun(sessionKey);
+      const runBySession = this.getLatestActiveRun(sessionKey) ?? this.getLatestRun(sessionKey);
       if (runBySession) return runBySession;
     }
 

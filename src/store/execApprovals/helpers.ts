@@ -62,6 +62,9 @@ function parseRequestPayload(value: Record<string, unknown>): ExecApprovalReques
     agentId: typeof value.agentId === "string" ? value.agentId : null,
     resolvedPath: typeof value.resolvedPath === "string" ? value.resolvedPath : null,
     sessionKey: typeof value.sessionKey === "string" ? value.sessionKey : null,
+    traceId: typeof value.traceId === "string" ? value.traceId : null,
+    runId: typeof value.runId === "string" ? value.runId : null,
+    toolCallId: typeof value.toolCallId === "string" ? value.toolCallId : null,
   };
 }
 

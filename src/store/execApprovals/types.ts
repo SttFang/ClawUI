@@ -9,6 +9,9 @@ export type ExecApprovalRequestPayload = {
   agentId?: string | null;
   resolvedPath?: string | null;
   sessionKey?: string | null;
+  traceId?: string | null;
+  runId?: string | null;
+  toolCallId?: string | null;
 };
 
 export type ExecApprovalRequest = {

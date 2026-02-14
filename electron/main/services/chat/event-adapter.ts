@@ -80,41 +80,67 @@ export class ChatEventAdapter {
     sessionKey?: string;
     commandHint?: string;
     traceId?: string;
+    runId?: string;
+    toolCallId?: string;
   }): ChatNormalizedRunEvent[] {
     const approvalId = params.approvalId?.trim();
     if (!approvalId) return [];
-    const sessionKey = params.sessionKey?.trim();
+    const sessionKey = params.sessionKey?.trim() || undefined;
+    const traceId = params.traceId?.trim() || undefined;
 
     const consumed = this.state.consumeApproval({
       id: approvalId,
       sessionKey,
-      traceId: params.traceId?.trim(),
+      traceId,
     });
+
+    if (!consumed.consumed && consumed.reason === "not_found") {
+      const recoveredRun =
+        this.state.resolveRunByTrace(traceId) ??
+        (sessionKey ? this.state.getLatestRun(sessionKey) : null);
+      if (!recoveredRun) {
+        chatLog.debug(
+          "[chat.approval.resolve.skip_not_found]",
+          `approvalId=${approvalId}`,
+          `sessionKey=${sessionKey ?? "<unknown>"}`,
+          `traceId=${traceId ?? "<none>"}`,
+        );
+        return [];
+      }
+      const commandHint = params.commandHint?.trim();
+      if (params.decision === "deny") {
+        recoveredRun.status = normalizeRunStatus(recoveredRun.status, "aborted");
+      } else {
+        recoveredRun.status = normalizeRunStatus(recoveredRun.status, "running");
+      }
+      this.state.touchRun(recoveredRun);
+      return [
+        {
+          kind: "run.approval_resolved",
+          ...this.state.eventBase(recoveredRun, { correlationConfidence: "fallback" }),
+          approvalId,
+          decision: params.decision,
+          command: commandHint || undefined,
+          correlationConfidence: "fallback",
+        },
+      ];
+    }
 
     const fallbackSession = consumed.consumed
       ? undefined
       : (sessionKey ?? consumed.approval?.sessionKey ?? undefined);
-    if (!consumed.consumed && consumed.reason === "not_found") {
-      chatLog.warn(
-        "[chat.approval.resolve.no_run]",
-        `approvalId=${approvalId}`,
-        `sessionKey=${fallbackSession ?? "<unknown>"}`,
-        `reason=${consumed.reason}`,
-        `traceId=${params.traceId ?? "<none>"}`,
-      );
-      return [];
-    }
 
     const run = consumed.consumed
       ? consumed.run
-      : this.state.findRunFromRecentApproval(fallbackSession);
+      : (this.state.findRunFromRecentApproval(fallbackSession) ??
+        (fallbackSession ? this.state.getLatestRun(fallbackSession) : null));
     if (!run) {
       chatLog.warn(
         "[chat.approval.resolve.no_run]",
         `approvalId=${approvalId}`,
         `sessionKey=${sessionKey ?? "<unknown>"}`,
         `reason=${consumed.reason}`,
-        `traceId=${params.traceId ?? "<none>"}`,
+        `traceId=${traceId ?? "<none>"}`,
       );
       return [];
     }

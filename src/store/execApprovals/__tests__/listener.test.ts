@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GatewayEventFrame } from "@/lib/ipc";
+import { EXEC_RUNNING_TTL_MS } from "../helpers";
 import { initialState } from "../initialState";
 import { initExecApprovalsListener } from "../listener";
 import { useExecApprovalsStore } from "../store";
@@ -197,5 +198,79 @@ describe("execApprovals listener", () => {
 
     const state = useExecApprovalsStore.getState();
     expect(state.runningByKey["agent:main:ui:1::ls -la ~/Desktop"]).toBe(400);
+  });
+
+  it("clears running markers when chat run reaches terminal state", () => {
+    useExecApprovalsStore.setState({
+      ...initialState,
+      queue: [],
+      busyById: {},
+      runningByKey: {
+        "agent:main:ui:1::ls -la ~/Desktop": 500,
+        "agent:main:ui:2::pwd": 600,
+      },
+      lastResolvedBySession: {},
+    });
+
+    hoisted.gatewayHandler?.({
+      type: "event",
+      event: "chat",
+      payload: {
+        sessionKey: "agent:main:ui:1",
+        runId: "run-chat-final",
+        state: "final",
+      },
+    });
+
+    const state = useExecApprovalsStore.getState();
+    expect(state.runningByKey["agent:main:ui:1::ls -la ~/Desktop"]).toBeUndefined();
+    expect(state.runningByKey["agent:main:ui:2::pwd"]).toBe(600);
+  });
+
+  it("auto clears gateway-marked running command after ttl", async () => {
+    vi.useFakeTimers();
+    const now = Date.now();
+
+    useExecApprovalsStore.setState({
+      ...initialState,
+      queue: [
+        {
+          id: "pending-ttl",
+          request: { sessionKey: "agent:main:ui:1", command: "ls -la ~/Desktop" },
+          createdAtMs: now,
+          expiresAtMs: now + 60_000,
+        },
+      ],
+      busyById: {},
+      runningByKey: {},
+      lastResolvedBySession: {},
+    });
+
+    hoisted.gatewayHandler?.({
+      type: "event",
+      event: "exec.approval.resolved",
+      payload: {
+        id: "pending-ttl",
+        decision: "allow-once",
+        request: {
+          id: "pending-ttl",
+          sessionKey: "agent:main:ui:1",
+          command: "ls -la ~/Desktop",
+        },
+        ts: now,
+      },
+    });
+
+    expect(useExecApprovalsStore.getState().runningByKey["agent:main:ui:1::ls -la ~/Desktop"]).toBe(
+      now,
+    );
+
+    vi.setSystemTime(now + EXEC_RUNNING_TTL_MS + 1500);
+    await vi.advanceTimersByTimeAsync(EXEC_RUNNING_TTL_MS + 1500);
+
+    expect(
+      useExecApprovalsStore.getState().runningByKey["agent:main:ui:1::ls -la ~/Desktop"],
+    ).toBeUndefined();
+    vi.useRealTimers();
   });
 });

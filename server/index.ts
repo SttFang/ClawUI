@@ -19,9 +19,12 @@ async function main() {
   // Error handler
   fastify.setErrorHandler((err, request, reply) => {
     if (err instanceof ApiError) {
+      if (err.statusCode >= 500) {
+        request.log.error({ err, code: err.code }, err.messageKey);
+      }
       reply.status(err.statusCode).send(error(err));
     } else {
-      fastify.log.error(err);
+      request.log.error({ err, url: request.url, method: request.method }, "unhandled error");
       reply.status(500).send(error(new ApiError("InternalError", "common:errors.internal", 500)));
     }
   });

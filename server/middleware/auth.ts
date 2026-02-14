@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { FastifyRequest, FastifyReply } from "fastify";
 import { auth, User } from "../lib/auth";
 import { createSupabaseUserClient } from "../lib/supabase";
-import { Errors } from "../utils/response";
+import { ApiError, Errors } from "../utils/response";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -24,6 +24,8 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
     request.user = session.user;
     request.supabase = createSupabaseUserClient(session.session.token);
   } catch (error) {
-    throw Errors.Unauthorized();
+    if (error instanceof ApiError) throw error;
+    request.log.error({ err: error }, "auth middleware unexpected error");
+    throw Errors.InternalError("common:errors.internal", error);
   }
 }

@@ -5,8 +5,9 @@ export class ApiError extends Error {
     public readonly code: string,
     public readonly messageKey: string,
     public readonly statusCode: number = 400,
+    options?: { cause?: unknown },
   ) {
-    super(code);
+    super(code, options);
     this.name = "ApiError";
   }
 }
@@ -33,5 +34,6 @@ export const Errors = {
   Forbidden: () => new ApiError("Forbidden", "common:errors.forbidden", 403),
   NotFound: () => new ApiError("NotFound", "common:errors.notFound", 404),
   BadRequest: (message = "common:errors.badRequest") => new ApiError("BadRequest", message, 400),
-  InternalError: () => new ApiError("InternalError", "common:errors.internal", 500),
+  InternalError: (message = "common:errors.internal", cause?: unknown) =>
+    new ApiError("InternalError", message, 500, { cause }),
 };

@@ -47,6 +47,8 @@ const fallbackProviderInfos: ProviderAuthInfo[] = getFallbackProviderIds().map((
   effective: { kind: "none" },
 }));
 
+const PRIMARY_PROVIDERS = new Set(["anthropic", "openai", "openrouter", "google", "github-copilot", "xai"]);
+
 function findOAuthStatus(
   modelsStatus: { auth: Record<string, unknown> },
   provider: string,
@@ -162,23 +164,59 @@ export function AiServicesTab() {
         </Card>
       )}
 
-      {providerInfos.map((provider) => (
-        <ProviderCard
-          key={provider.provider}
-          provider={provider.provider}
-          authInfo={provider}
-          oauthStatus={modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined}
-          apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
-          onApiKeyChange={handleApiKeyChange(provider.provider)}
-          onApiKeySave={() => void saveApiKeys(provider.provider)}
-          isSaving={isSaving}
-          saveSuccess={saveSuccess}
-          canSaveApiKey={canSaveApiKeyForProvider({
-            providerId: provider.provider,
-            modelsStatus,
-          })}
-        />
-      ))}
+      {providerInfos
+        .filter((p) => PRIMARY_PROVIDERS.has(p.provider))
+        .map((provider) => (
+          <ProviderCard
+            key={provider.provider}
+            provider={provider.provider}
+            authInfo={provider}
+            oauthStatus={modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined}
+            apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
+            onApiKeyChange={handleApiKeyChange(provider.provider)}
+            onApiKeySave={() => void saveApiKeys(provider.provider)}
+            isSaving={isSaving}
+            saveSuccess={saveSuccess}
+            canSaveApiKey={canSaveApiKeyForProvider({
+              providerId: provider.provider,
+              modelsStatus,
+            })}
+          />
+        ))}
+
+      {(() => {
+        const secondary = providerInfos.filter((p) => !PRIMARY_PROVIDERS.has(p.provider));
+        if (secondary.length === 0) return null;
+        return (
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2">
+                <ChevronDown className="h-4 w-4" />
+                {t("settings.page.ai.moreProviders", { count: secondary.length })}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-4 pt-4">
+              {secondary.map((provider) => (
+                <ProviderCard
+                  key={provider.provider}
+                  provider={provider.provider}
+                  authInfo={provider}
+                  oauthStatus={modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined}
+                  apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
+                  onApiKeyChange={handleApiKeyChange(provider.provider)}
+                  onApiKeySave={() => void saveApiKeys(provider.provider)}
+                  isSaving={isSaving}
+                  saveSuccess={saveSuccess}
+                  canSaveApiKey={canSaveApiKeyForProvider({
+                    providerId: provider.provider,
+                    modelsStatus,
+                  })}
+                />
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+        );
+      })()}
 
       {/* Tool API Keys */}
       <Card>

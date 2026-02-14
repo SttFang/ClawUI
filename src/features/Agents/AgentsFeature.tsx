@@ -26,12 +26,7 @@ export function AgentsFeature() {
             <h1 className="text-2xl font-semibold">{t("agents.title")}</h1>
             <p className="text-muted-foreground">{t("agents.description")}</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            className="shrink-0"
-          >
+          <Button variant="outline" size="sm" onClick={handleExport} className="shrink-0">
             <Download className="w-4 h-4 mr-2" />
             {t("agents.actions.exportJson")}
           </Button>

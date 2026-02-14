@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
 import { isLikelyToolReceiptText } from "@/lib/exec/systemTextParsing";
 import { MessageParts } from "./MessageParts";
 
@@ -8,7 +9,8 @@ export function SystemMessageItem(props: { message: UIMessage; sessionKey: strin
   const hasVisibleContent = message.parts.some((part) => {
     if (part.type === "text" && typeof part.text === "string")
       return part.text.trim() !== "" && !isLikelyToolReceiptText(part.text);
-    return part.type === "dynamic-tool";
+    if (part.type === "dynamic-tool") return classifyToolRender(part.toolName).kind !== "hidden";
+    return false;
   });
   if (!hasVisibleContent) return null;
 

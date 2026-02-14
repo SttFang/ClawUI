@@ -8,8 +8,7 @@ import { ApiError, error } from "./utils/response";
 const fastify = Fastify({
   logger: {
     level: env.LOG_LEVEL,
-    transport:
-      env.NODE_ENV === "development" ? { target: "pino-pretty" } : undefined,
+    transport: env.NODE_ENV === "development" ? { target: "pino-pretty" } : undefined,
   },
 });
 

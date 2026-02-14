@@ -1,12 +1,11 @@
 import type { DynamicToolUIPart } from "ai";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@clawui/ui";
-import { ChevronDown } from "lucide-react";
+import { Task, TaskContent, TaskItem, TaskTrigger } from "@clawui/ui";
 import { useTranslation } from "react-i18next";
 import { getCommandFromInput } from "@/lib/exec";
 import { cn } from "@/lib/utils";
 import type { ExecApprovalAugmentation } from "../hooks/useExecApprovalStatus";
 import { useExecApprovalStatus } from "../hooks/useExecApprovalStatus";
-import { extractPrimaryExecCommand, titleizeCommandName } from "./execDisplay";
+import { extractPrimaryExecCommand } from "./execDisplay";
 import { formatJson, getCwdFromInput } from "./toolHelpers";
 
 type ExecDisplayStatus = "pending" | "pending_approval" | "running" | "completed" | "error";
@@ -50,49 +49,47 @@ export function ExecTool(props: { part: DynamicToolUIPart; sessionKey: string })
 
   const command = getCommandFromInput(part.input);
   const primaryCmd = extractPrimaryExecCommand(command);
-  const title = titleizeCommandName(primaryCmd);
 
   let label: string;
   if (status === "running") {
-    label = t("a2ui.exec.running", { command: title });
+    label = t("a2ui.exec.running", { command: primaryCmd });
   } else if (status === "completed") {
-    label = t("a2ui.exec.ran", { command: title });
+    label = t("a2ui.exec.ran", { command: primaryCmd });
   } else if (status === "error") {
-    label = t("a2ui.exec.failed", { command: title });
+    label = t("a2ui.exec.failed", { command: primaryCmd });
   } else if (status === "pending_approval") {
-    label = t("a2ui.exec.awaitingApproval", { command: title });
+    label = t("a2ui.exec.awaitingApproval", { command: primaryCmd });
   } else {
-    label = t("a2ui.exec.pending", { command: title });
+    label = t("a2ui.exec.pending", { command: primaryCmd });
   }
 
   const autoOpen = status === "running" || status === "pending_approval";
   const cwd = getCwdFromInput(part.input);
 
   return (
-    <Collapsible defaultOpen={autoOpen}>
-      <CollapsibleTrigger className="flex w-full items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
-        <StatusDot status={status} />
-        <span>{label}</span>
-        <ChevronDown className="size-4 shrink-0 transition-transform [[data-state=closed]>&]:rotate-[-90deg]" />
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="mt-2 space-y-2 border-l-2 border-muted pl-4">
-          <pre className="max-h-44 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs break-words whitespace-pre-wrap">
-            {command}
-          </pre>
-          {cwd && <div className="text-xs text-muted-foreground">in {cwd}</div>}
-          {status === "completed" && part.output != null && (
-            <pre className="max-h-64 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs break-words whitespace-pre-wrap">
-              {formatJson(part.output)}
-            </pre>
-          )}
-          {status === "error" && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-              {part.errorText}
-            </div>
-          )}
+    <Task defaultOpen={autoOpen}>
+      <TaskTrigger title={label}>
+        <div className="flex w-full cursor-pointer items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <StatusDot status={status} />
+          <p className="text-sm">{label}</p>
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+      </TaskTrigger>
+      <TaskContent className="space-y-2">
+        <pre className="max-h-44 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs break-words whitespace-pre-wrap">
+          {command}
+        </pre>
+        {cwd && <TaskItem className="text-xs text-muted-foreground">in {cwd}</TaskItem>}
+        {status === "completed" && part.output != null && (
+          <pre className="max-h-64 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs break-words whitespace-pre-wrap">
+            {formatJson(part.output)}
+          </pre>
+        )}
+        {status === "error" && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+            {part.errorText}
+          </div>
+        )}
+      </TaskContent>
+    </Task>
   );
 }

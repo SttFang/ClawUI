@@ -20,6 +20,7 @@ import { dirname, join } from "path";
 import { ConfigService, getNestedValue } from "./config";
 import { configLog } from "../lib/logger";
 import { AuthProfileAdapter, type AuthProfileCredential } from "./auth-profile-adapter";
+import { syncExternalCliCredentials } from "./external-cli-sync";
 import { TOOL_CREDENTIAL_DEFS } from "./tool-credential-registry";
 
 const ENV_ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY";
@@ -188,10 +189,15 @@ export class CredentialService {
     this.encCachePath = join(homedir(), ".clawui", "credentials.enc");
   }
 
+  getAuthProfileAdapter(): AuthProfileAdapter {
+    return this.authProfiles;
+  }
+
   async initialize(): Promise<void> {
     const t0 = Date.now();
     await this.loadEncCache();
     await this.migrateLegacyKeys();
+    await syncExternalCliCredentials(this.authProfiles);
     configLog.info("[credential.init]", `durationMs=${Date.now() - t0}`);
   }
 

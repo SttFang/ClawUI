@@ -21,6 +21,7 @@ import { ConfigOrchestrator } from "./services/config-orchestrator";
 import { configurator } from "./services/configurator";
 import { CredentialService } from "./services/credential-service";
 import { GatewayService } from "./services/gateway";
+import { OAuthService } from "./services/oauth-service";
 import { OpenClawProfilesService } from "./services/openclaw-profiles";
 import { UpdaterService } from "./services/updater";
 import { createMainWindow } from "./window/create-main-window";
@@ -39,6 +40,7 @@ const configOrchestrator = new ConfigOrchestrator({
 const updaterService = new UpdaterService();
 const clawUIStateService = new ClawUIStateService();
 const credentialService = new CredentialService(configService);
+const oauthService = new OAuthService(credentialService.getAuthProfileAdapter());
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows
@@ -85,7 +87,7 @@ app.whenReady().then(async () => {
   registerSecretsHandlers(ipcMain, profilesService, credentialService);
   registerSecurityHandlers(ipcMain);
   registerSkillsHandlers(ipcMain, profilesService);
-  registerCredentialHandlers(ipcMain, credentialService);
+  registerCredentialHandlers(ipcMain, credentialService, oauthService);
 
   // Create the main window
   const mainWindow = createMainWindow({

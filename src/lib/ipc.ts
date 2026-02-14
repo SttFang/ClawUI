@@ -182,6 +182,19 @@ export interface ElectronAPI {
     setProxy: (input: SetProxyInput) => Promise<void>;
     setToolKey: (input: SetToolKeyInput) => Promise<void>;
     delete: (input: DeleteCredentialInput) => Promise<void>;
+    oauthDeviceStart: (provider: string) => Promise<{
+      deviceCode: string;
+      userCode: string;
+      verificationUri: string;
+      expiresIn: number;
+      interval: number;
+    }>;
+    oauthDevicePoll: (
+      provider: string,
+      deviceCode: string,
+      interval: number,
+    ) => Promise<{ profileId: string }>;
+    oauthRefresh: (profileId: string) => Promise<boolean>;
   };
   security: {
     get: (paths: string[]) => Promise<Record<string, unknown>>;
@@ -587,6 +600,21 @@ export const ipc = {
       const api = getElectronAPI();
       if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
       await api.credentials.delete(input);
+    },
+    async oauthDeviceStart(provider: string) {
+      const api = getElectronAPI();
+      if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
+      return api.credentials.oauthDeviceStart(provider);
+    },
+    async oauthDevicePoll(provider: string, deviceCode: string, interval: number) {
+      const api = getElectronAPI();
+      if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
+      return api.credentials.oauthDevicePoll(provider, deviceCode, interval);
+    },
+    async oauthRefresh(profileId: string) {
+      const api = getElectronAPI();
+      if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
+      return api.credentials.oauthRefresh(profileId);
     },
   },
   security: {

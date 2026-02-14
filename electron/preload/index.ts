@@ -216,6 +216,12 @@ contextBridge.exposeInMainWorld("electron", {
     setProxy: (input: unknown) => ipcRenderer.invoke("credentials:set-proxy", input),
     setToolKey: (input: unknown) => ipcRenderer.invoke("credentials:set-tool-key", input),
     delete: (input: unknown) => ipcRenderer.invoke("credentials:delete", input),
+    oauthDeviceStart: (provider: string) =>
+      ipcRenderer.invoke("credentials:oauth-device-start", provider),
+    oauthDevicePoll: (provider: string, deviceCode: string, interval: number) =>
+      ipcRenderer.invoke("credentials:oauth-device-poll", provider, deviceCode, interval),
+    oauthRefresh: (profileId: string) =>
+      ipcRenderer.invoke("credentials:oauth-refresh", profileId),
   },
   security: {
     get: (paths: string[]) => ipcRenderer.invoke("security:get", paths),

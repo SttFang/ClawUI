@@ -2,6 +2,7 @@ import type { DynamicToolUIPart } from "ai";
 import { Task, TaskContent, TaskItem, TaskTrigger } from "@clawui/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
 import {
   getPendingApprovalsForSession,
   makeExecApprovalKey,
@@ -47,6 +48,29 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
 
   const runningKey = command ? makeExecApprovalKey(normalizedSessionKey, command) : "";
   const runningAtMs = runningKey ? runningByKey[runningKey] : 0;
+  const terminalByCommand = useA2UIExecTraceStore((s) => s.terminalByCommand);
+  const commandTerminal = runningKey ? terminalByCommand[runningKey] : undefined;
+  const coveredByCommandTerminal = useMemo(() => {
+    if (!commandTerminal) return false;
+    if (commandTerminal.traceKey === trace.traceKey) return false;
+    if (trace.status === "completed" || trace.status === "error") return false;
+    if (trace.startedAtMs > commandTerminal.endedAtMs) return false;
+    if (
+      trace.toolOrder !== null &&
+      commandTerminal.toolOrder !== null &&
+      trace.toolOrder > commandTerminal.toolOrder
+    ) {
+      return false;
+    }
+    return true;
+  }, [
+    commandTerminal,
+    trace.endedAtMs,
+    trace.startedAtMs,
+    trace.status,
+    trace.toolOrder,
+    trace.traceKey,
+  ]);
   const visualState = deriveExecActionState({
     partState:
       part.state === "input-streaming" ||
@@ -56,11 +80,16 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
         : "input-available",
     preliminary: part.state === "output-available" ? isExecPreliminary(part) : false,
     approvalRequested,
-    runningMarked: Boolean(runningAtMs) && trace.status !== "completed" && trace.status !== "error",
-    traceRunning: trace.status === "running",
+    runningMarked:
+      !coveredByCommandTerminal &&
+      Boolean(runningAtMs) &&
+      trace.status !== "completed" &&
+      trace.status !== "error",
+    traceRunning: !coveredByCommandTerminal && trace.status === "running",
     hasFinalOutput:
       (part.state === "output-available" && !isExecPreliminary(part)) ||
       trace.status === "completed",
+    coveredByCommandTerminal,
     hasError: part.state === "output-error" || trace.status === "error",
   });
 
@@ -85,7 +114,7 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
 
   return (
     <Task open={expanded} onOpenChange={setExpanded}>
-      <TaskTrigger title={command || t("a2ui.execAction.noCommand")} />
+      <TaskTrigger title={command || "exec"} />
       <TaskContent className="space-y-2">
         <div className="space-y-2">
           <TaskItem className="inline-flex items-center gap-2 text-xs">

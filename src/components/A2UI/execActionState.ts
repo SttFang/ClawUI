@@ -9,6 +9,7 @@ export function deriveExecActionState(input: {
   runningMarked: boolean;
   traceRunning: boolean;
   hasFinalOutput: boolean;
+  coveredByCommandTerminal?: boolean;
   hasError: boolean;
 }): {
   status: ChainOfActionStatus;
@@ -22,6 +23,7 @@ export function deriveExecActionState(input: {
     runningMarked,
     traceRunning,
     hasFinalOutput,
+    coveredByCommandTerminal = false,
     hasError,
   } = input;
 
@@ -29,7 +31,7 @@ export function deriveExecActionState(input: {
     return { status: "error", statusKey: "error", running: false };
   }
 
-  if (hasFinalOutput) {
+  if (hasFinalOutput || coveredByCommandTerminal) {
     return { status: "completed", statusKey: "completed", running: false };
   }
 

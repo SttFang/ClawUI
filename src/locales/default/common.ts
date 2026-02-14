@@ -526,6 +526,8 @@ const common = {
         description: "连接消息平台到你的 AI 助手，配置 Token 和渠道设置。",
         moreChannels: "更多渠道",
         unsavedChanges: "你有未保存的更改",
+        credentialsError: "无法连接凭证服务。请检查 Gateway 是否运行，或重启应用。",
+        checkGateway: "检查 Gateway",
       },
       capabilities: {
         advanced: "高级设置",

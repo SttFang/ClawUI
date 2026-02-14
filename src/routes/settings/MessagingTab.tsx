@@ -15,6 +15,7 @@ import {
 import { CheckCircle2, ChevronDown, Loader2, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import type { ChannelConfig } from "@/lib/ipc";
 import { TelegramConfigDialog, DiscordConfigDialog } from "@/features/Channels";
 import { getChannelBrandIcon } from "@/lib/channelBrandIcons";
@@ -81,6 +82,7 @@ const CHANNEL_DEFS = [
 
 export function MessagingTab() {
   const { t } = useTranslation("common");
+  const navigate = useNavigate();
 
   // Channel state
   const channels = useChannelsStore(selectChannels);
@@ -131,8 +133,21 @@ export function MessagingTab() {
       </div>
 
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-center justify-between gap-2">
+          <span>
+            {error.includes("Credentials API") || error.includes("credentials")
+              ? t("settings.page.messaging.credentialsError")
+              : error}
+          </span>
+          {(error.includes("Credentials API") || error.includes("credentials")) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/settings?tab=general")}
+            >
+              {t("settings.page.messaging.checkGateway")}
+            </Button>
+          )}
         </div>
       ) : null}
 

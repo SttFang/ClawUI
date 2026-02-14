@@ -530,6 +530,9 @@ const common = {
           "Connect messaging platforms to your AI assistant with token and channel config.",
         moreChannels: "More channels",
         unsavedChanges: "You have unsaved changes",
+        credentialsError:
+          "Cannot connect to the credentials service. Check if Gateway is running or restart the app.",
+        checkGateway: "Check Gateway",
       },
       capabilities: {
         advanced: "Advanced",

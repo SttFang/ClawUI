@@ -10,6 +10,17 @@ function pickNonEmptyString(...values: unknown[]): string | null {
   return null
 }
 
+function normalizeToolCallId(value: string): string {
+  const normalized = value.trim()
+  if (!normalized) return normalized
+  const separatorIndex = normalized.indexOf('|')
+  if (separatorIndex <= 0) return normalized
+  const primary = normalized.slice(0, separatorIndex).trim()
+  if (!primary) return normalized
+  if (primary.startsWith('call_')) return primary
+  return normalized
+}
+
 function contentHashHint(content: unknown): string {
   if (content == null) return '0'
   const source = typeof content === 'string' ? content : JSON.stringify(content)
@@ -118,7 +129,7 @@ function extractToolResultOutput(block: ContentBlock): unknown {
 }
 
 function resolveMessageToolCallId(record: Record<string, unknown>, msgId: string): string {
-  return (
+  const resolved =
     pickNonEmptyString(
       record.toolCallId,
       record.tool_call_id,
@@ -130,7 +141,7 @@ function resolveMessageToolCallId(record: Record<string, unknown>, msgId: string
       record.client_run_id,
       record.id
     ) ?? `${msgId}:tool`
-  )
+  return normalizeToolCallId(resolved)
 }
 
 function resolveMessageToolName(record: Record<string, unknown>): string {
@@ -256,11 +267,81 @@ function shouldSkipInternalSystemUser(record: Record<string, unknown>, role: UIM
   return readInternalProvenanceKind(record) === 'internal_system'
 }
 
+function normalizeToolInputForCompare(input: unknown): string {
+  if (input == null) return ''
+  if (typeof input === 'string') return input.trim()
+  try {
+    return JSON.stringify(input)
+  } catch {
+    return String(input)
+  }
+}
+
+function toolStatePriority(state: unknown): number {
+  if (state === 'output-error') return 4
+  if (state === 'output-available') return 3
+  if (state === 'input-streaming') return 2
+  if (state === 'input-available') return 1
+  return 0
+}
+
+function isSyntheticToolCallId(value: string): boolean {
+  const normalized = value.trim()
+  if (!normalized) return true
+  if (normalized.endsWith(':tool') || normalized.includes(':tool-')) return true
+  if (normalized.startsWith('assistant:') || normalized.startsWith('system:')) return true
+  return false
+}
+
+function collapseAdjacentToolMessages(messages: UIMessage[]): UIMessage[] {
+  const collapsed: UIMessage[] = []
+  for (const current of messages) {
+    const last = collapsed[collapsed.length - 1]
+    const currentPart = current.parts.length === 1 ? current.parts[0] : null
+    const lastPart = last && last.parts.length === 1 ? last.parts[0] : null
+    if (
+      !last ||
+      !currentPart ||
+      !lastPart ||
+      current.role !== 'assistant' ||
+      last.role !== 'assistant' ||
+      currentPart.type !== 'dynamic-tool' ||
+      lastPart.type !== 'dynamic-tool'
+    ) {
+      collapsed.push(current)
+      continue
+    }
+
+    const currentToolCallId = normalizeToolCallId(currentPart.toolCallId)
+    const lastToolCallId = normalizeToolCallId(lastPart.toolCallId)
+    const sameTool = currentPart.toolName.trim().toLowerCase() === lastPart.toolName.trim().toLowerCase()
+    const sameInput = normalizeToolInputForCompare(currentPart.input) === normalizeToolInputForCompare(lastPart.input)
+    const sameCall = currentToolCallId === lastToolCallId
+    const canLinkBySyntheticId =
+      sameInput && (isSyntheticToolCallId(currentToolCallId) || isSyntheticToolCallId(lastToolCallId))
+
+    if (!sameTool || (!sameCall && !canLinkBySyntheticId)) {
+      collapsed.push(current)
+      continue
+    }
+
+    const keepCurrent = toolStatePriority(currentPart.state) >= toolStatePriority(lastPart.state)
+    if (keepCurrent) {
+      const normalizedCurrent = {
+        ...current,
+        parts: [{ ...currentPart, toolCallId: sameCall ? currentToolCallId : currentPart.toolCallId }],
+      } as UIMessage
+      collapsed[collapsed.length - 1] = normalizedCurrent
+    }
+  }
+  return collapsed
+}
+
 export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[] {
   const input = Array.isArray(rawMessages) ? rawMessages : []
   const idSeenCount = new Map<string, number>()
 
-  return input
+  const mapped = input
     .map((m, idx): UIMessage | null => {
       if (!m || typeof m !== 'object') return null
       const record = m as Record<string, unknown>
@@ -318,9 +399,10 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
           const output = isToolResultLike ? maybeAddExecFallbackOutput(toolName, maybeOutput) : undefined
           if (typeof output !== 'undefined') toolOutputs.push(output)
 
-          const toolCallId =
+          const toolCallId = normalizeToolCallId(
             callToolCallId ??
-            (toolCalls.length > 1 ? `${baseToolCallId}-${i + 1}` : baseToolCallId)
+              (toolCalls.length > 1 ? `${baseToolCallId}-${i + 1}` : baseToolCallId)
+          )
 
           // Keep strict part typing: `output-available` requires an `output` field,
           // while `input-available` must not include it.
@@ -364,4 +446,6 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
       }
     })
     .filter((x): x is UIMessage => Boolean(x))
+
+  return collapseAdjacentToolMessages(mapped)
 }

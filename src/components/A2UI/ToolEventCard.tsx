@@ -11,6 +11,7 @@ import { EXEC_RUNNING_TTL_MS } from "@/store/execApprovals/helpers";
 const RUNNING_TICK_MS = 1000;
 
 function formatJson(value: unknown): string {
+  if (typeof value === "string") return value;
   try {
     return JSON.stringify(value, null, 2);
   } catch {
@@ -167,9 +168,9 @@ export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: str
 
           {readPath ? (
             <TaskItem>
-              <span className="inline-flex items-center gap-1">
+              <div className="inline-flex items-center gap-1">
                 {t("a2ui.tool.readingFile")} <FileBadge path={readPath} />
-              </span>
+              </div>
             </TaskItem>
           ) : null}
 

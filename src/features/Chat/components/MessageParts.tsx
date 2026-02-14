@@ -76,6 +76,17 @@ function isExecLikeToolName(name: string): boolean {
   return normalized === "exec" || normalized === "bash";
 }
 
+function normalizeToolCallId(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) return normalized;
+  const separatorIndex = normalized.indexOf("|");
+  if (separatorIndex <= 0) return normalized;
+  const primary = normalized.slice(0, separatorIndex).trim();
+  if (!primary) return normalized;
+  if (primary.startsWith("call_")) return primary;
+  return normalized;
+}
+
 function readCommandFromInput(input: unknown): string {
   if (!input || typeof input !== "object") return "";
   const value = (input as Record<string, unknown>).command;
@@ -242,14 +253,19 @@ export function MessageParts(props: {
 
       if (!isDynamicToolPartLike(part)) continue;
       if (!isExecLikeToolName(part.toolName)) {
+        const stableToolCallId = normalizeToolCallId(part.toolCallId);
+        const normalizedPart =
+          stableToolCallId && stableToolCallId !== part.toolCallId
+            ? ({ ...part, toolCallId: stableToolCallId } as DynamicToolUIPart)
+            : part;
         nextItems[index] = {
           kind: "tool",
-          key: `tool:${part.toolCallId}:${index}`,
-          toolCallId: part.toolCallId,
+          key: `tool:${stableToolCallId || part.toolCallId}:${index}`,
+          toolCallId: stableToolCallId || part.toolCallId,
           node: (
             <ToolEventCard
-              key={`tool:${part.toolCallId}:${index}`}
-              part={part}
+              key={`tool:${stableToolCallId || part.toolCallId}:${index}`}
+              part={normalizedPart}
               sessionKey={sessionKey}
             />
           ),

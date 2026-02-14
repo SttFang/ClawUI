@@ -1,3 +1,4 @@
+import type { CanonicalOpenClawConfig } from "@clawui/types/config-canonical";
 import { randomBytes } from "crypto";
 import { existsSync } from "fs";
 import { readFile, writeFile, mkdir } from "fs/promises";
@@ -6,8 +7,6 @@ import { homedir } from "os";
 import { join, dirname } from "path";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { configLog } from "../lib/logger";
-
-import type { CanonicalOpenClawConfig } from "@clawui/types/config-canonical";
 
 export type OpenClawConfig = CanonicalOpenClawConfig;
 
@@ -25,10 +24,6 @@ export function createDefaultConfig(port: number): OpenClawConfig {
     agents: {
       defaults: {
         workspace: "~/.openclaw/workspace",
-        model: {
-          primary: "anthropic/claude-sonnet-4-5-20250929",
-          fallbacks: ["openai/gpt-4o"],
-        },
       },
     },
     session: {
@@ -41,8 +36,8 @@ export function createDefaultConfig(port: number): OpenClawConfig {
     },
     channels: {},
     tools: {
-      allow: ["group:fs", "web_*"],
-      deny: ["exec"],
+      allow: ["group:fs", "group:runtime"],
+      deny: [],
     },
     env: {},
     cron: {

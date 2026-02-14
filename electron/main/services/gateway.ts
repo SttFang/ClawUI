@@ -1,11 +1,10 @@
+import type { CanonicalOpenClawConfig } from "@clawui/types/config-canonical";
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import net from "net";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { gatewayLog } from "../lib/logger";
 import { buildLoginShellInvocation, execInLoginShell } from "../utils/login-shell";
-
-import type { CanonicalOpenClawConfig } from "@clawui/types/config-canonical";
 
 export type GatewayStatus = "stopped" | "starting" | "running" | "error";
 

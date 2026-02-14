@@ -285,7 +285,7 @@ export class OpenClawConfigBridge {
         defaults: {
           workspace: readString(defaults?.workspace) ?? "~/.openclaw/workspace",
           model: {
-            primary: readString(model?.primary) ?? "anthropic/claude-sonnet-4-5-20250929",
+            primary: readString(model?.primary) ?? "",
             fallbacks: toStringArray(model?.fallbacks) ?? [],
           },
           sandbox: { enabled: sandboxEnabledFromActual(actual) },

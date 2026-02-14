@@ -1,7 +1,7 @@
 import type { UIMessage } from "ai";
 import { openclawTranscriptToUIMessages } from "@clawui/claw-sse";
 import { useCallback, useEffect, useRef } from "react";
-import { clearTracesForSession } from "@/components/A2UI/execTrace";
+import { clearTracesForSession } from "@/features/Chat/components/A2UI/execTrace";
 import { ipc, type ChatNormalizedRunEvent, type GatewayEventFrame } from "@/lib/ipc";
 import { chatLog } from "@/lib/logger";
 import { useExecApprovalsStore } from "@/store/exec";

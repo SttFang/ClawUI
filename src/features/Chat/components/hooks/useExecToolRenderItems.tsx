@@ -2,7 +2,7 @@ import type { DynamicToolUIPart, UIMessage } from "ai";
 import type { ReactElement } from "react";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { ExecCard } from "@/components/A2UI";
+import { ExecCard } from "@/features/Chat/components/A2UI";
 import { getCommandFromInput, isExecToolName } from "@/lib/exec";
 import {
   createTerminalRecord,
@@ -195,15 +195,13 @@ export function useExecToolRenderItems(
       if (seenAttempts.has(projected.attemptId)) continue;
       seenAttempts.add(projected.attemptId);
 
-      const authoritative = recordsByKey[projected.attemptId];
-      if (
-        authoritative &&
-        authoritative.messageId !== message.id &&
-        (isTerminalExecLifecycleStatus(authoritative.status) ||
-          authoritative.updatedAtMs >= mergedPending.updatedAtMs)
-      ) {
-        continue;
-      }
+      // Look up authoritative record from store — try projected attemptId first,
+      // then fall back to toolCallId index (handles approval:X ≠ attempt:Y mismatch)
+      const authoritative =
+        recordsByKey[projected.attemptId] ||
+        (fromToolCall && fromToolCall !== projected.attemptId
+          ? recordsByKey[fromToolCall]
+          : undefined);
 
       const record = authoritative
         ? mergeExecLifecycleRecord(authoritative, mergedPending)

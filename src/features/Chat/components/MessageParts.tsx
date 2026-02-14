@@ -2,7 +2,7 @@ import type { DynamicToolUIPart, UIMessage } from "ai";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ToolEventCard } from "@/components/A2UI";
+import { ToolEventCard } from "@/features/Chat/components/A2UI";
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
 import { isExecToolName, normalizeToolCallId } from "@/lib/exec";
 import { isLikelyToolReceiptText } from "@/lib/exec/systemTextParsing";
@@ -136,7 +136,7 @@ export function MessageParts(props: {
 
       if (isTextPartLike(part)) {
         if (!part.text.trim()) continue;
-        if (message.role !== "user" && isLikelyToolReceiptText(part.text)) continue;
+        if (isLikelyToolReceiptText(part.text)) continue;
         nextItems[index] = {
           kind: "text",
           key: `text:${index}`,

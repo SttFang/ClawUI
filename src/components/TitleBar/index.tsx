@@ -1,5 +1,5 @@
-import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { LanguageManager } from "@/components/LanguageManager";
+import { ConnectionStatus } from "@/features/Chat/components/ConnectionStatus";
 
 /**
  * TitleBar - 应用顶边栏

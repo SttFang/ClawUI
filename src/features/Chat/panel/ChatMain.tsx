@@ -1,4 +1,4 @@
-import { ConfigBanner } from "@/components/ConfigBanner";
+import { ConfigBanner } from "@/features/Chat/components/ConfigBanner";
 import { OpenClawChatPanel } from "../components/OpenClawChatPanel";
 import { useChatFeature } from "../useChatFeature";
 

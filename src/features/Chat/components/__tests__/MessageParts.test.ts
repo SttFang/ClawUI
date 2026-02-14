@@ -15,8 +15,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-vi.mock("@/components/A2UI", async () => {
-  const actual = await vi.importActual<typeof import("@/components/A2UI")>("@/components/A2UI");
+vi.mock("@/features/Chat/components/A2UI", async () => {
+  const actual = await vi.importActual<typeof import("@/features/Chat/components/A2UI")>(
+    "@/features/Chat/components/A2UI",
+  );
   return {
     ...actual,
     ExecCard: ({

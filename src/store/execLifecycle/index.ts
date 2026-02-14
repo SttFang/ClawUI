@@ -20,5 +20,6 @@ export {
   selectExecLifecycleByKey,
   selectExecLifecycleBySession,
   selectLatestAttemptIdBySessionCommand,
+  execLifecycleSelectors,
 } from "./selectors";
 export type { ExecLifecycleRecord, ExecLifecycleStatus, ExecLifecycleStore } from "./types";

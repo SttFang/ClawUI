@@ -51,6 +51,7 @@ export {
   selectExecLifecycleByKey,
   selectExecLifecycleBySession,
   selectLatestAttemptIdBySessionCommand,
+  execLifecycleSelectors,
 } from "@/store/execLifecycle";
 export type {
   ExecLifecycleRecord,

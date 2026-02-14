@@ -45,3 +45,12 @@ export function selectLatestAttemptIdBySessionCommand(
 ): string | undefined {
   return state.latestAttemptIdBySessionCommand[sessionCommandKey];
 }
+
+export const execLifecycleSelectors = {
+  selectAttemptIdByApprovalId,
+  selectAttemptIdByGatewayId,
+  selectAttemptIdByToolCallId,
+  selectExecLifecycleByKey,
+  selectExecLifecycleBySession,
+  selectLatestAttemptIdBySessionCommand,
+};

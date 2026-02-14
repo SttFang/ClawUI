@@ -235,6 +235,20 @@ export const useConfigDraftStore = create<ConfigDraftStore>()(
 
 export const selectConfigDraft = (state: ConfigDraftStore) => state.draft;
 export const selectConfigSnapshot = (state: ConfigDraftStore) => state.snapshot;
+export const selectConfigSchema = (state: ConfigDraftStore) => state.schema;
 export const selectConfigDraftError = (state: ConfigDraftStore) => state.error;
 export const selectConfigDraftErrorCode = (state: ConfigDraftStore) => state.errorCode;
 export const selectConfigDraftSaving = (state: ConfigDraftStore) => state.isSaving;
+export const selectConfigDraftLoading = (state: ConfigDraftStore) => state.isLoading;
+export const selectConfigDraftDirty = (state: ConfigDraftStore) => state.isDirty;
+
+export const configDraftSelectors = {
+  selectConfigDraft,
+  selectConfigSnapshot,
+  selectConfigSchema,
+  selectConfigDraftError,
+  selectConfigDraftErrorCode,
+  selectConfigDraftSaving,
+  selectConfigDraftLoading,
+  selectConfigDraftDirty,
+};

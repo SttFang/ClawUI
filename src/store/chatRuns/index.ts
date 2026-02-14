@@ -116,6 +116,17 @@ export const useChatRunsStore = create<ChatRunsStore>()(
   ),
 );
 
+// --- Selectors ---
+export const selectRunsByTraceId = (state: ChatRunsState) => state.runsByTraceId;
+export const selectLatestTraceBySession = (state: ChatRunsState) => state.latestTraceBySession;
+export const selectRecentEvents = (state: ChatRunsState) => state.recentEvents;
+
+export const chatRunsSelectors = {
+  selectRunsByTraceId,
+  selectLatestTraceBySession,
+  selectRecentEvents,
+};
+
 let chatRunsListenerInitialized = false;
 export function initChatRunsListener() {
   if (chatRunsListenerInitialized || typeof window === "undefined") return;

@@ -1,10 +1,16 @@
 import { existsSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { dirname, join } from "path";
+import lockfile from "proper-lockfile";
 import { configLog } from "../lib/logger";
 
 const AUTH_STORE_VERSION = 1;
 const AUTH_PROFILE_FILENAME = "auth-profiles.json";
+
+const LOCK_OPTIONS: lockfile.LockOptions = {
+  retries: { retries: 10, factor: 2, minTimeout: 100, maxTimeout: 10_000, randomize: true },
+  stale: 30_000,
+};
 
 type ApiKeyCredential = {
   type: "api_key";
@@ -47,6 +53,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+const EMPTY_STORE: AuthProfileStore = { version: AUTH_STORE_VERSION, profiles: {} };
+
 export class AuthProfileAdapter {
   private readonly storePath: string;
 
@@ -60,14 +68,14 @@ export class AuthProfileAdapter {
 
   async read(): Promise<AuthProfileStore> {
     if (!existsSync(this.storePath)) {
-      return { version: AUTH_STORE_VERSION, profiles: {} };
+      return { ...EMPTY_STORE, profiles: {} };
     }
     try {
       const raw = await readFile(this.storePath, "utf-8");
       const parsed: unknown = JSON.parse(raw);
       if (!isRecord(parsed) || !isRecord(parsed.profiles)) {
         configLog.warn("[auth-profile.read.invalid]", this.storePath);
-        return { version: AUTH_STORE_VERSION, profiles: {} };
+        return { ...EMPTY_STORE, profiles: {} };
       }
       return parsed as AuthProfileStore;
     } catch (error) {
@@ -75,15 +83,12 @@ export class AuthProfileAdapter {
         "[auth-profile.read.failed]",
         error instanceof Error ? error.message : String(error),
       );
-      return { version: AUTH_STORE_VERSION, profiles: {} };
+      return { ...EMPTY_STORE, profiles: {} };
     }
   }
 
   async write(store: AuthProfileStore): Promise<void> {
-    const dir = dirname(this.storePath);
-    if (!existsSync(dir)) {
-      await mkdir(dir, { recursive: true });
-    }
+    await this.ensureFile();
     const content = JSON.stringify(store, null, 2).concat("\n");
     await writeFile(this.storePath, content, { encoding: "utf-8", mode: 0o600 });
   }
@@ -94,20 +99,25 @@ export class AuthProfileAdapter {
   }
 
   async setProfile(profileId: string, credential: AuthProfileCredential): Promise<void> {
-    const store = await this.read();
-    store.profiles[profileId] = credential;
-    store.version = AUTH_STORE_VERSION;
-    await this.write(store);
+    await this.updateWithLock((store) => {
+      store.profiles[profileId] = credential;
+      return true;
+    });
     configLog.info("[auth-profile.set]", `profileId=${profileId} provider=${credential.provider}`);
   }
 
   async deleteProfile(profileId: string): Promise<boolean> {
-    const store = await this.read();
-    if (!(profileId in store.profiles)) return false;
-    delete store.profiles[profileId];
-    await this.write(store);
-    configLog.info("[auth-profile.delete]", `profileId=${profileId}`);
-    return true;
+    let deleted = false;
+    await this.updateWithLock((store) => {
+      if (!(profileId in store.profiles)) return false;
+      delete store.profiles[profileId];
+      deleted = true;
+      return true;
+    });
+    if (deleted) {
+      configLog.info("[auth-profile.delete]", `profileId=${profileId}`);
+    }
+    return deleted;
   }
 
   async hasKey(provider: string): Promise<boolean> {
@@ -119,5 +129,40 @@ export class AuthProfileAdapter {
     if (profile.type === "token") return Boolean(profile.token);
     if (profile.type === "oauth") return Boolean(profile.access);
     return false;
+  }
+
+  /**
+   * Atomically read-modify-write the store under a file lock.
+   * The updater receives the current store and should return `true` to write changes.
+   */
+  async updateWithLock(
+    updater: (store: AuthProfileStore) => boolean,
+  ): Promise<AuthProfileStore> {
+    await this.ensureFile();
+    const release = await lockfile.lock(this.storePath, LOCK_OPTIONS);
+    try {
+      const store = await this.read();
+      const shouldWrite = updater(store);
+      if (shouldWrite) {
+        store.version = AUTH_STORE_VERSION;
+        const content = JSON.stringify(store, null, 2).concat("\n");
+        await writeFile(this.storePath, content, { encoding: "utf-8", mode: 0o600 });
+      }
+      return store;
+    } finally {
+      await release();
+    }
+  }
+
+  /** Ensure the store file exists so lockfile can acquire a lock on it. */
+  private async ensureFile(): Promise<void> {
+    const dir = dirname(this.storePath);
+    if (!existsSync(dir)) {
+      await mkdir(dir, { recursive: true });
+    }
+    if (!existsSync(this.storePath)) {
+      const content = JSON.stringify(EMPTY_STORE, null, 2).concat("\n");
+      await writeFile(this.storePath, content, { encoding: "utf-8", mode: 0o600 });
+    }
   }
 }

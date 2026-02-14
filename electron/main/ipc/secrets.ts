@@ -15,7 +15,10 @@ const ALLOWED_SECRET_ENV_KEYS = new Set<string>([
   "SLACK_APP_TOKEN",
 ]);
 
-const ENV_KEY_TO_CHANNEL: Record<string, { channelType: string; tokenField: "botToken" | "appToken" }> = {
+const ENV_KEY_TO_CHANNEL: Record<
+  string,
+  { channelType: string; tokenField: "botToken" | "appToken" }
+> = {
   DISCORD_BOT_TOKEN: { channelType: "discord", tokenField: "botToken" },
   DISCORD_APP_TOKEN: { channelType: "discord", tokenField: "appToken" },
   TELEGRAM_BOT_TOKEN: { channelType: "telegram", tokenField: "botToken" },

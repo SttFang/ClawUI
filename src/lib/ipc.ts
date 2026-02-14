@@ -7,6 +7,12 @@ import type { ChatNormalizedRunEvent } from "@clawui/types/chat-normalized/event
 import type { ClawUIState, ClawUISessionMetadata } from "@clawui/types/clawui";
 import type { OpenClawConfig, OnboardingOpenClawConfig, ChannelConfig } from "@clawui/types/config";
 import type {
+  ConfigSchemaV2,
+  ConfigSetDraftInputV2,
+  ConfigSetDraftResponseV2,
+  ConfigSnapshotV2,
+} from "@clawui/types/config-v2";
+import type {
   CredentialMeta,
   SetLlmKeyInput,
   SetChannelTokenInput,
@@ -14,12 +20,6 @@ import type {
   ValidateKeyResult,
   DeleteCredentialInput,
 } from "@clawui/types/credentials";
-import type {
-  ConfigSchemaV2,
-  ConfigSetDraftInputV2,
-  ConfigSetDraftResponseV2,
-  ConfigSnapshotV2,
-} from "@clawui/types/config-v2";
 import type { GatewayStatus, GatewayEventFrame } from "@clawui/types/gateway";
 import type {
   ModelsAuthOrderResult,

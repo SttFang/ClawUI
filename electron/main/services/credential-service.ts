@@ -14,9 +14,9 @@ import { existsSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { homedir } from "os";
 import { dirname, join } from "path";
+import type { ConfigService } from "./config";
 import { configLog } from "../lib/logger";
 import { AuthProfileAdapter } from "./auth-profile-adapter";
-import type { ConfigService } from "./config";
 
 const ENV_ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY";
 const ENV_OPENAI_API_KEY = "OPENAI_API_KEY";
@@ -48,9 +48,7 @@ export class CredentialService {
   private readonly encCachePath: string;
   private encCache: Record<string, Buffer> = {};
 
-  constructor(
-    private readonly configService: ConfigService,
-  ) {
+  constructor(private readonly configService: ConfigService) {
     const openclawDir = dirname(configService.getConfigPath());
     this.authProfiles = new AuthProfileAdapter(join(openclawDir, "agents"));
     this.encCachePath = join(homedir(), ".clawui", "credentials.enc");
@@ -175,7 +173,11 @@ export class CredentialService {
       // id format: "discord:botToken"
       const [channelType, tokenField] = input.id.split(":");
       if (channelType && tokenField) {
-        await this.setChannelToken({ channelType, tokenField: tokenField as "botToken" | "appToken", value: "" });
+        await this.setChannelToken({
+          channelType,
+          tokenField: tokenField as "botToken" | "appToken",
+          value: "",
+        });
       }
     } else if (input.category === "proxy") {
       await this.configService.patchEnv({

@@ -1,4 +1,9 @@
-import type { DeleteCredentialInput, SetChannelTokenInput, SetLlmKeyInput, SetProxyInput } from "@clawui/types/credentials";
+import type {
+  DeleteCredentialInput,
+  SetChannelTokenInput,
+  SetLlmKeyInput,
+  SetProxyInput,
+} from "@clawui/types/credentials";
 import type { IpcMain } from "electron";
 import type { CredentialService } from "../services/credential-service";
 
@@ -14,12 +19,9 @@ export function registerCredentialHandlers(
     await credentialService.setLlmKey(input);
   });
 
-  ipcMain.handle(
-    "credentials:validate",
-    async (_event, provider: string, key: string) => {
-      return credentialService.validateLlmKey(provider, key);
-    },
-  );
+  ipcMain.handle("credentials:validate", async (_event, provider: string, key: string) => {
+    return credentialService.validateLlmKey(provider, key);
+  });
 
   ipcMain.handle("credentials:set-channel", async (_event, input: SetChannelTokenInput) => {
     await credentialService.setChannelToken(input);

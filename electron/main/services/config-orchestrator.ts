@@ -11,9 +11,9 @@ import { readFile } from "fs/promises";
 import JSON5 from "json5";
 import type { ConfigService } from "./config";
 import { configLog } from "../lib/logger";
-import { redactSnapshot, restoreRedactedValues, REDACTED_SENTINEL } from "./snapshot-redact";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
 import { chatWebSocket } from "./chat-websocket";
+import { redactSnapshot, restoreRedactedValues, REDACTED_SENTINEL } from "./snapshot-redact";
 
 type JsonObject = Record<string, unknown>;
 

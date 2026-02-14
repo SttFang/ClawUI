@@ -1,9 +1,9 @@
 import type { OnboardingOpenClawConfig } from "@clawui/types/config";
 import type { BYOKConfig, SubscriptionConfig } from "@clawui/types/onboarding";
+import type { CredentialService } from "./credential-service";
 import { onboardingLog } from "../lib/logger";
 import { ConfigService } from "./config";
 import { ConfigRepository } from "./config-repository";
-import type { CredentialService } from "./credential-service";
 
 export { type BYOKConfig, type SubscriptionConfig };
 export type OpenClawConfig = OnboardingOpenClawConfig;

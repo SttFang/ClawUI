@@ -10,7 +10,10 @@ type TokenFieldKey =
   | "slackBotToken"
   | "slackAppToken";
 
-const TOKEN_FIELD_MAP: Record<TokenFieldKey, { channelType: string; tokenField: "botToken" | "appToken" }> = {
+const TOKEN_FIELD_MAP: Record<
+  TokenFieldKey,
+  { channelType: string; tokenField: "botToken" | "appToken" }
+> = {
   discordBotToken: { channelType: "discord", tokenField: "botToken" },
   discordAppToken: { channelType: "discord", tokenField: "appToken" },
   telegramBotToken: { channelType: "telegram", tokenField: "botToken" },
@@ -59,9 +62,7 @@ function findChannelMeta(
   channelType: string,
   tokenField: string,
 ): ChannelCredentialMeta | undefined {
-  return credentials.find(
-    (c) => c.channelType === channelType && c.tokenField === tokenField,
-  );
+  return credentials.find((c) => c.channelType === channelType && c.tokenField === tokenField);
 }
 
 export const useSecretsStore = create<SecretsStore>()(

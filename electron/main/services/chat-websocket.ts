@@ -249,5 +249,3 @@ export class ChatWebSocketService extends EventEmitter {
     }
   }
 }
-
-export const chatWebSocket = new ChatWebSocketService();

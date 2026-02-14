@@ -1,9 +1,9 @@
 import type { IpcMain } from "electron";
+import type { ChatWebSocketService } from "../services/chat-websocket";
 import type { ClawUIStateService, ClawUISessionMetadata } from "../services/clawui-state";
 import type { ConfigService } from "../services/config";
 import type { OpenClawProfilesService } from "../services/openclaw-profiles";
 import { mainLog } from "../lib/logger";
-import { chatWebSocket } from "../services/chat-websocket";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
 import { resolveOpenClawPath, runOpenClawJson } from "../utils/openclaw-cli";
 
@@ -62,9 +62,10 @@ export function registerMetadataHandlers(
     stateService: ClawUIStateService;
     profilesService: OpenClawProfilesService;
     mainConfigService: ConfigService;
+    chatWebSocket: ChatWebSocketService;
   },
 ): void {
-  const { stateService, profilesService, mainConfigService } = options;
+  const { stateService, profilesService, mainConfigService, chatWebSocket } = options;
 
   ipcMain.handle(
     "metadata:generate",
@@ -77,7 +78,7 @@ export function registerMetadataHandlers(
 
       // Ensure both profiles exist before we try to read env from the config-agent profile.
       await profilesService.initialize();
-      await ensureGatewayConnected(mainConfigService);
+      await ensureGatewayConnected(mainConfigService, chatWebSocket);
 
       const preview = await chatWebSocket.request("sessions.preview", {
         keys: [sessionKey],

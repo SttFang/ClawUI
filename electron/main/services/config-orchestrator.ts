@@ -9,11 +9,11 @@ import { createHash } from "crypto";
 import { existsSync } from "fs";
 import { readFile } from "fs/promises";
 import JSON5 from "json5";
+import type { ChatWebSocketService } from "./chat-websocket";
 import type { ConfigService } from "./config";
 import { configLog } from "../lib/logger";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
 import { isRecord } from "../utils/type-guards";
-import { chatWebSocket } from "./chat-websocket";
 import { redactSnapshot, restoreRedactedValues, REDACTED_SENTINEL } from "./snapshot-redact";
 
 type JsonObject = Record<string, unknown>;
@@ -91,12 +91,17 @@ function mapGatewayErrorToCode(message: string): ConfigErrorCode {
 }
 
 export class ConfigOrchestrator {
+  private readonly chatWebSocket: ChatWebSocketService;
+
   constructor(
     private readonly options: {
       configPath: string;
       configService: ConfigService;
+      chatWebSocket: ChatWebSocketService;
     },
-  ) {}
+  ) {
+    this.chatWebSocket = options.chatWebSocket;
+  }
 
   async getSnapshot(): Promise<ConfigSnapshotV2> {
     const gatewaySnapshot = await this.tryGetSnapshotViaGateway();
@@ -137,8 +142,8 @@ export class ConfigOrchestrator {
 
   private async tryGetSnapshotViaGateway(): Promise<ConfigSnapshotV2 | null> {
     try {
-      await ensureGatewayConnected(this.options.configService);
-      const payload = (await chatWebSocket.request("config.get", {})) as ConfigRpcSnapshot;
+      await ensureGatewayConnected(this.options.configService, this.chatWebSocket);
+      const payload = (await this.chatWebSocket.request("config.get", {})) as ConfigRpcSnapshot;
       return this.normalizeGatewaySnapshot(payload);
     } catch (error) {
       configLog.debug(
@@ -151,8 +156,8 @@ export class ConfigOrchestrator {
 
   private async tryGetSchemaViaGateway(): Promise<ConfigSchemaV2 | null> {
     try {
-      await ensureGatewayConnected(this.options.configService);
-      const payload = (await chatWebSocket.request("config.schema", {})) as ConfigRpcSchema;
+      await ensureGatewayConnected(this.options.configService, this.chatWebSocket);
+      const payload = (await this.chatWebSocket.request("config.schema", {})) as ConfigRpcSchema;
       return this.normalizeGatewaySchema(payload);
     } catch (error) {
       configLog.debug(
@@ -167,8 +172,8 @@ export class ConfigOrchestrator {
     input: ConfigSetDraftInputV2,
   ): Promise<ConfigSetDraftResponseV2> {
     try {
-      await ensureGatewayConnected(this.options.configService);
-      await chatWebSocket.request("config.set", {
+      await ensureGatewayConnected(this.options.configService, this.chatWebSocket);
+      await this.chatWebSocket.request("config.set", {
         raw: input.raw,
         baseHash: input.baseHash,
       });
@@ -180,7 +185,7 @@ export class ConfigOrchestrator {
       };
       // Notify gateway to hot-reload config
       try {
-        await chatWebSocket.request("config.reload", {});
+        await this.chatWebSocket.request("config.reload", {});
       } catch {
         configLog.warn("[config.orchestrator.reload.skipped]");
       }
@@ -188,7 +193,7 @@ export class ConfigOrchestrator {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       // Gateway is reachable but rejected request -> surface structured error.
-      if (chatWebSocket.isConnected()) {
+      if (this.chatWebSocket.isConnected()) {
         return toOrchestratorFailure(mapGatewayErrorToCode(message), message);
       }
       configLog.warn("[config.orchestrator.set.gateway.unavailable]", message);
@@ -234,8 +239,8 @@ export class ConfigOrchestrator {
   /** Get un-redacted snapshot for sentinel restoration during setDraft. */
   private async getRawSnapshot(): Promise<ConfigSnapshotV2 | null> {
     try {
-      await ensureGatewayConnected(this.options.configService);
-      const payload = (await chatWebSocket.request("config.get", {})) as ConfigRpcSnapshot;
+      await ensureGatewayConnected(this.options.configService, this.chatWebSocket);
+      const payload = (await this.chatWebSocket.request("config.get", {})) as ConfigRpcSnapshot;
       return this.normalizeGatewaySnapshot(payload);
     } catch {
       return this.readLocalSnapshot();

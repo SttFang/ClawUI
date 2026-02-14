@@ -1,11 +1,12 @@
+import type { ChatWebSocketService } from "../services/chat-websocket";
 import type { ConfigService } from "../services/config";
-import { chatWebSocket } from "../services/chat-websocket";
 
 /**
- * Shared helper: read gateway config → set token/url → connect if needed.
+ * Shared helper: read gateway config -> set token/url -> connect if needed.
  */
 export async function ensureGatewayConnected(
   configService: ConfigService,
+  chatWebSocket: ChatWebSocketService,
   url?: string,
 ): Promise<void> {
   const config = await configService.getConfig();

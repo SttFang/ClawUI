@@ -1,10 +1,10 @@
 import type { ChatNormalizedRunEvent } from "@clawui/types";
 import { ipcMain, BrowserWindow } from "electron";
-import {
-  chatWebSocket,
+import type {
+  ChatWebSocketService,
   ChatRequest,
   ChatStreamEvent,
-  type GatewayEventFrame,
+  GatewayEventFrame,
 } from "../services/chat-websocket";
 import { ConfigService } from "../services/config";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
@@ -12,10 +12,11 @@ import { ensureGatewayConnected } from "../utils/ensure-connected";
 export function registerChatHandlers(
   mainWindow: BrowserWindow,
   configService: ConfigService,
+  chatWebSocket: ChatWebSocketService,
 ): void {
   // Connect to WebSocket
   ipcMain.handle("chat:connect", async (_, url?: string) => {
-    await ensureGatewayConnected(configService, url);
+    await ensureGatewayConnected(configService, chatWebSocket, url);
     return true;
   });
 
@@ -34,7 +35,7 @@ export function registerChatHandlers(
   ipcMain.handle(
     "chat:request",
     async (_, method: string, params?: Record<string, unknown>): Promise<unknown> => {
-      await ensureGatewayConnected(configService);
+      await ensureGatewayConnected(configService, chatWebSocket);
       return chatWebSocket.request(method, params);
     },
   );

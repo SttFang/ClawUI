@@ -15,7 +15,7 @@ import { registerSkillsHandlers } from "./ipc/skills";
 import { registerStateHandlers } from "./ipc/state";
 import { registerUsageHandlers } from "./ipc/usage";
 import { initLogger, mainLog } from "./lib/logger";
-import { chatWebSocket } from "./services/chat-websocket";
+import { ChatWebSocketService } from "./services/chat-websocket";
 import { ClawUIStateService } from "./services/clawui-state";
 import { ConfigOrchestrator } from "./services/config-orchestrator";
 import { configurator } from "./services/configurator";
@@ -30,12 +30,14 @@ import { createMainWindow } from "./window/create-main-window";
 initLogger();
 
 // Services
+const chatWebSocket = new ChatWebSocketService();
 const gatewayService = new GatewayService();
 const profilesService = new OpenClawProfilesService();
 const configService = profilesService.getConfigService("main");
 const configOrchestrator = new ConfigOrchestrator({
   configPath: configService.getConfigPath(),
   configService,
+  chatWebSocket,
 });
 const updaterService = new UpdaterService();
 const clawUIStateService = new ClawUIStateService();
@@ -83,6 +85,7 @@ app.whenReady().then(async () => {
     stateService: clawUIStateService,
     profilesService,
     mainConfigService: configService,
+    chatWebSocket,
   });
   registerSecretsHandlers(ipcMain, profilesService, credentialService);
   registerSecurityHandlers(ipcMain);
@@ -97,8 +100,8 @@ app.whenReady().then(async () => {
 
   // Register chat handlers (needs mainWindow reference)
   chatWebSocket.setClientVersion(app.getVersion());
-  registerChatHandlers(mainWindow, configService);
-  registerUsageHandlers(configService);
+  registerChatHandlers(mainWindow, configService, chatWebSocket);
+  registerUsageHandlers(configService, chatWebSocket);
 
   // Initialize services
   try {

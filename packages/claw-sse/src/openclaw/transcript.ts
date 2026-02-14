@@ -319,17 +319,34 @@ function collapseAdjacentToolMessages(messages: UIMessage[]): UIMessage[] {
     const sameCall = currentToolCallId === lastToolCallId
     const canLinkBySyntheticId =
       sameInput && (isSyntheticToolCallId(currentToolCallId) || isSyntheticToolCallId(lastToolCallId))
+    const isInputToOutput =
+      (lastPart.state === 'input-available' || lastPart.state === 'input-streaming') &&
+      (currentPart.state === 'output-available' || currentPart.state === 'output-error')
+    const canLinkByStateProgression =
+      isInputToOutput && (isSyntheticToolCallId(currentToolCallId) || isSyntheticToolCallId(lastToolCallId))
 
-    if (!sameTool || (!sameCall && !canLinkBySyntheticId)) {
+    if (!sameTool || (!sameCall && !canLinkBySyntheticId && !canLinkByStateProgression)) {
       collapsed.push(current)
       continue
     }
 
     const keepCurrent = toolStatePriority(currentPart.state) >= toolStatePriority(lastPart.state)
     if (keepCurrent) {
+      // Merge input from the earlier part when the output part has empty input
+      const currentInputStr = normalizeToolInputForCompare(currentPart.input)
+      const lastInputStr = normalizeToolInputForCompare(lastPart.input)
+      const currentInputEmpty = !currentInputStr || currentInputStr === '{}' || currentInputStr === '[]'
+      const lastInputEmpty = !lastInputStr || lastInputStr === '{}' || lastInputStr === '[]'
+      const mergedInput = currentInputEmpty && !lastInputEmpty ? lastPart.input : currentPart.input
       const normalizedCurrent = {
         ...current,
-        parts: [{ ...currentPart, toolCallId: sameCall ? currentToolCallId : currentPart.toolCallId }],
+        parts: [
+          {
+            ...currentPart,
+            input: mergedInput,
+            toolCallId: sameCall ? currentToolCallId : currentPart.toolCallId,
+          },
+        ],
       } as UIMessage
       collapsed[collapsed.length - 1] = normalizedCurrent
     }
@@ -350,12 +367,18 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
       const role = normalizeMessageRole(roleRaw)
       if (!role) return null
       if (shouldSkipInternalSystemUser(record, role)) return null
+
       const rawMsgId = resolveStableMessageId(record, role, idx)
       const seenCount = idSeenCount.get(rawMsgId) ?? 0
       idSeenCount.set(rawMsgId, seenCount + 1)
       const msgId = seenCount === 0 ? rawMsgId : `${rawMsgId}:${seenCount + 1}`
 
       const contentBlocks = coerceContentBlocks(record.content)
+
+      if (role === 'user') {
+        const text = extractTextFromBlocks(contentBlocks, record.content)
+        if (isLikelyToolReceiptText(text)) return null
+      }
 
       const parts: UIMessage['parts'] = []
 
@@ -447,5 +470,33 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
     })
     .filter((x): x is UIMessage => Boolean(x))
 
-  return collapseAdjacentToolMessages(mapped)
+  return mergeAdjacentToolMessages(collapseAdjacentToolMessages(filterEmptyUserMessages(mapped)))
+}
+
+function isEmptyUserMessage(msg: UIMessage): boolean {
+  if (msg.role !== 'user') return false
+  return msg.parts.every(p => p.type !== 'text' || !p.text.trim())
+}
+
+function filterEmptyUserMessages(messages: UIMessage[]): UIMessage[] {
+  return messages.filter(m => !isEmptyUserMessage(m))
+}
+
+function mergeAdjacentToolMessages(messages: UIMessage[]): UIMessage[] {
+  const result: UIMessage[] = []
+  for (const current of messages) {
+    const last = result[result.length - 1]
+    if (
+      last &&
+      last.role === 'assistant' &&
+      current.role === 'assistant' &&
+      last.parts.every(p => p.type === 'dynamic-tool') &&
+      current.parts.every(p => p.type === 'dynamic-tool')
+    ) {
+      result[result.length - 1] = { ...last, parts: [...last.parts, ...current.parts] } as UIMessage
+      continue
+    }
+    result.push(current)
+  }
+  return result
 }

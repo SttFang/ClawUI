@@ -954,6 +954,8 @@ const common = {
       failed: "Failed {{command}}",
       awaitingApproval: "{{command}}（等待批准）",
       pending: "{{command}}",
+      inProgress: "执行中",
+      completed: "已执行",
     },
     execAction: {
       thinking: "思考中…",

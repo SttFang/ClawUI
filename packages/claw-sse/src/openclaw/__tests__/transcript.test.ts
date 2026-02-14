@@ -367,4 +367,167 @@ describe('openclawTranscriptToUIMessages', () => {
       },
     ])
   })
+
+  it('should skip tool receipt user messages (System: Exec finished)', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'a1',
+        role: 'assistant',
+        toolCallId: 'tc1',
+        content: [{ type: 'toolcall', name: 'exec', arguments: { command: 'ls' } }],
+      },
+      {
+        id: 'u-receipt',
+        role: 'user',
+        content: [{ type: 'text', text: 'System: Exec finished (code 0)' }],
+      },
+      {
+        id: 'tr1',
+        role: 'toolResult',
+        toolCallId: 'tc1',
+        toolName: 'exec',
+        result: 'file.txt',
+      },
+    ])
+
+    // receipt user message should be filtered; tool messages should merge
+    expect(ui.every(m => m.role === 'assistant')).toBe(true)
+    expect(ui.flatMap(m => m.parts).some(p => p.type === 'text' && p.text.includes('System:'))).toBe(false)
+  })
+
+  it('should skip empty text user messages', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'u-empty',
+        role: 'user',
+        content: [{ type: 'text', text: '   ' }],
+      },
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'hello' }],
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.id).toBe('a1')
+  })
+
+  it('should merge adjacent pure-tool assistant messages', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'tool-1',
+        role: 'toolResult',
+        toolCallId: 'tc1',
+        toolName: 'read',
+        result: 'file1',
+      },
+      {
+        id: 'tool-2',
+        role: 'toolResult',
+        toolCallId: 'tc2',
+        toolName: 'read',
+        result: 'file2',
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toHaveLength(2)
+    const parts = ui[0]?.parts.filter(p => p.type === 'dynamic-tool')
+    expect(parts).toHaveLength(2)
+  })
+
+  it('should not merge assistant messages when one contains text', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'tool-1',
+        role: 'toolResult',
+        toolCallId: 'tc1',
+        toolName: 'read',
+        result: 'file1',
+      },
+      {
+        id: 'a-text',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Let me explain...' }],
+      },
+    ])
+
+    expect(ui).toHaveLength(2)
+  })
+
+  it('should not merge tool messages separated by real user messages', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'tool-1',
+        role: 'toolResult',
+        toolCallId: 'tc1',
+        toolName: 'read',
+        result: 'file1',
+      },
+      {
+        id: 'u-real',
+        role: 'user',
+        content: [{ type: 'text', text: 'Now read another file' }],
+      },
+      {
+        id: 'tool-2',
+        role: 'toolResult',
+        toolCallId: 'tc2',
+        toolName: 'read',
+        result: 'file2',
+      },
+    ])
+
+    expect(ui).toHaveLength(3)
+    expect(ui[1]?.role).toBe('user')
+  })
+
+  it('should collapse input→output with different ids when one is synthetic (state progression)', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'assistant:1771052284748:h56r6u:175',
+        role: 'assistant',
+        toolName: 'exec',
+        content: [{ type: 'toolcall', name: 'exec', arguments: { command: 'ls' } }],
+      },
+      {
+        id: 'call_abc123',
+        role: 'toolResult',
+        toolCallId: 'call_abc123',
+        toolName: 'exec',
+        result: 'file.txt',
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toHaveLength(1)
+    const part = ui[0]?.parts[0]
+    expect(part?.type).toBe('dynamic-tool')
+    if (part?.type === 'dynamic-tool') {
+      expect(part.state).toBe('output-available')
+      expect(part.output).toBe('file.txt')
+      // Input from the earlier input-available message must be preserved
+      expect(part.input).toEqual({ command: 'ls' })
+    }
+  })
+
+  it('should preserve real user messages even with empty content blocks', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'u-real',
+        role: 'user',
+        content: '帮我看看这个目录',
+      },
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'OK' }],
+      },
+    ])
+
+    expect(ui).toHaveLength(2)
+    expect(ui[0]?.role).toBe('user')
+    expect(ui[0]?.parts).toEqual([{ type: 'text', text: '帮我看看这个目录' }])
+  })
 })

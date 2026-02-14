@@ -11,7 +11,20 @@ export const EXPLORE_PREVIEW_CHARS = 600;
 
 const HIDDEN_TOOL_NAMES = new Set(["session_status"]);
 
-const EXPLORE_TOOL_NAMES = new Set(["read", "search", "glob", "grep", "list_dir"]);
+const EXPLORE_TOOL_NAMES = new Set([
+  "read",
+  "search",
+  "glob",
+  "grep",
+  "list_dir",
+  "browser",
+  "web_search",
+  "web-search",
+  "web_research",
+  "web-research",
+  "navigate",
+  "fetch",
+]);
 
 export function isExploreToolName(toolName: string): boolean {
   return EXPLORE_TOOL_NAMES.has(toolName.trim().toLowerCase());

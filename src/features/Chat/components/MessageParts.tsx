@@ -2,7 +2,7 @@ import type { DynamicToolUIPart, UIMessage } from "ai";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ExecTool, ToolGroup } from "@/features/Chat/components/A2UI";
+import { ExecTool, ExecGroup, ToolGroup } from "@/features/Chat/components/A2UI";
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
 import { isExecToolName, normalizeToolCallId } from "@/lib/exec";
 import { isLikelyToolReceiptText } from "@/lib/exec/systemTextParsing";
@@ -69,33 +69,81 @@ function aggregateRenderableItems(items: (RenderableItem | null)[]): RenderableI
   return result;
 }
 
-function groupAdjacentExploreTools(items: RenderableItem[]): RenderableItem[] {
-  const result: RenderableItem[] = [];
-  let exploreBuffer: { part: DynamicToolUIPart; index: number }[] = [];
+function groupExploreTools(items: RenderableItem[]): RenderableItem[] {
+  const exploreParts: DynamicToolUIPart[] = [];
+  let firstExploreIndex = -1;
 
-  function flushExploreBuffer() {
-    if (!exploreBuffer.length) return;
-    const parts = exploreBuffer.map((b) => b.part);
-    const key = `explore-group:${exploreBuffer[0].index}`;
-    result.push({
-      kind: "tool",
-      key,
-      toolCallId: key,
-      node: <ToolGroup key={key} parts={parts} />,
-    });
-    exploreBuffer = [];
+  // Collect all explore items
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+    if (item.kind === "tool" && item.meta?.renderKind === "explore") {
+      exploreParts.push(item.meta.part);
+      if (firstExploreIndex === -1) firstExploreIndex = i;
+    }
   }
+
+  if (!exploreParts.length) return items;
+
+  // Build result: insert one ToolGroup at first explore position, skip the rest
+  const result: RenderableItem[] = [];
+  let groupInserted = false;
 
   for (let i = 0; i < items.length; i += 1) {
     const item = items[i];
     if (item.kind === "tool" && item.meta?.renderKind === "explore") {
-      exploreBuffer.push({ part: item.meta.part, index: i });
+      if (!groupInserted) {
+        const key = `explore-group:${firstExploreIndex}`;
+        result.push({
+          kind: "tool",
+          key,
+          toolCallId: key,
+          node: <ToolGroup key={key} parts={exploreParts} />,
+        });
+        groupInserted = true;
+      }
       continue;
     }
-    flushExploreBuffer();
     result.push(item);
   }
-  flushExploreBuffer();
+
+  return result;
+}
+
+function groupExecTools(items: RenderableItem[], sessionKey: string): RenderableItem[] {
+  const execParts: DynamicToolUIPart[] = [];
+  let firstExecIndex = -1;
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+    if (item.kind === "tool" && item.meta?.renderKind === "exec") {
+      execParts.push(item.meta.part);
+      if (firstExecIndex === -1) firstExecIndex = i;
+    }
+  }
+
+  if (execParts.length < 2) return items;
+
+  const result: RenderableItem[] = [];
+  let groupInserted = false;
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+    if (item.kind === "tool" && item.meta?.renderKind === "exec") {
+      if (!groupInserted) {
+        const key = `exec-group:${firstExecIndex}`;
+        result.push({
+          kind: "tool",
+          key,
+          toolCallId: key,
+          node: <ExecGroup key={key} parts={execParts} sessionKey={sessionKey} />,
+        });
+        groupInserted = true;
+      }
+      continue;
+    }
+    result.push(item);
+  }
+
   return result;
 }
 
@@ -165,7 +213,7 @@ export function MessageParts(props: {
 
       if (isTextPartLike(part)) {
         if (!part.text.trim()) continue;
-        if (isLikelyToolReceiptText(part.text)) continue;
+        if (message.role !== "user" && isLikelyToolReceiptText(part.text)) continue;
         nextItems[index] = {
           kind: "text",
           key: `text:${index}`,
@@ -231,8 +279,9 @@ export function MessageParts(props: {
     }
 
     const aggregated = aggregateRenderableItems(nextItems);
-    const grouped = groupAdjacentExploreTools(aggregated);
-    return grouped.map((item) => item.node);
+    const exploredGrouped = groupExploreTools(aggregated);
+    const execGrouped = groupExecTools(exploredGrouped, sessionKey);
+    return execGrouped.map((item) => item.node);
   }, [message.parts, sessionKey, streaming]);
 
   if (!nodes.length && !showIndicator) return null;

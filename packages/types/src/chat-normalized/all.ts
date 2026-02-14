@@ -6,3 +6,4 @@ export type {
   ChatNormalizedApprovalDecision,
 } from "./common";
 export type { ChatNormalizedRunEvent } from "./event";
+export type { ToolPhase, KnownToolName, ToolName, NormalizedToolEventMetadata } from "./tool";

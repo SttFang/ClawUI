@@ -17,4 +17,5 @@ export * from "./chat-normalized/status";
 export * from "./chat-normalized/kinds";
 export * from "./chat-normalized/common";
 export * from "./chat-normalized/event";
+export * from "./chat-normalized/tool";
 export * from "./run-map";

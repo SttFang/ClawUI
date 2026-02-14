@@ -2,6 +2,7 @@ import { Task, TaskContent, TaskItem, TaskTrigger } from "@clawui/ui";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ExecLifecycleRecord } from "@/store/execLifecycle";
+import { extractPrimaryExecCommand, titleizeCommandName } from "./execDisplay";
 
 export function ExecActionItem(props: { record: ExecLifecycleRecord }) {
   const { t } = useTranslation("common");
@@ -9,6 +10,11 @@ export function ExecActionItem(props: { record: ExecLifecycleRecord }) {
 
   const [expanded, setExpanded] = useState(false);
   const command = record.command;
+  const primaryCommand = extractPrimaryExecCommand(command);
+  const commandDisplay = primaryCommand || t("a2ui.execAction.noCommand");
+  const triggerTitle = primaryCommand
+    ? t("a2ui.execAction.ranCommand", { command: titleizeCommandName(primaryCommand) })
+    : t("a2ui.execAction.noCommand");
 
   useEffect(() => {
     if (record.status === "pending_approval" || record.status === "running") {
@@ -35,7 +41,7 @@ export function ExecActionItem(props: { record: ExecLifecycleRecord }) {
 
   return (
     <Task open={expanded} onOpenChange={setExpanded}>
-      <TaskTrigger title={command || t("a2ui.execAction.noCommand")} />
+      <TaskTrigger title={triggerTitle} />
       <TaskContent className="space-y-2">
         <div className="space-y-2">
           <TaskItem className="inline-flex items-center gap-2 text-xs">
@@ -54,7 +60,7 @@ export function ExecActionItem(props: { record: ExecLifecycleRecord }) {
           <div className="space-y-1">
             <div className="text-[11px] text-muted-foreground">{t("a2ui.execAction.command")}</div>
             <pre className="max-h-44 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs break-words">
-              {command || t("a2ui.execAction.noCommand")}
+              {commandDisplay}
             </pre>
           </div>
           {record.cwd ? (

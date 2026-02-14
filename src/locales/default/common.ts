@@ -936,6 +936,7 @@ const common = {
       hideTrace: "收起任务执行链路",
       duration: "耗时 {{seconds}} 秒",
       command: "命令",
+      ranCommand: "Ran {{command}}",
       noCommand: "（未提供命令）",
       cwd: "目录",
       yieldMs: "Yield(ms)",

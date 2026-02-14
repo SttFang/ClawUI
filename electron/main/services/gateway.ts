@@ -5,29 +5,18 @@ import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { gatewayLog } from "../lib/logger";
 import { buildLoginShellInvocation, execInLoginShell } from "../utils/login-shell";
 
-export type GatewayStatus = "stopped" | "starting" | "running" | "error";
+import type { CanonicalOpenClawConfig } from "@clawui/types/config-canonical";
 
-export interface OpenClawConfig {
-  gateway: {
-    mode?: "local" | "remote";
-    port: number;
-    bind: string;
-    auth?: {
-      mode: "token" | "none";
-      token: string;
-    };
-  };
-  env?: Record<string, string>;
-}
+export type GatewayStatus = "stopped" | "starting" | "running" | "error";
 
 export class GatewayService extends EventEmitter {
   private process: ChildProcess | null = null;
   private status: GatewayStatus = "stopped";
-  private config: OpenClawConfig | null = null;
+  private config: CanonicalOpenClawConfig | null = null;
   private port = DEFAULT_GATEWAY_PORT;
   private monitorTimer: NodeJS.Timeout | null = null;
 
-  setConfig(config: OpenClawConfig): void {
+  setConfig(config: CanonicalOpenClawConfig): void {
     this.config = config;
     if (config.gateway?.port) {
       this.port = config.gateway.port;

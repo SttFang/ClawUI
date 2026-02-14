@@ -7,49 +7,9 @@ import { join, dirname } from "path";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { configLog } from "../lib/logger";
 
-export interface OpenClawConfig {
-  gateway: {
-    mode: "local" | "remote";
-    port: number;
-    bind: "loopback" | string;
-    auth: {
-      mode: "token" | "none";
-      token: string;
-    };
-  };
-  agents: {
-    defaults: {
-      workspace: string;
-      model: {
-        primary: string;
-        fallbacks: string[];
-      };
-    };
-  };
-  session: {
-    scope: "per-sender" | "per-channel-peer" | "main";
-    store: string;
-    reset: {
-      mode: "idle" | "daily";
-      idleMinutes: number;
-    };
-  };
-  channels: Record<string, unknown>;
-  tools: {
-    allow: string[];
-    deny: string[];
-  };
-  env: Record<string, string>;
-  cron: {
-    enabled: boolean;
-    store: string;
-  };
-  hooks: {
-    enabled: boolean;
-    token: string;
-    path: string;
-  };
-}
+import type { CanonicalOpenClawConfig } from "@clawui/types/config-canonical";
+
+export type OpenClawConfig = CanonicalOpenClawConfig;
 
 export function createDefaultConfig(port: number): OpenClawConfig {
   return {
@@ -120,13 +80,17 @@ export class ConfigService {
       await this.loadConfig();
       // If the config exists but is missing the gateway token, set one.
       if (this.config && !this.config.gateway?.auth?.token) {
-        this.config.gateway.auth.token = this.generateToken();
+        const gateway = (this.config.gateway ??= {});
+        const auth = (gateway.auth ??= {});
+        auth.token = this.generateToken();
         await this.saveConfig();
       }
     } else {
       this.config = { ...this.defaultConfig };
       // Generate a random token if not set
-      this.config.gateway.auth.token = this.generateToken();
+      const gateway = (this.config.gateway ??= {});
+      const auth = (gateway.auth ??= {});
+      auth.token = this.generateToken();
       await this.saveConfig();
       configLog.info("[config.created]", this.configPath);
     }

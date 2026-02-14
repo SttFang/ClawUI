@@ -59,7 +59,9 @@ function normalizeCanonical(raw: JsonObject): OpenClawConfig {
   const base = createDefaultConfig(DEFAULT_GATEWAY_PORT);
   const merged = deepMerge(base, raw as Partial<OpenClawConfig>);
   if (!merged.gateway?.auth?.token) {
-    merged.gateway.auth.token = randomBytes(24).toString("base64url");
+    const gateway = (merged.gateway ??= {});
+    const auth = (gateway.auth ??= {});
+    auth.token = randomBytes(24).toString("base64url");
   }
   return merged;
 }

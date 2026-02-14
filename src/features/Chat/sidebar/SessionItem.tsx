@@ -20,6 +20,7 @@ import { MessageSquare, MoreHorizontal, Sparkles, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FaDiscord, FaSlack, FaTelegramPlane, FaWhatsapp, FaWeixin } from "react-icons/fa";
+import { useClipboard } from "@/hooks/useClipboard";
 import { cn } from "@/lib/utils";
 import type { SessionListItem } from "../types";
 import { classifySession } from "../utils/sessionKey";
@@ -46,29 +47,6 @@ function SourceIcon(props: { source: string }) {
   if (source === "whatsapp") return <FaWhatsapp className="h-3.5 w-3.5 text-[#25D366]" />;
   if (source === "wechat") return <FaWeixin className="h-3.5 w-3.5 text-[#07C160]" />;
   return <MessageSquare className="h-4 w-4 text-muted-foreground" />;
-}
-
-async function writeClipboardText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // Fallback for insecure contexts / permission-denied.
-    try {
-      const el = document.createElement("textarea");
-      el.value = text;
-      el.setAttribute("readonly", "true");
-      el.style.position = "fixed";
-      el.style.left = "-9999px";
-      document.body.appendChild(el);
-      el.select();
-      const ok = document.execCommand("copy");
-      el.remove();
-      return ok;
-    } catch {
-      return false;
-    }
-  }
 }
 
 export function SessionItem(props: {
@@ -98,7 +76,7 @@ export function SessionItem(props: {
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  const [copyOk, setCopyOk] = useState(false);
+  const { copied: copyOk, copy: copyText } = useClipboard({ resetMs: 1200 });
 
   const openRename = () => {
     setRenameValue(session.name ?? "");
@@ -167,10 +145,7 @@ export function SessionItem(props: {
             <DropdownMenuItem
               onSelect={(e) => {
                 e.preventDefault();
-                void writeClipboardText(session.id).then((ok) => {
-                  setCopyOk(ok);
-                  setTimeout(() => setCopyOk(false), 1200);
-                });
+                void copyText(session.id);
               }}
             >
               {copyOk ? t("sessionMenu.copied") : t("sessionMenu.copyId")}

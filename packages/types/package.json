@@ -23,6 +23,7 @@
     "./chat-normalized/common": "./src/chat-normalized/common.ts",
     "./chat-normalized/event": "./src/chat-normalized/event.ts",
     "./chat-normalized/tool": "./src/chat-normalized/tool.ts",
-    "./chat-normalized/all": "./src/chat-normalized/all.ts"
+    "./chat-normalized/all": "./src/chat-normalized/all.ts",
+    "./credentials": "./src/credentials.ts"
   }
 }

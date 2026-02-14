@@ -58,6 +58,41 @@ function shortenPath(path: string): string {
   return `…/${parts.slice(-2).join("/")}`;
 }
 
+function shortenUrl(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url.length > 30 ? `${url.slice(0, 30)}…` : url;
+  }
+}
+
+function extractBrowserSummary(input: unknown): string {
+  const record = toRecord(input);
+  if (!record) return "browser";
+  const action = typeof record.action === "string" ? record.action.trim() : "";
+  const url = typeof record.targetUrl === "string" ? record.targetUrl.trim() : "";
+
+  if (action === "navigate" || action === "open") {
+    return url ? `browse ${shortenUrl(url)}` : `browser ${action}`;
+  }
+  if (action === "act") {
+    const req = toRecord(record.request);
+    const kind = req && typeof req.kind === "string" ? req.kind : "";
+    return kind ? `browser ${kind}` : "browser act";
+  }
+  if (action === "screenshot") return "browser screenshot";
+  if (action === "snapshot") return "browser snapshot";
+  if (action) return `browser ${action}`;
+
+  if (url) return `browse ${shortenUrl(url)}`;
+  return "browser";
+}
+
+function extractWebSearchSummary(input: unknown): string {
+  const query = extractSearchQuery(input);
+  return query ? `search "${query}"` : "web search";
+}
+
 export function buildToolSummary(part: DynamicToolUIPart): string {
   const name = part.toolName.trim().toLowerCase();
 
@@ -76,6 +111,27 @@ export function buildToolSummary(part: DynamicToolUIPart): string {
   if (name === "list_dir") {
     const path = extractReadPath(part.input);
     return path ? `list ${shortenPath(path)}` : "list_dir";
+  }
+  if (name === "browser") {
+    return extractBrowserSummary(part.input);
+  }
+  if (
+    name === "web_search" ||
+    name === "web-search" ||
+    name === "web_research" ||
+    name === "web-research"
+  ) {
+    return extractWebSearchSummary(part.input);
+  }
+  if (name === "navigate") {
+    const record = toRecord(part.input);
+    const url = record && typeof record.url === "string" ? record.url.trim() : "";
+    return url ? `navigate ${shortenUrl(url)}` : "navigate";
+  }
+  if (name === "fetch") {
+    const record = toRecord(part.input);
+    const url = record && typeof record.url === "string" ? record.url.trim() : "";
+    return url ? `fetch ${shortenUrl(url)}` : "fetch";
   }
 
   return part.toolName;

@@ -6,7 +6,11 @@ import { subscriptionRoutes } from "./routes/subscription";
 import { ApiError, error } from "./utils/response";
 
 const fastify = Fastify({
-  logger: true,
+  logger: {
+    level: env.LOG_LEVEL,
+    transport:
+      env.NODE_ENV === "development" ? { target: "pino-pretty" } : undefined,
+  },
 });
 
 async function main() {
@@ -42,6 +46,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  fastify.log.fatal({ err }, "server failed to start");
   process.exit(1);
 });

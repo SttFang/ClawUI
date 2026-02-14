@@ -14,6 +14,7 @@ import {
   isLikelyTerminalResultText,
   parseApprovalEvent,
   parseChatTerminalEvent,
+  readHeartbeatExecPreview,
   readToolEventText,
   resolveApprovalHandoff,
 } from "./execSystemHandoff/events";
@@ -32,6 +33,32 @@ function markExecCommandTerminal(sessionKey: string, command: string, atMs = Dat
   });
 }
 
+function hasSessionApprovalOrRunningContext(sessionKey: string): boolean {
+  const normalizedSessionKey = normalizeSessionKey(sessionKey);
+  if (!normalizedSessionKey) return false;
+
+  const state = useExecApprovalsStore.getState();
+  const hasPending = state.queue.some(
+    (entry) => normalizeSessionKey(entry.request.sessionKey) === normalizedSessionKey,
+  );
+  if (hasPending) return true;
+
+  return Object.keys(state.runningByKey).some((key) => key.startsWith(`${normalizedSessionKey}::`));
+}
+
+function markSessionRunningCommandsTerminal(sessionKey: string, atMs = Date.now()): void {
+  const normalizedSessionKey = normalizeSessionKey(sessionKey);
+  if (!normalizedSessionKey) return;
+  const runningByKey = useExecApprovalsStore.getState().runningByKey;
+  const prefix = `${normalizedSessionKey}::`;
+  for (const key of Object.keys(runningByKey)) {
+    if (!key.startsWith(prefix)) continue;
+    const command = key.slice(prefix.length).trim();
+    if (!command) continue;
+    markExecCommandTerminal(normalizedSessionKey, command, atMs);
+  }
+}
+
 function isSystemLikeResultRecord(raw: Record<string, unknown>): boolean {
   const role = typeof raw.role === "string" ? raw.role.trim().toLowerCase() : "";
   return (
@@ -43,6 +70,41 @@ function isSystemLikeResultRecord(raw: Record<string, unknown>): boolean {
   );
 }
 
+function buildApprovalLoopNudgeText(command?: string): string {
+  const normalizedCommand = normalizeText(command ?? "");
+  return [
+    "[internal.exec.approval.allow]",
+    "---",
+    normalizedCommand ? `command: ${normalizedCommand}` : "command: <unknown>",
+    "status: approved",
+    "next: continue current run, consume pending exec system events, and respond with final result.",
+  ].join("\n");
+}
+
+function coalesceHandoffPayload(
+  previous: HandOffPayload | null,
+  next: HandOffPayload,
+): HandOffPayload {
+  if (!previous) return next;
+  if (previous.sessionKey !== next.sessionKey) return next;
+  if (previous.source !== next.source) return next;
+  if (previous.approvalId && next.approvalId && previous.approvalId !== next.approvalId) {
+    return next;
+  }
+
+  return {
+    ...previous,
+    ...next,
+    runId: next.runId ?? previous.runId,
+    approvalId: next.approvalId ?? previous.approvalId,
+    approvalAtMs: next.approvalAtMs ?? previous.approvalAtMs,
+    approvalAtMsFromPayload: next.approvalAtMsFromPayload ?? previous.approvalAtMsFromPayload,
+    command: next.command ?? previous.command,
+    text: next.text ?? previous.text,
+    retryCount: next.retryCount ?? previous.retryCount,
+  };
+}
+
 export function useExecSystemHandoff(params: { sessionKey: string; hasSession: boolean }) {
   const { sessionKey, hasSession } = params;
   const normalizedSessionKey = normalizeSessionKey(sessionKey);
@@ -52,6 +114,7 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
   const retryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pendingPayloadRef = useRef<HandOffPayload | null>(null);
   const cooldownByDigestRef = useRef<Map<string, number>>(new Map());
+  const approvalLoopNudgedRef = useRef<Set<string>>(new Set());
   const ALLOW_RESULT_RETRY_DELAYS_MS = [300, 1200, 3000, 8000];
 
   const isCooldownActive = useCallback((digest: string) => {
@@ -151,9 +214,54 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
         // For approval allow events, only handoff terminal output to avoid
         // echoing "Execution approved..." as the assistant continuation.
         if (payload.source === "approval-allow") {
-          const selectedApprovalText = historyTerminalText || historyGenericText;
+          let heartbeatPreviewText = "";
+          if (!historyTerminalText && !historyGenericText) {
+            try {
+              const heartbeat = await ipc.chat.request("last-heartbeat");
+              heartbeatPreviewText = readHeartbeatExecPreview(heartbeat, approvalMinAtMs) ?? "";
+              if (heartbeatPreviewText) {
+                chatLog.debug(
+                  "[exec.system.handoff.heartbeat-fallback]",
+                  `session=${payload.sessionKey}`,
+                  `runId=${payload.runId ?? "<none>"}`,
+                  `preview=${heartbeatPreviewText.slice(0, 120)}`,
+                );
+              }
+            } catch (error) {
+              chatLog.debug(
+                "[exec.system.handoff.heartbeat-fallback.failed]",
+                `session=${payload.sessionKey}`,
+                error instanceof Error ? error.message : String(error),
+              );
+            }
+          }
+
+          const selectedApprovalText =
+            historyTerminalText || historyGenericText || heartbeatPreviewText;
           if (!selectedApprovalText) {
             const retryCount = payload.retryCount ?? 0;
+            chatLog.debug(
+              "[exec.system.handoff.approval.waiting-terminal]",
+              `session=${payload.sessionKey}`,
+              `runId=${payload.runId ?? "<none>"}`,
+              `retry=${retryCount}`,
+            );
+            const nudgeKey = hashText(
+              payload.sessionKey,
+              payload.approvalId ?? payload.runId ?? payload.command ?? "approval-allow",
+              "loop-nudge",
+            );
+            if (!approvalLoopNudgedRef.current.has(nudgeKey)) {
+              approvalLoopNudgedRef.current.add(nudgeKey);
+              void sendAgentInput(payload, buildApprovalLoopNudgeText(payload.command));
+              chatLog.debug(
+                "[exec.system.handoff.loop-nudge]",
+                `session=${payload.sessionKey}`,
+                `runId=${payload.runId ?? "<none>"}`,
+                `approvalId=${payload.approvalId ?? "<none>"}`,
+                `retry=${retryCount}`,
+              );
+            }
             const retryDelay = ALLOW_RESULT_RETRY_DELAYS_MS[retryCount];
             if (retryDelay) {
               const timer = setTimeout(() => {
@@ -191,9 +299,17 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
 
   const scheduleHandoff = useCallback(
     (payload: HandOffPayload) => {
-      if (!hasSession || !normalizedSessionKey || payload.sessionKey !== normalizedSessionKey)
-        return;
-      pendingPayloadRef.current = payload;
+      if (!hasSession || !normalizedSessionKey) return;
+      const isApprovalPayload = payload.source.startsWith("approval-");
+      if (!isApprovalPayload && payload.sessionKey !== normalizedSessionKey) return;
+      chatLog.debug(
+        "[exec.system.handoff.schedule]",
+        `session=${payload.sessionKey}`,
+        `runId=${payload.runId ?? "<none>"}`,
+        `source=${payload.source}`,
+        `retry=${payload.retryCount ?? 0}`,
+      );
+      pendingPayloadRef.current = coalesceHandoffPayload(pendingPayloadRef.current, payload);
       if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
       for (const timer of retryTimersRef.current) clearTimeout(timer);
       retryTimersRef.current = [];
@@ -203,6 +319,13 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
         const next = pendingPayloadRef.current;
         pendingPayloadRef.current = null;
         if (!next) return;
+        chatLog.debug(
+          "[exec.system.handoff.dispatch]",
+          `session=${next.sessionKey}`,
+          `runId=${next.runId ?? "<none>"}`,
+          `source=${next.source}`,
+          `retry=${next.retryCount ?? 0}`,
+        );
         void refreshAndSend(next);
       }, HANDOFF_REFRESH_DELAY_MS);
     },
@@ -213,7 +336,13 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
     (payload: unknown) => {
       const parsed = parseApprovalEvent(payload);
       if (!parsed?.id) return;
-      if (parsed.sessionKey && parsed.sessionKey !== normalizedSessionKey) return;
+      chatLog.debug(
+        "[exec.system.handoff.approval.raw]",
+        `id=${parsed.id}`,
+        `decision=${parsed.decision ?? "<none>"}`,
+        `session=${parsed.sessionKey ?? "<none>"}`,
+        `command=${parsed.command ?? "<none>"}`,
+      );
 
       const handoff = resolveApprovalHandoff({
         decision: parsed.decision,
@@ -256,6 +385,70 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
     [normalizedSessionKey, scheduleHandoff],
   );
 
+  const handleAssistantTerminal = useCallback(
+    (payload: Record<string, unknown>) => {
+      if (payload.stream !== "assistant") return;
+      const data = isRecord(payload.data) ? (payload.data as Record<string, unknown>) : null;
+      if (!data) return;
+      const text = normalizeText(typeof data.text === "string" ? data.text : "");
+      if (!text || !isLikelyTerminalResultText(text)) return;
+
+      const runId =
+        typeof payload.runId === "string" && payload.runId.trim()
+          ? payload.runId.trim()
+          : latestRunIdRef.current || undefined;
+      markSessionRunningCommandsTerminal(normalizedSessionKey);
+      useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
+      scheduleHandoff({
+        sessionKey: normalizedSessionKey,
+        runId,
+        source: "agent-tool-terminal",
+        text,
+      });
+    },
+    [normalizedSessionKey, scheduleHandoff],
+  );
+
+  const matchGatewayAgentPayloadSession = useCallback(
+    (payload: Record<string, unknown>): boolean => {
+      const payloadSession =
+        typeof payload.sessionKey === "string" ? normalizeSessionKey(payload.sessionKey) : "";
+      if (payloadSession) return payloadSession === normalizedSessionKey;
+
+      const payloadRunId = typeof payload.runId === "string" ? payload.runId.trim() : "";
+      if (payloadRunId && latestRunIdRef.current && payloadRunId === latestRunIdRef.current) {
+        return true;
+      }
+
+      const stream = typeof payload.stream === "string" ? payload.stream : "";
+      if (stream !== "tool" && stream !== "assistant") return false;
+      if (!hasSessionApprovalOrRunningContext(normalizedSessionKey)) return false;
+
+      const data = isRecord(payload.data) ? (payload.data as Record<string, unknown>) : null;
+      if (!data) return false;
+
+      if (stream === "tool") {
+        const args = isRecord(data.args) ? (data.args as Record<string, unknown>) : null;
+        const command = typeof args?.command === "string" ? args.command.trim() : "";
+        if (!command) return true;
+
+        const runningKey = `${normalizedSessionKey}::${command}`;
+        const state = useExecApprovalsStore.getState();
+        if (state.runningByKey[runningKey]) return true;
+
+        return state.queue.some((entry) => {
+          const entrySession = normalizeSessionKey(entry.request.sessionKey);
+          const entryCommand = entry.request.command?.trim() ?? "";
+          return entrySession === normalizedSessionKey && entryCommand === command;
+        });
+      }
+
+      const assistantText = normalizeText(typeof data.text === "string" ? data.text : "");
+      return Boolean(assistantText && isLikelyTerminalResultText(assistantText));
+    },
+    [normalizedSessionKey],
+  );
+
   useEffect(() => {
     if (!hasSession || !normalizedSessionKey) return;
     return ipc.chat.onNormalizedEvent((event: ChatNormalizedRunEvent) => {
@@ -264,6 +457,13 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
         latestRunIdRef.current = event.clientRunId.trim();
       }
       if (event.kind === "run.approval_resolved") {
+        chatLog.debug(
+          "[exec.system.handoff.approval.normalized]",
+          `session=${event.sessionKey}`,
+          `runId=${event.clientRunId ?? "<none>"}`,
+          `decision=${event.decision ?? "<none>"}`,
+          `command=${event.command ?? "<none>"}`,
+        );
         const handoff = resolveApprovalHandoff({
           decision: event.decision ?? null,
           command: event.command,
@@ -294,6 +494,8 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
       if (frame.event === "chat") {
         const parsed = parseChatTerminalEvent(frame.payload);
         if (!parsed || parsed.sessionKey !== normalizedSessionKey) return;
+        markSessionRunningCommandsTerminal(parsed.sessionKey);
+        useExecApprovalsStore.getState().clearRunningForSession(parsed.sessionKey);
         scheduleHandoff({
           sessionKey: parsed.sessionKey,
           runId: parsed.runId ?? latestRunIdRef.current ?? undefined,
@@ -305,15 +507,16 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
 
       if (frame.event !== "agent" || !isRecord(frame.payload)) return;
       const payload = frame.payload as Record<string, unknown>;
-      const eventSession =
-        typeof payload.sessionKey === "string" ? normalizeSessionKey(payload.sessionKey) : "";
-      if (!eventSession || eventSession !== normalizedSessionKey) return;
+      if (!matchGatewayAgentPayloadSession(payload)) return;
       handleToolTerminal(payload);
+      handleAssistantTerminal(payload);
     });
   }, [
     handleApprovalResolved,
+    handleAssistantTerminal,
     handleToolTerminal,
     hasSession,
+    matchGatewayAgentPayloadSession,
     normalizedSessionKey,
     scheduleHandoff,
   ]);
@@ -326,6 +529,7 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
       pendingPayloadRef.current = null;
       latestRunIdRef.current = null;
       cooldownByDigestRef.current.clear();
+      approvalLoopNudgedRef.current.clear();
     },
     [],
   );

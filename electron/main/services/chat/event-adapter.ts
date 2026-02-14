@@ -2,43 +2,8 @@ import type { ChatNormalizedRunEvent } from "@clawui/types";
 import type { GatewayEventFrame } from "../chat-websocket";
 import { chatLog } from "../../lib/logger";
 import { isRecord } from "../../utils/type-guards";
+import { extractTextFromMessage, normalizeToolMetadata } from "./event-parsers";
 import { ChatRunState, normalizeRunStatus } from "./run-state";
-
-function pickToolCallId(record: Record<string, unknown>): string {
-  const candidates = [
-    record.toolCallId,
-    record.tool_call_id,
-    record.toolUseId,
-    record.tool_use_id,
-    record.id,
-    record.toolId,
-  ];
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) {
-      return candidate.trim();
-    }
-  }
-  return "";
-}
-
-function normalizeToolMetadata(data: Record<string, unknown>): Record<string, unknown> {
-  const toolCallId = pickToolCallId(data);
-  if (!toolCallId) return data;
-  if (typeof data.toolCallId === "string" && data.toolCallId.trim()) return data;
-  return { ...data, toolCallId };
-}
-
-function extractTextFromMessage(message: unknown): string | undefined {
-  if (!isRecord(message)) return undefined;
-  const content = message.content;
-  if (!Array.isArray(content)) return undefined;
-  for (const item of content) {
-    if (!isRecord(item)) continue;
-    const text = item.text;
-    if (typeof text === "string" && text.trim()) return text;
-  }
-  return undefined;
-}
 
 export class ChatEventAdapter {
   constructor(private readonly state = new ChatRunState()) {}

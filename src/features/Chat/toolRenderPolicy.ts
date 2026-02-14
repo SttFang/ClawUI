@@ -9,7 +9,7 @@ export type ToolRenderPolicy = {
 
 export const EXPLORE_PREVIEW_CHARS = 600;
 
-const HIDDEN_TOOL_NAMES = new Set(["session_status"]);
+const HIDDEN_TOOL_NAMES = new Set(["session_status", "sessions_list", "sessions_history"]);
 
 const EXPLORE_TOOL_NAMES = new Set([
   "read",
@@ -24,6 +24,10 @@ const EXPLORE_TOOL_NAMES = new Set([
   "web-research",
   "navigate",
   "fetch",
+  "web_fetch",
+  "memory_search",
+  "memory_get",
+  "agents_list",
 ]);
 
 export function isExploreToolName(toolName: string): boolean {

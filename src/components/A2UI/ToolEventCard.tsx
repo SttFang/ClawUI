@@ -4,7 +4,6 @@ import { FileText, Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SiReact } from "react-icons/si";
-import type { ExecApprovalsStore } from "@/store/execApprovals";
 import { cn } from "@/lib/utils";
 import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
 import { EXEC_RUNNING_TTL_MS } from "@/store/execApprovals/helpers";
@@ -85,24 +84,6 @@ function getExecCommand(input: unknown): string {
   return typeof cmd === "string" ? cmd.trim() : "";
 }
 
-function selectExecCardFlags(
-  state: Pick<ExecApprovalsStore, "queue" | "runningByKey">,
-  sessionKey: string | undefined,
-  command: string,
-): { approvalRequested: boolean; isRunning: boolean } {
-  if (!sessionKey || !command) return { approvalRequested: false, isRunning: false };
-  const normalizedCommand = command.trim();
-  if (!normalizedCommand) return { approvalRequested: false, isRunning: false };
-  const approvalRequested = state.queue.some(
-    (entry) =>
-      entry.request.sessionKey === sessionKey && entry.request.command === normalizedCommand,
-  );
-  const runningKey = makeExecApprovalKey(sessionKey, normalizedCommand);
-  const runningAtMs = state.runningByKey[runningKey] ?? 0;
-  const isRunning = Boolean(runningAtMs && Date.now() - runningAtMs < EXEC_RUNNING_TTL_MS);
-  return { approvalRequested, isRunning };
-}
-
 export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: string }) {
   const { t } = useTranslation("common");
   const { part, sessionKey } = props;
@@ -116,9 +97,22 @@ export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: str
 
   const isExec = part.toolName === "exec";
   const execCommand = isExec ? getExecCommand(part.input) : "";
-  const execFlags = useExecApprovalsStore((s) => selectExecCardFlags(s, sessionKey, execCommand));
-  const approvalRequested = isExec ? execFlags.approvalRequested : false;
-  const isRunning = isExec ? execFlags.isRunning : false;
+  const normalizedExecCommand = execCommand.trim();
+
+  const approvalRequested = useExecApprovalsStore((s) => {
+    if (!isExec || !sessionKey || !normalizedExecCommand) return false;
+    return s.queue.some(
+      (entry) =>
+        entry.request.sessionKey === sessionKey && entry.request.command === normalizedExecCommand,
+    );
+  });
+
+  const runningAtMs = useExecApprovalsStore((s) => {
+    if (!isExec || !sessionKey || !normalizedExecCommand) return 0;
+    const runningKey = makeExecApprovalKey(sessionKey, normalizedExecCommand);
+    return s.runningByKey[runningKey] ?? 0;
+  });
+  const isRunning = Boolean(runningAtMs && Date.now() - runningAtMs < EXEC_RUNNING_TTL_MS);
 
   const stateLabel =
     state === "input-available" && approvalRequested

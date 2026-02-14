@@ -4,6 +4,7 @@ const common = {
     cancel: "取消",
     confirm: "确认",
     save: "保存",
+    discard: "放弃更改",
     delete: "删除",
     edit: "编辑",
     close: "关闭",
@@ -524,6 +525,7 @@ const common = {
       messaging: {
         description: "连接消息平台到你的 AI 助手，配置 Token 和渠道设置。",
         moreChannels: "更多渠道",
+        unsavedChanges: "你有未保存的更改",
       },
       capabilities: {
         advanced: "高级设置",

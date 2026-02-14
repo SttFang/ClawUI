@@ -25,6 +25,7 @@ import {
   selectSecretsSaving,
   selectSecretsError,
   selectSecretsSaveSuccess,
+  selectHasUnsavedChanges,
 } from "@/store/secrets";
 
 // Channel definitions — matches CHANNEL_TOKEN_DEFS in credential-service
@@ -90,9 +91,11 @@ export function MessagingTab() {
   const isSaving = useSecretsStore(selectSecretsSaving);
   const error = useSecretsStore(selectSecretsError);
   const saveSuccess = useSecretsStore(selectSecretsSaveSuccess);
+  const hasUnsaved = useSecretsStore(selectHasUnsavedChanges);
   const channelValues = useSecretsStore((s) => s.channelValues);
   const setChannelValue = useSecretsStore((s) => s.setChannelValue);
   const save = useSecretsStore((s) => s.save);
+  const load = useSecretsStore((s) => s.load);
 
   const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
   const [discordDialogOpen, setDiscordDialogOpen] = useState(false);
@@ -193,19 +196,29 @@ export function MessagingTab() {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Save */}
-      <div className="flex items-center gap-2">
-        <Button onClick={save} disabled={isSaving || isLoading}>
-          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {t("actions.save")}
-        </Button>
-        {saveSuccess ? (
-          <span className="flex items-center gap-1 text-sm text-green-600">
-            <CheckCircle2 className="h-4 w-4" />
-            {t("settings.page.tokens.saved")}
+      {/* Sticky unsaved-changes bar */}
+      {hasUnsaved && (
+        <div className="sticky bottom-0 z-10 -mx-6 px-6 py-3 bg-background/95 backdrop-blur border-t flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">
+            {t("settings.page.messaging.unsavedChanges")}
           </span>
-        ) : null}
-      </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => void load()}>
+              {t("actions.discard")}
+            </Button>
+            <Button size="sm" onClick={save} disabled={isSaving}>
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t("actions.save")}
+            </Button>
+          </div>
+        </div>
+      )}
+      {saveSuccess ? (
+        <span className="flex items-center gap-1 text-sm text-green-600">
+          <CheckCircle2 className="h-4 w-4" />
+          {t("settings.page.tokens.saved")}
+        </span>
+      ) : null}
 
       <TelegramConfigDialog
         open={telegramDialogOpen}

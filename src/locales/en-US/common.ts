@@ -4,6 +4,7 @@ const common = {
     cancel: "Cancel",
     confirm: "Confirm",
     save: "Save",
+    discard: "Discard",
     delete: "Delete",
     edit: "Edit",
     close: "Close",
@@ -528,6 +529,7 @@ const common = {
         description:
           "Connect messaging platforms to your AI assistant with token and channel config.",
         moreChannels: "More channels",
+        unsavedChanges: "You have unsaved changes",
       },
       capabilities: {
         advanced: "Advanced",

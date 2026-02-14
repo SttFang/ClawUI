@@ -591,6 +591,7 @@ async function run() {
       postApprovalActivity.gatewayAfterApproval.length
         ? latestPostApprovalActivity.gatewayAfterApproval
         : postApprovalActivity.gatewayAfterApproval;
+    const rendererConsoleErrors = rendererConsole.filter((entry) => entry.type === "error");
 
     report.traceSummary = {
       gatewayEvents: Array.isArray(rendererProbe?.gatewayEvents)
@@ -603,6 +604,7 @@ async function run() {
         ? rendererProbe.streamEvents.length
         : 0,
       rendererConsole: rendererConsole.length,
+      rendererConsoleErrors: rendererConsoleErrors.length,
       rendererPageErrors: rendererPageErrors.length,
       mainStdoutLines: electronMainStdout.length,
       mainStderrLines: electronMainStderr.length,
@@ -617,11 +619,18 @@ async function run() {
         Boolean(report.checks?.hasSystemExecFinished) ||
         Boolean(report.checks?.hasAssistantOk) ||
         Boolean(report.checks?.hasCompletedText),
+      rendererConsoleErrorCount: rendererConsoleErrors.length,
     };
+    report.steps.push({
+      name: "renderer_console_error_zero",
+      ok: rendererConsoleErrors.length === 0,
+      detail: String(rendererConsoleErrors.length),
+    });
 
     const pass =
       Boolean(approvalResolvedHit?.frame) &&
       (normalizedAfterApproval.length > 0 || gatewayAfterApproval.length > 0) &&
+      rendererConsoleErrors.length === 0 &&
       (finalState.hasSystemExecFinished ||
         finalState.hasAssistantOk ||
         finalState.hasCompletedText);

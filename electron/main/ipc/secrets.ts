@@ -1,4 +1,5 @@
 import type { IpcMain } from "electron";
+import type { CredentialService } from "../services/credential-service";
 import type { OpenClawProfilesService } from "../services/openclaw-profiles";
 
 const ALLOWED_SECRET_ENV_KEYS = new Set<string>([
@@ -13,6 +14,14 @@ const ALLOWED_SECRET_ENV_KEYS = new Set<string>([
   "SLACK_BOT_TOKEN",
   "SLACK_APP_TOKEN",
 ]);
+
+const ENV_KEY_TO_CHANNEL: Record<string, { channelType: string; tokenField: "botToken" | "appToken" }> = {
+  DISCORD_BOT_TOKEN: { channelType: "discord", tokenField: "botToken" },
+  DISCORD_APP_TOKEN: { channelType: "discord", tokenField: "appToken" },
+  TELEGRAM_BOT_TOKEN: { channelType: "telegram", tokenField: "botToken" },
+  SLACK_BOT_TOKEN: { channelType: "slack", tokenField: "botToken" },
+  SLACK_APP_TOKEN: { channelType: "slack", tokenField: "appToken" },
+};
 
 function validatePatch(patch: Record<string, unknown>): Record<string, string | null> {
   const out: Record<string, string | null> = {};
@@ -38,9 +47,27 @@ function validatePatch(patch: Record<string, unknown>): Record<string, string | 
   return out;
 }
 
-export function registerSecretsHandlers(ipcMain: IpcMain, profiles: OpenClawProfilesService): void {
+export function registerSecretsHandlers(
+  ipcMain: IpcMain,
+  profiles: OpenClawProfilesService,
+  credentialService?: CredentialService,
+): void {
   ipcMain.handle("secrets:patch", async (_event, patch: Record<string, unknown>) => {
     const validated = validatePatch(patch);
-    await profiles.patchEnvBoth(validated);
+
+    if (credentialService) {
+      for (const [key, value] of Object.entries(validated)) {
+        const mapping = ENV_KEY_TO_CHANNEL[key];
+        if (mapping) {
+          await credentialService.setChannelToken({
+            channelType: mapping.channelType,
+            tokenField: mapping.tokenField,
+            value: value ?? "",
+          });
+        }
+      }
+    } else {
+      await profiles.patchEnvBoth(validated);
+    }
   });
 }

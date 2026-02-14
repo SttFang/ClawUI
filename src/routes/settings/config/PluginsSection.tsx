@@ -31,6 +31,7 @@ export function PluginsSection() {
   const setSearchQuery = usePluginsStore((s) => s.setSearchQuery);
   const setCategoryFilter = usePluginsStore((s) => s.setCategoryFilter);
 
+  const browseClawHub = () => window.open("https://hub.clawui.com/plugins", "_blank");
   const [configPlugin, setConfigPlugin] = useState<Plugin | null>(null);
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
 
@@ -58,7 +59,7 @@ export function PluginsSection() {
           <h2 className="text-xl font-semibold">{t("plugins.title")}</h2>
           <p className="text-muted-foreground">{t("plugins.description")}</p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={browseClawHub}>
           <ExternalLink className="w-4 h-4 mr-2" />
           {t("plugins.browseClawHub")}
         </Button>
@@ -79,7 +80,11 @@ export function PluginsSection() {
         <div className="text-center py-12">
           <Puzzle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium">{t("plugins.emptyTitle")}</h3>
-          <p className="text-muted-foreground">{t("plugins.emptyDescription")}</p>
+          <p className="text-muted-foreground mb-4">{t("plugins.emptyDescription")}</p>
+          <Button variant="outline" onClick={browseClawHub}>
+            <ExternalLink className="w-4 h-4 mr-2" />
+            {t("plugins.browseClawHub")}
+          </Button>
         </div>
       ) : (
         <PluginGrid

@@ -5,7 +5,7 @@ export function formatSecondsFromMs(ms?: number): number {
 function stripShellQuote(token: string): string {
   const trimmed = token.trim();
   if (
-    (trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
     (trimmed.startsWith("'") && trimmed.endsWith("'"))
   ) {
     return trimmed.slice(1, -1);

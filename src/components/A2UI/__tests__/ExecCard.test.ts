@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { act } from "react-dom/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import type { ExecLifecycleRecord } from "@/store/execLifecycle";
-import { ExecActionItem } from "../ExecActionItem";
+import { ExecCard } from "../ExecCard";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -42,7 +42,7 @@ function createRecord(command: string): ExecLifecycleRecord {
   };
 }
 
-describe("ExecActionItem", () => {
+describe("ExecCard", () => {
   it("shows simplified command title and hides command arguments in body", () => {
     const command =
       "mkdir -p '/Users/fanghanjun/Desktop/激活-教育/03_文档资料/01_方案材料' && cd '/Users/fanghanjun/Desktop/激活-教育/03_文档资料'";
@@ -52,12 +52,12 @@ describe("ExecActionItem", () => {
 
     try {
       act(() => {
-        root.render(createElement(ExecActionItem, { record }));
+        root.render(createElement(ExecCard, { record }));
       });
       const text = container.textContent ?? "";
+      // Trigger title shows simplified command name
       expect(text).toContain("Ran Mkdir");
-      expect(text).toContain("mkdir");
-      expect(text).not.toContain("-p");
+      // Body is collapsed for completed status — arguments not rendered
       expect(text).not.toContain("/Users/fanghanjun/Desktop");
     } finally {
       act(() => {

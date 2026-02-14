@@ -2,7 +2,7 @@ import type { DynamicToolUIPart, UIMessage } from "ai";
 import type { ReactElement } from "react";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { ExecActionItem } from "@/components/A2UI";
+import { ExecCard } from "@/components/A2UI";
 import { getCommandFromInput, isExecToolName } from "@/lib/exec";
 import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/exec";
 import {
@@ -298,7 +298,7 @@ export function useExecToolRenderItems(
       if (!record.command.trim()) continue;
       execItemsByIndex.set(index, {
         attemptId: record.attemptId,
-        node: <ExecActionItem key={`exec:${record.attemptId}:${index}`} record={record} />,
+        node: <ExecCard key={`exec:${record.attemptId}:${index}`} record={record} />,
       });
     }
 

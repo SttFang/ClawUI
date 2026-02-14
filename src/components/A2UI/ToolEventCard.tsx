@@ -1,15 +1,12 @@
 import type { DynamicToolUIPart } from "ai";
 import { Task, TaskContent, TaskItem, TaskItemFile, TaskTrigger } from "@clawui/ui";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SiReact } from "react-icons/si";
-import { getCommandFromInput, isExecToolName, isReadToolName, toRecord } from "@/lib/exec";
+import { isReadToolName, toRecord } from "@/lib/exec";
 import { cn } from "@/lib/utils";
-import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/exec";
-import { EXEC_RUNNING_TTL_MS } from "@/store/execApprovals/helpers";
 
-const RUNNING_TICK_MS = 1000;
 const DEFAULT_READ_PREVIEW_CHARS = 600;
 
 function formatJson(value: unknown): string {
@@ -81,20 +78,6 @@ function StatePill(props: { state: string; preliminary?: boolean }) {
 
 type ToolCardRenderMode = "generic" | "read_compact";
 
-function useNowTick(enabled: boolean): number {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    if (!enabled) return undefined;
-    const timer = window.setInterval(() => {
-      setNowMs(Date.now());
-    }, RUNNING_TICK_MS);
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [enabled]);
-  return nowMs;
-}
-
 export function ToolEventCard(props: {
   part: DynamicToolUIPart;
   sessionKey?: string;
@@ -102,12 +85,7 @@ export function ToolEventCard(props: {
   maxPreviewChars?: number;
 }) {
   const { t } = useTranslation("common");
-  const {
-    part,
-    sessionKey,
-    renderMode = "generic",
-    maxPreviewChars = DEFAULT_READ_PREVIEW_CHARS,
-  } = props;
+  const { part, renderMode = "generic", maxPreviewChars = DEFAULT_READ_PREVIEW_CHARS } = props;
   const [showFullOutput, setShowFullOutput] = useState(false);
 
   const title = part.title?.trim() ? part.title : part.toolName;
@@ -124,33 +102,6 @@ export function ToolEventCard(props: {
       ? `${outputText.slice(0, maxPreviewChars).trimEnd()}...`
       : outputText;
 
-  const isExec = isExecToolName(part.toolName);
-  const execCommand = isExec ? getCommandFromInput(part.input) : "";
-  const normalizedExecCommand = execCommand.trim();
-
-  const approvalRequested = useExecApprovalsStore((s) => {
-    if (!isExec || !sessionKey || !normalizedExecCommand) return false;
-    return s.queue.some(
-      (entry) =>
-        entry.request.sessionKey === sessionKey && entry.request.command === normalizedExecCommand,
-    );
-  });
-
-  const runningAtMs = useExecApprovalsStore((s) => {
-    if (!isExec || !sessionKey || !normalizedExecCommand) return 0;
-    const runningKey = makeExecApprovalKey(sessionKey, normalizedExecCommand);
-    return s.runningByKey[runningKey] ?? 0;
-  });
-  const nowMs = useNowTick(Boolean(isExec && runningAtMs));
-  const isRunning = Boolean(runningAtMs && nowMs - runningAtMs < EXEC_RUNNING_TTL_MS);
-
-  const stateLabel =
-    state === "input-available" && approvalRequested
-      ? t("a2ui.toolState.waitingApproval")
-      : state === "input-available" && isRunning
-        ? t("a2ui.toolState.running")
-        : state;
-
   useEffect(() => {
     setShowFullOutput(false);
   }, [part.toolCallId]);
@@ -166,7 +117,7 @@ export function ToolEventCard(props: {
               <span className="text-xs text-muted-foreground">{`· ${part.toolCallId}`}</span>
             </TaskItem>
             <StatePill
-              state={stateLabel}
+              state={state}
               preliminary={
                 state === "output-available"
                   ? (part as unknown as { preliminary?: boolean }).preliminary
@@ -182,13 +133,6 @@ export function ToolEventCard(props: {
               <div className="inline-flex items-center gap-1">
                 {t("a2ui.tool.readingFile")} <FileBadge path={readPath} />
               </div>
-            </TaskItem>
-          ) : null}
-
-          {state === "input-available" && isRunning ? (
-            <TaskItem className="inline-flex items-center gap-2 text-xs">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span>{t("a2ui.toolState.runningHint")}</span>
             </TaskItem>
           ) : null}
 

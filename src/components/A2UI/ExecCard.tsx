@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { ExecLifecycleRecord } from "@/store/exec";
 import { extractPrimaryExecCommand, titleizeCommandName } from "./execDisplay";
 
-export function ExecActionItem(props: { record: ExecLifecycleRecord }) {
+export function ExecCard(props: { record: ExecLifecycleRecord }) {
   const { t } = useTranslation("common");
   const { record } = props;
 

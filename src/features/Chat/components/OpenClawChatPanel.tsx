@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StickToBottom } from "use-stick-to-bottom";
 import { cn } from "@/lib/utils";
-import { useExecSystemHandoff } from "@/services/chat/useExecSystemHandoff";
 import { useOpenClawHistorySync } from "@/services/chat/useOpenClawHistorySync";
 import { type ComposerImageAttachment, ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
@@ -63,7 +62,6 @@ export function OpenClawChatPanel(props: {
     hasSession,
     setMessages: chat.setMessages,
   });
-  useExecSystemHandoff({ sessionKey: normalizedSessionKey, hasSession });
 
   const isBusy = chat.status === "submitted" || chat.status === "streaming";
   const activeAssistantMessageId = useMemo(() => {

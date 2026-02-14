@@ -1,4 +1,4 @@
-import type { ConfigSnapshotV2 } from "@clawui/types/config-v2";
+import type { ConfigSnapshotV2 } from "@clawui/types/config";
 
 export const REDACTED_SENTINEL = "__CLAWUI_REDACTED__";
 

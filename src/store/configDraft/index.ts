@@ -1,4 +1,4 @@
-import type { ConfigErrorCode, ConfigSchemaV2, ConfigSnapshotV2 } from "@clawui/types/config-v2";
+import type { ConfigErrorCode, ConfigSchemaV2, ConfigSnapshotV2 } from "@clawui/types/config";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { ipc } from "@/lib/ipc";

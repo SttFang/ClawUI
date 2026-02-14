@@ -1,4 +1,4 @@
-import type { ConfigSchemaV2, ConfigUiHintV2 } from "@clawui/types/config-v2";
+import type { ConfigSchemaV2, ConfigUiHintV2 } from "@clawui/types/config";
 import type {
   Plugin,
   PluginCategory,

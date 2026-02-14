@@ -1,17 +1,27 @@
 // IPC client for renderer process
 // This module provides type-safe IPC communication with the main process
 
-import type { UpdateInfo } from "@clawui/types/app";
-import type { ChatRequest, ChatStreamEvent } from "@clawui/types/chat";
-import type { ChatNormalizedRunEvent } from "@clawui/types/chat-normalized/event";
-import type { ClawUIState, ClawUISessionMetadata } from "@clawui/types/clawui";
-import type { OpenClawConfig, OnboardingOpenClawConfig, ChannelConfig } from "@clawui/types/config";
 import type {
+  UpdateInfo,
+  ChatRequest,
+  ChatStreamEvent,
+  ChatNormalizedRunEvent,
+  GatewayStatus,
+  GatewayEventFrame,
+  LoginCredentials,
+  LoginResult,
+  SubscriptionStatus,
+} from "@clawui/types";
+import type { ClawUIState, ClawUISessionMetadata } from "@clawui/types/clawui";
+import type {
+  OpenClawConfig,
+  OnboardingOpenClawConfig,
+  ChannelConfig,
   ConfigSchemaV2,
   ConfigSetDraftInputV2,
   ConfigSetDraftResponseV2,
   ConfigSnapshotV2,
-} from "@clawui/types/config-v2";
+} from "@clawui/types/config";
 import type {
   CredentialMeta,
   SetLlmKeyInput,
@@ -21,7 +31,6 @@ import type {
   ValidateKeyResult,
   DeleteCredentialInput,
 } from "@clawui/types/credentials";
-import type { GatewayStatus, GatewayEventFrame } from "@clawui/types/gateway";
 import type {
   ModelsAuthOrderResult,
   ModelsCatalogResult,
@@ -36,7 +45,6 @@ import type {
   BYOKConfig,
   SubscriptionConfig,
 } from "@clawui/types/onboarding";
-import type { LoginCredentials, LoginResult, SubscriptionStatus } from "@clawui/types/subscription";
 import type { SessionsUsageResult, CostUsageSummary, UsageTimeSeries } from "@clawui/types/usage";
 
 // Re-export types for backward compatibility

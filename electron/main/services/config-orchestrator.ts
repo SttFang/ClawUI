@@ -4,7 +4,7 @@ import type {
   ConfigSetDraftInputV2,
   ConfigSetDraftResponseV2,
   ConfigSnapshotV2,
-} from "@clawui/types/config-v2";
+} from "@clawui/types/config";
 import { createHash } from "crypto";
 import { existsSync } from "fs";
 import { readFile } from "fs/promises";

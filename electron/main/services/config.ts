@@ -1,4 +1,4 @@
-import type { CanonicalOpenClawConfig } from "@clawui/types/config-canonical";
+import type { CanonicalOpenClawConfig } from "@clawui/types/config";
 import { randomBytes } from "crypto";
 import { existsSync } from "fs";
 import { readFile, writeFile, mkdir } from "fs/promises";

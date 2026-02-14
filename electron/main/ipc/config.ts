@@ -1,4 +1,4 @@
-import type { ConfigSetDraftInputV2 } from "@clawui/types/config-v2";
+import type { ConfigSetDraftInputV2 } from "@clawui/types/config";
 import type { IpcMain } from "electron";
 import { ConfigOrchestrator } from "../services/config-orchestrator";
 

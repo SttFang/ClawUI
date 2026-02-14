@@ -1,4 +1,4 @@
-import type { CanonicalOpenClawConfig } from "@clawui/types/config-canonical";
+import type { CanonicalOpenClawConfig } from "@clawui/types/config";
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import net from "net";

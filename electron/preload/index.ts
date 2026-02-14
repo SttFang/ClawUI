@@ -1,63 +1,14 @@
-import type { ChatNormalizedRunEvent } from "@clawui/types";
+import type {
+  BYOKConfig,
+  ChatNormalizedRunEvent,
+  ChatRequest,
+  ChatStreamEvent,
+  GatewayEventFrame,
+  GatewayStatus,
+  InstallProgress,
+  SubscriptionConfig,
+} from "@clawui/types";
 import { contextBridge, ipcRenderer } from "electron";
-
-export type GatewayStatus = "stopped" | "starting" | "running" | "error";
-
-export interface GatewayEventFrame {
-  type: "event";
-  event: string;
-  payload?: unknown;
-  seq?: number;
-  stateVersion?: number;
-}
-
-export interface InstallProgress {
-  stage: "checking-requirements" | "installing-openclaw" | "verifying" | "complete" | "error";
-  progress: number;
-  message: string;
-  error?: string;
-}
-
-export interface RuntimeStatus {
-  nodeInstalled: boolean;
-  nodeVersion: string | null;
-  nodePath: string | null;
-  openclawInstalled: boolean;
-  openclawVersion: string | null;
-  openclawPath: string | null;
-  configExists: boolean;
-  configValid: boolean;
-  configSchemaVersion?: string | null;
-  configPath: string;
-}
-
-export interface BYOKConfig {
-  anthropic?: string;
-  openai?: string;
-}
-
-export interface SubscriptionConfig {
-  proxyUrl: string;
-  proxyToken: string;
-}
-
-export interface ChatRequest {
-  sessionId: string;
-  message: string;
-  /**
-   * Optional stable idempotency key for this chat run (maps to OpenClaw runId).
-   */
-  messageId?: string;
-  model?: string;
-}
-
-export interface ChatStreamEvent {
-  type: "start" | "delta" | "end" | "error";
-  sessionId: string;
-  messageId: string;
-  content?: string;
-  error?: string;
-}
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object

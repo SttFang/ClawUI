@@ -530,4 +530,96 @@ describe('openclawTranscriptToUIMessages', () => {
     expect(ui[0]?.role).toBe('user')
     expect(ui[0]?.parts).toEqual([{ type: 'text', text: '帮我看看这个目录' }])
   })
+
+  // --- metadata prefix stripping ---
+
+  it('should strip Conversation info + timestamp prefix from user message', () => {
+    const raw = `Conversation info (untrusted metadata): {"chat_id":123}\n[Mon 2026-02-10 14:30 GMT+8] 帮我看看日志`
+    const ui = openclawTranscriptToUIMessages([
+      { id: 'u-meta', role: 'user', content: raw },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.role).toBe('user')
+    expect(ui[0]?.parts).toEqual([{ type: 'text', text: '帮我看看日志' }])
+  })
+
+  it('should strip multi-section metadata prefix keeping only real message', () => {
+    const raw = [
+      'Conversation info (untrusted metadata): {"id":1}',
+      'Sender (untrusted metadata): {"name":"test"}',
+      '[Tue 2026-02-11 09:00 GMT+8] 真实消息内容',
+    ].join('\n')
+    const ui = openclawTranscriptToUIMessages([
+      { id: 'u-multi-meta', role: 'user', content: raw },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toEqual([{ type: 'text', text: '真实消息内容' }])
+  })
+
+  it('should preserve metadata-like text without timestamp (safe fallback)', () => {
+    const raw = 'Conversation info (untrusted metadata): {"id":1}\nno timestamp here'
+    const ui = openclawTranscriptToUIMessages([
+      { id: 'u-no-ts', role: 'user', content: raw },
+    ])
+
+    expect(ui).toHaveLength(1)
+    // Without timestamp, stripUserMetadataPrefix returns original text
+    expect(ui[0]?.parts[0]?.type).toBe('text')
+    const text = ui[0]?.parts[0]?.type === 'text' ? ui[0].parts[0].text : ''
+    expect(text).toContain('Conversation info')
+  })
+
+  it('should not strip prefix from normal user messages', () => {
+    const ui = openclawTranscriptToUIMessages([
+      { id: 'u-normal', role: 'user', content: '普通消息不变' },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toEqual([{ type: 'text', text: '普通消息不变' }])
+  })
+
+  // --- user message disappearing regression ---
+
+  it('should NOT filter user message containing "exec finished" substring (startsWith fix)', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'u-exec-sub',
+        role: 'user',
+        content: [{ type: 'text', text: 'The exec finished running successfully' }],
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.role).toBe('user')
+    expect(ui[0]?.parts[0]?.type === 'text' ? ui[0].parts[0].text : '').toContain('exec finished')
+  })
+
+  it('should NOT filter user message containing "approval required" substring', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'u-approval-sub',
+        role: 'user',
+        content: [{ type: 'text', text: 'I need approval required for this task' }],
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.role).toBe('user')
+  })
+
+  it('should fallback to record.text when content is undefined for user messages', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'u-fallback',
+        role: 'user',
+        text: 'hello from text field',
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.role).toBe('user')
+    expect(ui[0]?.parts).toEqual([{ type: 'text', text: 'hello from text field' }])
+  })
 })

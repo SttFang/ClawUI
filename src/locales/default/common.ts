@@ -491,14 +491,9 @@ const common = {
       description: "配置你的 ClawUI 偏好",
       tabs: {
         general: "通用",
-        config: "配置中心",
-        models: "模型配置",
-        api: "模型与认证",
-        tokens: "渠道与 Token",
-        gateway: "网关",
-        security: "安全",
-        subscription: "订阅",
-        about: "关于",
+        ai: "AI 服务",
+        messaging: "消息平台",
+        capabilities: "功能",
       },
       theme: {
         light: "浅色",
@@ -519,6 +514,17 @@ const common = {
           autoCheckUpdates: "自动检查更新",
           autoCheckUpdatesHint: "启动时检查更新",
         },
+        serviceManagement: "服务管理",
+      },
+      ai: {
+        advanced: "高级设置",
+      },
+      messaging: {
+        description: "连接消息平台到你的 AI 助手，配置 Token 和渠道设置。",
+        moreChannels: "更多渠道",
+      },
+      capabilities: {
+        advanced: "高级设置",
       },
       tokens: {
         title: "密钥与令牌",

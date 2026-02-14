@@ -494,14 +494,9 @@ const common = {
       description: "Configure your ClawUI preferences",
       tabs: {
         general: "General",
-        config: "Config Center",
-        models: "Models",
-        api: "Models & Auth",
-        tokens: "Channels & Tokens",
-        gateway: "Gateway",
-        security: "Security",
-        subscription: "Subscription",
-        about: "About",
+        ai: "AI Services",
+        messaging: "Messaging",
+        capabilities: "Capabilities",
       },
       theme: {
         light: "Light",
@@ -522,6 +517,18 @@ const common = {
           autoCheckUpdates: "Auto-check updates",
           autoCheckUpdatesHint: "Check for updates on startup",
         },
+        serviceManagement: "Service management",
+      },
+      ai: {
+        advanced: "Advanced",
+      },
+      messaging: {
+        description:
+          "Connect messaging platforms to your AI assistant with token and channel config.",
+        moreChannels: "More channels",
+      },
+      capabilities: {
+        advanced: "Advanced",
       },
       tokens: {
         title: "Keys & Tokens",

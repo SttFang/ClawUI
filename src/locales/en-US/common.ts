@@ -679,6 +679,7 @@ const common = {
         ok: "OK",
         expired: "Expired",
         missing: "Missing",
+        unconfigured: "Not configured",
       },
       authLabel: "Auth:",
       refreshOAuth: "Refresh OAuth",

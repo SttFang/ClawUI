@@ -28,6 +28,9 @@ function getAuthStatus(authInfo: ProviderAuthInfo, oauthStatus?: OAuthProviderSt
   if (effective.kind === "token" && effective.detail) {
     return { color: "text-green-500", bg: "bg-green-500", kind: "ok" as const };
   }
+  if (effective.kind === "none") {
+    return { color: "text-muted-foreground", bg: "bg-gray-400", kind: "unconfigured" as const };
+  }
   return { color: "text-red-500", bg: "bg-red-500", kind: "missing" as const };
 }
 
@@ -90,7 +93,7 @@ export function ProviderCard({
   const isEnvAuth = authInfo.effective.kind === "env" || authInfo.effective.kind === "none";
   const isTokenAuth = authInfo.effective.kind === "token";
   const isOAuthAuth = authInfo.effective.kind === "profiles";
-  const isMissing = status.kind === "missing";
+  const isMissing = status.kind === "missing" || status.kind === "unconfigured";
   const statusLabel = t(`settings.providerCard.status.${status.kind}`);
   const canEditApiKey = (isEnvAuth || isTokenAuth) && canSaveApiKey;
   const supportsDeviceCode = DEVICE_CODE_PROVIDERS.has(provider);

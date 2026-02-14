@@ -671,6 +671,7 @@ const common = {
         ok: "正常",
         expired: "已过期",
         missing: "缺失",
+        unconfigured: "未配置",
       },
       authLabel: "认证：",
       refreshOAuth: "刷新 OAuth",

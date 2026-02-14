@@ -2,11 +2,10 @@ import type { DynamicToolUIPart, UIMessage } from "ai";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ToolEventCard } from "@/features/Chat/components/A2UI";
+import { ExecTool, ToolGroup } from "@/features/Chat/components/A2UI";
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
 import { isExecToolName, normalizeToolCallId } from "@/lib/exec";
 import { isLikelyToolReceiptText } from "@/lib/exec/systemTextParsing";
-import { useExecToolRenderItems } from "./hooks/useExecToolRenderItems";
 import { MessageText } from "./MessageText";
 
 const AUTO_HIDE_DELAY = 1500;
@@ -23,6 +22,7 @@ type RenderableItem =
       key: string;
       node: ReactElement;
       toolCallId: string;
+      meta?: { renderKind: "explore" | "exec" | "generic"; part: DynamicToolUIPart };
     };
 
 type TextPartLike = {
@@ -69,6 +69,36 @@ function aggregateRenderableItems(items: (RenderableItem | null)[]): RenderableI
   return result;
 }
 
+function groupAdjacentExploreTools(items: RenderableItem[]): RenderableItem[] {
+  const result: RenderableItem[] = [];
+  let exploreBuffer: { part: DynamicToolUIPart; index: number }[] = [];
+
+  function flushExploreBuffer() {
+    if (!exploreBuffer.length) return;
+    const parts = exploreBuffer.map((b) => b.part);
+    const key = `explore-group:${exploreBuffer[0].index}`;
+    result.push({
+      kind: "tool",
+      key,
+      toolCallId: key,
+      node: <ToolGroup key={key} parts={parts} />,
+    });
+    exploreBuffer = [];
+  }
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+    if (item.kind === "tool" && item.meta?.renderKind === "explore") {
+      exploreBuffer.push({ part: item.meta.part, index: i });
+      continue;
+    }
+    flushExploreBuffer();
+    result.push(item);
+  }
+  flushExploreBuffer();
+  return result;
+}
+
 function ThinkingIndicator(props: { isStreaming: boolean; duration: number | undefined }) {
   const { t } = useTranslation("common");
   const { isStreaming, duration } = props;
@@ -97,7 +127,6 @@ export function MessageParts(props: {
   sessionKey: string;
 }) {
   const { message, streaming, sessionKey } = props;
-  const execItemsByIndex = useExecToolRenderItems({ message, sessionKey });
 
   const hasVisibleText = message.parts.some(
     (part) => part.type === "text" && typeof part.text === "string" && Boolean(part.text.trim()),
@@ -155,41 +184,58 @@ export function MessageParts(props: {
       const policy = classifyToolRender(part.toolName);
       if (policy.kind === "hidden") continue;
 
-      if (policy.kind === "exec_card" && isExecToolName(part.toolName)) {
-        const execItem = execItemsByIndex[index];
-        if (!execItem) continue;
-        nextItems[index] = {
-          kind: "tool",
-          key: `exec:${execItem.attemptId}:${index}`,
-          toolCallId: execItem.attemptId,
-          node: execItem.node,
-        };
-        continue;
-      }
-
       const stableToolCallId = normalizeToolCallId(part.toolCallId);
       const normalizedPart =
         stableToolCallId && stableToolCallId !== part.toolCallId
           ? ({ ...part, toolCallId: stableToolCallId } as DynamicToolUIPart)
           : part;
+      const toolCallId = stableToolCallId || part.toolCallId;
+
+      if (policy.kind === "exec" && isExecToolName(part.toolName)) {
+        nextItems[index] = {
+          kind: "tool",
+          key: `exec:${toolCallId}:${index}`,
+          toolCallId,
+          meta: { renderKind: "exec", part: normalizedPart },
+          node: (
+            <ExecTool
+              key={`exec:${toolCallId}:${index}`}
+              part={normalizedPart}
+              sessionKey={sessionKey}
+            />
+          ),
+        };
+        continue;
+      }
+
+      if (policy.kind === "explore") {
+        // Placeholder node; will be replaced by ToolGroup during grouping
+        nextItems[index] = {
+          kind: "tool",
+          key: `tool:${toolCallId}:${index}`,
+          toolCallId,
+          meta: { renderKind: "explore", part: normalizedPart },
+          node: <span key={`tool:${toolCallId}:${index}`} />,
+        };
+        continue;
+      }
+
+      // generic — render with a simple Collapsible card
       nextItems[index] = {
         kind: "tool",
-        key: `tool:${stableToolCallId || part.toolCallId}:${index}`,
-        toolCallId: stableToolCallId || part.toolCallId,
-        node: (
-          <ToolEventCard
-            key={`tool:${stableToolCallId || part.toolCallId}:${index}`}
-            part={normalizedPart}
-            sessionKey={sessionKey}
-            renderMode={policy.kind === "read_compact" ? "read_compact" : "generic"}
-            maxPreviewChars={policy.maxPreviewChars}
-          />
-        ),
+        key: `tool:${toolCallId}:${index}`,
+        toolCallId,
+        meta: { renderKind: "generic", part: normalizedPart },
+        node: <GenericToolCard key={`tool:${toolCallId}:${index}`} part={normalizedPart} />,
       };
     }
 
-    return aggregateRenderableItems(nextItems).map((item) => item.node);
-  }, [execItemsByIndex, message.parts, sessionKey, streaming]);
+    const aggregated = aggregateRenderableItems(nextItems);
+    const grouped = groupAdjacentExploreTools(aggregated);
+    return grouped.map((item) => item.node);
+  }, [message.parts, sessionKey, streaming]);
+
+  if (!nodes.length && !showIndicator) return null;
 
   return (
     <div className="space-y-3">
@@ -197,6 +243,24 @@ export function MessageParts(props: {
         <ThinkingIndicator isStreaming={isThinking} duration={thinkingDuration} />
       ) : null}
       {nodes}
+    </div>
+  );
+}
+
+// Minimal generic tool card for non-explore, non-exec tools
+function GenericToolCard(props: { part: DynamicToolUIPart }) {
+  const { part } = props;
+  const title = part.title?.trim() ? part.title : part.toolName;
+  const state = part.state;
+
+  return (
+    <div className="space-y-1 text-sm">
+      <div className="text-muted-foreground">{title}</div>
+      {state === "output-error" && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+          {part.errorText}
+        </div>
+      )}
     </div>
   );
 }

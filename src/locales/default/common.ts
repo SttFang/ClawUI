@@ -940,6 +940,15 @@ const common = {
     seq: "序号 {{seq}}",
     run: "运行 {{runId}}",
     statePreliminary: "{{state}}（部分）",
+    exploring: "探索中",
+    explored: "已探索",
+    exec: {
+      running: "Running {{command}}",
+      ran: "Ran {{command}}",
+      failed: "Failed {{command}}",
+      awaitingApproval: "{{command}}（等待批准）",
+      pending: "{{command}}",
+    },
     execAction: {
       thinking: "思考中…",
       completedSingle: "已完成任务，耗时{{seconds}}秒",
@@ -969,7 +978,7 @@ const common = {
     },
     tool: {
       searching: "搜索中…",
-      searchingWithQuery: "搜索“{{query}}”",
+      searchingWithQuery: "搜索\u201c{{query}}\u201d",
       readingFile: "读取",
     },
   },

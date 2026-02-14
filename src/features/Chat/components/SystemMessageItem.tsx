@@ -1,8 +1,16 @@
 import type { UIMessage } from "ai";
+import { isLikelyToolReceiptText } from "@/lib/exec/systemTextParsing";
 import { MessageParts } from "./MessageParts";
 
 export function SystemMessageItem(props: { message: UIMessage; sessionKey: string }) {
   const { message, sessionKey } = props;
+
+  const hasVisibleContent = message.parts.some((part) => {
+    if (part.type === "text" && typeof part.text === "string")
+      return part.text.trim() !== "" && !isLikelyToolReceiptText(part.text);
+    return part.type === "dynamic-tool";
+  });
+  if (!hasVisibleContent) return null;
 
   return (
     <div className="group is-system flex w-full justify-center">

@@ -1,23 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { READ_COMPACT_PREVIEW_CHARS, classifyToolRender } from "../toolRenderPolicy";
+import { EXPLORE_PREVIEW_CHARS, classifyToolRender, isExploreToolName } from "../toolRenderPolicy";
 
 describe("toolRenderPolicy", () => {
-  it("maps exec and bash to exec_card", () => {
-    expect(classifyToolRender("exec").kind).toBe("exec_card");
-    expect(classifyToolRender("bash").kind).toBe("exec_card");
+  it("maps exec and bash to exec", () => {
+    expect(classifyToolRender("exec").kind).toBe("exec");
+    expect(classifyToolRender("bash").kind).toBe("exec");
   });
 
-  it("maps read to read_compact with default preview chars", () => {
-    const policy = classifyToolRender("read");
-    expect(policy.kind).toBe("read_compact");
-    expect(policy.maxPreviewChars).toBe(READ_COMPACT_PREVIEW_CHARS);
+  it("maps read/search/glob/grep/list_dir to explore", () => {
+    for (const name of ["read", "search", "glob", "grep", "list_dir"]) {
+      const policy = classifyToolRender(name);
+      expect(policy.kind).toBe("explore");
+      expect(policy.maxPreviewChars).toBe(EXPLORE_PREVIEW_CHARS);
+    }
   });
 
   it("hides session_status", () => {
     expect(classifyToolRender("session_status").kind).toBe("hidden");
   });
 
-  it("falls back unknown tools to generic_card", () => {
-    expect(classifyToolRender("plugin_custom_tool").kind).toBe("generic_card");
+  it("falls back unknown tools to generic", () => {
+    expect(classifyToolRender("plugin_custom_tool").kind).toBe("generic");
+  });
+
+  it("isExploreToolName guards correctly", () => {
+    expect(isExploreToolName("read")).toBe(true);
+    expect(isExploreToolName("READ")).toBe(true);
+    expect(isExploreToolName("exec")).toBe(false);
+    expect(isExploreToolName("custom")).toBe(false);
   });
 });

@@ -294,4 +294,77 @@ describe('openclawTranscriptToUIMessages', () => {
     expect(ui[0]?.id).toBe('a1')
     expect(ui[0]?.role).toBe('assistant')
   })
+
+  it('should normalize toolCallId with call/fc suffix to call id', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'tool-fc-1',
+        role: 'toolResult',
+        toolCallId: 'call_abc123|fc_987',
+        toolName: 'read',
+        result: 'ok',
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toEqual([
+      {
+        type: 'dynamic-tool',
+        toolName: 'read',
+        toolCallId: 'call_abc123',
+        state: 'output-available',
+        input: {},
+        output: 'ok',
+        providerExecuted: true,
+      },
+    ])
+  })
+
+  it('should keep normal toolCallId unchanged when no call/fc suffix exists', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'tool-normal-1',
+        role: 'toolResult',
+        toolCallId: 'tc_read_1',
+        toolName: 'read',
+        result: 'ok',
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    const part = ui[0]?.parts[0]
+    expect(part && part.type === 'dynamic-tool' ? part.toolCallId : '').toBe('tc_read_1')
+  })
+
+  it('should collapse adjacent synthetic input/read and real output/read into one output card', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'assistant:1771052284748:h56r6u:175',
+        role: 'assistant',
+        toolName: 'read',
+        content: [{ type: 'toolcall', name: 'read', arguments: { path: '/tmp/1.png' } }],
+      },
+      {
+        id: 'call_I0juQg9HZ0gB68z8TTSMdvQy|fc_0c57b44d',
+        role: 'toolResult',
+        toolCallId: 'call_I0juQg9HZ0gB68z8TTSMdvQy|fc_0c57b44d',
+        toolName: 'read',
+        content: [{ type: 'tool_result', text: 'Read image file [image/png]' }],
+        input: { path: '/tmp/1.png' },
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.parts).toEqual([
+      {
+        type: 'dynamic-tool',
+        toolName: 'read',
+        toolCallId: 'call_I0juQg9HZ0gB68z8TTSMdvQy',
+        state: 'output-available',
+        input: { path: '/tmp/1.png' },
+        output: 'Read image file [image/png]',
+        providerExecuted: true,
+      },
+    ])
+  })
 })

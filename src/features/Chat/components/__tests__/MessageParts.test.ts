@@ -388,4 +388,29 @@ describe("MessageParts", () => {
     expect(html).toContain("exec:tool-bash-1:output-available");
     expect(html).not.toContain("tool:bash:tool-bash-1");
   });
+
+  it("normalizes non-exec toolCallId with call/fc suffix inside message render", () => {
+    const message: UIMessage = {
+      id: "msg-read-normalized",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolName: "read",
+          toolCallId: "call_I0juQg9HZ0gB68z8TTSMdvQy|fc_0c57b44d",
+          state: "output-available",
+          providerExecuted: true,
+          input: { path: "/tmp/1.png" },
+          output: "Read image file [image/png]",
+        } as const,
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MessageParts, { message, streaming: false, sessionKey: "s1" }),
+    );
+
+    expect(html).toContain("tool:read:call_I0juQg9HZ0gB68z8TTSMdvQy");
+    expect(html).not.toContain("tool:read:call_I0juQg9HZ0gB68z8TTSMdvQy|fc_0c57b44d");
+  });
 });

@@ -135,4 +135,38 @@ describe("ToolEventCard", () => {
       vi.useRealTimers();
     }
   });
+
+  it("renders read string output as plain text and avoids DOM nesting warnings", () => {
+    const part = {
+      type: "dynamic-tool",
+      toolName: "read",
+      toolCallId: "call_I0juQg9HZ0gB68z8TTSMdvQy|fc_0c57b44d",
+      state: "output-available",
+      providerExecuted: true,
+      input: { path: "/tmp/1.png" },
+      output: "Read image file [image/png]",
+    } as DynamicToolUIPart;
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      act(() => {
+        root.render(createElement(ToolEventCard, { part, sessionKey: "s1" }));
+      });
+      expect(container.textContent).toContain("Read image file [image/png]");
+      expect(container.textContent).not.toContain('"Read image file [image/png]"');
+
+      const nestingErrors = consoleErrorSpy.mock.calls.filter(([message]) =>
+        String(message).includes("validateDOMNesting"),
+      );
+      expect(nestingErrors).toHaveLength(0);
+    } finally {
+      act(() => {
+        root.unmount();
+      });
+      consoleErrorSpy.mockRestore();
+    }
+  });
 });

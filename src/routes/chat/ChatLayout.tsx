@@ -11,6 +11,7 @@ import {
 import { ipc } from "@/lib/ipc";
 import { ensureChatConnected } from "@/services/chat/connection";
 import { useChatStore, selectCurrentSession, selectSessions } from "@/store/chat";
+import { MAIN_SESSION_KEY } from "@/store/chat/helpers";
 import { useGatewayStore, selectIsGatewayRunning } from "@/store/gateway";
 
 function hasConfiguredModelAuth(modelsStatus: unknown): boolean {
@@ -97,11 +98,18 @@ export default function ChatLayout() {
   }, [wsConnected, refreshSessions]);
 
   const createGatewayUiSession = useCallback(async (): Promise<string> => {
-    const cryptoObj = (globalThis as unknown as { crypto?: Crypto }).crypto;
-    const uuid = cryptoObj?.randomUUID
-      ? cryptoObj.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const key = `agent:main:ui:${uuid}`;
+    const sessions = useChatStore.getState().sessions;
+    const hasMain = sessions.some((s) => s.id === MAIN_SESSION_KEY);
+    let key: string;
+    if (!hasMain) {
+      key = MAIN_SESSION_KEY;
+    } else {
+      const cryptoObj = (globalThis as unknown as { crypto?: Crypto }).crypto;
+      const uuid = cryptoObj?.randomUUID
+        ? cryptoObj.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      key = `agent:main:ui:${uuid}`;
+    }
 
     await ensureChatConnected();
 

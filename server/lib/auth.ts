@@ -1,9 +1,30 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
+import { env } from "./env";
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: env.DATABASE_URL,
 });
+
+function buildSocialProviders() {
+  const providers: Record<string, { clientId: string; clientSecret: string }> = {};
+
+  if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
+    providers.github = {
+      clientId: env.GITHUB_CLIENT_ID,
+      clientSecret: env.GITHUB_CLIENT_SECRET,
+    };
+  }
+
+  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
+    providers.google = {
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+    };
+  }
+
+  return providers;
+}
 
 export const auth = betterAuth({
   database: pool,
@@ -11,16 +32,7 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false, // Set to true in production
   },
-  socialProviders: {
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID || "",
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
-    },
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    },
-  },
+  socialProviders: buildSocialProviders(),
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days
     cookieCache: {

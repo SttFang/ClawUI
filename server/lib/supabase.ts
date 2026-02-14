@@ -1,11 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY!;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
+import { env } from "./env";
 
 // Service client for server-side operations
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+export const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
@@ -14,7 +11,7 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 
 // Create a client for user-scoped operations
 export function createSupabaseUserClient(accessToken: string) {
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  return createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
     global: {
       headers: {
         Authorization: `Bearer ${accessToken}`,

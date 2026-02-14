@@ -1,5 +1,6 @@
 import cors from "@fastify/cors";
 import Fastify from "fastify";
+import { env } from "./lib/env";
 import { authRoutes } from "./routes/auth";
 import { subscriptionRoutes } from "./routes/subscription";
 import { ApiError, error } from "./utils/response";
@@ -33,10 +34,8 @@ async function main() {
   fastify.get("/health", async () => ({ status: "ok" }));
 
   // Start server
-  const port = parseInt(process.env.PORT || "14015", 10);
-  await fastify.listen({ port, host: "0.0.0.0" });
-
-  console.log(`Server running on http://localhost:${port}`);
+  await fastify.listen({ port: env.PORT, host: "0.0.0.0" });
+  fastify.log.info(`Server running on http://localhost:${env.PORT}`);
 }
 
 main().catch((err) => {

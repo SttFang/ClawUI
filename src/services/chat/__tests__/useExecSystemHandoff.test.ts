@@ -913,4 +913,140 @@ describe("useExecSystemHandoff", () => {
       root.unmount();
     });
   });
+
+  it("should not handoff tool end phase without terminal payload", async () => {
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "agent",
+        payload: {
+          sessionKey: "s1",
+          runId: "run-end-no-result",
+          stream: "tool",
+          data: {
+            name: "exec",
+            phase: "end",
+          },
+        },
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+      await Promise.resolve();
+    });
+
+    const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(0);
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should ignore tool payload without session/run/command correlation", async () => {
+    useExecApprovalsStore.setState((state) => ({
+      ...state,
+      queue: [
+        {
+          id: "approval-pending",
+          request: { sessionKey: "s1", command: "ls -la" },
+          createdAtMs: Date.now(),
+          expiresAtMs: Date.now() + 60_000,
+        },
+      ],
+    }));
+
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "agent",
+        payload: {
+          runId: "run-other-session",
+          stream: "tool",
+          data: {
+            name: "exec",
+            phase: "result",
+            result: "other session output",
+          },
+        },
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+      await Promise.resolve();
+    });
+
+    const historyCalls = hoisted.requestSpy.mock.calls.filter(
+      ([method]) => method === "chat.history",
+    );
+    const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(historyCalls).toHaveLength(0);
+    expect(agentCalls).toHaveLength(0);
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should allow repeated handoff after cooldown expires", async () => {
+    historyMessages = [
+      {
+        id: "sys-terminal-cooldown",
+        role: "system",
+        content: [{ type: "text", text: "System: Exec finished (code 0) ls -la" }],
+        createdAtMs: Date.now(),
+      },
+    ];
+
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "exec.approval.resolved",
+        payload: {
+          id: "approval-cooldown-1",
+          decision: "allow-once",
+          request: { sessionKey: "s1", command: "ls -la" },
+        },
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120_001);
+    });
+
+    act(() => {
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "exec.approval.resolved",
+        payload: {
+          id: "approval-cooldown-2",
+          decision: "allow-once",
+          request: { sessionKey: "s1", command: "ls -la" },
+        },
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+      await Promise.resolve();
+    });
+
+    const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(2);
+
+    act(() => {
+      root.unmount();
+    });
+  });
 });

@@ -2,7 +2,7 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } fro
 import { CalendarClock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAgentsStore, agentsSelectors } from "@/store/agents";
-import { formatTimestamp } from "../cronFormat";
+import { formatTimestamp } from "@/routes/agents/cronFormat";
 
 interface CronPanelProps {
   onOpenDialog: () => void;

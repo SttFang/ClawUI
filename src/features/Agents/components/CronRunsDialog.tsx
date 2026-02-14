@@ -9,7 +9,7 @@ import {
 } from "@clawui/ui";
 import { useTranslation } from "react-i18next";
 import { useAgentsStore, agentsSelectors } from "@/store/agents";
-import { formatTimestamp } from "../cronFormat";
+import { formatTimestamp } from "@/routes/agents/cronFormat";
 
 export function CronRunsDialog() {
   const { t } = useTranslation("common");

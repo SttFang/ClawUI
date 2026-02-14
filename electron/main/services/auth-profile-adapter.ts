@@ -135,9 +135,7 @@ export class AuthProfileAdapter {
    * Atomically read-modify-write the store under a file lock.
    * The updater receives the current store and should return `true` to write changes.
    */
-  async updateWithLock(
-    updater: (store: AuthProfileStore) => boolean,
-  ): Promise<AuthProfileStore> {
+  async updateWithLock(updater: (store: AuthProfileStore) => boolean): Promise<AuthProfileStore> {
     await this.ensureFile();
     const release = await lockfile.lock(this.storePath, LOCK_OPTIONS);
     try {

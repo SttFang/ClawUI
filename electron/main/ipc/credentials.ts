@@ -44,13 +44,10 @@ export function registerCredentialHandlers(
 
   // --- OAuth handlers ---
 
-  ipcMain.handle(
-    "credentials:oauth-device-start",
-    async (_event, provider: string) => {
-      if (!oauthService) throw new Error("OAuth service not available");
-      return oauthService.startDeviceCodeFlow(provider);
-    },
-  );
+  ipcMain.handle("credentials:oauth-device-start", async (_event, provider: string) => {
+    if (!oauthService) throw new Error("OAuth service not available");
+    return oauthService.startDeviceCodeFlow(provider);
+  });
 
   ipcMain.handle(
     "credentials:oauth-device-poll",
@@ -60,11 +57,8 @@ export function registerCredentialHandlers(
     },
   );
 
-  ipcMain.handle(
-    "credentials:oauth-refresh",
-    async (_event, profileId: string) => {
-      if (!oauthService) throw new Error("OAuth service not available");
-      return oauthService.refreshIfNeeded(profileId);
-    },
-  );
+  ipcMain.handle("credentials:oauth-refresh", async (_event, profileId: string) => {
+    if (!oauthService) throw new Error("OAuth service not available");
+    return oauthService.refreshIfNeeded(profileId);
+  });
 }

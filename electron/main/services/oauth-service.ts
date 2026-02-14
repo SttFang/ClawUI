@@ -6,8 +6,7 @@ import { AuthProfileAdapter, type AuthProfileCredential } from "./auth-profile-a
 const GITHUB_CLIENT_ID = "Iv1.b507a08c87ecfe98";
 const GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code";
 const GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token";
-const GITHUB_COPILOT_TOKEN_URL =
-  "https://api.github.com/copilot_internal/v2/token";
+const GITHUB_COPILOT_TOKEN_URL = "https://api.github.com/copilot_internal/v2/token";
 
 export interface DeviceCodeInfo {
   deviceCode: string;
@@ -168,16 +167,13 @@ export class OAuthService {
   private async exchangeCopilotToken(
     githubToken: string,
   ): Promise<{ token: string; expiresAt: number }> {
-    const data = await fetchJson<{ token: string; expires_at: number }>(
-      GITHUB_COPILOT_TOKEN_URL,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `token ${githubToken}`,
-          Accept: "application/json",
-        },
+    const data = await fetchJson<{ token: string; expires_at: number }>(GITHUB_COPILOT_TOKEN_URL, {
+      method: "GET",
+      headers: {
+        Authorization: `token ${githubToken}`,
+        Accept: "application/json",
       },
-    );
+    });
 
     return { token: data.token, expiresAt: data.expires_at * 1000 };
   }

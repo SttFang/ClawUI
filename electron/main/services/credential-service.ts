@@ -17,9 +17,9 @@ import { existsSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { homedir } from "os";
 import { dirname, join } from "path";
-import { ConfigService, getNestedValue } from "./config";
 import { configLog } from "../lib/logger";
 import { AuthProfileAdapter, type AuthProfileCredential } from "./auth-profile-adapter";
+import { ConfigService, getNestedValue } from "./config";
 import { syncExternalCliCredentials } from "./external-cli-sync";
 import { TOOL_CREDENTIAL_DEFS } from "./tool-credential-registry";
 
@@ -51,9 +51,7 @@ export const CHANNEL_TOKEN_DEFS: ChannelTokenDef[] = [
   {
     channelType: "telegram",
     label: "Telegram",
-    fields: [
-      { field: "botToken", configPath: "channels.telegram.botToken", label: "Bot Token" },
-    ],
+    fields: [{ field: "botToken", configPath: "channels.telegram.botToken", label: "Bot Token" }],
   },
   {
     channelType: "slack",
@@ -79,16 +77,12 @@ export const CHANNEL_TOKEN_DEFS: ChannelTokenDef[] = [
   {
     channelType: "irc",
     label: "IRC",
-    fields: [
-      { field: "password", configPath: "channels.irc.password", label: "Server Password" },
-    ],
+    fields: [{ field: "password", configPath: "channels.irc.password", label: "Server Password" }],
   },
   {
     channelType: "signal",
     label: "Signal",
-    fields: [
-      { field: "account", configPath: "channels.signal.account", label: "Phone Number" },
-    ],
+    fields: [{ field: "account", configPath: "channels.signal.account", label: "Phone Number" }],
   },
   {
     channelType: "googlechat",
@@ -379,7 +373,10 @@ export class CredentialService {
         key: envValue,
       });
       await this.configService.patchEnv({ [envKey]: null });
-      configLog.info("[credential.migrate]", `provider=${provider} envKey=${envKey} → auth-profiles`);
+      configLog.info(
+        "[credential.migrate]",
+        `provider=${provider} envKey=${envKey} → auth-profiles`,
+      );
     }
 
     // Channel tokens: env → config paths

@@ -2,11 +2,8 @@ import { existsSync } from "fs";
 import { readFile } from "fs/promises";
 import { homedir } from "os";
 import { join } from "path";
+import type { AuthProfileAdapter, AuthProfileCredential } from "./auth-profile-adapter";
 import { configLog } from "../lib/logger";
-import type {
-  AuthProfileAdapter,
-  AuthProfileCredential,
-} from "./auth-profile-adapter";
 
 interface ExternalCliDef {
   profileId: string;
@@ -35,10 +32,7 @@ function parseClaudeCli(raw: string): AuthProfileCredential | null {
   }
 }
 
-function parseOAuthCredsJson(
-  raw: string,
-  provider: string,
-): AuthProfileCredential | null {
+function parseOAuthCredsJson(raw: string, provider: string): AuthProfileCredential | null {
   try {
     const data = JSON.parse(raw) as {
       access_token?: string;
@@ -85,9 +79,7 @@ const EXTERNAL_CLI_DEFS: ExternalCliDef[] = [
  * Sync external CLI credentials into auth-profiles on startup.
  * Only overwrites if the external credential has a newer expiry.
  */
-export async function syncExternalCliCredentials(
-  authProfiles: AuthProfileAdapter,
-): Promise<void> {
+export async function syncExternalCliCredentials(authProfiles: AuthProfileAdapter): Promise<void> {
   for (const def of EXTERNAL_CLI_DEFS) {
     if (!existsSync(def.credPath)) continue;
 
@@ -103,10 +95,7 @@ export async function syncExternalCliCredentials(
       }
 
       await authProfiles.setProfile(def.profileId, cred);
-      configLog.info(
-        "[credential.cli-sync]",
-        `profileId=${def.profileId} source=${def.credPath}`,
-      );
+      configLog.info("[credential.cli-sync]", `profileId=${def.profileId} source=${def.credPath}`);
     } catch (error) {
       configLog.debug(
         "[credential.cli-sync.skipped]",

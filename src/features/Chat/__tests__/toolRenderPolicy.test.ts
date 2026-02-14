@@ -15,8 +15,8 @@ describe("toolRenderPolicy", () => {
     }
   });
 
-  it("hides session_status", () => {
-    expect(classifyToolRender("session_status").kind).toBe("hidden");
+  it.each(["session_status", "sessions_list", "sessions_history"])("hides %s", (name) => {
+    expect(classifyToolRender(name).kind).toBe("hidden");
   });
 
   it("falls back unknown tools to generic", () => {
@@ -28,5 +28,36 @@ describe("toolRenderPolicy", () => {
     expect(isExploreToolName("READ")).toBe(true);
     expect(isExploreToolName("exec")).toBe(false);
     expect(isExploreToolName("custom")).toBe(false);
+  });
+
+  it.each(["web_fetch", "memory_search", "memory_get", "agents_list"])(
+    "classifies %s as explore",
+    (name) => {
+      expect(classifyToolRender(name).kind).toBe("explore");
+    },
+  );
+
+  it.each([
+    "cron",
+    "nodes",
+    "canvas",
+    "gateway",
+    "image",
+    "message",
+    "tts",
+    "sessions_send",
+    "sessions_spawn",
+    "write",
+    "edit",
+    "apply_patch",
+    "process",
+  ])("classifies %s as generic", (name) => {
+    expect(classifyToolRender(name).kind).toBe("generic");
+  });
+
+  it("is case-insensitive", () => {
+    expect(classifyToolRender("WEB_FETCH").kind).toBe("explore");
+    expect(classifyToolRender("Memory_Search").kind).toBe("explore");
+    expect(classifyToolRender("SESSION_STATUS").kind).toBe("hidden");
   });
 });

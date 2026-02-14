@@ -293,7 +293,9 @@ describe("ToolsStore", () => {
 
       await useToolsStore.getState().setAccessMode("deny");
 
-      expect(useToolsStore.getState().config.accessMode).toBe("deny");
+      const state = useToolsStore.getState();
+      expect(state.config.accessMode).toBe("auto"); // rolled back
+      expect(state.error).toBe("Save failed");
       expect(mockToolsLog.error).toHaveBeenCalledWith(
         "Failed to save access mode:",
         expect.any(Error),

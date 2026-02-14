@@ -26,6 +26,7 @@ import {
   selectAccessMode,
   selectToolsConfig,
   selectIsLoading,
+  selectError as selectToolsError,
   type ExecAskMode,
   type ExecHostMode,
   type ExecSecurityMode,
@@ -101,6 +102,7 @@ export function CapabilitiesTab() {
   const accessMode = useToolsStore(selectAccessMode);
   const config = useToolsStore(selectToolsConfig);
   const isToolsLoading = useToolsStore(selectIsLoading);
+  const toolsError = useToolsStore(selectToolsError);
   const loadTools = useToolsStore((s) => s.loadTools);
   const setAccessMode = useToolsStore((s) => s.setAccessMode);
   const setExecHost = useToolsStore((s) => s.setExecHost);
@@ -144,6 +146,12 @@ export function CapabilitiesTab() {
           <h2 className="text-xl font-semibold">{t("tools.title")}</h2>
           <p className="text-muted-foreground">{t("tools.description")}</p>
         </div>
+
+        {toolsError ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive mb-4">
+            {toolsError}
+          </div>
+        ) : null}
 
         <div className="mb-4">
           <div className="flex items-center gap-2">

@@ -31,15 +31,20 @@ type SetToolsState = (
 type GetToolsState = () => ToolsStore;
 
 async function withPersist(
+  set: SetToolsState,
   get: GetToolsState,
   errorMessage: string,
   callback: () => Promise<void>,
 ): Promise<void> {
+  const prev = get().config;
   try {
     await callback();
     await get().internal_persistConfig();
+    set({ error: null }, false, "tools/persistOk");
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     toolsLog.error(errorMessage, error);
+    set({ config: prev, error: message }, false, "tools/persistFail");
   }
 }
 
@@ -88,7 +93,7 @@ export function createToolsActions(
     },
 
     setAccessMode: async (mode: ToolAccessMode) => {
-      await withPersist(get, "Failed to save access mode:", async () => {
+      await withPersist(set, get, "Failed to save access mode:", async () => {
         const config = get().config;
         const nextAsk: ExecAskMode =
           mode === "ask" ? "always" : mode === "deny" ? "off" : "on-miss";
@@ -116,14 +121,14 @@ export function createToolsActions(
     },
 
     setExecHost: async (host: ExecHostMode) => {
-      await withPersist(get, "Failed to save exec host:", async () => {
+      await withPersist(set, get, "Failed to save exec host:", async () => {
         const config = get().config;
         set({ config: { ...config, execHost: host } }, false, "tools/setExecHost");
       });
     },
 
     setExecAsk: async (ask: ExecAskMode) => {
-      await withPersist(get, "Failed to save exec ask mode:", async () => {
+      await withPersist(set, get, "Failed to save exec ask mode:", async () => {
         const config = get().config;
         const accessMode: ToolAccessMode =
           ask === "always"
@@ -136,7 +141,7 @@ export function createToolsActions(
     },
 
     setExecSecurity: async (security: ExecSecurityMode) => {
-      await withPersist(get, "Failed to save exec security mode:", async () => {
+      await withPersist(set, get, "Failed to save exec security mode:", async () => {
         const config = get().config;
         const accessMode: ToolAccessMode =
           config.execAsk === "always"
@@ -153,7 +158,7 @@ export function createToolsActions(
     },
 
     setPolicyLists: async (lists: { allowList: string[]; denyList: string[] }) => {
-      await withPersist(get, "Failed to save tool policy lists:", async () => {
+      await withPersist(set, get, "Failed to save tool policy lists:", async () => {
         const config = get().config;
         set(
           {
@@ -170,7 +175,7 @@ export function createToolsActions(
     },
 
     enableTool: async (toolId: string) => {
-      await withPersist(get, "Failed to enable tool:", async () => {
+      await withPersist(set, get, "Failed to enable tool:", async () => {
         const { tools, config } = get();
         const newTools = tools.map((tool) =>
           tool.id === toolId ? { ...tool, enabled: true } : tool,
@@ -192,7 +197,7 @@ export function createToolsActions(
     },
 
     disableTool: async (toolId: string) => {
-      await withPersist(get, "Failed to disable tool:", async () => {
+      await withPersist(set, get, "Failed to disable tool:", async () => {
         const { tools, config } = get();
         const newTools = tools.map((tool) =>
           tool.id === toolId ? { ...tool, enabled: false } : tool,
@@ -214,7 +219,7 @@ export function createToolsActions(
     },
 
     toggleSandbox: async (enabled: boolean) => {
-      await withPersist(get, "Failed to toggle sandbox:", async () => {
+      await withPersist(set, get, "Failed to toggle sandbox:", async () => {
         set({ config: { ...get().config, sandboxEnabled: enabled } }, false, "tools/toggleSandbox");
       });
     },
@@ -223,7 +228,7 @@ export function createToolsActions(
       const { config } = get();
       if (config.allowList.includes(toolId)) return;
 
-      await withPersist(get, "Failed to add to allow list:", async () => {
+      await withPersist(set, get, "Failed to add to allow list:", async () => {
         const nextConfig = get().config;
         const newAllowList = [...nextConfig.allowList, toolId];
         const newDenyList = nextConfig.denyList.filter((id) => id !== toolId);
@@ -239,7 +244,7 @@ export function createToolsActions(
       const { config } = get();
       if (config.denyList.includes(toolId)) return;
 
-      await withPersist(get, "Failed to add to deny list:", async () => {
+      await withPersist(set, get, "Failed to add to deny list:", async () => {
         const nextConfig = get().config;
         const newDenyList = [...nextConfig.denyList, toolId];
         const newAllowList = nextConfig.allowList.filter((id) => id !== toolId);
@@ -252,7 +257,7 @@ export function createToolsActions(
     },
 
     removeFromAllowList: async (toolId: string) => {
-      await withPersist(get, "Failed to remove from allow list:", async () => {
+      await withPersist(set, get, "Failed to remove from allow list:", async () => {
         const config = get().config;
         const newAllowList = config.allowList.filter((id) => id !== toolId);
         set({ config: { ...config, allowList: newAllowList } }, false, "tools/removeFromAllowList");
@@ -260,7 +265,7 @@ export function createToolsActions(
     },
 
     removeFromDenyList: async (toolId: string) => {
-      await withPersist(get, "Failed to remove from deny list:", async () => {
+      await withPersist(set, get, "Failed to remove from deny list:", async () => {
         const config = get().config;
         const newDenyList = config.denyList.filter((id) => id !== toolId);
         set({ config: { ...config, denyList: newDenyList } }, false, "tools/removeFromDenyList");

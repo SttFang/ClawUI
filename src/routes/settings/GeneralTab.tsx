@@ -82,9 +82,7 @@ export function GeneralTab() {
               key={option.value}
               onClick={() => setTheme(option.value)}
               className={`flex items-center gap-2 px-4 py-2 rounded-md border text-sm transition-colors ${
-                theme === option.value
-                  ? "border-primary bg-primary/5"
-                  : "hover:border-primary/50"
+                theme === option.value ? "border-primary bg-primary/5" : "hover:border-primary/50"
               }`}
             >
               {option.icon}

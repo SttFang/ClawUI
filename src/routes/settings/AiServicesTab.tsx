@@ -47,7 +47,14 @@ const fallbackProviderInfos: ProviderAuthInfo[] = getFallbackProviderIds().map((
   effective: { kind: "none" },
 }));
 
-const PRIMARY_PROVIDERS = new Set(["anthropic", "openai", "openrouter", "google", "github-copilot", "xai"]);
+const PRIMARY_PROVIDERS = new Set([
+  "anthropic",
+  "openai",
+  "openrouter",
+  "google",
+  "github-copilot",
+  "xai",
+]);
 
 function findOAuthStatus(
   modelsStatus: { auth: Record<string, unknown> },
@@ -171,7 +178,9 @@ export function AiServicesTab() {
             key={provider.provider}
             provider={provider.provider}
             authInfo={provider}
-            oauthStatus={modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined}
+            oauthStatus={
+              modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined
+            }
             apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
             onApiKeyChange={handleApiKeyChange(provider.provider)}
             onApiKeySave={() => void saveApiKeys(provider.provider)}
@@ -201,7 +210,9 @@ export function AiServicesTab() {
                   key={provider.provider}
                   provider={provider.provider}
                   authInfo={provider}
-                  oauthStatus={modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined}
+                  oauthStatus={
+                    modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined
+                  }
                   apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
                   onApiKeyChange={handleApiKeyChange(provider.provider)}
                   onApiKeySave={() => void saveApiKeys(provider.provider)}

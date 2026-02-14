@@ -126,99 +126,99 @@ export function ProviderCard({
           </div>
         </div>
 
-          {/* OAuth provider: login + refresh */}
-          {isOAuthAuth && (
-            <div className="flex items-center gap-2">
-              {supportsDeviceCode && (
-                <Button variant="outline" size="sm" onClick={() => setOauthDialogOpen(true)}>
-                  <LogIn className="mr-1.5 h-3.5 w-3.5" />
-                  {t("settings.providerCard.oauth.login")}
-                </Button>
-              )}
-              <Button variant="outline" size="sm" disabled={isRefreshing} onClick={handleRefresh}>
-                {isRefreshing ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                )}
-                {t("settings.providerCard.refreshOAuth")}
+        {/* OAuth provider: login + refresh */}
+        {isOAuthAuth && (
+          <div className="flex items-center gap-2">
+            {supportsDeviceCode && (
+              <Button variant="outline" size="sm" onClick={() => setOauthDialogOpen(true)}>
+                <LogIn className="mr-1.5 h-3.5 w-3.5" />
+                {t("settings.providerCard.oauth.login")}
               </Button>
-            </div>
-          )}
-
-          {/* Missing auth + supports OAuth: offer login */}
-          {isMissing && supportsDeviceCode && (
-            <Button variant="outline" size="sm" onClick={() => setOauthDialogOpen(true)}>
-              <LogIn className="mr-1.5 h-3.5 w-3.5" />
-              {t("settings.providerCard.oauth.login")}
-            </Button>
-          )}
-
-          {/* API key / token editor */}
-          {canEditApiKey && (
-            <div className="space-y-2">
-              {isMissing || isEditing ? (
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type={showKey ? "text" : "password"}
-                      placeholder={t("settings.providerCard.apiKeyPlaceholder", {
-                        provider: label,
-                      })}
-                      value={apiKeyValue}
-                      onChange={(e) => onApiKeyChange(e.target.value)}
-                      className="pr-8"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowKey(!showKey)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      onApiKeySave();
-                      setIsEditing(false);
-                    }}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("actions.save")}
-                  </Button>
-                  {!isMissing && (
-                    <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
-                      {t("actions.cancel")}
-                    </Button>
-                  )}
-                </div>
+            )}
+            <Button variant="outline" size="sm" disabled={isRefreshing} onClick={handleRefresh}>
+              {isRefreshing ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditing(true)}
-                  className="gap-1.5"
-                >
-                  <Edit3 className="h-3.5 w-3.5" />
-                  {t("settings.providerCard.editKey")}
-                </Button>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
               )}
-              {saveSuccess && (
-                <span className="flex items-center gap-1 text-sm text-green-500">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  {t("settings.providerCard.saved")}
-                </span>
-              )}
-            </div>
-          )}
+              {t("settings.providerCard.refreshOAuth")}
+            </Button>
+          </div>
+        )}
 
-          {(isEnvAuth || isTokenAuth) && !canSaveApiKey && (
-            <p className="text-xs text-muted-foreground">
-              {t("settings.providerCard.unsupportedSaveHint")}
-            </p>
-          )}
-        </div>
+        {/* Missing auth + supports OAuth: offer login */}
+        {isMissing && supportsDeviceCode && (
+          <Button variant="outline" size="sm" onClick={() => setOauthDialogOpen(true)}>
+            <LogIn className="mr-1.5 h-3.5 w-3.5" />
+            {t("settings.providerCard.oauth.login")}
+          </Button>
+        )}
+
+        {/* API key / token editor */}
+        {canEditApiKey && (
+          <div className="space-y-2">
+            {isMissing || isEditing ? (
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showKey ? "text" : "password"}
+                    placeholder={t("settings.providerCard.apiKeyPlaceholder", {
+                      provider: label,
+                    })}
+                    value={apiKeyValue}
+                    onChange={(e) => onApiKeyChange(e.target.value)}
+                    className="pr-8"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    onApiKeySave();
+                    setIsEditing(false);
+                  }}
+                  disabled={isSaving}
+                >
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("actions.save")}
+                </Button>
+                {!isMissing && (
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+                    {t("actions.cancel")}
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="gap-1.5"
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+                {t("settings.providerCard.editKey")}
+              </Button>
+            )}
+            {saveSuccess && (
+              <span className="flex items-center gap-1 text-sm text-green-500">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {t("settings.providerCard.saved")}
+              </span>
+            )}
+          </div>
+        )}
+
+        {(isEnvAuth || isTokenAuth) && !canSaveApiKey && (
+          <p className="text-xs text-muted-foreground">
+            {t("settings.providerCard.unsupportedSaveHint")}
+          </p>
+        )}
+      </div>
 
       {supportsDeviceCode && (
         <OAuthLoginDialog

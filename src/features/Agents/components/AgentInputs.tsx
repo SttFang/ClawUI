@@ -21,9 +21,7 @@ export function AgentInputs() {
             <CardDescription>{t("agents.sections.inputs.description")}</CardDescription>
           </div>
           <Button variant="outline" size="sm" asChild>
-            <a href="#/settings?tab=config&section=channels">
-              {t("agents.actions.manageChannels")}
-            </a>
+            <a href="#/settings?tab=messaging">{t("agents.actions.manageChannels")}</a>
           </Button>
         </div>
       </CardHeader>

@@ -101,8 +101,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [renameSession],
   );
 
-  const onOneClickConfig = useCallback(() => navigate("/settings"), [navigate]);
-  const onManualConfig = useCallback(() => navigate("/settings"), [navigate]);
+  const onOneClickConfig = useCallback(() => navigate("/settings?tab=ai"), [navigate]);
+  const onManualConfig = useCallback(() => navigate("/settings?tab=ai"), [navigate]);
 
   const value: ChatContextValue = useMemo(
     () => ({

@@ -25,12 +25,14 @@ export function AgentExtensions() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
-              <a href="#/settings?tab=config&section=plugins">
+              <a href="#/settings?tab=capabilities&section=plugins">
                 {t("agents.actions.managePlugins")}
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <a href="#/settings?tab=config&section=skills">{t("agents.actions.manageSkills")}</a>
+              <a href="#/settings?tab=capabilities&section=skills">
+                {t("agents.actions.manageSkills")}
+              </a>
             </Button>
           </div>
         </div>

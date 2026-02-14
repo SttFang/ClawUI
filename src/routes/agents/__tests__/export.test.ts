@@ -51,7 +51,7 @@ describe("buildAgentsExportPayload", () => {
     );
     expect(
       payload.operations.some(
-        (op) => op.kind === "navigate" && op.href === "#/settings?tab=config&section=plugins",
+        (op) => op.kind === "navigate" && op.href === "#/settings?tab=capabilities&section=plugins",
       ),
     ).toBe(true);
     expect(payload.notes.openclawConfigPath).toBe("/Users/me/.openclaw/openclaw.json");

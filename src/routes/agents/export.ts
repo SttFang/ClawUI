@@ -83,15 +83,15 @@ export function buildAgentsExportPayload(params: {
     {
       id: "navigate.plugins",
       kind: "navigate",
-      href: "#/settings?tab=config&section=plugins",
+      href: "#/settings?tab=capabilities&section=plugins",
     },
-    { id: "navigate.skills", kind: "navigate", href: "#/settings?tab=config&section=skills" },
+    { id: "navigate.skills", kind: "navigate", href: "#/settings?tab=capabilities&section=skills" },
     {
       id: "navigate.channels",
       kind: "navigate",
-      href: "#/settings?tab=config&section=channels",
+      href: "#/settings?tab=messaging",
     },
-    { id: "navigate.tools", kind: "navigate", href: "#/settings?tab=config&section=tools" },
+    { id: "navigate.tools", kind: "navigate", href: "#/settings?tab=capabilities&section=tools" },
   ];
 
   return {

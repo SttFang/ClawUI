@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { act } from "react-dom/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeExecApprovalKey } from "@/store/execApprovals";
+import { EXEC_RUNNING_TTL_MS } from "@/store/execApprovals/helpers";
 import { initialState as execApprovalsInitialState } from "@/store/execApprovals/initialState";
 import { useExecApprovalsStore } from "@/store/execApprovals/store";
 import { ToolEventCard } from "../ToolEventCard";
@@ -85,6 +86,53 @@ describe("ToolEventCard", () => {
         root.unmount();
       });
       consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it("treats bash as exec-like and expires running status after TTL", () => {
+    vi.useFakeTimers();
+    const sessionKey = "agent:main:ui:tool-event-card-bash";
+    const command = "ls -la ~/Desktop";
+    const now = Date.now();
+    const runningKey = makeExecApprovalKey(sessionKey, command);
+
+    useExecApprovalsStore.setState({
+      ...execApprovalsInitialState,
+      queue: [],
+      busyById: {},
+      runningByKey: {
+        [runningKey]: now,
+      },
+      lastResolvedBySession: {},
+    });
+
+    const part = {
+      type: "dynamic-tool",
+      toolName: "bash",
+      toolCallId: "tool-bash-1",
+      state: "input-available",
+      providerExecuted: true,
+      input: { command },
+    } as DynamicToolUIPart;
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    try {
+      act(() => {
+        root.render(createElement(ToolEventCard, { part, sessionKey }));
+      });
+      expect(container.textContent).toContain("a2ui.toolState.running");
+
+      act(() => {
+        vi.advanceTimersByTime(EXEC_RUNNING_TTL_MS + 2_000);
+      });
+      expect(container.textContent).toContain("input-available");
+    } finally {
+      act(() => {
+        root.unmount();
+      });
+      vi.useRealTimers();
     }
   });
 });

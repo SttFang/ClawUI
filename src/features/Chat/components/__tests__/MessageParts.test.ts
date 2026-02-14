@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { act } from "react-dom/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clearTracesForSession, upsertExecTrace } from "@/components/A2UI/execTrace";
+import { clearTracesForSession, commitExecTraceUpdate } from "@/components/A2UI/execTrace";
 import { initialState as a2uiExecTraceInitialState } from "@/store/a2uiExecTrace/initialState";
 import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
 import { MessageParts } from "../MessageParts";
@@ -156,7 +156,10 @@ describe("MessageParts", () => {
     renderToStaticMarkup(
       createElement(MessageParts, { message: staleInput, streaming: false, sessionKey }),
     );
-    upsertExecTrace(staleInput.parts[0] as DynamicToolUIPart, sessionKey);
+    commitExecTraceUpdate({
+      part: staleInput.parts[0] as DynamicToolUIPart,
+      sessionKey,
+    });
 
     const latestFinal: UIMessage = {
       id: "msg-new",
@@ -178,7 +181,10 @@ describe("MessageParts", () => {
     renderToStaticMarkup(
       createElement(MessageParts, { message: latestFinal, streaming: false, sessionKey }),
     );
-    upsertExecTrace(latestFinal.parts[0] as DynamicToolUIPart, sessionKey);
+    commitExecTraceUpdate({
+      part: latestFinal.parts[0] as DynamicToolUIPart,
+      sessionKey,
+    });
 
     // Older message re-renders and should be suppressed.
     const html = renderToStaticMarkup(

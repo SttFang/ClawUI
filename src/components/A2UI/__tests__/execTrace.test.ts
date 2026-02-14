@@ -4,10 +4,10 @@ import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
 import { initialState as execApprovalsInitialState } from "@/store/execApprovals/initialState";
 import { useExecApprovalsStore } from "@/store/execApprovals/store";
 import {
+  commitExecTraceUpdate,
   clearTracesForSession,
   deriveNextExecTrace,
   shouldSuppressExecPart,
-  upsertExecTrace,
 } from "../execTrace";
 
 describe("execTrace", () => {
@@ -83,8 +83,8 @@ describe("execTrace", () => {
       providerExecuted: true,
     } as DynamicToolUIPart;
 
-    upsertExecTrace(startPart, "agent:main:ui:test");
-    const trace = upsertExecTrace(finalPart, "agent:main:ui:test");
+    commitExecTraceUpdate({ part: startPart, sessionKey: "agent:main:ui:test" });
+    const trace = commitExecTraceUpdate({ part: finalPart, sessionKey: "agent:main:ui:test" });
 
     expect(trace.status).toBe("completed");
   });
@@ -118,9 +118,15 @@ describe("execTrace", () => {
       providerExecuted: true,
     } as DynamicToolUIPart;
 
-    upsertExecTrace(startPart, "agent:main:ui:test");
-    const completed = upsertExecTrace(finalPart, "agent:main:ui:test");
-    const late = upsertExecTrace(lateUpdatePart, "agent:main:ui:test");
+    commitExecTraceUpdate({ part: startPart, sessionKey: "agent:main:ui:test" });
+    const completed = commitExecTraceUpdate({
+      part: finalPart,
+      sessionKey: "agent:main:ui:test",
+    });
+    const late = commitExecTraceUpdate({
+      part: lateUpdatePart,
+      sessionKey: "agent:main:ui:test",
+    });
 
     expect(completed.status).toBe("completed");
     expect(late.status).toBe("completed");
@@ -146,7 +152,7 @@ describe("execTrace", () => {
       providerExecuted: true,
     } as DynamicToolUIPart;
 
-    upsertExecTrace(finalPart, sessionKey);
+    commitExecTraceUpdate({ part: finalPart, sessionKey });
 
     expect(shouldSuppressExecPart(inputPart, sessionKey)).toBe(true);
     expect(shouldSuppressExecPart(finalPart, sessionKey)).toBe(false);
@@ -174,10 +180,10 @@ describe("execTrace", () => {
       state: "input-streaming",
     } as DynamicToolUIPart;
 
-    upsertExecTrace(startPart, sessionKey);
-    const completed = upsertExecTrace(finalPart, sessionKey);
+    commitExecTraceUpdate({ part: startPart, sessionKey });
+    const completed = commitExecTraceUpdate({ part: finalPart, sessionKey });
     clearTracesForSession(sessionKey);
-    const restarted = upsertExecTrace(lateUpdatePart, sessionKey);
+    const restarted = commitExecTraceUpdate({ part: lateUpdatePart, sessionKey });
 
     expect(completed.status).toBe("completed");
     expect(restarted.status).toBe("running");
@@ -203,8 +209,8 @@ describe("execTrace", () => {
       providerExecuted: true,
     } as DynamicToolUIPart;
 
-    upsertExecTrace(oldInput, sessionKey);
-    upsertExecTrace(newFinal, sessionKey);
+    commitExecTraceUpdate({ part: oldInput, sessionKey });
+    commitExecTraceUpdate({ part: newFinal, sessionKey });
 
     expect(shouldSuppressExecPart(oldInput, sessionKey)).toBe(true);
     expect(shouldSuppressExecPart(newFinal, sessionKey)).toBe(false);
@@ -230,7 +236,7 @@ describe("execTrace", () => {
       providerExecuted: true,
     } as DynamicToolUIPart;
 
-    upsertExecTrace(oldFinal, sessionKey);
+    commitExecTraceUpdate({ part: oldFinal, sessionKey });
 
     expect(shouldSuppressExecPart(newPending, sessionKey)).toBe(false);
   });
@@ -255,7 +261,7 @@ describe("execTrace", () => {
       providerExecuted: true,
     } as DynamicToolUIPart;
 
-    upsertExecTrace(terminalUnknownOrder, sessionKey);
+    commitExecTraceUpdate({ part: terminalUnknownOrder, sessionKey });
     useExecApprovalsStore.setState((state) => ({
       ...state,
       queue: [
@@ -291,7 +297,7 @@ describe("execTrace", () => {
       providerExecuted: true,
     } as DynamicToolUIPart;
 
-    upsertExecTrace(oldCompleted, sessionKey);
+    commitExecTraceUpdate({ part: oldCompleted, sessionKey });
     useExecApprovalsStore.setState((state) => ({
       ...state,
       queue: [
@@ -303,7 +309,7 @@ describe("execTrace", () => {
         },
       ],
     }));
-    upsertExecTrace(newPending, sessionKey);
+    commitExecTraceUpdate({ part: newPending, sessionKey });
 
     expect(shouldSuppressExecPart(oldCompleted, sessionKey)).toBe(true);
   });
@@ -327,8 +333,8 @@ describe("execTrace", () => {
       providerExecuted: true,
     } as DynamicToolUIPart;
 
-    upsertExecTrace(olderPending, sessionKey);
-    upsertExecTrace(newerPending, sessionKey);
+    commitExecTraceUpdate({ part: olderPending, sessionKey });
+    commitExecTraceUpdate({ part: newerPending, sessionKey });
 
     expect(shouldSuppressExecPart(olderPending, sessionKey)).toBe(true);
     expect(shouldSuppressExecPart(newerPending, sessionKey)).toBe(false);

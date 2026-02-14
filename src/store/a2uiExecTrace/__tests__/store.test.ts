@@ -33,7 +33,7 @@ describe("A2UI exec trace store", () => {
     );
   });
 
-  it("keeps references stable when setTraceIfChanged receives same payload", () => {
+  it("keeps references stable when setTrace receives same payload", () => {
     const store = useA2UIExecTraceStore.getState();
     const trace = {
       traceKey: "agent:main:ui:1::tool-1",
@@ -44,16 +44,16 @@ describe("A2UI exec trace store", () => {
       status: "running" as const,
       startedAtMs: 1,
     };
-    store.setTraceIfChanged(trace);
+    store.setTrace(trace);
     const firstTraces = useA2UIExecTraceStore.getState().tracesByKey;
 
-    store.setTraceIfChanged({ ...trace });
+    store.setTrace({ ...trace });
     const secondTraces = useA2UIExecTraceStore.getState().tracesByKey;
 
     expect(secondTraces).toBe(firstTraces);
   });
 
-  it("keeps references stable when setTerminalIfChanged receives same payload", () => {
+  it("keeps references stable when setTerminal receives same payload", () => {
     const store = useA2UIExecTraceStore.getState();
     const commandKey = "agent:main:ui:1::ls -la ~/Desktop";
     const terminal = {
@@ -61,10 +61,10 @@ describe("A2UI exec trace store", () => {
       endedAtMs: 2,
       toolOrder: 1,
     };
-    store.setTerminalIfChanged(commandKey, terminal);
+    store.setTerminal(commandKey, terminal);
     const firstTerminals = useA2UIExecTraceStore.getState().terminalByCommand;
 
-    store.setTerminalIfChanged(commandKey, { ...terminal });
+    store.setTerminal(commandKey, { ...terminal });
     const secondTerminals = useA2UIExecTraceStore.getState().terminalByCommand;
 
     expect(secondTerminals).toBe(firstTerminals);

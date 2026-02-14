@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ExecActionItem } from "@/components/A2UI";
+import { getCommandFromInput, isExecToolName } from "@/lib/exec";
 import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
 import {
   buildFallbackAttemptId,
@@ -35,22 +36,6 @@ type ParsedSystemTerminal = {
   command?: string;
   atMs: number;
 };
-
-function toRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
-}
-
-function readCommandFromInput(input: unknown): string {
-  const record = toRecord(input);
-  if (!record) return "";
-  const command = record.command;
-  return typeof command === "string" ? command.trim() : "";
-}
-
-function isExecToolName(toolName: string): boolean {
-  const normalized = toolName.trim().toLowerCase();
-  return normalized === "exec" || normalized === "bash";
-}
 
 function parseToolCallTimestamp(toolCallId: string): number {
   const assistantMatch = toolCallId.match(/assistant:(\d{10,})/);
@@ -265,7 +250,7 @@ export function useExecToolRenderItems(
       if (part.type !== "dynamic-tool") continue;
       if (!isExecToolName(part.toolName)) continue;
 
-      const command = readCommandFromInput(part.input);
+      const command = getCommandFromInput(part.input);
       const derivedRunId = extractRunIdFromToolCallId(part.toolCallId) || undefined;
       const pendingApproval = findLatestPendingApproval({
         queue: approvalQueue,

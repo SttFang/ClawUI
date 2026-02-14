@@ -5,9 +5,9 @@ import type {
   ExecTraceRecord,
   ExecTraceUpdatePayload,
 } from "@/store/a2uiExecTrace/types";
+import { getCommandFromInput, makeExecApprovalKey, normalizeSessionKey } from "@/lib/exec";
 import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
-import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
-import { normalizeSessionKey } from "@/store/execApprovals/helpers";
+import { useExecApprovalsStore } from "@/store/execApprovals";
 
 export type { ExecTraceStatus } from "@/store/a2uiExecTrace/types";
 
@@ -131,17 +131,6 @@ export function clearTracesForSession(sessionKey: string): void {
   useA2UIExecTraceStore.getState().clearSession(normalizedSession);
 }
 
-function toRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
-}
-
-function getCommand(input: unknown): string {
-  const record = toRecord(input);
-  if (!record) return "";
-  const command = record.command;
-  return typeof command === "string" ? command.trim() : "";
-}
-
 export function isExecPreliminary(part: DynamicToolUIPart): boolean {
   const maybe = (part as unknown as { preliminary?: unknown }).preliminary;
   return maybe === true;
@@ -191,7 +180,7 @@ export function deriveNextExecTrace(params: DeriveNextExecTraceParams): DeriveNe
   const normalizedSessionKey = params.sessionKey ?? "";
   const now = params.now ?? Date.now();
   const traceKey = buildExecTraceKey(normalizedSessionKey, params.part.toolCallId);
-  const command = getCommand(params.part.input);
+  const command = getCommandFromInput(params.part.input);
   const incomingFinal =
     params.part.state === "output-error" ||
     (params.part.state === "output-available" && !isExecPreliminary(params.part));
@@ -331,7 +320,7 @@ export function commitExecTraceUpdate(params: {
   const traceKey = buildExecTraceKey(normalizedSessionKey, params.part.toolCallId);
   const state = useA2UIExecTraceStore.getState();
   const existing = state.tracesByKey[traceKey];
-  const commandCandidate = getCommand(params.part.input) || existing?.command || "";
+  const commandCandidate = getCommandFromInput(params.part.input) || existing?.command || "";
   const commandKey = commandCandidate ? makeCommandKey(normalizedSessionKey, commandCandidate) : "";
   const currentTerminal = commandKey ? state.terminalByCommand[commandKey] : undefined;
   const derived = deriveNextExecTrace({
@@ -378,7 +367,7 @@ export function shouldSuppressExecPart(
   const terminalByCommand = context?.terminalByCommand ?? snapshot.terminalByCommand;
   const traceKey = buildExecTraceKey(normalizedSessionKey, part.toolCallId);
   const existing = tracesByKey[traceKey];
-  const commandCandidate = getCommand(part.input) || existing?.command || "";
+  const commandCandidate = getCommandFromInput(part.input) || existing?.command || "";
   const commandKey = commandCandidate ? makeCommandKey(normalizedSessionKey, commandCandidate) : "";
   const currentTerminal = commandKey ? terminalByCommand[commandKey] : undefined;
   const trace =
@@ -390,7 +379,7 @@ export function shouldSuppressExecPart(
       currentTerminal,
     }).nextTrace;
   const command = trace.command.trim();
-  const explicitCommand = getCommand(part.input);
+  const explicitCommand = getCommandFromInput(part.input);
   const isPartTerminal =
     part.state === "output-error" ||
     (part.state === "output-available" && !isExecPreliminary(part));
@@ -453,7 +442,7 @@ export function collectCompletedExecTraces(
     if (!isExecPart(part)) continue;
     const traceKey = buildExecTraceKey(normalizedSessionKey, part.toolCallId);
     const existing = context.tracesByKey[traceKey];
-    const commandCandidate = getCommand(part.input) || existing?.command || "";
+    const commandCandidate = getCommandFromInput(part.input) || existing?.command || "";
     const commandKey = commandCandidate
       ? makeCommandKey(normalizedSessionKey, commandCandidate)
       : "";

@@ -1,14 +1,13 @@
+import { isRecord, normalizeSessionKey } from "@/lib/exec";
 import type {
   ExecApprovalDecision,
   ExecApprovalRequest,
   ExecApprovalRequestPayload,
 } from "./types";
 
-export const EXEC_RUNNING_TTL_MS = 2 * 60 * 1000;
+export { isRecord, makeExecApprovalKey, normalizeSessionKey } from "@/lib/exec";
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+export const EXEC_RUNNING_TTL_MS = 2 * 60 * 1000;
 
 function normalizeApprovalDecision(value: unknown): ExecApprovalDecision | null {
   if (typeof value !== "string") return null;
@@ -132,15 +131,4 @@ export function parseExecApprovalResolved(payload: unknown): {
 export function prune(queue: ExecApprovalRequest[]): ExecApprovalRequest[] {
   const now = Date.now();
   return queue.filter((entry) => entry.expiresAtMs > now);
-}
-
-export function normalizeSessionKey(value: string | null | undefined): string {
-  return (value ?? "").trim();
-}
-
-export function makeExecApprovalKey(
-  sessionKey: string | null | undefined,
-  command: string,
-): string {
-  return `${sessionKey ?? ""}::${command}`;
 }

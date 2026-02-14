@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ToolEventCard } from "@/components/A2UI";
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
+import { isExecToolName, normalizeToolCallId } from "@/lib/exec";
 import { useExecToolRenderItems } from "./hooks/useExecToolRenderItems";
 import { MessageText } from "./MessageText";
 
@@ -60,22 +61,6 @@ function isDynamicToolPartLike(part: unknown): part is DynamicToolUIPart {
     typeof record.toolCallId === "string" &&
     typeof record.toolName === "string"
   );
-}
-
-function isExecToolName(toolName: string): boolean {
-  const normalized = toolName.trim().toLowerCase();
-  return normalized === "exec" || normalized === "bash";
-}
-
-function normalizeToolCallId(value: string): string {
-  const normalized = value.trim();
-  if (!normalized) return normalized;
-  const separatorIndex = normalized.indexOf("|");
-  if (separatorIndex <= 0) return normalized;
-  const primary = normalized.slice(0, separatorIndex).trim();
-  if (!primary) return normalized;
-  if (primary.startsWith("call_")) return primary;
-  return normalized;
 }
 
 function aggregateRenderableItems(items: (RenderableItem | null)[]): RenderableItem[] {

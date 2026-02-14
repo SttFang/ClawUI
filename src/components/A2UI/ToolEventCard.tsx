@@ -4,6 +4,7 @@ import { FileText, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SiReact } from "react-icons/si";
+import { getCommandFromInput, isExecToolName, isReadToolName, toRecord } from "@/lib/exec";
 import { cn } from "@/lib/utils";
 import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
 import { EXEC_RUNNING_TTL_MS } from "@/store/execApprovals/helpers";
@@ -18,10 +19,6 @@ function formatJson(value: unknown): string {
   } catch {
     return String(value);
   }
-}
-
-function toRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
 }
 
 function extractSearchQuery(input: unknown): string {
@@ -82,21 +79,6 @@ function StatePill(props: { state: string; preliminary?: boolean }) {
   );
 }
 
-function getExecCommand(input: unknown): string {
-  if (typeof input !== "object" || input === null) return "";
-  const cmd = (input as Record<string, unknown>)["command"];
-  return typeof cmd === "string" ? cmd.trim() : "";
-}
-
-function isExecLikeToolName(name: string): boolean {
-  const normalized = name.trim().toLowerCase();
-  return normalized === "exec" || normalized === "bash";
-}
-
-function isReadToolName(name: string): boolean {
-  return name.trim().toLowerCase() === "read";
-}
-
 type ToolCardRenderMode = "generic" | "read_compact";
 
 function useNowTick(enabled: boolean): number {
@@ -142,8 +124,8 @@ export function ToolEventCard(props: {
       ? `${outputText.slice(0, maxPreviewChars).trimEnd()}...`
       : outputText;
 
-  const isExec = isExecLikeToolName(part.toolName);
-  const execCommand = isExec ? getExecCommand(part.input) : "";
+  const isExec = isExecToolName(part.toolName);
+  const execCommand = isExec ? getCommandFromInput(part.input) : "";
   const normalizedExecCommand = execCommand.trim();
 
   const approvalRequested = useExecApprovalsStore((s) => {

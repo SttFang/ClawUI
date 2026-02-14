@@ -1,4 +1,5 @@
 import type { DynamicToolUIPart } from "ai";
+import { getCommandFromInput, normalizeCommand, normalizeSessionKey, toRecord } from "@/lib/exec";
 import type { ExecLifecycleRecord, ExecLifecycleStatus } from "./types";
 
 export const EXEC_LIFECYCLE_STATUS_PRIORITY: Record<ExecLifecycleStatus, number> = {
@@ -26,14 +27,6 @@ type ProjectExecLifecycleInput = {
   decision?: "allow-once" | "allow-always" | "deny" | "timeout";
 };
 
-function normalizeWhitespace(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-function toRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
-}
-
 function isExecPreliminary(part: DynamicToolUIPart): boolean {
   const marker = (part as unknown as { preliminary?: unknown }).preliminary;
   return marker === true;
@@ -55,20 +48,7 @@ function getYieldMsFromInput(input: unknown): number | undefined {
   return typeof yieldMs === "number" ? yieldMs : undefined;
 }
 
-export function normalizeCommand(value: string): string {
-  return normalizeWhitespace(value);
-}
-
-export function normalizeSessionKey(value: string): string {
-  return value.trim();
-}
-
-export function getCommandFromInput(input: unknown): string {
-  const record = toRecord(input);
-  if (!record) return "";
-  const command = record.command;
-  return typeof command === "string" ? command.trim() : "";
-}
+export { getCommandFromInput, normalizeCommand, normalizeSessionKey } from "@/lib/exec";
 
 export function extractRunIdFromToolCallId(toolCallId: string): string {
   const normalized = toolCallId.trim();

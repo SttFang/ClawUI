@@ -81,15 +81,18 @@ export function MessagingTab() {
 
   // Channel state
   const channels = useChannelsStore(selectChannels);
+  const channelsError = useChannelsStore((s) => s.error);
   const { loadChannels, enableChannel, disableChannel, configureChannel } = useChannelsStore();
 
   // Secrets state (channel tokens)
   const isLoading = useSecretsStore(selectSecretsLoading);
   const isSaving = useSecretsStore(selectSecretsSaving);
-  const error = useSecretsStore(selectSecretsError);
+  const secretsError = useSecretsStore(selectSecretsError);
   const saveSuccess = useSecretsStore(selectSecretsSaveSuccess);
   const hasUnsaved = useSecretsStore(selectHasUnsavedChanges);
   const channelValues = useSecretsStore((s) => s.channelValues);
+
+  const error = secretsError || channelsError;
   const setChannelValue = useSecretsStore((s) => s.setChannelValue);
   const save = useSecretsStore((s) => s.save);
   const load = useSecretsStore((s) => s.load);

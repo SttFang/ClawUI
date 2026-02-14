@@ -40,7 +40,7 @@ export function TelegramConfigDialog({
 }: TelegramConfigDialogProps) {
   const { t } = useTranslation("common");
 
-  const { fields, setField, isLoading, handleSave } = useDialogForm<TelegramFields>({
+  const { fields, setField, isLoading, error, handleSave } = useDialogForm<TelegramFields>({
     config: config
       ? {
           botToken: config.botToken || "",
@@ -79,6 +79,11 @@ export function TelegramConfigDialog({
         </DialogHeader>
 
         <div className="p-6 space-y-4">
+          {error ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor="botToken">{t("channels.fields.botToken")}</Label>
             <Input

@@ -9,6 +9,7 @@ export function useDialogForm<T extends Record<string, unknown>>(opts: {
 }) {
   const [fields, setFields] = useState<T>(opts.defaults);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (opts.config) {
@@ -18,19 +19,23 @@ export function useDialogForm<T extends Record<string, unknown>>(opts: {
 
   const setField = useCallback(<K extends keyof T>(key: K, value: T[K]) => {
     setFields((prev) => ({ ...prev, [key]: value }));
+    setError(null);
   }, []);
 
   const handleSave = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       await opts.onSave(fields);
       opts.onClose?.();
-    } catch (error) {
-      opts.logger?.error(error);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Save failed";
+      setError(message);
+      opts.logger?.error(e);
     } finally {
       setIsLoading(false);
     }
   }, [fields, opts]);
 
-  return { fields, setField, isLoading, handleSave };
+  return { fields, setField, isLoading, error, handleSave };
 }

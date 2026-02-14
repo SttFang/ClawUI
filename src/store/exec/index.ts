@@ -60,11 +60,18 @@ export type {
 } from "@/store/execLifecycle";
 
 // --- A2UIExecTrace ---
-export { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
+export { useA2UIExecTraceStore } from "@/store/a2uiExecTrace";
+export {
+  selectTraces,
+  selectTerminals,
+  selectTraceByKey,
+  selectTerminalByKey,
+  a2uiExecTraceSelectors,
+} from "@/store/a2uiExecTrace";
 export type {
   ExecTraceRecord,
   ExecTraceStatus,
   ExecTerminalRecord,
   ExecTraceUpdatePayload,
   A2UIExecTraceState,
-} from "@/store/a2uiExecTrace/types";
+} from "@/store/a2uiExecTrace";

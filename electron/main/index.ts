@@ -14,6 +14,7 @@ import { registerSkillsHandlers } from "./ipc/skills";
 import { registerStateHandlers } from "./ipc/state";
 import { registerUsageHandlers } from "./ipc/usage";
 import { initLogger, mainLog } from "./lib/logger";
+import { chatWebSocket } from "./services/chat-websocket";
 import { ClawUIStateService } from "./services/clawui-state";
 import { OpenClawConfigBridge } from "./services/config-bridge";
 import { ConfigOrchestrator } from "./services/config-orchestrator";
@@ -90,6 +91,7 @@ app.whenReady().then(async () => {
   });
 
   // Register chat handlers (needs mainWindow reference)
+  chatWebSocket.setClientVersion(app.getVersion());
   registerChatHandlers(mainWindow, configService);
   registerUsageHandlers(configService);
 
@@ -100,14 +102,7 @@ app.whenReady().then(async () => {
     // Auto-start gateway if configured
     const config = await configService.getConfig();
     if (config) {
-      gatewayService.setConfig({
-        gateway: {
-          port: config.gateway.port,
-          bind: config.gateway.bind,
-          auth: config.gateway.auth,
-        },
-        env: config.env,
-      });
+      gatewayService.setConfig(config);
     }
   } catch (error) {
     mainLog.error("Failed to initialize services:", error);

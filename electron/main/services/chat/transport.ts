@@ -46,6 +46,8 @@ export class ChatTransport extends EventEmitter {
   private shouldReconnect = true;
   private pendingRequests = new Map<string, PendingRequest>();
   private connected = false;
+  private readonly instanceId = randomUUID();
+  private clientVersion = "0.1.0";
 
   setGatewayUrl(url: string): void {
     this.gatewayUrl = url;
@@ -53,6 +55,10 @@ export class ChatTransport extends EventEmitter {
 
   setGatewayToken(token: string): void {
     this.gatewayToken = token;
+  }
+
+  setClientVersion(version: string): void {
+    this.clientVersion = version;
   }
 
   isConnected(): boolean {
@@ -191,10 +197,12 @@ export class ChatTransport extends EventEmitter {
         minProtocol: 1,
         maxProtocol: 3,
         client: {
-          id: "cli",
-          version: "0.1.0",
+          id: "openclaw-macos",
+          displayName: "ClawUI",
+          version: this.clientVersion,
           platform: process.platform,
-          mode: "cli",
+          mode: "ui",
+          instanceId: this.instanceId,
         },
         scopes: ["operator.admin", "operator.approvals"],
         caps: ["tool-events"],

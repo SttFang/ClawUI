@@ -52,6 +52,10 @@ export class ChatWebSocketService extends EventEmitter {
     this.transport.setGatewayToken(token);
   }
 
+  setClientVersion(version: string): void {
+    this.transport.setClientVersion(version);
+  }
+
   async connect(): Promise<void> {
     await this.transport.connect();
   }

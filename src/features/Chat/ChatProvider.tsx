@@ -1,5 +1,4 @@
-import type { ClawUISessionMetadata } from "@clawui/types/clawui";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { ipc } from "@/lib/ipc";
 import { ensureChatConnected } from "@/services/chat/connection";
@@ -8,36 +7,9 @@ import { MAIN_SESSION_KEY } from "@/store/chat/helpers";
 import { useGatewayStore, selectIsGatewayRunning } from "@/store/gateway";
 import type { SessionListItem } from "./types";
 import { ChatContext, type ChatContextValue } from "./ChatContext";
+import { useConfigValidation } from "./hooks/useConfigValidation";
+import { useSessionMetadata } from "./hooks/useSessionMetadata";
 import { classifySession } from "./utils/sessionKey";
-
-function hasConfiguredModelAuth(modelsStatus: unknown): boolean {
-  if (!modelsStatus || typeof modelsStatus !== "object") return false;
-
-  const auth = (modelsStatus as { auth?: unknown }).auth;
-  if (!auth || typeof auth !== "object") return false;
-
-  const providers = (auth as { providers?: unknown[] }).providers;
-  if (Array.isArray(providers)) {
-    const hasEffectiveProvider = providers.some((p) => {
-      if (!p || typeof p !== "object") return false;
-      const kind = (p as { effective?: { kind?: unknown } }).effective?.kind;
-      return kind === "env" || kind === "profiles" || kind === "token";
-    });
-    if (hasEffectiveProvider) return true;
-  }
-
-  const oauthProviders =
-    (auth as { oauth?: { providers?: unknown[] } }).oauth?.providers ??
-    (auth as { oauthStatus?: { providers?: unknown[] } }).oauthStatus?.providers;
-  if (Array.isArray(oauthProviders)) {
-    return oauthProviders.some((p) => {
-      if (!p || typeof p !== "object") return false;
-      return (p as { status?: unknown }).status === "ok";
-    });
-  }
-
-  return false;
-}
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -50,6 +22,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const selectSession = useChatStore((s) => s.selectSession);
   const deleteSession = useChatStore((s) => s.deleteSession);
 
+  const { configValid, showBanner, onDismissBanner } = useConfigValidation();
+  const { sessionMetadata, metaBusyByKey, generateMetadata } = useSessionMetadata();
+
   const renameSession = useCallback(
     async (key: string, label: string) => {
       await ensureChatConnected();
@@ -58,11 +33,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     },
     [refreshSessions],
   );
-
-  const [configValid, setConfigValid] = useState<boolean | null>(null);
-  const [showBanner, setShowBanner] = useState(true);
-  const [sessionMetadata, setSessionMetadata] = useState<Record<string, ClawUISessionMetadata>>({});
-  const [metaBusyByKey, setMetaBusyByKey] = useState<Record<string, boolean>>({});
 
   const visibleSessions: SessionListItem[] = useMemo(() => {
     return sessions
@@ -112,40 +82,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return key;
   }, [refreshSessions, selectSession]);
 
-  useEffect(() => {
-    async function checkConfig() {
-      try {
-        const [runtimeStatus, modelsStatus] = await Promise.all([
-          ipc.onboarding.detect(),
-          ipc.models.status(),
-        ]);
-        const validFromRuntime = runtimeStatus?.configValid ?? false;
-        const validFromModels = hasConfiguredModelAuth(modelsStatus);
-        setConfigValid(validFromRuntime || validFromModels);
-      } catch {
-        setConfigValid(false);
-      }
-    }
-    void checkConfig();
-  }, []);
-
-  useEffect(() => {
-    ipc.state
-      .get()
-      .then((state) => setSessionMetadata(state.sessions?.metadata ?? {}))
-      .catch(() => {});
-  }, []);
-
-  const generateMetadata = useCallback(async (key: string) => {
-    setMetaBusyByKey((m) => ({ ...m, [key]: true }));
-    try {
-      const meta = await ipc.metadata.generate(key);
-      setSessionMetadata((prev) => ({ ...prev, [key]: meta }));
-    } finally {
-      setMetaBusyByKey((m) => ({ ...m, [key]: false }));
-    }
-  }, []);
-
   const startConversation = useCallback(
     async (content: string) => {
       const key = await createGatewayUiSession();
@@ -165,7 +101,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [renameSession],
   );
 
-  const onDismissBanner = useCallback(() => setShowBanner(false), []);
   const onOneClickConfig = useCallback(() => navigate("/settings"), [navigate]);
   const onManualConfig = useCallback(() => navigate("/settings"), [navigate]);
 

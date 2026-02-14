@@ -13,11 +13,14 @@ import { registerSecurityHandlers } from "./ipc/security";
 import { registerSkillsHandlers } from "./ipc/skills";
 import { registerStateHandlers } from "./ipc/state";
 import { registerUsageHandlers } from "./ipc/usage";
+import { registerCredentialHandlers } from "./ipc/credentials";
 import { initLogger, mainLog } from "./lib/logger";
 import { chatWebSocket } from "./services/chat-websocket";
 import { ClawUIStateService } from "./services/clawui-state";
 import { OpenClawConfigBridge } from "./services/config-bridge";
 import { ConfigOrchestrator } from "./services/config-orchestrator";
+import { CredentialService } from "./services/credential-service";
+import { configurator } from "./services/configurator";
 import { GatewayService } from "./services/gateway";
 import { OpenClawProfilesService } from "./services/openclaw-profiles";
 import { UpdaterService } from "./services/updater";
@@ -37,6 +40,7 @@ const configOrchestrator = new ConfigOrchestrator({
 });
 const updaterService = new UpdaterService();
 const clawUIStateService = new ClawUIStateService();
+const credentialService = new CredentialService(configService);
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows
@@ -80,9 +84,10 @@ app.whenReady().then(async () => {
     profilesService,
     mainConfigService: configService,
   });
-  registerSecretsHandlers(ipcMain, profilesService);
+  registerSecretsHandlers(ipcMain, profilesService, credentialService);
   registerSecurityHandlers(ipcMain);
   registerSkillsHandlers(ipcMain, profilesService);
+  registerCredentialHandlers(ipcMain, credentialService);
 
   // Create the main window
   const mainWindow = createMainWindow({
@@ -99,6 +104,8 @@ app.whenReady().then(async () => {
   try {
     await clawUIStateService.initialize();
     await profilesService.initialize();
+    await credentialService.initialize();
+    configurator.setCredentialService(credentialService);
     // Auto-start gateway if configured
     const config = await configService.getConfig();
     if (config) {

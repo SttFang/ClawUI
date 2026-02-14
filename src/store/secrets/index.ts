@@ -1,34 +1,15 @@
-import type { ChannelCredentialMeta } from "@clawui/types/credentials";
+import type { ChannelCredentialMeta, ToolCredentialMeta } from "@clawui/types/credentials";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { ipc } from "@/lib/ipc";
 
-type TokenFieldKey =
-  | "discordBotToken"
-  | "discordAppToken"
-  | "telegramBotToken"
-  | "slackBotToken"
-  | "slackAppToken";
-
-const TOKEN_FIELD_MAP: Record<
-  TokenFieldKey,
-  { channelType: string; tokenField: "botToken" | "appToken" }
-> = {
-  discordBotToken: { channelType: "discord", tokenField: "botToken" },
-  discordAppToken: { channelType: "discord", tokenField: "appToken" },
-  telegramBotToken: { channelType: "telegram", tokenField: "botToken" },
-  slackBotToken: { channelType: "slack", tokenField: "botToken" },
-  slackAppToken: { channelType: "slack", tokenField: "appToken" },
-};
-
 export interface SecretsState {
-  discordBotToken: string;
-  discordAppToken: string;
-  telegramBotToken: string;
-  slackBotToken: string;
-  slackAppToken: string;
-  /** Tracks which fields the user has edited since load. */
-  dirtyFields: Set<TokenFieldKey>;
+  /** key: "discord:token", value: masked/input */
+  channelValues: Record<string, string>;
+  /** key: "web_search_brave", value: masked/input */
+  toolValues: Record<string, string>;
+  dirtyChannels: Set<string>;
+  dirtyTools: Set<string>;
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
@@ -37,7 +18,8 @@ export interface SecretsState {
 
 export interface SecretsActions {
   load: () => Promise<void>;
-  setValue: (key: TokenFieldKey, value: string) => void;
+  setChannelValue: (key: string, value: string) => void;
+  setToolValue: (key: string, value: string) => void;
   save: () => Promise<void>;
   clearSaveSuccess: () => void;
 }
@@ -45,24 +27,19 @@ export interface SecretsActions {
 export type SecretsStore = SecretsState & SecretsActions;
 
 const initialState: SecretsState = {
-  discordBotToken: "",
-  discordAppToken: "",
-  telegramBotToken: "",
-  slackBotToken: "",
-  slackAppToken: "",
-  dirtyFields: new Set(),
+  channelValues: {},
+  toolValues: {},
+  dirtyChannels: new Set(),
+  dirtyTools: new Set(),
   isLoading: false,
   isSaving: false,
   error: null,
   saveSuccess: false,
 };
 
-function findChannelMeta(
-  credentials: ChannelCredentialMeta[],
-  channelType: string,
-  tokenField: string,
-): ChannelCredentialMeta | undefined {
-  return credentials.find((c) => c.channelType === channelType && c.tokenField === tokenField);
+/** Compose channel key from channelType + field. */
+function channelKey(channelType: string, field: string): string {
+  return `${channelType}:${field}`;
 }
 
 export const useSecretsStore = create<SecretsStore>()(
@@ -74,20 +51,30 @@ export const useSecretsStore = create<SecretsStore>()(
         set({ isLoading: true, error: null }, false, "load");
         try {
           const allCredentials = await ipc.credentials.list();
+
           const channelCreds = allCredentials.filter(
             (c): c is ChannelCredentialMeta => c.category === "channel",
           );
+          const toolCreds = allCredentials.filter(
+            (c): c is ToolCredentialMeta => c.category === "tool",
+          );
 
-          const values: Partial<Record<TokenFieldKey, string>> = {};
-          for (const [key, { channelType, tokenField }] of Object.entries(TOKEN_FIELD_MAP)) {
-            const meta = findChannelMeta(channelCreds, channelType, tokenField);
-            values[key as TokenFieldKey] = meta?.maskedValue ?? "";
+          const channelValues: Record<string, string> = {};
+          for (const c of channelCreds) {
+            channelValues[channelKey(c.channelType, c.tokenField)] = c.maskedValue;
+          }
+
+          const toolValues: Record<string, string> = {};
+          for (const t of toolCreds) {
+            toolValues[t.toolId] = t.maskedValue;
           }
 
           set(
             {
-              ...values,
-              dirtyFields: new Set(),
+              channelValues,
+              toolValues,
+              dirtyChannels: new Set(),
+              dirtyTools: new Set(),
               isLoading: false,
             },
             false,
@@ -99,34 +86,53 @@ export const useSecretsStore = create<SecretsStore>()(
         }
       },
 
-      setValue: (key, value) => {
-        const dirtyFields = new Set(get().dirtyFields);
-        dirtyFields.add(key);
-        set(
-          { [key]: value, dirtyFields, saveSuccess: false } as Partial<SecretsState>,
-          false,
-          "setValue",
-        );
+      setChannelValue: (key, value) => {
+        const channelValues = { ...get().channelValues, [key]: value };
+        const dirtyChannels = new Set(get().dirtyChannels);
+        dirtyChannels.add(key);
+        set({ channelValues, dirtyChannels, saveSuccess: false }, false, "setChannelValue");
+      },
+
+      setToolValue: (key, value) => {
+        const toolValues = { ...get().toolValues, [key]: value };
+        const dirtyTools = new Set(get().dirtyTools);
+        dirtyTools.add(key);
+        set({ toolValues, dirtyTools, saveSuccess: false }, false, "setToolValue");
       },
 
       save: async () => {
         const state = get();
-        const { dirtyFields } = state;
-        if (dirtyFields.size === 0) return;
+        const { dirtyChannels, dirtyTools } = state;
+        if (dirtyChannels.size === 0 && dirtyTools.size === 0) return;
 
         set({ isSaving: true, error: null, saveSuccess: false }, false, "save");
         try {
-          for (const key of dirtyFields) {
-            const mapping = TOKEN_FIELD_MAP[key];
-            const value = state[key];
+          // Save dirty channel values
+          for (const key of dirtyChannels) {
+            const [channelType, tokenField] = key.split(":");
+            if (!channelType || !tokenField) continue;
             await ipc.credentials.setChannel({
-              channelType: mapping.channelType,
-              tokenField: mapping.tokenField,
-              value,
+              channelType,
+              tokenField,
+              value: state.channelValues[key] ?? "",
             });
           }
+
+          // Save dirty tool values
+          for (const toolId of dirtyTools) {
+            await ipc.credentials.setToolKey({
+              toolId,
+              value: state.toolValues[toolId] ?? "",
+            });
+          }
+
           set(
-            { isSaving: false, saveSuccess: true, dirtyFields: new Set() },
+            {
+              isSaving: false,
+              saveSuccess: true,
+              dirtyChannels: new Set(),
+              dirtyTools: new Set(),
+            },
             false,
             "save/success",
           );

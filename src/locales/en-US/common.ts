@@ -524,9 +524,11 @@ const common = {
         },
       },
       tokens: {
-        title: "Channel tokens",
+        title: "Keys & Tokens",
+        channelSection: "Channel Tokens",
+        toolSection: "Tool API Keys",
         description:
-          "Manage non-model secrets (Discord/Telegram/Slack). Saves are applied through the OpenClaw config draft transaction into env fields.",
+          "Manage channel tokens and tool API keys. Saves are written to the OpenClaw config via config paths.",
         fields: {
           discordBotToken: "Discord bot token",
           discordAppToken: "Discord app token",
@@ -686,6 +688,17 @@ const common = {
         token: "token {{name}}",
         tokenShort: "token",
         notConfigured: "not configured",
+      },
+      oauth: {
+        login: "Login with OAuth",
+        dialogTitle: "Login to {{provider}}",
+        dialogDescription: "Authorize via OAuth to log in to this provider.",
+        startLogin: "Start authorization",
+        visitUrl: "Visit the link below and enter the verification code:",
+        copied: "Copied",
+        waitingAuth: "Waiting for authorization...",
+        loginSuccess: "Login successful!",
+        retry: "Retry",
       },
     },
     modelConfig: {

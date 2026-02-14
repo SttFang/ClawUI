@@ -521,9 +521,10 @@ const common = {
         },
       },
       tokens: {
-        title: "渠道 Token",
-        description:
-          "管理非模型密钥（Discord/Telegram/Slack）。保存后会通过配置草稿事务写入 OpenClaw 的 env 配置。",
+        title: "密钥与令牌",
+        channelSection: "渠道 Token",
+        toolSection: "工具 API Key",
+        description: "管理渠道 Token 和工具 API Key。保存后会通过配置路径写入 OpenClaw 配置文件。",
         fields: {
           discordBotToken: "Discord 机器人 Token",
           discordAppToken: "Discord 应用 Token",
@@ -680,6 +681,17 @@ const common = {
         token: "Token {{name}}",
         tokenShort: "Token",
         notConfigured: "未配置",
+      },
+      oauth: {
+        login: "OAuth 登录",
+        dialogTitle: "登录 {{provider}}",
+        dialogDescription: "通过 OAuth 授权登录到该提供商。",
+        startLogin: "开始授权",
+        visitUrl: "请访问以下链接并输入验证码：",
+        copied: "已复制",
+        waitingAuth: "等待授权...",
+        loginSuccess: "登录成功！",
+        retry: "重试",
       },
     },
     modelConfig: {

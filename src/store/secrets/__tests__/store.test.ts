@@ -3,12 +3,14 @@ import { useSecretsStore } from "../index";
 
 const mockCredentialsList = vi.fn();
 const mockSetChannel = vi.fn();
+const mockSetToolKey = vi.fn();
 
 vi.mock("@/lib/ipc", () => ({
   ipc: {
     credentials: {
       list: (...args: unknown[]) => mockCredentialsList(...args),
       setChannel: (...args: unknown[]) => mockSetChannel(...args),
+      setToolKey: (...args: unknown[]) => mockSetToolKey(...args),
     },
   },
 }));
@@ -16,12 +18,10 @@ vi.mock("@/lib/ipc", () => ({
 describe("SecretsStore", () => {
   beforeEach(() => {
     useSecretsStore.setState({
-      discordBotToken: "",
-      discordAppToken: "",
-      telegramBotToken: "",
-      slackBotToken: "",
-      slackAppToken: "",
-      dirtyFields: new Set(),
+      channelValues: {},
+      toolValues: {},
+      dirtyChannels: new Set(),
+      dirtyTools: new Set(),
       isLoading: false,
       isSaving: false,
       error: null,
@@ -32,6 +32,7 @@ describe("SecretsStore", () => {
 
     mockCredentialsList.mockResolvedValue([]);
     mockSetChannel.mockResolvedValue(undefined);
+    mockSetToolKey.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -43,15 +44,14 @@ describe("SecretsStore", () => {
       {
         category: "channel",
         channelType: "discord",
-        tokenField: "botToken",
+        tokenField: "token",
         maskedValue: "bot***...xyz",
         hasValue: true,
       },
       {
-        category: "channel",
-        channelType: "discord",
-        tokenField: "appToken",
-        maskedValue: "app***...abc",
+        category: "tool",
+        toolId: "web_search_brave",
+        maskedValue: "BSA***...abc",
         hasValue: true,
       },
     ]);
@@ -60,16 +60,15 @@ describe("SecretsStore", () => {
 
     const state = useSecretsStore.getState();
     expect(mockCredentialsList).toHaveBeenCalled();
-    expect(state.discordBotToken).toBe("bot***...xyz");
-    expect(state.discordAppToken).toBe("app***...abc");
+    expect(state.channelValues["discord:token"]).toBe("bot***...xyz");
+    expect(state.toolValues["web_search_brave"]).toBe("BSA***...abc");
     expect(state.isLoading).toBe(false);
   });
 
-  it("saves only dirty fields via ipc.credentials.setChannel", async () => {
+  it("saves only dirty channel fields via ipc.credentials.setChannel", async () => {
     useSecretsStore.setState({
-      discordBotToken: "new-bot-token",
-      telegramBotToken: "new-tg-token",
-      dirtyFields: new Set(["discordBotToken", "telegramBotToken"]),
+      channelValues: { "discord:token": "new-bot-token", "telegram:botToken": "new-tg-token" },
+      dirtyChannels: new Set(["discord:token", "telegram:botToken"]),
     });
 
     await useSecretsStore.getState().save();
@@ -77,7 +76,7 @@ describe("SecretsStore", () => {
     expect(mockSetChannel).toHaveBeenCalledTimes(2);
     expect(mockSetChannel).toHaveBeenCalledWith({
       channelType: "discord",
-      tokenField: "botToken",
+      tokenField: "token",
       value: "new-bot-token",
     });
     expect(mockSetChannel).toHaveBeenCalledWith({
@@ -91,11 +90,31 @@ describe("SecretsStore", () => {
     expect(useSecretsStore.getState().saveSuccess).toBe(false);
   });
 
+  it("saves dirty tool fields via ipc.credentials.setToolKey", async () => {
+    useSecretsStore.setState({
+      toolValues: { web_search_brave: "BSA12345" },
+      dirtyTools: new Set(["web_search_brave"]),
+    });
+
+    await useSecretsStore.getState().save();
+
+    expect(mockSetToolKey).toHaveBeenCalledTimes(1);
+    expect(mockSetToolKey).toHaveBeenCalledWith({
+      toolId: "web_search_brave",
+      value: "BSA12345",
+    });
+    expect(useSecretsStore.getState().saveSuccess).toBe(true);
+  });
+
   it("does not save when no fields are dirty", async () => {
-    useSecretsStore.setState({ dirtyFields: new Set() });
+    useSecretsStore.setState({
+      dirtyChannels: new Set(),
+      dirtyTools: new Set(),
+    });
 
     await useSecretsStore.getState().save();
 
     expect(mockSetChannel).not.toHaveBeenCalled();
+    expect(mockSetToolKey).not.toHaveBeenCalled();
   });
 });

@@ -104,7 +104,7 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
   useEffect(() => {
     if (!normalizedSessionKey) return;
     commitExecTraceUpdate({ part, sessionKey: normalizedSessionKey });
-  }, [normalizedSessionKey, part]);
+  }, [normalizedSessionKey, part.toolCallId, part.state, part.input, part.output, part.errorText]);
 
   useEffect(() => {
     if (approvalRequested || visualState.running) {

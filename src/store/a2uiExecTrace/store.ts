@@ -66,36 +66,6 @@ export const useA2UIExecTraceStore = create<A2UIExecTraceStore>()(
           false,
           "a2uiExecTrace/setTerminal",
         ),
-      setTraceIfChanged: (trace) =>
-        set(
-          (state) => {
-            const current = state.tracesByKey[trace.traceKey];
-            if (isSameTraceRecord(current, trace)) return state;
-            return {
-              tracesByKey: {
-                ...state.tracesByKey,
-                [trace.traceKey]: trace,
-              },
-            };
-          },
-          false,
-          "a2uiExecTrace/setTraceIfChanged",
-        ),
-      setTerminalIfChanged: (commandKey, terminal) =>
-        set(
-          (state) => {
-            const current = state.terminalByCommand[commandKey];
-            if (isSameTerminalRecord(current, terminal)) return state;
-            return {
-              terminalByCommand: {
-                ...state.terminalByCommand,
-                [commandKey]: terminal,
-              },
-            };
-          },
-          false,
-          "a2uiExecTrace/setTerminalIfChanged",
-        ),
       batchSet: (updates) =>
         set(
           (state) => {

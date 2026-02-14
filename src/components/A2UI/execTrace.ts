@@ -11,8 +11,6 @@ import { normalizeSessionKey } from "@/store/execApprovals/helpers";
 
 export type { ExecTraceStatus } from "@/store/a2uiExecTrace/types";
 
-export const ENABLE_A2UI_TRACE_V2 = true;
-
 export type ExecTrace = ExecTraceRecord;
 
 export type ExecTraceContext = {
@@ -353,13 +351,6 @@ export function commitExecTraceUpdate(params: {
   };
   useA2UIExecTraceStore.getState().batchSet([payload]);
   return derived.nextTrace;
-}
-
-/**
- * @deprecated Use `deriveNextExecTrace` + `commitExecTraceUpdate` in effects or event handlers.
- */
-export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): ExecTrace {
-  return commitExecTraceUpdate({ part, sessionKey });
 }
 
 export function selectTraceByKey(

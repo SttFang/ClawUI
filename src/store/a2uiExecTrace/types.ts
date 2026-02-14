@@ -38,8 +38,6 @@ export interface A2UIExecTraceState {
 export interface A2UIExecTraceActions {
   setTrace: (trace: ExecTraceRecord) => void;
   setTerminal: (commandKey: string, terminal: ExecTerminalRecord) => void;
-  setTraceIfChanged: (trace: ExecTraceRecord) => void;
-  setTerminalIfChanged: (commandKey: string, terminal: ExecTerminalRecord) => void;
   batchSet: (updates: ExecTraceUpdatePayload[]) => void;
   clearSession: (sessionKey: string) => void;
 }

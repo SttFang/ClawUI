@@ -1,12 +1,14 @@
 import type { DynamicToolUIPart } from "ai";
 import { Task, TaskContent, TaskItem, TaskItemFile, TaskTrigger } from "@clawui/ui";
 import { FileText, Loader2 } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SiReact } from "react-icons/si";
 import { cn } from "@/lib/utils";
 import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
 import { EXEC_RUNNING_TTL_MS } from "@/store/execApprovals/helpers";
+
+const RUNNING_TICK_MS = 1000;
 
 function formatJson(value: unknown): string {
   try {
@@ -84,6 +86,25 @@ function getExecCommand(input: unknown): string {
   return typeof cmd === "string" ? cmd.trim() : "";
 }
 
+function isExecLikeToolName(name: string): boolean {
+  const normalized = name.trim().toLowerCase();
+  return normalized === "exec" || normalized === "bash";
+}
+
+function useNowTick(enabled: boolean): number {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, RUNNING_TICK_MS);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [enabled]);
+  return nowMs;
+}
+
 export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: string }) {
   const { t } = useTranslation("common");
   const { part, sessionKey } = props;
@@ -95,7 +116,7 @@ export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: str
   const inputText = useMemo(() => formatJson(part.input), [part.input]);
   const outputText = useMemo(() => formatJson(part.output), [part.output]);
 
-  const isExec = part.toolName === "exec";
+  const isExec = isExecLikeToolName(part.toolName);
   const execCommand = isExec ? getExecCommand(part.input) : "";
   const normalizedExecCommand = execCommand.trim();
 
@@ -112,7 +133,8 @@ export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: str
     const runningKey = makeExecApprovalKey(sessionKey, normalizedExecCommand);
     return s.runningByKey[runningKey] ?? 0;
   });
-  const isRunning = Boolean(runningAtMs && Date.now() - runningAtMs < EXEC_RUNNING_TTL_MS);
+  const nowMs = useNowTick(Boolean(isExec && runningAtMs));
+  const isRunning = Boolean(runningAtMs && nowMs - runningAtMs < EXEC_RUNNING_TTL_MS);
 
   const stateLabel =
     state === "input-available" && approvalRequested

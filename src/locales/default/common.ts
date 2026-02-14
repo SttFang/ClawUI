@@ -518,6 +518,7 @@ const common = {
       },
       ai: {
         advanced: "高级设置",
+        moreProviders: "更多提供商（{{count}}）",
       },
       messaging: {
         description: "连接消息平台到你的 AI 助手，配置 Token 和渠道设置。",

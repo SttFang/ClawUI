@@ -521,6 +521,7 @@ const common = {
       },
       ai: {
         advanced: "Advanced",
+        moreProviders: "More providers ({{count}})",
       },
       messaging: {
         description:

@@ -53,9 +53,13 @@ export default function SettingsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="mb-4">
+          <TabsList className="mb-6 h-auto bg-transparent p-0 border-b rounded-none w-full justify-start gap-6">
             {(["general", "ai", "messaging", "capabilities"] as const).map((tab) => (
-              <TabsTrigger key={tab} value={tab} className="data-[state=active]:shadow-md">
+              <TabsTrigger
+                key={tab}
+                value={tab}
+                className="rounded-none border-b-2 border-transparent px-0 pb-2.5 pt-1 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+              >
                 {t(`settings.page.tabs.${tab}`)}
               </TabsTrigger>
             ))}

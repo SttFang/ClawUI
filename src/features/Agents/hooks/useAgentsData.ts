@@ -37,7 +37,15 @@ export function useAgentsData() {
     void loadTools();
     void loadPlugins();
     void loadMcpServers();
-  }, [loadConfig, loadSkills, loadCronStatus, loadChannels, loadTools, loadPlugins, loadMcpServers]);
+  }, [
+    loadConfig,
+    loadSkills,
+    loadCronStatus,
+    loadChannels,
+    loadTools,
+    loadPlugins,
+    loadMcpServers,
+  ]);
 
   const handleOpenCronDialog = useCallback(async () => {
     setCronDialogOpen(true);

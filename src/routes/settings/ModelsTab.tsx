@@ -1,3 +1,4 @@
+import type { ChangeEvent } from "react";
 import {
   Button,
   Card,
@@ -10,84 +11,46 @@ import {
   Select,
 } from "@clawui/ui";
 import { Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  selectModelConfigCatalog,
-  selectModelConfigError,
-  selectModelConfigFallbacks,
-  selectModelConfigLastProbeAt,
-  selectModelConfigLoading,
-  selectModelConfigSelectedProvider,
-  selectModelConfigStatus,
-  selectModelConfigSuccess,
-  useModelConfigStore,
-} from "@/store/modelConfig";
-
-function toCommaList(value: string[] | null | undefined): string {
-  if (!value || value.length === 0) return "";
-  return value.join(", ");
-}
-
-function parseCommaList(input: string): string[] {
-  return input
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
+import { useModelConfig, useAuthOrderForm, parseCommaList } from "./hooks";
 
 export function ModelsTab() {
   const { t } = useTranslation("common");
+  const config = useModelConfig();
+  const form = useAuthOrderForm(config);
 
-  const status = useModelConfigStore(selectModelConfigStatus);
-  const catalog = useModelConfigStore(selectModelConfigCatalog);
-  const fallbacks = useModelConfigStore(selectModelConfigFallbacks);
-  const selectedProvider = useModelConfigStore(selectModelConfigSelectedProvider);
-  const error = useModelConfigStore(selectModelConfigError);
-  const success = useModelConfigStore(selectModelConfigSuccess);
-  const isLoading = useModelConfigStore(selectModelConfigLoading);
-  const lastProbeAt = useModelConfigStore(selectModelConfigLastProbeAt);
+  const {
+    catalog,
+    fallbacks,
+    selectedProvider,
+    error,
+    success,
+    isLoading,
+    lastProbeAt,
+    defaultModel,
+    clearMessages,
+    setDefaultModel,
+    addFallback,
+    removeFallback,
+    clearFallbacks,
+    loadStatus,
+    setSelectedProvider,
+    saveAuthOrder,
+    clearAuthOrder,
+    loadAuthOrder,
+    runAuthLogin,
+  } = config;
 
-  const loadAll = useModelConfigStore((s) => s.loadAll);
-  const clearMessages = useModelConfigStore((s) => s.clearMessages);
-  const setDefaultModel = useModelConfigStore((s) => s.setDefaultModel);
-  const addFallback = useModelConfigStore((s) => s.addFallback);
-  const removeFallback = useModelConfigStore((s) => s.removeFallback);
-  const clearFallbacks = useModelConfigStore((s) => s.clearFallbacks);
-  const loadStatus = useModelConfigStore((s) => s.loadStatus);
-  const setSelectedProvider = useModelConfigStore((s) => s.setSelectedProvider);
-  const loadAuthOrder = useModelConfigStore((s) => s.loadAuthOrder);
-  const saveAuthOrder = useModelConfigStore((s) => s.saveAuthOrder);
-  const clearAuthOrder = useModelConfigStore((s) => s.clearAuthOrder);
-  const runAuthLogin = useModelConfigStore((s) => s.runAuthLogin);
-  const authOrderByProvider = useModelConfigStore((s) => s.authOrderByProvider);
-
-  const [fallbackInput, setFallbackInput] = useState("");
-  const [authOrderInput, setAuthOrderInput] = useState("");
-  const [authMethodInput, setAuthMethodInput] = useState("");
-
-  useEffect(() => {
-    void loadAll();
-  }, [loadAll]);
-
-  useEffect(() => {
-    const provider = selectedProvider.trim();
-    if (!provider) return;
-    void loadAuthOrder(provider);
-  }, [loadAuthOrder, selectedProvider]);
-
-  useEffect(() => {
-    const current = authOrderByProvider[selectedProvider]?.order ?? null;
-    setAuthOrderInput(toCommaList(current));
-  }, [authOrderByProvider, selectedProvider]);
-
-  const providerOptions = useMemo(
-    () => status?.auth.providers.map((provider) => provider.provider).filter(Boolean) ?? [],
-    [status],
-  );
-
-  const defaultModel = status?.defaultModel ?? "";
-  const authOrderValue = authOrderByProvider[selectedProvider]?.order ?? null;
+  const {
+    fallbackInput,
+    setFallbackInput,
+    authOrderInput,
+    setAuthOrderInput,
+    authMethodInput,
+    setAuthMethodInput,
+    providerOptions,
+    authOrderDisplay,
+  } = form;
 
   return (
     <div className="space-y-4">
@@ -229,7 +192,7 @@ export function ModelsTab() {
             />
             <div className="text-xs text-muted-foreground">
               {t("settings.page.models.authOrder.current", {
-                value: toCommaList(authOrderValue) || t("settings.page.models.authOrder.inherit"),
+                value: authOrderDisplay || t("settings.page.models.authOrder.inherit"),
               })}
             </div>
           </div>

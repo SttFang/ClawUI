@@ -130,6 +130,9 @@ async function run() {
         kind: "run.approval_resolved",
         approvalId: "e2e-approval-1",
         decision: "allow-once",
+        sessionKey: harness.sessionKey,
+        clientRunId: "e2e-run-approval-1",
+        command: "ls -la ~/Desktop",
         status: "running",
       });
       harness.emitGatewayEvent({
@@ -142,6 +145,21 @@ async function run() {
             id: "e2e-approval-1",
             sessionKey: harness.sessionKey,
             command: "ls -la ~/Desktop",
+          },
+        },
+      });
+      harness.emitGatewayEvent({
+        type: "event",
+        event: "agent",
+        payload: {
+          runId: "e2e-run-approval-1",
+          stream: "tool",
+          data: {
+            name: "exec",
+            phase: "result",
+            toolCallId: "tc-e2e-approval-1",
+            result:
+              "System: Exec finished (gateway id=e2e-approval-1, session=fast-coral, code 0)\nTOTAL 15",
           },
         },
       });
@@ -165,6 +183,9 @@ async function run() {
         : "";
     if (!firstMessage.toLowerCase().includes("exec finished")) {
       throw new Error(`Unexpected first agent handoff message: ${firstMessage}`);
+    }
+    if (firstMessage.includes("结果：你的桌面已经很干净了。")) {
+      throw new Error(`Unexpected cross-message handoff content: ${firstMessage}`);
     }
 
     const oldCount = await page.locator(`text=${pendingText}`).count();

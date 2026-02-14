@@ -72,6 +72,26 @@ function resolveMessageRunId(record: Record<string, unknown>): string | undefine
   return undefined;
 }
 
+function resolveMessageToolCallId(record: Record<string, unknown>): string | undefined {
+  const candidates = [
+    record.toolCallId,
+    record.tool_call_id,
+    record.toolUseId,
+    record.tool_use_id,
+    isRecord(record.meta) ? (record.meta as Record<string, unknown>).toolCallId : null,
+    isRecord(record.meta) ? (record.meta as Record<string, unknown>).tool_call_id : null,
+    isRecord(record.metadata) ? (record.metadata as Record<string, unknown>).toolCallId : null,
+    isRecord(record.metadata) ? (record.metadata as Record<string, unknown>).tool_call_id : null,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const value = candidate.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
 function readTimestamp(record: Record<string, unknown>): number {
   const candidates = [
     record.timestamp,
@@ -98,6 +118,8 @@ export function pickLastHistoryText(params: {
   sessionKey: string;
   runId?: string;
   requireRunIdMatch?: boolean;
+  toolCallId?: string;
+  requireToolCallIdMatch?: boolean;
   minAtMs?: number;
   predicate?: (text: string, raw: Record<string, unknown>) => boolean;
 }): string | null {
@@ -120,6 +142,13 @@ export function pickLastHistoryText(params: {
     if (params.runId) {
       if (params.requireRunIdMatch === true && candidateRunId !== params.runId) continue;
       if (candidateRunId && candidateRunId !== params.runId) continue;
+    }
+    const candidateToolCallId = resolveMessageToolCallId(raw);
+    if (params.toolCallId) {
+      if (params.requireToolCallIdMatch === true && candidateToolCallId !== params.toolCallId) {
+        continue;
+      }
+      if (candidateToolCallId && candidateToolCallId !== params.toolCallId) continue;
     }
 
     const text = messageText(raw);

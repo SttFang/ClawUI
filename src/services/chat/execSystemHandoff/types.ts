@@ -12,6 +12,7 @@ export type HandOffPayload = {
   approvalAtMs?: number;
   approvalAtMsFromPayload?: boolean;
   command?: string;
+  toolCallId?: string;
   source: HandOffSource;
   text?: string;
   retryCount?: number;

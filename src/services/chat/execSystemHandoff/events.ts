@@ -42,6 +42,7 @@ export function parseApprovalEvent(payload: unknown): {
   atMsFromPayload: boolean;
   command?: string;
   sessionKey?: string;
+  toolCallId?: string;
 } | null {
   if (!isRecord(payload)) return null;
 
@@ -61,6 +62,7 @@ export function parseApprovalEvent(payload: unknown): {
       : typeof payload.command === "string"
         ? payload.command.trim()
         : "";
+  const toolCallId = extractToolCallId(request ?? payload);
   const sessionKey = normalizeSessionKey(
     request && typeof request.sessionKey === "string"
       ? request.sessionKey
@@ -84,6 +86,7 @@ export function parseApprovalEvent(payload: unknown): {
     atMsFromPayload: tsFromPayload !== null,
     command: command || undefined,
     sessionKey: sessionKey || undefined,
+    toolCallId: toolCallId || undefined,
   };
 }
 
@@ -150,6 +153,23 @@ export function readToolEventText(payload: unknown): string | null {
   if (fallback) return isError ? `Exec failed: ${fallback}` : fallback;
   if (isError) return "Exec failed.";
   return null;
+}
+
+export function extractToolCallId(payload: unknown): string {
+  if (!isRecord(payload)) return "";
+  const candidates = [
+    payload.toolCallId,
+    payload.tool_call_id,
+    payload.toolUseId,
+    payload.tool_use_id,
+    payload.toolId,
+    isRecord(payload.meta) ? (payload.meta as Record<string, unknown>).toolCallId : null,
+    isRecord(payload.metadata) ? (payload.metadata as Record<string, unknown>).toolCallId : null,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+  return "";
 }
 
 export function isLikelyApprovalPromptText(text: string): boolean {

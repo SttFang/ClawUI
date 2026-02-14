@@ -511,7 +511,9 @@ describe("useExecSystemHandoff", () => {
       await Promise.resolve();
     });
     agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
-    expect(agentCalls).toHaveLength(1);
+    expect(agentCalls).toHaveLength(2);
+    const exhaustedPayload = agentCalls[1]?.[1] as { message?: string } | undefined;
+    expect(exhaustedPayload?.message).toContain("[internal.exec.approval.allow.retry_exhausted]");
 
     act(() => {
       root.unmount();
@@ -1044,6 +1046,127 @@ describe("useExecSystemHandoff", () => {
 
     const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
     expect(agentCalls).toHaveLength(2);
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should bind approval handoff to matching toolCallId terminal result", async () => {
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.normalizedEventListener?.({
+        kind: "run.started",
+        traceId: "trace-tool-call-bound",
+        timestampMs: Date.now(),
+        sessionKey: "s1",
+        clientRunId: "run-tool-call-bound",
+      });
+      hoisted.normalizedEventListener?.({
+        kind: "run.approval_resolved",
+        traceId: "trace-tool-call-bound",
+        timestampMs: Date.now(),
+        sessionKey: "s1",
+        clientRunId: "run-tool-call-bound",
+        approvalId: "approval-tool-call-bound",
+        decision: "allow-once",
+        command: "python3 -c \"print('ok')\"",
+      });
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "agent",
+        payload: {
+          runId: "run-tool-call-bound",
+          stream: "tool",
+          data: {
+            name: "exec",
+            phase: "result",
+            toolCallId: "tool-call-1",
+            result: "ok",
+          },
+        },
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+      await Promise.resolve();
+    });
+
+    const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(1);
+    expect(agentCalls[0]?.[1]).toMatchObject({
+      sessionKey: "s1",
+      message: "ok",
+      inputProvenance: { sourceTool: "approval-allow" },
+    });
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should reject mismatched toolCallId terminal payload for active approval", async () => {
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.normalizedEventListener?.({
+        kind: "run.started",
+        traceId: "trace-tool-call-mismatch",
+        timestampMs: Date.now(),
+        sessionKey: "s1",
+        clientRunId: "run-tool-call-mismatch",
+      });
+      hoisted.normalizedEventListener?.({
+        kind: "run.approval_resolved",
+        traceId: "trace-tool-call-mismatch",
+        timestampMs: Date.now(),
+        sessionKey: "s1",
+        clientRunId: "run-tool-call-mismatch",
+        approvalId: "approval-tool-call-mismatch",
+        decision: "allow-once",
+        command: "ls -la",
+      });
+      hoisted.normalizedEventListener?.({
+        kind: "run.tool_finished",
+        traceId: "trace-tool-call-mismatch",
+        timestampMs: Date.now(),
+        sessionKey: "s1",
+        clientRunId: "run-tool-call-mismatch",
+        status: "running",
+        metadata: {
+          toolCallId: "tool-call-expected",
+          name: "exec",
+          phase: "result",
+        },
+      });
+      hoisted.gatewayEventListener?.({
+        type: "event",
+        event: "agent",
+        payload: {
+          runId: "run-tool-call-mismatch",
+          stream: "tool",
+          data: {
+            name: "exec",
+            phase: "result",
+            toolCallId: "tool-call-other",
+            result: "should-not-send",
+          },
+        },
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(160);
+      await Promise.resolve();
+    });
+
+    const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(1);
+    const payload = agentCalls[0]?.[1] as { message?: string } | undefined;
+    expect(payload?.message).not.toContain("should-not-send");
+    expect(payload?.message).toContain("[internal.exec.approval.allow]");
 
     act(() => {
       root.unmount();

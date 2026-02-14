@@ -67,6 +67,9 @@ const common = {
     filterPlaceholder: "搜索 skills（名称/描述/来源）",
     shown: "显示 {{count}} 个",
     empty: "未找到 skills。",
+    emptyTitle: "未找到 Skills",
+    emptyDescription: "尝试刷新或添加新的 Skills",
+    learnMore: "了解如何添加 Skills",
     groups: {
       workspace: "Workspace Skills",
       builtIn: "Built-in Skills",

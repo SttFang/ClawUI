@@ -69,6 +69,9 @@ const common = {
     filterPlaceholder: "Search skills (name/description/source)",
     shown: "{{count}} shown",
     empty: "No skills found.",
+    emptyTitle: "No skills found",
+    emptyDescription: "Try refreshing or adding new skills",
+    learnMore: "Learn how to add Skills",
     groups: {
       workspace: "Workspace Skills",
       builtIn: "Built-in Skills",

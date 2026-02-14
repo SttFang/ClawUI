@@ -1,5 +1,5 @@
 import { Button, Input } from "@clawui/ui";
-import { Loader2, RefreshCw } from "lucide-react";
+import { ExternalLink, Loader2, RefreshCw, Wrench } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { SkillStatusEntry } from "./skills/useSkillsManager";
@@ -147,7 +147,18 @@ export function SkillsSection() {
       ) : null}
 
       {filteredSkills.length === 0 ? (
-        <div className="text-sm text-muted-foreground">{t("skillsPanel.empty")}</div>
+        <div className="text-center py-12">
+          <Wrench className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium">{t("skillsPanel.emptyTitle")}</h3>
+          <p className="text-muted-foreground mb-4">{t("skillsPanel.emptyDescription")}</p>
+          <Button
+            variant="outline"
+            onClick={() => window.open("https://docs.clawui.com/skills", "_blank")}
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            {t("skillsPanel.learnMore")}
+          </Button>
+        </div>
       ) : (
         <div className="space-y-4">
           {groups.map((group) => (

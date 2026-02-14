@@ -357,8 +357,8 @@ describe("useExecSystemHandoff", () => {
 
     let agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
     expect(agentCalls).toHaveLength(1);
-    const nudgePayload = agentCalls[0]?.[1] as { message?: string } | undefined;
-    expect(nudgePayload?.message).toContain("[internal.exec.approval.allow]");
+    const firstPayload = agentCalls[0]?.[1] as { message?: string } | undefined;
+    expect(firstPayload?.message).toContain("[internal.exec.approval.continue]");
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(350);
@@ -442,7 +442,7 @@ describe("useExecSystemHandoff", () => {
     });
   });
 
-  it("should nudge internal loop when approval is allowed but terminal result is still unavailable", async () => {
+  it("should send single continue nudge when approval is allowed but terminal result is unavailable", async () => {
     hoisted.requestSpy.mockImplementation(
       async (method: string, _params?: Record<string, unknown>) => {
         if (method === "chat.history") {
@@ -491,13 +491,8 @@ describe("useExecSystemHandoff", () => {
     });
     let agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
     expect(agentCalls).toHaveLength(1);
-    expect(agentCalls[0]?.[1]).toMatchObject({
-      sessionKey: "s1",
-      inputProvenance: { sourceTool: "approval-allow" },
-    });
-    const firstAgentPayload = agentCalls[0]?.[1] as { message?: string } | undefined;
-    expect(firstAgentPayload?.message).toContain("[internal.exec.approval.allow]");
-    expect(firstAgentPayload?.message).toContain("---");
+    const firstPayload = agentCalls[0]?.[1] as { message?: string } | undefined;
+    expect(firstPayload?.message).toContain("[internal.exec.approval.continue]");
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400);
@@ -511,19 +506,31 @@ describe("useExecSystemHandoff", () => {
       await Promise.resolve();
     });
     agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
-    expect(agentCalls).toHaveLength(2);
-    const exhaustedPayload = agentCalls[1]?.[1] as { message?: string } | undefined;
-    expect(exhaustedPayload?.message).toContain("[internal.exec.approval.allow.retry_exhausted]");
+    expect(agentCalls).toHaveLength(1);
 
     act(() => {
       root.unmount();
     });
   });
 
-  it("should preserve normalized approval command when raw resolved payload omits session and command", async () => {
+  it("should preserve normalized approval context when raw resolved payload omits session and command", async () => {
+    let historyCalls = 0;
     hoisted.requestSpy.mockImplementation(
       async (method: string, _params?: Record<string, unknown>) => {
         if (method === "chat.history") {
+          historyCalls += 1;
+          if (historyCalls >= 2) {
+            return {
+              messages: [
+                {
+                  id: "sys-finished-merge",
+                  role: "system",
+                  content: [{ type: "text", text: "System: Exec finished (code 0) merge-ok" }],
+                  createdAtMs: Date.now(),
+                },
+              ],
+            };
+          }
           return {
             messages: [
               {
@@ -576,15 +583,22 @@ describe("useExecSystemHandoff", () => {
       await vi.advanceTimersByTimeAsync(160);
       await Promise.resolve();
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+      await Promise.resolve();
+    });
 
     const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
-    expect(agentCalls).toHaveLength(1);
+    expect(agentCalls).toHaveLength(2);
     const payload = agentCalls[0]?.[1] as
       | { message?: string; inputProvenance?: unknown }
       | undefined;
-    expect(payload?.message).toContain("command: ls -la ~/Desktop");
-    expect(payload?.message).not.toContain("command: <unknown>");
-    expect(payload?.inputProvenance).toMatchObject({ sourceTool: "approval-allow" });
+    expect(payload?.message).toContain("[internal.exec.approval.continue]");
+    const finalPayload = agentCalls[1]?.[1] as
+      | { message?: string; inputProvenance?: unknown }
+      | undefined;
+    expect(finalPayload?.message).toBe("System: Exec finished (code 0) merge-ok");
+    expect(finalPayload?.inputProvenance).toMatchObject({ sourceTool: "approval-allow" });
 
     act(() => {
       root.unmount();
@@ -720,8 +734,8 @@ describe("useExecSystemHandoff", () => {
 
     const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
     expect(agentCalls).toHaveLength(1);
-    const nudgePayload = agentCalls[0]?.[1] as { message?: string } | undefined;
-    expect(nudgePayload?.message).toContain("[internal.exec.approval.allow]");
+    const firstPayload = agentCalls[0]?.[1] as { message?: string } | undefined;
+    expect(firstPayload?.message).toContain("[internal.exec.approval.continue]");
 
     act(() => {
       root.unmount();
@@ -1027,6 +1041,14 @@ describe("useExecSystemHandoff", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(120_001);
     });
+    historyMessages = [
+      {
+        id: "sys-terminal-cooldown-next",
+        role: "system",
+        content: [{ type: "text", text: "System: Exec finished (code 0) ls -la" }],
+        createdAtMs: Date.now(),
+      },
+    ];
 
     act(() => {
       hoisted.gatewayEventListener?.({
@@ -1165,8 +1187,155 @@ describe("useExecSystemHandoff", () => {
     const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
     expect(agentCalls).toHaveLength(1);
     const payload = agentCalls[0]?.[1] as { message?: string } | undefined;
+    expect(payload?.message).toContain("[internal.exec.approval.continue]");
     expect(payload?.message).not.toContain("should-not-send");
-    expect(payload?.message).toContain("[internal.exec.approval.allow]");
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should fallback to relaxed history match and trim merged system exec text", async () => {
+    const mergedHistoryText =
+      "System: [2026-02-14 16:26:25 GMT+8] Exec finished (gateway id=2b2f43df-7f94-492f-9a56-f7421492f9f3, session=quiet-nudibranch, code 0) ok " +
+      "System: [2026-02-14 16:26:31 GMT+8] Exec finished (gateway id=59676a96-be65-483e-99a2-6de443df573e, session=marine-sable, code 0) ok " +
+      "[Sat 2026-02-14 16:27 GMT+8] ok";
+    historyMessages = [
+      {
+        id: "sys-merged-relaxed",
+        role: "system",
+        content: [{ type: "text", text: mergedHistoryText }],
+        createdAtMs: Date.now(),
+      },
+    ];
+
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.normalizedEventListener?.({
+        kind: "run.started",
+        traceId: "trace-merged-relaxed",
+        timestampMs: Date.now(),
+        sessionKey: "s1",
+        clientRunId: "run-merged-relaxed",
+      });
+      hoisted.normalizedEventListener?.({
+        kind: "run.tool_finished",
+        traceId: "trace-merged-relaxed",
+        timestampMs: Date.now(),
+        sessionKey: "s1",
+        clientRunId: "run-merged-relaxed",
+        status: "running",
+        metadata: {
+          toolCallId: "tool-call-merged-relaxed",
+          name: "exec",
+          phase: "result",
+        },
+      });
+      hoisted.normalizedEventListener?.({
+        kind: "run.approval_resolved",
+        traceId: "trace-merged-relaxed",
+        timestampMs: Date.now(),
+        sessionKey: "s1",
+        clientRunId: "run-merged-relaxed",
+        approvalId: "approval-merged-relaxed",
+        decision: "allow-once",
+        command: "python3 -c \"import time;time.sleep(2);print('ok')\"",
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(170);
+      await Promise.resolve();
+    });
+
+    const agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(1);
+    expect(agentCalls[0]?.[1]).toMatchObject({
+      sessionKey: "s1",
+      message:
+        "System: [2026-02-14 16:26:31 GMT+8] Exec finished (gateway id=59676a96-be65-483e-99a2-6de443df573e, session=marine-sable, code 0) ok",
+      inputProvenance: { sourceTool: "approval-allow" },
+    });
+
+    act(() => {
+      root.unmount();
+    });
+  });
+
+  it("should send single continue nudge even when approval payload already has toolCallId", async () => {
+    hoisted.requestSpy.mockImplementation(
+      async (method: string, _params?: Record<string, unknown>) => {
+        if (method === "chat.history") {
+          return {
+            messages: [
+              {
+                id: "sys-pending-only-toolcall",
+                role: "system",
+                content: [{ type: "text", text: "Approval required (id=toolcall)." }],
+                createdAtMs: Date.now(),
+              },
+            ],
+          };
+        }
+        if (method === "last-heartbeat") {
+          return {
+            ok: true,
+            ts: Date.now(),
+            reason: "idle",
+            status: "ok",
+            preview: "",
+          };
+        }
+        return { ok: true };
+      },
+    );
+
+    const { root } = mountHook("s1", true);
+
+    act(() => {
+      hoisted.normalizedEventListener?.({
+        kind: "run.approval_resolved",
+        traceId: "trace-toolcall-nudge",
+        timestampMs: Date.now(),
+        sessionKey: "s1",
+        clientRunId: "run-toolcall-nudge",
+        approvalId: "approval-toolcall-nudge",
+        decision: "allow-once",
+        command: "python3 -c \"import time;time.sleep(2);print('ok')\"",
+      });
+      hoisted.normalizedEventListener?.({
+        kind: "run.tool_finished",
+        traceId: "trace-toolcall-nudge",
+        timestampMs: Date.now(),
+        sessionKey: "s1",
+        clientRunId: "run-toolcall-nudge",
+        status: "running",
+        metadata: {
+          toolCallId: "tool-call-nudge",
+          name: "exec",
+          phase: "result",
+        },
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+      await Promise.resolve();
+    });
+
+    let agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(1);
+    const firstPayload = agentCalls[0]?.[1] as { message?: string } | undefined;
+    expect(firstPayload?.message).toContain("[internal.exec.approval.continue]");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+      await Promise.resolve();
+    });
+
+    agentCalls = hoisted.requestSpy.mock.calls.filter(([method]) => method === "agent");
+    expect(agentCalls).toHaveLength(1);
 
     act(() => {
       root.unmount();

@@ -82,30 +82,30 @@ function isSystemLikeResultRecord(raw: Record<string, unknown>): boolean {
   );
 }
 
-function buildApprovalLoopNudgeText(command?: string): string {
-  const normalizedCommand = normalizeText(command ?? "");
-  return [
-    "[internal.exec.approval.allow]",
-    "---",
-    normalizedCommand ? `command: ${normalizedCommand}` : "command: <unknown>",
-    "status: approved",
-    "next: continue current run, consume pending exec system events, and respond with final result.",
-  ].join("\n");
-}
-
-function buildApprovalRetryExhaustedText(payload: HandOffPayload): string {
-  const normalizedCommand = normalizeText(payload.command ?? "");
+function buildApprovalContinueText(payload: HandOffPayload): string {
   const normalizedToolCallId = normalizeText(payload.toolCallId ?? "");
   return [
-    "[internal.exec.approval.allow.retry_exhausted]",
+    "[internal.exec.approval.continue]",
     "---",
     payload.approvalId ? `approvalId: ${payload.approvalId}` : "approvalId: <unknown>",
-    normalizedCommand ? `command: ${normalizedCommand}` : "command: <unknown>",
     normalizedToolCallId ? `toolCallId: ${normalizedToolCallId}` : "toolCallId: <unknown>",
     payload.runId ? `runId: ${payload.runId}` : "runId: <none>",
     "status: approved",
-    "next: continue current run, consume pending tool result for the same toolCallId, and respond.",
+    "next: continue current turn and consume pending gateway tool result for this approval. Do not start new tool calls.",
   ].join("\n");
+}
+
+function extractLatestExecSystemSegment(text: string): string {
+  const normalized = normalizeText(text);
+  if (!normalized) return "";
+  const matches = Array.from(
+    normalized.matchAll(
+      /System:\s*(?:\[[^\]]+\]\s*)?Exec\s+(?:finished|failed|denied|timed out(?: while waiting for approval)?)[^]*?(?=\sSystem:\s*(?:\[[^\]]+\]\s*)?Exec\s+|\s\[[A-Za-z]{3}\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}[^]*$|$)/gi,
+    ),
+  );
+  if (matches.length === 0) return normalized;
+  const latest = matches[matches.length - 1]?.[0]?.trim();
+  return latest || normalized;
 }
 
 function readToolCommand(data: Record<string, unknown>): string {
@@ -159,8 +159,9 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
   const retryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pendingPayloadRef = useRef<HandOffPayload | null>(null);
   const cooldownByDigestRef = useRef<Map<string, number>>(new Map());
-  const approvalLoopNudgedRef = useRef<Set<string>>(new Set());
+  const approvalContinueNudgedRef = useRef<Set<string>>(new Set());
   const approvalRetryExhaustedRef = useRef<Set<string>>(new Set());
+  const closedApprovalIdsRef = useRef<Set<string>>(new Set());
   const approvalContextByIdRef = useRef<Map<string, ApprovalHandoffContext>>(new Map());
   const latestApprovalIdBySessionRef = useRef<Map<string, string>>(new Map());
   const toolCallIdBySessionRunRef = useRef<Map<string, string>>(new Map());
@@ -286,48 +287,71 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
           payload.source === "approval-allow" && typeof payload.approvalAtMs === "number"
             ? Math.max(0, payload.approvalAtMs - (payload.approvalAtMsFromPayload ? 500 : 15_000))
             : undefined;
-        const historyText = pickLastHistoryText({
-          messages: response?.messages,
-          sessionKey: payload.sessionKey,
-          runId: payload.runId,
-          requireRunIdMatch: Boolean(payload.toolCallId && payload.runId),
-          toolCallId: payload.toolCallId,
-          requireToolCallIdMatch: Boolean(payload.toolCallId),
-        });
-        const terminalHistoryText = pickLastHistoryText({
-          messages: response?.messages,
-          sessionKey: payload.sessionKey,
-          runId: payload.runId,
-          requireRunIdMatch: Boolean(payload.toolCallId && payload.runId),
-          toolCallId: payload.toolCallId,
-          requireToolCallIdMatch: Boolean(payload.toolCallId),
-          minAtMs: approvalMinAtMs,
-          predicate: (text) => {
+        const pickHistory = (
+          strictMatch: boolean,
+          predicate?: (text: string, raw: Record<string, unknown>) => boolean,
+        ) =>
+          pickLastHistoryText({
+            messages: response?.messages,
+            sessionKey: payload.sessionKey,
+            runId: strictMatch ? payload.runId : undefined,
+            requireRunIdMatch: strictMatch ? Boolean(payload.toolCallId && payload.runId) : false,
+            toolCallId: strictMatch ? payload.toolCallId : undefined,
+            requireToolCallIdMatch: strictMatch ? Boolean(payload.toolCallId) : false,
+            minAtMs: approvalMinAtMs,
+            predicate,
+          });
+
+        const historyText = pickHistory(true);
+        let terminalHistoryText =
+          pickHistory(true, (text) => {
             if (!isLikelyTerminalResultText(text)) return false;
             return true;
-          },
-        });
-        const genericHistoryText =
+          }) ?? "";
+        let genericHistoryText =
           payload.source === "approval-allow"
-            ? pickLastHistoryText({
-                messages: response?.messages,
-                sessionKey: payload.sessionKey,
-                runId: payload.runId,
-                requireRunIdMatch: Boolean(payload.toolCallId && payload.runId),
-                toolCallId: payload.toolCallId,
-                requireToolCallIdMatch: Boolean(payload.toolCallId),
-                minAtMs: approvalMinAtMs,
-                predicate: (text, raw) => {
-                  if (!isSystemLikeResultRecord(raw)) return false;
-                  const normalized = normalizeText(text).toLowerCase();
-                  if (!normalized) return false;
-                  if (normalized.includes("execution approved")) return false;
-                  if (normalized.includes("approval required")) return false;
-                  if (normalized.includes("approve to run")) return false;
-                  return true;
-                },
+            ? pickHistory(true, (text, raw) => {
+                if (!isSystemLikeResultRecord(raw)) return false;
+                const normalized = normalizeText(text).toLowerCase();
+                if (!normalized) return false;
+                if (normalized.includes("execution approved")) return false;
+                if (normalized.includes("approval required")) return false;
+                if (normalized.includes("approve to run")) return false;
+                return true;
               })
             : null;
+
+        if (
+          payload.source === "approval-allow" &&
+          !terminalHistoryText &&
+          !genericHistoryText &&
+          Boolean(payload.toolCallId || payload.runId)
+        ) {
+          terminalHistoryText =
+            pickHistory(false, (text) => {
+              if (!isLikelyTerminalResultText(text)) return false;
+              return true;
+            }) ?? "";
+          if (!terminalHistoryText) {
+            genericHistoryText = pickHistory(false, (text, raw) => {
+              if (!isSystemLikeResultRecord(raw)) return false;
+              const normalized = normalizeText(text).toLowerCase();
+              if (!normalized) return false;
+              if (normalized.includes("execution approved")) return false;
+              if (normalized.includes("approval required")) return false;
+              if (normalized.includes("approve to run")) return false;
+              return true;
+            });
+          }
+          if (terminalHistoryText || genericHistoryText) {
+            chatLog.debug(
+              "[exec.system.handoff.approval.relaxed-history-match]",
+              `session=${payload.sessionKey}`,
+              `runId=${payload.runId ?? "<none>"}`,
+              `toolCallId=${payload.toolCallId ?? "<none>"}`,
+            );
+          }
+        }
         const normalizedPayloadText = normalizeText(payload.text ?? "");
         const normalizedHistoryText = normalizeText(historyText ?? "");
         const historyTerminalText = normalizeText(terminalHistoryText ?? "");
@@ -362,6 +386,7 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
             payload.toolCallId && normalizedPayloadText
               ? normalizedPayloadText
               : historyTerminalText || historyGenericText || heartbeatPreviewText;
+          const normalizedApprovalText = extractLatestExecSystemSegment(selectedApprovalText);
           if (!selectedApprovalText) {
             const retryCount = payload.retryCount ?? 0;
             chatLog.debug(
@@ -370,20 +395,19 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
               `runId=${payload.runId ?? "<none>"}`,
               `retry=${retryCount}`,
             );
-            const nudgeKey = hashText(
+            const continueKey = hashText(
               payload.sessionKey,
-              payload.approvalId ?? payload.runId ?? payload.command ?? "approval-allow",
-              "loop-nudge",
+              payload.approvalId ?? payload.command ?? "approval-allow",
+              "continue-nudge",
             );
-            if (!approvalLoopNudgedRef.current.has(nudgeKey)) {
-              approvalLoopNudgedRef.current.add(nudgeKey);
-              void sendAgentInput(payload, buildApprovalLoopNudgeText(payload.command));
+            if (retryCount === 0 && !approvalContinueNudgedRef.current.has(continueKey)) {
+              approvalContinueNudgedRef.current.add(continueKey);
+              void sendAgentInput(payload, buildApprovalContinueText(payload));
               chatLog.debug(
-                "[exec.system.handoff.loop-nudge]",
+                "[exec.system.handoff.approval.continue-nudge]",
                 `session=${payload.sessionKey}`,
                 `runId=${payload.runId ?? "<none>"}`,
                 `approvalId=${payload.approvalId ?? "<none>"}`,
-                `retry=${retryCount}`,
               );
             }
             const retryDelay = ALLOW_RESULT_RETRY_DELAYS_MS[retryCount];
@@ -403,7 +427,6 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
               );
               if (!approvalRetryExhaustedRef.current.has(exhaustedKey)) {
                 approvalRetryExhaustedRef.current.add(exhaustedKey);
-                void sendAgentInput(payload, buildApprovalRetryExhaustedText(payload));
                 chatLog.warn(
                   "[exec.system.handoff.approval.retry-exhausted]",
                   `session=${payload.sessionKey}`,
@@ -412,6 +435,13 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
                   `toolCallId=${payload.toolCallId ?? "<none>"}`,
                 );
               }
+              if (payload.command) {
+                useExecApprovalsStore.getState().clearRunning(payload.sessionKey, payload.command);
+              }
+              if (payload.approvalId) {
+                closedApprovalIdsRef.current.add(payload.approvalId);
+                clearApprovalContext(payload.approvalId);
+              }
             }
             return;
           }
@@ -419,7 +449,10 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
             markExecCommandTerminal(payload.sessionKey, payload.command);
             useExecApprovalsStore.getState().clearRunning(payload.sessionKey, payload.command);
           }
-          await sendAgentInput(payload, selectedApprovalText);
+          await sendAgentInput(payload, normalizedApprovalText || selectedApprovalText);
+          if (payload.approvalId) {
+            closedApprovalIdsRef.current.add(payload.approvalId);
+          }
           clearApprovalContext(payload.approvalId);
           return;
         }
@@ -444,6 +477,19 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
       if (!hasSession || !normalizedSessionKey) return;
       const isApprovalPayload = payload.source.startsWith("approval-");
       if (!isApprovalPayload && payload.sessionKey !== normalizedSessionKey) return;
+      if (
+        payload.source === "approval-allow" &&
+        payload.approvalId &&
+        closedApprovalIdsRef.current.has(payload.approvalId)
+      ) {
+        chatLog.debug(
+          "[exec.system.handoff.approval.skip-closed]",
+          `session=${payload.sessionKey}`,
+          `runId=${payload.runId ?? "<none>"}`,
+          `approvalId=${payload.approvalId}`,
+        );
+        return;
+      }
       chatLog.debug(
         "[exec.system.handoff.schedule]",
         `session=${payload.sessionKey}`,
@@ -492,6 +538,14 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
         decision: parsed.decision,
         command: parsed.command,
       });
+      if (handoff.source === "approval-allow" && closedApprovalIdsRef.current.has(parsed.id)) {
+        chatLog.debug(
+          "[exec.system.handoff.approval.skip-closed]",
+          `session=${parsed.sessionKey ?? "<none>"}`,
+          `approvalId=${parsed.id}`,
+        );
+        return;
+      }
       const existing = approvalContextByIdRef.current.get(parsed.id);
       const mergedSession = parsed.sessionKey ?? existing?.sessionKey ?? normalizedSessionKey;
       const mergedCommand = parsed.command ?? existing?.command;
@@ -520,7 +574,7 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
         command: mergedCommand,
         toolCallId: mergedToolCallId,
         source: handoff.source,
-        text: handoff.text,
+        text: handoff.source === "approval-allow" ? undefined : handoff.text,
       });
     },
     [clearApprovalContext, normalizedSessionKey, scheduleHandoff, upsertApprovalContext],
@@ -696,6 +750,19 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
           command: event.command,
         });
         const approvalId = event.approvalId?.trim();
+        if (
+          handoff.source === "approval-allow" &&
+          approvalId &&
+          closedApprovalIdsRef.current.has(approvalId)
+        ) {
+          chatLog.debug(
+            "[exec.system.handoff.approval.skip-closed]",
+            `session=${event.sessionKey}`,
+            `runId=${event.clientRunId ?? "<none>"}`,
+            `approvalId=${approvalId}`,
+          );
+          return;
+        }
         const runId = event.clientRunId?.trim() || latestRunIdRef.current || undefined;
         const toolCallId =
           runId && normalizedSessionKey
@@ -724,7 +791,7 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
           command: event.command,
           toolCallId,
           source: handoff.source,
-          text: handoff.text,
+          text: handoff.source === "approval-allow" ? undefined : handoff.text,
         });
         return;
       }
@@ -812,8 +879,9 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
       pendingPayloadRef.current = null;
       latestRunIdRef.current = null;
       cooldownByDigestRef.current.clear();
-      approvalLoopNudgedRef.current.clear();
+      approvalContinueNudgedRef.current.clear();
       approvalRetryExhaustedRef.current.clear();
+      closedApprovalIdsRef.current.clear();
       approvalContextByIdRef.current.clear();
       latestApprovalIdBySessionRef.current.clear();
       toolCallIdBySessionRunRef.current.clear();

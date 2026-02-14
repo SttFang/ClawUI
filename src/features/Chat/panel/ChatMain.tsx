@@ -1,28 +1,14 @@
 import { ConfigBanner } from "@/components/ConfigBanner";
 import { OpenClawChatPanel } from "../components/OpenClawChatPanel";
+import { useChatFeature } from "../useChatFeature";
 
-export function ChatMain(props: {
-  currentSessionId: string | null;
-  wsConnected: boolean;
-  isGatewayRunning: boolean;
-  configValid: boolean | null;
-  showBanner: boolean;
-  onDismissBanner: () => void;
-  onOneClickConfig: () => void;
-  onManualConfig: () => void;
-  onStartConversation: (content: string) => Promise<void>;
-}) {
+export function ChatMain() {
   const {
-    currentSessionId,
-    wsConnected,
-    isGatewayRunning,
-    configValid,
-    showBanner,
-    onDismissBanner,
-    onOneClickConfig,
-    onManualConfig,
-    onStartConversation,
-  } = props;
+    sessionState: { currentSessionId },
+    uiState: { wsConnected, isGatewayRunning, configValid, showBanner },
+    uiActions: { onDismissBanner, onOneClickConfig, onManualConfig, onStartConversation },
+  } = useChatFeature();
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {configValid === false && showBanner ? (

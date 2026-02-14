@@ -1,32 +1,13 @@
-import type { ClawUISessionMetadata } from "@clawui/types/clawui";
 import { Button, ScrollArea } from "@clawui/ui";
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { SessionListItem } from "../types";
+import { useChatFeature } from "../useChatFeature";
 import { SessionList } from "./SessionList";
 
-export function SessionSidebar(props: {
-  sessions: SessionListItem[];
-  currentSessionId: string | null;
-  sessionMetadata: Record<string, ClawUISessionMetadata>;
-  metaBusyByKey: Record<string, boolean>;
-  onCreateSession: () => void;
-  onSelectSession: (id: string) => void;
-  onRenameSession: (id: string, label: string) => void;
-  onDeleteSession: (id: string) => void;
-  onGenerateMetadata: (id: string) => void;
-}) {
+export function SessionSidebar() {
   const {
-    sessions,
-    currentSessionId,
-    sessionMetadata,
-    metaBusyByKey,
-    onCreateSession,
-    onSelectSession,
-    onRenameSession,
-    onDeleteSession,
-    onGenerateMetadata,
-  } = props;
+    sessionActions: { onCreateSession },
+  } = useChatFeature();
 
   const { t } = useTranslation("chat");
 
@@ -41,20 +22,7 @@ export function SessionSidebar(props: {
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="p-2 space-y-1">
-          {sessions.length === 0 ? (
-            <div className="text-center text-muted-foreground text-sm py-8">{t("noSessions")}</div>
-          ) : (
-            <SessionList
-              sessions={sessions}
-              currentSessionId={currentSessionId}
-              sessionMetadata={sessionMetadata}
-              metaBusyByKey={metaBusyByKey}
-              onSelectSession={onSelectSession}
-              onRenameSession={onRenameSession}
-              onDeleteSession={onDeleteSession}
-              onGenerateMetadata={onGenerateMetadata}
-            />
-          )}
+          <SessionList />
         </div>
       </ScrollArea>
     </div>

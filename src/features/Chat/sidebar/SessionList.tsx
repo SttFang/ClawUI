@@ -1,27 +1,18 @@
-import type { ClawUISessionMetadata } from "@clawui/types/clawui";
-import type { SessionListItem } from "../types";
+import { useTranslation } from "react-i18next";
+import { useChatFeature } from "../useChatFeature";
 import { SessionItem } from "./SessionItem";
 
-export function SessionList(props: {
-  sessions: SessionListItem[];
-  currentSessionId: string | null;
-  sessionMetadata: Record<string, ClawUISessionMetadata>;
-  metaBusyByKey: Record<string, boolean>;
-  onSelectSession: (id: string) => void;
-  onRenameSession: (id: string, label: string) => void;
-  onDeleteSession: (id: string) => void;
-  onGenerateMetadata: (id: string) => void;
-}) {
+export function SessionList() {
   const {
-    sessions,
-    currentSessionId,
-    sessionMetadata,
-    metaBusyByKey,
-    onSelectSession,
-    onRenameSession,
-    onDeleteSession,
-    onGenerateMetadata,
-  } = props;
+    sessionState: { sessions, currentSessionId, sessionMetadata, metaBusyByKey },
+    sessionActions: { onSelectSession, onRenameSession, onDeleteSession, onGenerateMetadata },
+  } = useChatFeature();
+
+  const { t } = useTranslation("chat");
+
+  if (sessions.length === 0) {
+    return <div className="text-center text-muted-foreground text-sm py-8">{t("noSessions")}</div>;
+  }
 
   return sessions.map((session) => (
     <SessionItem

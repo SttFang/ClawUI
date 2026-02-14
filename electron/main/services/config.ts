@@ -8,6 +8,17 @@ import { join, dirname } from "path";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { configLog } from "../lib/logger";
 
+/** Read a dot-separated path from a nested object. Returns `undefined` if not found. */
+export function getNestedValue(obj: unknown, path: string): unknown {
+  const keys = path.split(".");
+  let current: unknown = obj;
+  for (const key of keys) {
+    if (current === null || current === undefined || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+}
+
 export type OpenClawConfig = CanonicalOpenClawConfig;
 
 export function createDefaultConfig(port: number): OpenClawConfig {
@@ -127,6 +138,33 @@ export class ConfigService {
     }
 
     await this.setConfig({ env: currentEnv });
+  }
+
+  /**
+   * Set or delete a value at a dot-separated config path.
+   * e.g. `patchPath("channels.discord.token", "abc")` → `{ channels: { discord: { token: "abc" } } }`
+   * Pass `null` to delete the key.
+   */
+  async patchPath(path: string, value: unknown): Promise<void> {
+    const cfg = (await this.getConfig()) ?? { ...this.defaultConfig };
+    const keys = path.split(".");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let obj: any = cfg;
+    for (let i = 0; i < keys.length - 1; i++) {
+      const k = keys[i];
+      if (obj[k] === undefined || obj[k] === null || typeof obj[k] !== "object") {
+        obj[k] = {};
+      }
+      obj = obj[k];
+    }
+    const lastKey = keys[keys.length - 1];
+    if (value === null || value === undefined) {
+      delete obj[lastKey];
+    } else {
+      obj[lastKey] = value;
+    }
+    this.config = cfg;
+    await this.saveConfig();
   }
 
   private async loadConfig(): Promise<void> {

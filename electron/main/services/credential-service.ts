@@ -15,7 +15,7 @@ import { existsSync } from "fs";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import { homedir } from "os";
 import { dirname, join } from "path";
-import type { ConfigService } from "./config";
+import { ConfigService, getNestedValue } from "./config";
 import { configLog } from "../lib/logger";
 import { AuthProfileAdapter, type AuthProfileCredential } from "./auth-profile-adapter";
 
@@ -24,13 +24,113 @@ const ENV_OPENAI_API_KEY = "OPENAI_API_KEY";
 const ENV_PROXY_URL = "OPENCLAW_PROXY_URL";
 const ENV_PROXY_TOKEN = "OPENCLAW_PROXY_TOKEN";
 
-const CHANNEL_TOKEN_ENV_MAP: Record<string, Record<string, string>> = {
-  discord: { botToken: "DISCORD_BOT_TOKEN", appToken: "DISCORD_APP_TOKEN" },
-  telegram: { botToken: "TELEGRAM_BOT_TOKEN" },
-  slack: { botToken: "SLACK_BOT_TOKEN", appToken: "SLACK_APP_TOKEN" },
-};
+// --- Channel Token Definitions ---
 
-const CHANNEL_TYPES = ["discord", "telegram", "slack"] as const;
+export interface ChannelTokenFieldDef {
+  field: string;
+  configPath: string;
+  label: string;
+}
+
+export interface ChannelTokenDef {
+  channelType: string;
+  label: string;
+  fields: ChannelTokenFieldDef[];
+}
+
+export const CHANNEL_TOKEN_DEFS: ChannelTokenDef[] = [
+  {
+    channelType: "discord",
+    label: "Discord",
+    fields: [{ field: "token", configPath: "channels.discord.token", label: "Bot Token" }],
+  },
+  {
+    channelType: "telegram",
+    label: "Telegram",
+    fields: [
+      { field: "botToken", configPath: "channels.telegram.botToken", label: "Bot Token" },
+    ],
+  },
+  {
+    channelType: "slack",
+    label: "Slack",
+    fields: [
+      { field: "botToken", configPath: "channels.slack.botToken", label: "Bot Token" },
+      { field: "appToken", configPath: "channels.slack.appToken", label: "App Token" },
+      { field: "userToken", configPath: "channels.slack.userToken", label: "User Token" },
+      {
+        field: "signingSecret",
+        configPath: "channels.slack.signingSecret",
+        label: "Signing Secret",
+      },
+    ],
+  },
+  {
+    channelType: "whatsapp",
+    label: "WhatsApp",
+    fields: [
+      { field: "authDir", configPath: "channels.whatsapp.authDir", label: "Auth Directory" },
+    ],
+  },
+  {
+    channelType: "irc",
+    label: "IRC",
+    fields: [
+      { field: "password", configPath: "channels.irc.password", label: "Server Password" },
+    ],
+  },
+  {
+    channelType: "signal",
+    label: "Signal",
+    fields: [
+      { field: "account", configPath: "channels.signal.account", label: "Phone Number" },
+    ],
+  },
+  {
+    channelType: "googlechat",
+    label: "Google Chat",
+    fields: [
+      {
+        field: "serviceAccountFile",
+        configPath: "channels.googlechat.serviceAccountFile",
+        label: "Service Account File",
+      },
+    ],
+  },
+];
+
+/** Legacy env→configPath map for channel token migration. */
+const LEGACY_CHANNEL_ENV_MAP: Array<{
+  envKey: string;
+  channelType: string;
+  field: string;
+  configPath: string;
+}> = [
+  {
+    envKey: "DISCORD_BOT_TOKEN",
+    channelType: "discord",
+    field: "token",
+    configPath: "channels.discord.token",
+  },
+  {
+    envKey: "TELEGRAM_BOT_TOKEN",
+    channelType: "telegram",
+    field: "botToken",
+    configPath: "channels.telegram.botToken",
+  },
+  {
+    envKey: "SLACK_BOT_TOKEN",
+    channelType: "slack",
+    field: "botToken",
+    configPath: "channels.slack.botToken",
+  },
+  {
+    envKey: "SLACK_APP_TOKEN",
+    channelType: "slack",
+    field: "appToken",
+    configPath: "channels.slack.appToken",
+  },
+];
 
 /** Known API key prefix patterns for validation. Unknown providers pass freely. */
 const KEY_PREFIX_MAP: Record<string, string[]> = {
@@ -111,25 +211,24 @@ export class CredentialService {
       } satisfies LlmCredentialMeta);
     }
 
-    // Channel credentials
+    // Channel credentials — from config paths
     const config = await this.configService.getConfig();
-    const env = config?.env ?? {};
-    for (const channelType of CHANNEL_TYPES) {
-      const envMap = CHANNEL_TOKEN_ENV_MAP[channelType];
-      if (!envMap) continue;
-      for (const [tokenField, envKey] of Object.entries(envMap)) {
-        const value = env[envKey] ?? "";
+    for (const def of CHANNEL_TOKEN_DEFS) {
+      for (const fieldDef of def.fields) {
+        const value = getNestedValue(config, fieldDef.configPath);
+        const strValue = typeof value === "string" ? value : "";
         results.push({
           category: "channel",
-          channelType,
-          tokenField,
-          maskedValue: value ? maskSecret(value) : "",
-          hasValue: Boolean(value),
+          channelType: def.channelType,
+          tokenField: fieldDef.field,
+          maskedValue: strValue ? maskSecret(strValue) : "",
+          hasValue: Boolean(strValue),
         } satisfies ChannelCredentialMeta);
       }
     }
 
     // Proxy credentials
+    const env = config?.env ?? {};
     const proxyUrl = env[ENV_PROXY_URL] ?? "";
     const proxyToken = env[ENV_PROXY_TOKEN] ?? "";
     results.push(
@@ -171,14 +270,12 @@ export class CredentialService {
   }
 
   async setChannelToken(input: SetChannelTokenInput): Promise<void> {
-    const envMap = CHANNEL_TOKEN_ENV_MAP[input.channelType];
-    if (!envMap) throw new Error(`Unknown channel type: ${input.channelType}`);
-    const envKey = envMap[input.tokenField];
-    if (!envKey) throw new Error(`Unknown token field: ${input.tokenField}`);
+    const def = CHANNEL_TOKEN_DEFS.find((d) => d.channelType === input.channelType);
+    if (!def) throw new Error(`Unknown channel type: ${input.channelType}`);
+    const fieldDef = def.fields.find((f) => f.field === input.tokenField);
+    if (!fieldDef) throw new Error(`Unknown token field: ${input.tokenField}`);
 
-    await this.configService.patchEnv({
-      [envKey]: input.value || null,
-    });
+    await this.configService.patchPath(fieldDef.configPath, input.value || null);
     if (input.value) {
       await this.encCacheSet(`channel:${input.channelType}:${input.tokenField}`, input.value);
     }
@@ -227,24 +324,25 @@ export class CredentialService {
     return valid ? { valid: true } : { valid: false, error: `Invalid key prefix for ${provider}` };
   }
 
-  // --- Legacy migration (Step 1.4) ---
+  // --- Legacy migration ---
 
   private async migrateLegacyKeys(): Promise<void> {
     const config = await this.configService.getConfig();
     if (!config?.env) return;
 
-    const migrations: Array<{ envKey: string; provider: string }> = [
+    // LLM keys: env → auth-profiles
+    const llmMigrations: Array<{ envKey: string; provider: string }> = [
       { envKey: ENV_ANTHROPIC_API_KEY, provider: "anthropic" },
       { envKey: ENV_OPENAI_API_KEY, provider: "openai" },
     ];
 
-    for (const { envKey, provider } of migrations) {
+    for (const { envKey, provider } of llmMigrations) {
       const envValue = config.env[envKey];
       if (!envValue) continue;
 
       const profileId = profileIdForProvider(provider);
       const existing = await this.authProfiles.getProfile(profileId);
-      if (existing && credentialHasValue(existing)) continue; // auth-profiles already has a key
+      if (existing && credentialHasValue(existing)) continue;
 
       await this.authProfiles.setProfile(profileId, {
         type: "api_key",
@@ -252,10 +350,20 @@ export class CredentialService {
         key: envValue,
       });
       await this.configService.patchEnv({ [envKey]: null });
-      configLog.info(
-        "[credential.migrate]",
-        `provider=${provider} envKey=${envKey} → auth-profiles`,
-      );
+      configLog.info("[credential.migrate]", `provider=${provider} envKey=${envKey} → auth-profiles`);
+    }
+
+    // Channel tokens: env → config paths
+    for (const { envKey, configPath } of LEGACY_CHANNEL_ENV_MAP) {
+      const envValue = config.env[envKey];
+      if (!envValue) continue;
+
+      const existing = getNestedValue(config, configPath);
+      if (existing) continue;
+
+      await this.configService.patchPath(configPath, envValue);
+      await this.configService.patchEnv({ [envKey]: null });
+      configLog.info("[credential.migrate]", `envKey=${envKey} → ${configPath}`);
     }
   }
 

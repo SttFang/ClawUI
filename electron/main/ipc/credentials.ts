@@ -3,6 +3,7 @@ import type {
   SetChannelTokenInput,
   SetLlmKeyInput,
   SetProxyInput,
+  SetToolKeyInput,
 } from "@clawui/types/credentials";
 import type { IpcMain } from "electron";
 import type { CredentialService } from "../services/credential-service";
@@ -29,6 +30,10 @@ export function registerCredentialHandlers(
 
   ipcMain.handle("credentials:set-proxy", async (_event, input: SetProxyInput) => {
     await credentialService.setProxy(input);
+  });
+
+  ipcMain.handle("credentials:set-tool-key", async (_event, input: SetToolKeyInput) => {
+    await credentialService.setToolApiKey(input);
   });
 
   ipcMain.handle("credentials:delete", async (_event, input: DeleteCredentialInput) => {

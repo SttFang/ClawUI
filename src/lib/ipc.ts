@@ -16,6 +16,7 @@ import type {
   CredentialMeta,
   SetLlmKeyInput,
   SetChannelTokenInput,
+  SetToolKeyInput,
   SetProxyInput,
   ValidateKeyResult,
   DeleteCredentialInput,
@@ -179,6 +180,7 @@ export interface ElectronAPI {
     validate: (provider: string, key: string) => Promise<ValidateKeyResult>;
     setChannel: (input: SetChannelTokenInput) => Promise<void>;
     setProxy: (input: SetProxyInput) => Promise<void>;
+    setToolKey: (input: SetToolKeyInput) => Promise<void>;
     delete: (input: DeleteCredentialInput) => Promise<void>;
   };
   security: {
@@ -575,6 +577,11 @@ export const ipc = {
       const api = getElectronAPI();
       if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
       await api.credentials.setProxy(input);
+    },
+    async setToolKey(input: SetToolKeyInput): Promise<void> {
+      const api = getElectronAPI();
+      if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
+      await api.credentials.setToolKey(input);
     },
     async delete(input: DeleteCredentialInput): Promise<void> {
       const api = getElectronAPI();

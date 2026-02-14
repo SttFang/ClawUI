@@ -214,6 +214,7 @@ contextBridge.exposeInMainWorld("electron", {
       ipcRenderer.invoke("credentials:validate", provider, key),
     setChannel: (input: unknown) => ipcRenderer.invoke("credentials:set-channel", input),
     setProxy: (input: unknown) => ipcRenderer.invoke("credentials:set-proxy", input),
+    setToolKey: (input: unknown) => ipcRenderer.invoke("credentials:set-tool-key", input),
     delete: (input: unknown) => ipcRenderer.invoke("credentials:delete", input),
   },
   security: {

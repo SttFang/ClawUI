@@ -4,8 +4,10 @@ import type {
   LlmCredentialMeta,
   ChannelCredentialMeta,
   ProxyCredentialMeta,
+  ToolCredentialMeta,
   SetLlmKeyInput,
   SetChannelTokenInput,
+  SetToolKeyInput,
   SetProxyInput,
   ValidateKeyResult,
   DeleteCredentialInput,
@@ -18,6 +20,7 @@ import { dirname, join } from "path";
 import { ConfigService, getNestedValue } from "./config";
 import { configLog } from "../lib/logger";
 import { AuthProfileAdapter, type AuthProfileCredential } from "./auth-profile-adapter";
+import { TOOL_CREDENTIAL_DEFS } from "./tool-credential-registry";
 
 const ENV_ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY";
 const ENV_OPENAI_API_KEY = "OPENAI_API_KEY";
@@ -246,6 +249,21 @@ export class CredentialService {
       } satisfies ProxyCredentialMeta,
     );
 
+    // Tool credentials
+    for (const def of TOOL_CREDENTIAL_DEFS) {
+      const configValue = getNestedValue(config, def.configPath);
+      const envValue = def.envFallback ? (env[def.envFallback] ?? "") : "";
+      const value = (typeof configValue === "string" ? configValue : "") || envValue;
+      results.push({
+        category: "tool",
+        toolId: def.toolId,
+        configPath: def.configPath,
+        label: def.label,
+        maskedValue: value ? maskSecret(value) : "",
+        hasValue: Boolean(value),
+      } satisfies ToolCredentialMeta);
+    }
+
     return results;
   }
 
@@ -294,6 +312,15 @@ export class CredentialService {
     }
   }
 
+  async setToolApiKey(input: SetToolKeyInput): Promise<void> {
+    const def = TOOL_CREDENTIAL_DEFS.find((d) => d.toolId === input.toolId);
+    if (!def) throw new Error(`Unknown tool: ${input.toolId}`);
+    await this.configService.patchPath(def.configPath, input.value || null);
+    if (input.value) {
+      await this.encCacheSet(`tool:${input.toolId}`, input.value);
+    }
+  }
+
   async deleteCredential(input: DeleteCredentialInput): Promise<void> {
     if (input.category === "llm") {
       const deleted = await this.authProfiles.deleteProfile(input.id);
@@ -304,16 +331,12 @@ export class CredentialService {
       // id format: "discord:botToken"
       const [channelType, tokenField] = input.id.split(":");
       if (channelType && tokenField) {
-        await this.setChannelToken({
-          channelType,
-          tokenField,
-          value: "",
-        });
+        await this.setChannelToken({ channelType, tokenField, value: "" });
       }
     } else if (input.category === "proxy") {
-      await this.configService.patchEnv({
-        [input.id]: null,
-      });
+      await this.configService.patchEnv({ [input.id]: null });
+    } else if (input.category === "tool") {
+      await this.setToolApiKey({ toolId: input.id, value: "" });
     }
   }
 

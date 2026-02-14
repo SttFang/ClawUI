@@ -54,10 +54,11 @@ export default function SettingsPage() {
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="mb-4">
-            <TabsTrigger value="general">{t("settings.page.tabs.general")}</TabsTrigger>
-            <TabsTrigger value="ai">{t("settings.page.tabs.ai")}</TabsTrigger>
-            <TabsTrigger value="messaging">{t("settings.page.tabs.messaging")}</TabsTrigger>
-            <TabsTrigger value="capabilities">{t("settings.page.tabs.capabilities")}</TabsTrigger>
+            {(["general", "ai", "messaging", "capabilities"] as const).map((tab) => (
+              <TabsTrigger key={tab} value={tab} className="data-[state=active]:shadow-md">
+                {t(`settings.page.tabs.${tab}`)}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent value="general">

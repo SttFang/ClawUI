@@ -1,13 +1,7 @@
 import type { ClawUISessionMetadata } from "@clawui/types/clawui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ChatFeature,
-  matchesSessionFilter,
-  classifySession,
-  type SessionFilter,
-  type SessionListItem,
-} from "@/features/Chat";
+import { ChatFeature, classifySession, type SessionListItem } from "@/features/Chat";
 import { ipc } from "@/lib/ipc";
 import { ensureChatConnected } from "@/services/chat/connection";
 import { useChatStore, selectCurrentSession, selectSessions } from "@/store/chat";
@@ -65,19 +59,17 @@ export default function ChatLayout() {
 
   const [configValid, setConfigValid] = useState<boolean | null>(null);
   const [showBanner, setShowBanner] = useState(true);
-  const [sessionFilter, setSessionFilter] = useState<SessionFilter>("ui");
   const [sessionMetadata, setSessionMetadata] = useState<Record<string, ClawUISessionMetadata>>({});
   const [metaBusyByKey, setMetaBusyByKey] = useState<Record<string, boolean>>({});
 
   const visibleSessions: SessionListItem[] = useMemo(() => {
     return sessions
       .filter((s) => {
-        const { source, hidden } = classifySession({ sessionKey: s.id, surface: s.surface });
-        if (hidden) return false;
-        return matchesSessionFilter(source, sessionFilter);
+        const { hidden } = classifySession({ sessionKey: s.id, surface: s.surface });
+        return !hidden;
       })
       .map((s) => ({ id: s.id, name: s.name, updatedAt: s.updatedAt, surface: s.surface }));
-  }, [sessions, sessionFilter]);
+  }, [sessions]);
 
   useEffect(() => {
     // If the current session is hidden by the filter, select the newest visible one.
@@ -166,14 +158,11 @@ export default function ChatLayout() {
       sessionState={{
         sessions: visibleSessions,
         currentSessionId: currentSession?.id ?? null,
-        sessionFilter,
         sessionMetadata,
         metaBusyByKey,
       }}
       sessionActions={{
-        onSessionFilterChange: setSessionFilter,
         onCreateSession: () => {
-          setSessionFilter("ui");
           void createGatewayUiSession().catch(() => {});
         },
         onSelectSession: (id) => selectSession(id),

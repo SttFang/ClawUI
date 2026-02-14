@@ -12,8 +12,6 @@ export type SessionSource =
   | "cron"
   | "unknown";
 
-export type SessionFilter = "ui" | "discord" | "channels" | "all";
-
 export type SessionListItem = {
   id: string;
   name: string;
@@ -24,13 +22,11 @@ export type SessionListItem = {
 export type ChatFeatureSessionState = {
   sessions: SessionListItem[];
   currentSessionId: string | null;
-  sessionFilter: SessionFilter;
   sessionMetadata: Record<string, ClawUISessionMetadata>;
   metaBusyByKey: Record<string, boolean>;
 };
 
 export type ChatFeatureSessionActions = {
-  onSessionFilterChange: (filter: SessionFilter) => void;
   onCreateSession: () => void;
   onSelectSession: (id: string) => void;
   onRenameSession: (id: string, label: string) => void;

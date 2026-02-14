@@ -5,9 +5,8 @@ import { SessionSidebar } from "./sidebar/SessionSidebar";
 
 export function ChatFeature(props: ChatFeatureProps) {
   const {
-    sessionState: { sessions, currentSessionId, sessionFilter, sessionMetadata, metaBusyByKey },
+    sessionState: { sessions, currentSessionId, sessionMetadata, metaBusyByKey },
     sessionActions: {
-      onSessionFilterChange,
       onCreateSession,
       onSelectSession,
       onRenameSession,
@@ -24,10 +23,8 @@ export function ChatFeature(props: ChatFeatureProps) {
         <SessionSidebar
           sessions={sessions}
           currentSessionId={currentSessionId}
-          sessionFilter={sessionFilter}
           sessionMetadata={sessionMetadata}
           metaBusyByKey={metaBusyByKey}
-          onSessionFilterChange={onSessionFilterChange}
           onCreateSession={onCreateSession}
           onSelectSession={onSelectSession}
           onRenameSession={onRenameSession}

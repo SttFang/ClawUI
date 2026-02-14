@@ -1,17 +1,15 @@
 import type { ClawUISessionMetadata } from "@clawui/types/clawui";
-import { Button, ScrollArea, Tabs, TabsList, TabsTrigger } from "@clawui/ui";
+import { Button, ScrollArea } from "@clawui/ui";
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { SessionFilter, SessionListItem } from "../types";
+import type { SessionListItem } from "../types";
 import { SessionList } from "./SessionList";
 
 export function SessionSidebar(props: {
   sessions: SessionListItem[];
   currentSessionId: string | null;
-  sessionFilter: SessionFilter;
   sessionMetadata: Record<string, ClawUISessionMetadata>;
   metaBusyByKey: Record<string, boolean>;
-  onSessionFilterChange: (filter: SessionFilter) => void;
   onCreateSession: () => void;
   onSelectSession: (id: string) => void;
   onRenameSession: (id: string, label: string) => void;
@@ -21,10 +19,8 @@ export function SessionSidebar(props: {
   const {
     sessions,
     currentSessionId,
-    sessionFilter,
     sessionMetadata,
     metaBusyByKey,
-    onSessionFilterChange,
     onCreateSession,
     onSelectSession,
     onRenameSession,
@@ -41,25 +37,6 @@ export function SessionSidebar(props: {
           <Plus className="w-4 h-4 mr-2" />
           {t("newSession")}
         </Button>
-
-        <div className="mt-3">
-          <Tabs
-            value={sessionFilter}
-            onValueChange={(v) => onSessionFilterChange(v as typeof sessionFilter)}
-          >
-            <TabsList className="w-full justify-between">
-              <TabsTrigger value="ui" className="flex-1 justify-center">
-                {t("sessionFilters.ui")}
-              </TabsTrigger>
-              <TabsTrigger value="discord" className="flex-1 justify-center">
-                {t("sessionFilters.discord")}
-              </TabsTrigger>
-              <TabsTrigger value="all" className="flex-1 justify-center">
-                {t("sessionFilters.all")}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
       </div>
 
       <ScrollArea className="min-h-0 flex-1">

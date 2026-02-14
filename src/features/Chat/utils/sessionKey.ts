@@ -1,4 +1,4 @@
-import type { SessionFilter, SessionSource } from "../types";
+import type { SessionSource } from "../types";
 
 export function classifySessionKey(sessionKey: string): { source: SessionSource; hidden: boolean } {
   const raw = sessionKey.trim();
@@ -43,14 +43,6 @@ export function classifySession(params: { sessionKey: string; surface?: string |
   if (surface === "cron") return { source: "cron", hidden: false };
 
   return classifySessionKey(params.sessionKey);
-}
-
-export function matchesSessionFilter(source: SessionSource, filter: SessionFilter): boolean {
-  if (filter === "all") return true;
-  if (filter === "ui") return source === "ui";
-  if (filter === "discord") return source === "discord";
-  // channels: show all non-UI channel sessions (discord/telegram/...).
-  return source !== "ui" && source !== "cron" && source !== "unknown";
 }
 
 export function getSessionSourceBadge(source: SessionSource): string | null {

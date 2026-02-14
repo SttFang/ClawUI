@@ -2,6 +2,7 @@ import type { GatewayEventFrame } from "@/lib/ipc";
 import { ipc } from "@/lib/ipc";
 import { chatLog } from "@/lib/logger";
 import {
+  EXEC_RUNNING_TTL_MS,
   isRecord,
   makeExecApprovalKey,
   normalizeSessionKey,
@@ -12,6 +13,18 @@ import {
 import { useExecApprovalsStore } from "./store";
 
 let listenerInitialized = false;
+
+function clearRunningFromChatTerminal(payload: Record<string, unknown>): void {
+  const sessionKey = normalizeSessionKey(
+    typeof payload.sessionKey === "string" ? payload.sessionKey : null,
+  );
+  if (!sessionKey) return;
+
+  const state = typeof payload.state === "string" ? payload.state.trim().toLowerCase() : "";
+  if (state !== "final" && state !== "aborted" && state !== "error") return;
+
+  useExecApprovalsStore.getState().clearRunningForSession(sessionKey);
+}
 
 export function initExecApprovalsListener() {
   if (listenerInitialized || typeof window === "undefined") return;
@@ -35,6 +48,7 @@ export function initExecApprovalsListener() {
     if (event.event === "exec.approval.resolved") {
       const resolved = parseExecApprovalResolved(event.payload);
       if (!resolved) return;
+      let runningTtlTarget: { runningKey: string; atMs: number } | null = null;
 
       useExecApprovalsStore.setState(
         (state) => {
@@ -81,6 +95,7 @@ export function initExecApprovalsListener() {
                 ...nextRunningByKey,
                 [runningKey]: resolved.atMs,
               };
+              runningTtlTarget = { runningKey, atMs: resolved.atMs };
             }
           }
 
@@ -124,6 +139,29 @@ export function initExecApprovalsListener() {
         false,
         "execApprovals/listener/resolved",
       );
+
+      if (runningTtlTarget && typeof window !== "undefined") {
+        const { runningKey, atMs } = runningTtlTarget;
+        window.setTimeout(() => {
+          useExecApprovalsStore.setState(
+            (state) => {
+              const ts = state.runningByKey[runningKey];
+              if (!ts) return state;
+              if (ts !== atMs) return state;
+              if (Date.now() - ts < EXEC_RUNNING_TTL_MS) return state;
+              const { [runningKey]: _ignored, ...rest } = state.runningByKey;
+              return { ...state, runningByKey: rest };
+            },
+            false,
+            "execApprovals/listener/resolved/markRunning/ttl",
+          );
+        }, EXEC_RUNNING_TTL_MS + 1000);
+      }
+      return;
+    }
+
+    if (event.event === "chat" && isRecord(event.payload)) {
+      clearRunningFromChatTerminal(event.payload as Record<string, unknown>);
       return;
     }
 

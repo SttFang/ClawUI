@@ -13,6 +13,7 @@ import {
   type ExecTrace,
   shouldSuppressExecPart,
 } from "@/components/A2UI/execTrace";
+import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
 import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
 import { MessageText } from "./MessageText";
 
@@ -69,11 +70,6 @@ function isDynamicToolPartLike(part: unknown): part is DynamicToolUIPart {
     typeof record.toolCallId === "string" &&
     typeof record.toolName === "string"
   );
-}
-
-function isExecLikeToolName(name: string): boolean {
-  const normalized = name.trim().toLowerCase();
-  return normalized === "exec" || normalized === "bash";
 }
 
 function normalizeToolCallId(value: string): string {
@@ -252,7 +248,11 @@ export function MessageParts(props: {
       }
 
       if (!isDynamicToolPartLike(part)) continue;
-      if (!isExecLikeToolName(part.toolName)) {
+      const policy = classifyToolRender(part.toolName);
+      if (policy.kind === "hidden") {
+        continue;
+      }
+      if (policy.kind !== "exec_card") {
         const stableToolCallId = normalizeToolCallId(part.toolCallId);
         const normalizedPart =
           stableToolCallId && stableToolCallId !== part.toolCallId
@@ -267,6 +267,8 @@ export function MessageParts(props: {
               key={`tool:${stableToolCallId || part.toolCallId}:${index}`}
               part={normalizedPart}
               sessionKey={sessionKey}
+              renderMode={policy.kind === "read_compact" ? "read_compact" : "generic"}
+              maxPreviewChars={policy.maxPreviewChars}
             />
           ),
         };

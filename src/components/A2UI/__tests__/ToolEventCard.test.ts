@@ -169,4 +169,49 @@ describe("ToolEventCard", () => {
       consoleErrorSpy.mockRestore();
     }
   });
+
+  it("renders read compact mode with truncated preview and toggle", () => {
+    const longOutput = "A".repeat(1200);
+    const part = {
+      type: "dynamic-tool",
+      toolName: "read",
+      toolCallId: "tool-read-compact-1",
+      state: "output-available",
+      providerExecuted: true,
+      input: { path: "/tmp/long.txt" },
+      output: longOutput,
+    } as DynamicToolUIPart;
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    try {
+      act(() => {
+        root.render(
+          createElement(ToolEventCard, {
+            part,
+            sessionKey: "s1",
+            renderMode: "read_compact",
+            maxPreviewChars: 80,
+          }),
+        );
+      });
+      expect(container.textContent).toContain("a2ui.execAction.viewFullOutput");
+      expect(container.textContent).toContain("...");
+      expect(container.textContent).not.toContain(longOutput);
+
+      const toggle = container.querySelector("button");
+      expect(toggle).not.toBeNull();
+      act(() => {
+        toggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      });
+
+      expect(container.textContent).toContain("a2ui.execAction.hideFullOutput");
+      expect(container.textContent).toContain(longOutput);
+    } finally {
+      act(() => {
+        root.unmount();
+      });
+    }
+  });
 });

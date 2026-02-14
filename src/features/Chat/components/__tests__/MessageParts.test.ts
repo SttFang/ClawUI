@@ -27,8 +27,18 @@ vi.mock("@/components/A2UI", async () => {
       useTraceStore((s) => s.terminalByCommand);
       return createElement("div", null, `exec:${part.toolCallId}:${part.state}`);
     },
-    ToolEventCard: ({ part }: { part: { toolName: string; toolCallId: string } }) =>
-      createElement("div", null, `tool:${part.toolName}:${part.toolCallId}`),
+    ToolEventCard: ({
+      part,
+      renderMode,
+    }: {
+      part: { toolName: string; toolCallId: string };
+      renderMode?: string;
+    }) =>
+      createElement(
+        "div",
+        null,
+        `tool:${part.toolName}:${part.toolCallId}:${renderMode ?? "generic"}`,
+      ),
   };
 });
 
@@ -410,7 +420,55 @@ describe("MessageParts", () => {
       createElement(MessageParts, { message, streaming: false, sessionKey: "s1" }),
     );
 
-    expect(html).toContain("tool:read:call_I0juQg9HZ0gB68z8TTSMdvQy");
-    expect(html).not.toContain("tool:read:call_I0juQg9HZ0gB68z8TTSMdvQy|fc_0c57b44d");
+    expect(html).toContain("tool:read:call_I0juQg9HZ0gB68z8TTSMdvQy:read_compact");
+    expect(html).not.toContain("tool:read:call_I0juQg9HZ0gB68z8TTSMdvQy|fc_0c57b44d:read_compact");
+  });
+
+  it("hides session_status tool cards by policy", () => {
+    const message: UIMessage = {
+      id: "msg-session-status-hidden",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolName: "session_status",
+          toolCallId: "tool-session-status-1",
+          state: "output-available",
+          providerExecuted: true,
+          input: {},
+          output: "ok",
+        } as const,
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MessageParts, { message, streaming: false, sessionKey: "s1" }),
+    );
+
+    expect(html).not.toContain("tool:session_status");
+  });
+
+  it("renders unknown tools with generic card fallback", () => {
+    const message: UIMessage = {
+      id: "msg-unknown-tool",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolName: "plugin_custom_tool",
+          toolCallId: "tool-plugin-1",
+          state: "output-available",
+          providerExecuted: true,
+          input: {},
+          output: "done",
+        } as const,
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MessageParts, { message, streaming: false, sessionKey: "s1" }),
+    );
+
+    expect(html).toContain("tool:plugin_custom_tool:tool-plugin-1:generic");
   });
 });

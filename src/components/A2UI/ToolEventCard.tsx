@@ -9,6 +9,7 @@ import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApproval
 import { EXEC_RUNNING_TTL_MS } from "@/store/execApprovals/helpers";
 
 const RUNNING_TICK_MS = 1000;
+const DEFAULT_READ_PREVIEW_CHARS = 600;
 
 function formatJson(value: unknown): string {
   if (typeof value === "string") return value;
@@ -92,6 +93,12 @@ function isExecLikeToolName(name: string): boolean {
   return normalized === "exec" || normalized === "bash";
 }
 
+function isReadToolName(name: string): boolean {
+  return name.trim().toLowerCase() === "read";
+}
+
+type ToolCardRenderMode = "generic" | "read_compact";
+
 function useNowTick(enabled: boolean): number {
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
@@ -106,16 +113,34 @@ function useNowTick(enabled: boolean): number {
   return nowMs;
 }
 
-export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: string }) {
+export function ToolEventCard(props: {
+  part: DynamicToolUIPart;
+  sessionKey?: string;
+  renderMode?: ToolCardRenderMode;
+  maxPreviewChars?: number;
+}) {
   const { t } = useTranslation("common");
-  const { part, sessionKey } = props;
+  const {
+    part,
+    sessionKey,
+    renderMode = "generic",
+    maxPreviewChars = DEFAULT_READ_PREVIEW_CHARS,
+  } = props;
+  const [showFullOutput, setShowFullOutput] = useState(false);
 
   const title = part.title?.trim() ? part.title : part.toolName;
   const state = part.state;
   const query = extractSearchQuery(part.input);
-  const readPath = part.toolName === "read" ? extractReadPath(part.input) : "";
+  const readPath = isReadToolName(part.toolName) ? extractReadPath(part.input) : "";
   const inputText = useMemo(() => formatJson(part.input), [part.input]);
   const outputText = useMemo(() => formatJson(part.output), [part.output]);
+  const isReadCompact = renderMode === "read_compact" && isReadToolName(part.toolName);
+  const isOutputTruncated =
+    isReadCompact && state === "output-available" && outputText.length > maxPreviewChars;
+  const compactOutputText =
+    isReadCompact && !showFullOutput && isOutputTruncated
+      ? `${outputText.slice(0, maxPreviewChars).trimEnd()}...`
+      : outputText;
 
   const isExec = isExecLikeToolName(part.toolName);
   const execCommand = isExec ? getExecCommand(part.input) : "";
@@ -143,6 +168,10 @@ export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: str
       : state === "input-available" && isRunning
         ? t("a2ui.toolState.running")
         : state;
+
+  useEffect(() => {
+    setShowFullOutput(false);
+  }, [part.toolCallId]);
 
   return (
     <Task defaultOpen={state !== "output-error"}>
@@ -188,9 +217,22 @@ export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: str
           ) : null}
 
           {state === "output-available" ? (
-            <pre className="max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs break-words">
-              {outputText}
-            </pre>
+            <>
+              <pre className="max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs break-words">
+                {compactOutputText}
+              </pre>
+              {isOutputTruncated ? (
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  onClick={() => setShowFullOutput((prev) => !prev)}
+                >
+                  {showFullOutput
+                    ? t("a2ui.execAction.hideFullOutput")
+                    : t("a2ui.execAction.viewFullOutput")}
+                </button>
+              ) : null}
+            </>
           ) : null}
 
           {state === "output-error" ? (

@@ -2,14 +2,6 @@ import { Alert, AlertDescription } from "@clawui/ui";
 import { Loader2 } from "lucide-react";
 import { useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { CostBreakdown } from "@/components/Usage/CostBreakdown";
-import { DailySignalsTable } from "@/components/Usage/DailySignalsTable";
-import { DailyTrendChart } from "@/components/Usage/DailyTrendChart";
-import { ProviderBreakdown } from "@/components/Usage/ProviderBreakdown";
-import { SessionDetail } from "@/components/Usage/SessionDetail";
-import { SessionList } from "@/components/Usage/SessionList";
-import { SessionTimeline } from "@/components/Usage/SessionTimeline";
-import { UsageHeader } from "@/components/Usage/UsageHeader";
 import {
   useUsageStore,
   selectUsageLoading,
@@ -25,6 +17,14 @@ import {
   selectTimeSeries,
   selectTimeSeriesLoading,
 } from "@/store/usage";
+import { CostBreakdown } from "./components/CostBreakdown";
+import { DailySignalsTable } from "./components/DailySignalsTable";
+import { DailyTrendChart } from "./components/DailyTrendChart";
+import { ProviderBreakdown } from "./components/ProviderBreakdown";
+import { SessionDetail } from "./components/SessionDetail";
+import { SessionList } from "./components/SessionList";
+import { SessionTimeline } from "./components/SessionTimeline";
+import { UsageHeader } from "./components/UsageHeader";
 
 export function UsageFeature() {
   const { t } = useTranslation("common");

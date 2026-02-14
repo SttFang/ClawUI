@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatSecondsFromMs, outputToText, summarizeOutputText } from "../execDisplay";
+import {
+  extractPrimaryExecCommand,
+  formatSecondsFromMs,
+  outputToText,
+  summarizeOutputText,
+  titleizeCommandName,
+} from "../execDisplay";
 
 describe("execDisplay", () => {
   it("should format duration from milliseconds", () => {
@@ -20,5 +26,15 @@ describe("execDisplay", () => {
     expect(preview).toContain("line1");
     expect(preview).toContain("line3");
     expect(preview.endsWith("…")).toBe(true);
+  });
+
+  it("should extract primary command name from chained shell command", () => {
+    const command =
+      "mkdir -p '/tmp/a' '/tmp/b' && cd '/tmp' && mv -n *.pdf './a/' 2>/dev/null || true";
+    expect(extractPrimaryExecCommand(command)).toBe("mkdir");
+  });
+
+  it("should titleize command name for display", () => {
+    expect(titleizeCommandName("mkdir")).toBe("Mkdir");
   });
 });

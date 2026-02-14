@@ -1,6 +1,22 @@
+import type { ChannelCredentialMeta } from "@clawui/types/credentials";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { configCoreManager } from "@/store/configDraft/manager";
+import { ipc } from "@/lib/ipc";
+
+type TokenFieldKey =
+  | "discordBotToken"
+  | "discordAppToken"
+  | "telegramBotToken"
+  | "slackBotToken"
+  | "slackAppToken";
+
+const TOKEN_FIELD_MAP: Record<TokenFieldKey, { channelType: string; tokenField: "botToken" | "appToken" }> = {
+  discordBotToken: { channelType: "discord", tokenField: "botToken" },
+  discordAppToken: { channelType: "discord", tokenField: "appToken" },
+  telegramBotToken: { channelType: "telegram", tokenField: "botToken" },
+  slackBotToken: { channelType: "slack", tokenField: "botToken" },
+  slackAppToken: { channelType: "slack", tokenField: "appToken" },
+};
 
 export interface SecretsState {
   discordBotToken: string;
@@ -8,6 +24,8 @@ export interface SecretsState {
   telegramBotToken: string;
   slackBotToken: string;
   slackAppToken: string;
+  /** Tracks which fields the user has edited since load. */
+  dirtyFields: Set<TokenFieldKey>;
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
@@ -16,13 +34,7 @@ export interface SecretsState {
 
 export interface SecretsActions {
   load: () => Promise<void>;
-  setValue: (
-    key: keyof Pick<
-      SecretsState,
-      "discordBotToken" | "discordAppToken" | "telegramBotToken" | "slackBotToken" | "slackAppToken"
-    >,
-    value: string,
-  ) => void;
+  setValue: (key: TokenFieldKey, value: string) => void;
   save: () => Promise<void>;
   clearSaveSuccess: () => void;
 }
@@ -35,11 +47,22 @@ const initialState: SecretsState = {
   telegramBotToken: "",
   slackBotToken: "",
   slackAppToken: "",
+  dirtyFields: new Set(),
   isLoading: false,
   isSaving: false,
   error: null,
   saveSuccess: false,
 };
+
+function findChannelMeta(
+  credentials: ChannelCredentialMeta[],
+  channelType: string,
+  tokenField: string,
+): ChannelCredentialMeta | undefined {
+  return credentials.find(
+    (c) => c.channelType === channelType && c.tokenField === tokenField,
+  );
+}
 
 export const useSecretsStore = create<SecretsStore>()(
   devtools(
@@ -49,15 +72,21 @@ export const useSecretsStore = create<SecretsStore>()(
       load: async () => {
         set({ isLoading: true, error: null }, false, "load");
         try {
-          await configCoreManager.loadSnapshot();
-          const env = configCoreManager.getEnv();
+          const allCredentials = await ipc.credentials.list();
+          const channelCreds = allCredentials.filter(
+            (c): c is ChannelCredentialMeta => c.category === "channel",
+          );
+
+          const values: Partial<Record<TokenFieldKey, string>> = {};
+          for (const [key, { channelType, tokenField }] of Object.entries(TOKEN_FIELD_MAP)) {
+            const meta = findChannelMeta(channelCreds, channelType, tokenField);
+            values[key as TokenFieldKey] = meta?.maskedValue ?? "";
+          }
+
           set(
             {
-              discordBotToken: env.DISCORD_BOT_TOKEN ?? "",
-              discordAppToken: env.DISCORD_APP_TOKEN ?? "",
-              telegramBotToken: env.TELEGRAM_BOT_TOKEN ?? "",
-              slackBotToken: env.SLACK_BOT_TOKEN ?? "",
-              slackAppToken: env.SLACK_APP_TOKEN ?? "",
+              ...values,
+              dirtyFields: new Set(),
               isLoading: false,
             },
             false,
@@ -70,23 +99,36 @@ export const useSecretsStore = create<SecretsStore>()(
       },
 
       setValue: (key, value) => {
-        set({ [key]: value, saveSuccess: false } as Partial<SecretsState>, false, "setValue");
+        const dirtyFields = new Set(get().dirtyFields);
+        dirtyFields.add(key);
+        set(
+          { [key]: value, dirtyFields, saveSuccess: false } as Partial<SecretsState>,
+          false,
+          "setValue",
+        );
       },
 
       save: async () => {
-        const { discordBotToken, discordAppToken, telegramBotToken, slackBotToken, slackAppToken } =
-          get();
+        const state = get();
+        const { dirtyFields } = state;
+        if (dirtyFields.size === 0) return;
 
         set({ isSaving: true, error: null, saveSuccess: false }, false, "save");
         try {
-          await configCoreManager.applyEnvPatch({
-            DISCORD_BOT_TOKEN: discordBotToken,
-            DISCORD_APP_TOKEN: discordAppToken,
-            TELEGRAM_BOT_TOKEN: telegramBotToken,
-            SLACK_BOT_TOKEN: slackBotToken,
-            SLACK_APP_TOKEN: slackAppToken,
-          });
-          set({ isSaving: false, saveSuccess: true }, false, "save/success");
+          for (const key of dirtyFields) {
+            const mapping = TOKEN_FIELD_MAP[key];
+            const value = state[key];
+            await ipc.credentials.setChannel({
+              channelType: mapping.channelType,
+              tokenField: mapping.tokenField,
+              value,
+            });
+          }
+          set(
+            { isSaving: false, saveSuccess: true, dirtyFields: new Set() },
+            false,
+            "save/success",
+          );
           setTimeout(() => set({ saveSuccess: false }, false, "save/clearSuccess"), 3000);
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to save secrets";

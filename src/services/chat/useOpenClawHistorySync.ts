@@ -37,8 +37,8 @@ function isExecToolFinished(event: ChatNormalizedRunEvent): boolean {
     event.metadata && typeof event.metadata === "object"
       ? (event.metadata as Record<string, unknown>)
       : null;
-  const toolName = typeof metadata?.name === "string" ? metadata.name.trim() : "";
-  return toolName === "" || toolName === "exec";
+  const toolName = typeof metadata?.name === "string" ? metadata.name.trim().toLowerCase() : "";
+  return toolName === "" || toolName === "exec" || toolName === "bash";
 }
 
 function getLifecyclePhase(event: ChatNormalizedRunEvent): string {
@@ -121,7 +121,7 @@ export function useOpenClawHistorySync(params: {
 
   const setMessagesRef = useRef(setMessages);
   const historyInFlightRef = useRef(false);
-  const lastHistoryAtRef = useRef(0);
+  const lastHistorySuccessAtRef = useRef(0);
   const lastHistorySigRef = useRef("");
   const lastAppliedMessagesRef = useRef<UIMessage[]>([]);
   const pendingRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -182,7 +182,7 @@ export function useOpenClawHistorySync(params: {
       const throttleMs = force
         ? 0
         : (options?.throttleMs ?? heartbeatThrottleMs ?? DEFAULT_REFRESH_THROTTLE_MS);
-      if (!force && now - lastHistoryAtRef.current < throttleMs) {
+      if (!force && now - lastHistorySuccessAtRef.current < throttleMs) {
         if (allowRetry && !pendingRefreshTimerRef.current) {
           const retryReason = `${reason}-throttle-retry`;
           pendingRefreshTimerRef.current = setTimeout(() => {
@@ -198,7 +198,6 @@ export function useOpenClawHistorySync(params: {
         return false;
       }
 
-      lastHistoryAtRef.current = now;
       historyInFlightRef.current = true;
       try {
         await ensureChatConnected();
@@ -252,6 +251,7 @@ export function useOpenClawHistorySync(params: {
           `changed=${changed}`,
           `count=${uiMessages.length}`,
         );
+        lastHistorySuccessAtRef.current = Date.now();
         recordHistoryRefreshResult(normalizedSessionKey, changed);
         return changed;
       } catch (error) {
@@ -278,7 +278,7 @@ export function useOpenClawHistorySync(params: {
     }
     lastSessionKeyRef.current = normalizedSessionKey;
 
-    lastHistoryAtRef.current = 0;
+    lastHistorySuccessAtRef.current = 0;
     lastHistorySigRef.current = "";
     lastAppliedMessagesRef.current = [];
     historyInFlightRef.current = false;

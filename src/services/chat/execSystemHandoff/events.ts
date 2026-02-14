@@ -1,5 +1,5 @@
 import type { HandOffSource } from "./types";
-import { APPROVAL_DECISIONS, EXEC_TOOL_FALLBACK, TOOL_NAMES } from "./constants";
+import { APPROVAL_DECISIONS, TOOL_NAMES } from "./constants";
 import { collectText, isRecord, normalizeSessionKey, normalizeText } from "./utils";
 
 function parseApprovalDecision(value: unknown): string | null {
@@ -149,7 +149,6 @@ export function readToolEventText(payload: unknown): string | null {
 
   if (fallback) return isError ? `Exec failed: ${fallback}` : fallback;
   if (isError) return "Exec failed.";
-  if (phase === "end" && hasResultPayload) return EXEC_TOOL_FALLBACK;
   return null;
 }
 

@@ -116,6 +116,22 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
   const cooldownByDigestRef = useRef<Map<string, number>>(new Map());
   const approvalLoopNudgedRef = useRef<Set<string>>(new Set());
   const ALLOW_RESULT_RETRY_DELAYS_MS = [300, 1200, 3000, 8000];
+  const MAX_COOLDOWN_DIGEST_ENTRIES = 1000;
+
+  const pruneCooldownDigests = useCallback((now: number) => {
+    const map = cooldownByDigestRef.current;
+    for (const [digest, at] of map.entries()) {
+      if (now - at >= HANDOFF_COOLDOWN_MS) map.delete(digest);
+    }
+    if (map.size <= MAX_COOLDOWN_DIGEST_ENTRIES) return;
+
+    // Keep only the most recent digests to avoid unbounded growth.
+    const entries = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+    map.clear();
+    for (const [digest, at] of entries.slice(0, MAX_COOLDOWN_DIGEST_ENTRIES)) {
+      map.set(digest, at);
+    }
+  }, []);
 
   const isCooldownActive = useCallback((digest: string) => {
     const at = cooldownByDigestRef.current.get(digest);
@@ -129,6 +145,7 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
 
       const digestRunKey = payload.runId ?? payload.command ?? payload.approvalId;
       const digest = hashText(payload.sessionKey, digestRunKey, `${payload.source}|${text}`);
+      pruneCooldownDigests(Date.now());
       if (isCooldownActive(digest)) return;
 
       try {
@@ -150,6 +167,7 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
           `message=${text.slice(0, 120)}`,
         );
         cooldownByDigestRef.current.set(digest, Date.now());
+        pruneCooldownDigests(Date.now());
       } catch (error) {
         chatLog.warn(
           "[exec.system.handoff.failed]",
@@ -159,7 +177,7 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
         );
       }
     },
-    [isCooldownActive],
+    [isCooldownActive, pruneCooldownDigests],
   );
 
   const refreshAndSend = useCallback(
@@ -430,7 +448,7 @@ export function useExecSystemHandoff(params: { sessionKey: string; hasSession: b
       if (stream === "tool") {
         const args = isRecord(data.args) ? (data.args as Record<string, unknown>) : null;
         const command = typeof args?.command === "string" ? args.command.trim() : "";
-        if (!command) return true;
+        if (!command) return false;
 
         const runningKey = `${normalizedSessionKey}::${command}`;
         const state = useExecApprovalsStore.getState();

@@ -389,6 +389,40 @@ export class ChatRunState {
     };
   }
 
+  resolveOrCreateRun(params: { sessionKey: string; runId: string; source: "chat" | "agent" }): {
+    run: RunState;
+    correlationConfidence: "exact" | "fallback";
+  } {
+    const { sessionKey, runId, source } = params;
+
+    if (source === "chat") {
+      const byClient = this.resolveRunByClient(sessionKey, runId);
+      if (byClient) return { run: byClient, correlationConfidence: "exact" };
+      const byAgent = this.resolveRunByAgent(sessionKey, runId);
+      if (byAgent) return { run: byAgent, correlationConfidence: "exact" };
+      const bound = this.maybeBindAliasFromSession({ sessionKey, runId, aliasKind: "client" });
+      if (bound) return { run: bound, correlationConfidence: "fallback" };
+      return {
+        run: this.ensureRun({ sessionKey, clientRunId: runId }),
+        correlationConfidence: "fallback",
+      };
+    }
+
+    // source === "agent"
+    const byAgent = this.resolveRunByAgent(sessionKey, runId);
+    if (byAgent) return { run: byAgent, correlationConfidence: "exact" };
+    const bound = this.maybeBindAliasFromSession({ sessionKey, runId, aliasKind: "agent" });
+    if (bound) return { run: bound, correlationConfidence: "fallback" };
+    const fromApproval = this.findRunFromRecentApproval(sessionKey);
+    if (fromApproval) {
+      this.linkAgentAlias(fromApproval, sessionKey, runId);
+      return { run: fromApproval, correlationConfidence: "fallback" };
+    }
+    const created = this.ensureRun({ sessionKey, clientRunId: runId });
+    this.linkAgentAlias(created, sessionKey, runId);
+    return { run: created, correlationConfidence: "fallback" };
+  }
+
   private removeRun(traceId: string, run: RunState): void {
     this.runsByTrace.delete(traceId);
     this.traceBySessionClient.delete(this.clientKey(run.sessionKey, run.clientRunId));

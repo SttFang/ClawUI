@@ -155,23 +155,11 @@ export class ChatEventAdapter {
     const state = typeof payload.state === "string" ? payload.state : "";
     if (!runId || !sessionKey || !state) return [];
 
-    let correlationConfidence: "exact" | "fallback" = "exact";
-    let run = this.state.resolveRunByClient(sessionKey, runId);
-    if (!run) {
-      run = this.state.resolveRunByAgent(sessionKey, runId);
-    }
-    if (!run) {
-      correlationConfidence = "fallback";
-      run = this.state.maybeBindAliasFromSession({
-        sessionKey,
-        runId,
-        aliasKind: "client",
-      });
-    }
-    if (!run) {
-      correlationConfidence = "fallback";
-      run = this.state.ensureRun({ sessionKey, clientRunId: runId });
-    }
+    const { run, correlationConfidence } = this.state.resolveOrCreateRun({
+      sessionKey,
+      runId,
+      source: "chat",
+    });
 
     this.state.touchRun(run);
     const events: ChatNormalizedRunEvent[] = [];
@@ -235,33 +223,11 @@ export class ChatEventAdapter {
     const sessionKey = typeof payload.sessionKey === "string" ? payload.sessionKey : "";
     if (!runId || !stream || !sessionKey) return [];
 
-    let correlationConfidence: "exact" | "fallback" = "exact";
-    let run = this.state.resolveRunByAgent(sessionKey, runId);
-    if (!run) {
-      correlationConfidence = "fallback";
-      run = this.state.maybeBindAliasFromSession({
-        sessionKey,
-        runId,
-        aliasKind: "agent",
-      });
-    }
-    if (!run) {
-      correlationConfidence = "fallback";
-      run = this.state.findRunFromRecentApproval(sessionKey);
-      if (run) {
-        this.state.linkAgentAlias(run, sessionKey, runId);
-      }
-    }
-    if (!run && this.state.hasRecentApprovalContext(sessionKey)) {
-      correlationConfidence = "fallback";
-      run = this.state.ensureRun({ sessionKey, clientRunId: runId });
-      this.state.linkAgentAlias(run, sessionKey, runId);
-    }
-    if (!run) {
-      correlationConfidence = "fallback";
-      run = this.state.ensureRun({ sessionKey, clientRunId: runId });
-      this.state.linkAgentAlias(run, sessionKey, runId);
-    }
+    const { run, correlationConfidence } = this.state.resolveOrCreateRun({
+      sessionKey,
+      runId,
+      source: "agent",
+    });
 
     this.state.touchRun(run);
     if (!run.agentRunId) run.agentRunId = runId;

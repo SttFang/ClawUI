@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { ChatEventNormalizer } from "../../../../electron/main/services/chat-event-normalizer";
+import { ChatEventAdapter } from "../../../../electron/main/services/chat/event-adapter";
 
-describe("ChatEventNormalizer", () => {
+describe("ChatEventAdapter", () => {
   it("consumes approval pending only once after resolved", () => {
-    const normalizer = new ChatEventNormalizer();
+    const normalizer = new ChatEventAdapter();
     const sessionKey = "agent:main:ui:test";
 
     normalizer.onChatSendAccepted({
@@ -46,7 +46,7 @@ describe("ChatEventNormalizer", () => {
   });
 
   it("maps chat.final using agent run id when client run id is absent", () => {
-    const normalizer = new ChatEventNormalizer();
+    const normalizer = new ChatEventAdapter();
     const sessionKey = "agent:main:ui:test";
     const [started] = normalizer.onChatSendAccepted({
       sessionKey,
@@ -83,7 +83,7 @@ describe("ChatEventNormalizer", () => {
   });
 
   it("does not drop agent lifecycle events during approval recovery", () => {
-    const normalizer = new ChatEventNormalizer();
+    const normalizer = new ChatEventAdapter();
     const sessionKey = "agent:main:ui:test";
 
     normalizer.ingestGatewayEvent({
@@ -114,7 +114,7 @@ describe("ChatEventNormalizer", () => {
   });
 
   it("keeps unknown agent lifecycle events by creating a fallback run", () => {
-    const normalizer = new ChatEventNormalizer();
+    const normalizer = new ChatEventAdapter();
     const sessionKey = "agent:main:ui:test-fallback";
 
     const lifecycle = normalizer.ingestGatewayEvent({
@@ -136,7 +136,7 @@ describe("ChatEventNormalizer", () => {
   });
 
   it("emits waiting_approval even when no chat run exists yet", () => {
-    const normalizer = new ChatEventNormalizer();
+    const normalizer = new ChatEventAdapter();
     const sessionKey = "agent:main:ui:test-pending";
 
     const waiting = normalizer.ingestGatewayEvent({
@@ -158,7 +158,7 @@ describe("ChatEventNormalizer", () => {
   });
 
   it("normalizes tool_use_id into metadata.toolCallId", () => {
-    const normalizer = new ChatEventNormalizer();
+    const normalizer = new ChatEventAdapter();
     const sessionKey = "agent:main:ui:test";
     normalizer.onChatSendAccepted({
       sessionKey,

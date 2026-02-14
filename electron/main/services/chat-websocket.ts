@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { EventEmitter } from "events";
 import { chatLog } from "../lib/logger";
-import { ChatEventNormalizer } from "./chat-event-normalizer";
+import { ChatEventAdapter } from "./chat/event-adapter";
 import { ChatTransport, type TransportGatewayEventFrame } from "./chat/transport";
 
 export interface ChatMessage {
@@ -33,7 +33,7 @@ export type GatewayEventFrame = TransportGatewayEventFrame;
 
 export class ChatWebSocketService extends EventEmitter {
   private readonly transport = new ChatTransport();
-  private readonly normalizer = new ChatEventNormalizer();
+  private readonly normalizer = new ChatEventAdapter();
 
   constructor() {
     super();

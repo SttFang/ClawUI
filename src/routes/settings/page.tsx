@@ -2,7 +2,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@clawui/ui";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
-import { Subscription } from "@/features/Subscription";
 import {
   isSettingsTab,
   resolveTabFromSection,
@@ -10,14 +9,10 @@ import {
 } from "@/router/settingsRouteSchema";
 import { useSecretsStore } from "@/store/secrets";
 import { useSettingsStore } from "@/store/settings";
-import { AboutTab } from "./AboutTab";
-import { ApiTab } from "./ApiTab";
-import { ConfigTab } from "./config/ConfigTab";
-import { GatewayTab } from "./GatewayTab";
+import { AiServicesTab } from "./AiServicesTab";
+import { CapabilitiesTab } from "./CapabilitiesTab";
 import { GeneralTab } from "./GeneralTab";
-import { ModelsTab } from "./ModelsTab";
-import { SecurityTab } from "./SecurityTab";
-import { TokensTab } from "./TokensTab";
+import { MessagingTab } from "./MessagingTab";
 
 export default function SettingsPage() {
   const { t } = useTranslation("common");
@@ -45,6 +40,7 @@ export default function SettingsPage() {
     if (!isSettingsTab(nextTab)) return;
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("tab", nextTab);
+    nextParams.delete("section");
     setSearchParams(nextParams, { replace: true });
   };
 
@@ -59,42 +55,22 @@ export default function SettingsPage() {
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="mb-4">
             <TabsTrigger value="general">{t("settings.page.tabs.general")}</TabsTrigger>
-            <TabsTrigger value="config">{t("settings.page.tabs.config")}</TabsTrigger>
-            <TabsTrigger value="models">{t("settings.page.tabs.models")}</TabsTrigger>
-            <TabsTrigger value="api">{t("settings.page.tabs.api")}</TabsTrigger>
-            <TabsTrigger value="tokens">{t("settings.page.tabs.tokens")}</TabsTrigger>
-            <TabsTrigger value="gateway">{t("settings.page.tabs.gateway")}</TabsTrigger>
-            <TabsTrigger value="security">{t("settings.page.tabs.security")}</TabsTrigger>
-            <TabsTrigger value="subscription">{t("settings.page.tabs.subscription")}</TabsTrigger>
-            <TabsTrigger value="about">{t("settings.page.tabs.about")}</TabsTrigger>
+            <TabsTrigger value="ai">{t("settings.page.tabs.ai")}</TabsTrigger>
+            <TabsTrigger value="messaging">{t("settings.page.tabs.messaging")}</TabsTrigger>
+            <TabsTrigger value="capabilities">{t("settings.page.tabs.capabilities")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general">
             <GeneralTab />
           </TabsContent>
-          <TabsContent value="config">
-            <ConfigTab activeSection={sectionParam} />
+          <TabsContent value="ai">
+            <AiServicesTab />
           </TabsContent>
-          <TabsContent value="models">
-            <ModelsTab />
+          <TabsContent value="messaging">
+            <MessagingTab />
           </TabsContent>
-          <TabsContent value="api">
-            <ApiTab />
-          </TabsContent>
-          <TabsContent value="tokens">
-            <TokensTab />
-          </TabsContent>
-          <TabsContent value="gateway">
-            <GatewayTab />
-          </TabsContent>
-          <TabsContent value="security">
-            <SecurityTab />
-          </TabsContent>
-          <TabsContent value="subscription">
-            <Subscription />
-          </TabsContent>
-          <TabsContent value="about">
-            <AboutTab />
+          <TabsContent value="capabilities">
+            <CapabilitiesTab />
           </TabsContent>
         </Tabs>
       </div>

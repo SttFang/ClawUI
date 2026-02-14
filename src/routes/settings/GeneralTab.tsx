@@ -2,13 +2,9 @@ import {
   Button,
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  Label,
   Switch,
 } from "@clawui/ui";
 import { OpenClaw } from "@lobehub/icons";
@@ -74,182 +70,180 @@ export function GeneralTab() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Appearance */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.page.general.appearance.title")}</CardTitle>
-          <CardDescription>{t("settings.page.general.appearance.description")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>{t("settings.page.general.appearance.theme")}</Label>
-            <div className="flex gap-2">
-              {themeOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setTheme(option.value)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
-                    theme === option.value
-                      ? "border-primary bg-primary/5"
-                      : "hover:border-primary/50"
-                  }`}
-                >
-                  {option.icon}
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <section>
+        <h3 className="text-sm font-medium text-muted-foreground mb-4">
+          {t("settings.page.general.appearance.title")}
+        </h3>
+        <div className="flex gap-2">
+          {themeOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setTheme(option.value)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md border text-sm transition-colors ${
+                theme === option.value
+                  ? "border-primary bg-primary/5"
+                  : "hover:border-primary/50"
+              }`}
+            >
+              {option.icon}
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* Startup */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.page.general.startup.title")}</CardTitle>
-          <CardDescription>{t("settings.page.general.startup.description")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>{t("settings.page.general.startup.autoStartGateway")}</Label>
-              <p className="text-sm text-muted-foreground">
+      <section className="border-t pt-6">
+        <h3 className="text-sm font-medium text-muted-foreground mb-4">
+          {t("settings.page.general.startup.title")}
+        </h3>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between py-3">
+            <div className="space-y-0.5">
+              <div className="text-sm font-medium">
+                {t("settings.page.general.startup.autoStartGateway")}
+              </div>
+              <div className="text-xs text-muted-foreground">
                 {t("settings.page.general.startup.autoStartGatewayHint")}
-              </p>
+              </div>
             </div>
             <Switch checked={autoStartGateway} onCheckedChange={setAutoStartGateway} />
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>{t("settings.page.general.startup.autoCheckUpdates")}</Label>
-              <p className="text-sm text-muted-foreground">
+          <div className="flex items-center justify-between py-3">
+            <div className="space-y-0.5">
+              <div className="text-sm font-medium">
+                {t("settings.page.general.startup.autoCheckUpdates")}
+              </div>
+              <div className="text-xs text-muted-foreground">
                 {t("settings.page.general.startup.autoCheckUpdatesHint")}
-              </p>
+              </div>
             </div>
             <Switch checked={autoCheckUpdates} onCheckedChange={setAutoCheckUpdates} />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      {/* Gateway (renamed: Connection Status) */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Server className="w-5 h-5" />
-            <CardTitle>{t("settings.page.gateway.title")}</CardTitle>
-          </div>
-          <CardDescription>{t("settings.page.gateway.description")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div
-                className={`w-2 h-2 rounded-full ${
-                  gatewayStatus === "running"
-                    ? "bg-green-500"
-                    : gatewayStatus === "starting"
-                      ? "bg-amber-500 animate-pulse"
-                      : gatewayStatus === "error"
-                        ? "bg-red-500"
-                        : "bg-gray-400"
-                }`}
-              />
-              <span className="capitalize">
-                {t(`settings.page.gateway.status.${gatewayStatus}`, {
-                  defaultValue: gatewayStatus,
-                })}
-              </span>
-              {gatewayError && <span className="text-destructive"> - {gatewayError}</span>}
-            </div>
-            <Button
-              variant={isGatewayRunning ? "destructive" : "default"}
-              onClick={isGatewayRunning ? stopGateway : startGateway}
-              disabled={gatewayStatus === "starting"}
-            >
-              {isGatewayRunning
-                ? t("settings.page.gateway.actions.stopGateway")
-                : t("settings.page.gateway.actions.startGateway")}
-            </Button>
-          </div>
-
-          <Collapsible>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="flex items-center gap-1">
-                <ChevronDown className="h-3 w-3" />
-                {t("settings.page.general.serviceManagement")}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-2">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={serviceBusy}
-                  onClick={() =>
-                    serviceAction(
-                      () => ipc.gateway.installService(),
-                      "settings.page.gateway.messages.serviceInstalled",
-                      "settings.page.gateway.messages.installFailed",
-                    )
-                  }
-                >
-                  {t("settings.page.gateway.actions.installService")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={serviceBusy}
-                  onClick={() =>
-                    serviceAction(
-                      () => ipc.gateway.restartService(),
-                      "settings.page.gateway.messages.serviceRestarted",
-                      "settings.page.gateway.messages.restartFailed",
-                    )
-                  }
-                >
-                  {t("settings.page.gateway.actions.restartService")}
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={serviceBusy}
-                  onClick={() =>
-                    serviceAction(
-                      () => ipc.gateway.uninstallService(),
-                      "settings.page.gateway.messages.serviceUninstalled",
-                      "settings.page.gateway.messages.uninstallFailed",
-                    )
-                  }
-                >
-                  {t("settings.page.gateway.actions.uninstallService")}
-                </Button>
+      {/* Gateway */}
+      <section className="border-t pt-6">
+        <h3 className="text-sm font-medium text-muted-foreground mb-4">
+          {t("settings.page.gateway.title")}
+        </h3>
+        <Card>
+          <CardContent className="pt-4 pb-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Server className="w-4 h-4 text-muted-foreground" />
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    gatewayStatus === "running"
+                      ? "bg-green-500"
+                      : gatewayStatus === "starting"
+                        ? "bg-amber-500 animate-pulse"
+                        : gatewayStatus === "error"
+                          ? "bg-red-500"
+                          : "bg-gray-400"
+                  }`}
+                />
+                <span className="text-sm capitalize">
+                  {t(`settings.page.gateway.status.${gatewayStatus}`, {
+                    defaultValue: gatewayStatus,
+                  })}
+                </span>
+                {gatewayError && (
+                  <span className="text-sm text-destructive"> - {gatewayError}</span>
+                )}
               </div>
-              {serviceMessage ? (
-                <div className="text-sm text-muted-foreground mt-2">{serviceMessage}</div>
-              ) : null}
-            </CollapsibleContent>
-          </Collapsible>
-        </CardContent>
-      </Card>
+              <Button
+                size="sm"
+                variant={isGatewayRunning ? "destructive" : "default"}
+                onClick={isGatewayRunning ? stopGateway : startGateway}
+                disabled={gatewayStatus === "starting"}
+              >
+                {isGatewayRunning
+                  ? t("settings.page.gateway.actions.stopGateway")
+                  : t("settings.page.gateway.actions.startGateway")}
+              </Button>
+            </div>
+
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                  <ChevronDown className="h-3 w-3" />
+                  {t("settings.page.general.serviceManagement")}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={serviceBusy}
+                    onClick={() =>
+                      serviceAction(
+                        () => ipc.gateway.installService(),
+                        "settings.page.gateway.messages.serviceInstalled",
+                        "settings.page.gateway.messages.installFailed",
+                      )
+                    }
+                  >
+                    {t("settings.page.gateway.actions.installService")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={serviceBusy}
+                    onClick={() =>
+                      serviceAction(
+                        () => ipc.gateway.restartService(),
+                        "settings.page.gateway.messages.serviceRestarted",
+                        "settings.page.gateway.messages.restartFailed",
+                      )
+                    }
+                  >
+                    {t("settings.page.gateway.actions.restartService")}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={serviceBusy}
+                    onClick={() =>
+                      serviceAction(
+                        () => ipc.gateway.uninstallService(),
+                        "settings.page.gateway.messages.serviceUninstalled",
+                        "settings.page.gateway.messages.uninstallFailed",
+                      )
+                    }
+                  >
+                    {t("settings.page.gateway.actions.uninstallService")}
+                  </Button>
+                </div>
+                {serviceMessage ? (
+                  <div className="text-sm text-muted-foreground mt-2">{serviceMessage}</div>
+                ) : null}
+              </CollapsibleContent>
+            </Collapsible>
+          </CardContent>
+        </Card>
+      </section>
 
       {/* Subscription */}
-      <Subscription />
+      <section className="border-t pt-6">
+        <Subscription />
+      </section>
 
       {/* About */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <OpenClaw.Color size={20} />
-            <CardTitle>{t("settings.page.about.title")}</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <section className="border-t pt-6">
+        <h3 className="text-sm font-medium text-muted-foreground mb-4">
+          {t("settings.page.about.title")}
+        </h3>
+        <div className="space-y-3">
           <div className="flex items-center gap-2">
             <OpenClaw.Combine size={24} type="color" />
-            <p className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               {t("settings.page.about.version", { version })}
-            </p>
+            </span>
           </div>
           <p className="text-sm text-muted-foreground">{t("settings.page.about.description")}</p>
           <div className="flex gap-2">
@@ -260,8 +254,8 @@ export function GeneralTab() {
               {t("settings.page.about.actions.viewLicense")}
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

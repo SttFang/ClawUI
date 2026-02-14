@@ -1,15 +1,11 @@
 import type { IpcMain } from "electron";
-import { execFile } from "child_process";
-import { promisify } from "util";
 import type { ClawUIStateService, ClawUISessionMetadata } from "../services/clawui-state";
 import type { ConfigService } from "../services/config";
 import type { OpenClawProfilesService } from "../services/openclaw-profiles";
 import { mainLog } from "../lib/logger";
 import { chatWebSocket } from "../services/chat-websocket";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
-import { resolveCommandPath } from "../utils/login-shell";
-
-const execFileAsync = promisify(execFile);
+import { resolveOpenClawPath, runOpenClawJson } from "../utils/openclaw-cli";
 
 function coerceSessionKey(input: unknown): string | null {
   if (typeof input !== "string") return null;
@@ -60,26 +56,6 @@ function toMetadata(now: number, obj: Record<string, unknown>): ClawUISessionMet
   };
 }
 
-async function runOpenClawJson(
-  args: string[],
-  env: NodeJS.ProcessEnv,
-  timeoutMs: number,
-): Promise<unknown> {
-  const openclawPath = await resolveCommandPath("openclaw");
-  if (!openclawPath) throw new Error("openclaw not found in PATH");
-
-  const res = await execFileAsync(openclawPath, args, {
-    env: { ...process.env, ...env },
-    timeout: timeoutMs,
-    maxBuffer: 10 * 1024 * 1024,
-    encoding: "utf8",
-  });
-
-  const stdout = String(res.stdout ?? "").trim();
-  if (!stdout) throw new Error("openclaw produced no output");
-  return JSON.parse(stdout) as unknown;
-}
-
 export function registerMetadataHandlers(
   ipcMain: IpcMain,
   options: {
@@ -128,8 +104,10 @@ export function registerMetadataHandlers(
       const configAgentConfig = await profilesService.getConfig("configAgent");
       const env = configAgentConfig?.env ?? {};
 
+      const openclawPath = await resolveOpenClawPath();
       // Run the config-agent locally so it never needs direct access to the main gateway.
       const result = await runOpenClawJson(
+        openclawPath,
         [
           "--profile",
           "clawui-config-agent",
@@ -145,8 +123,8 @@ export function registerMetadataHandlers(
           "--timeout",
           "120",
         ],
-        env,
-        140_000,
+        "metadata generate",
+        { timeoutMs: 140_000, env },
       );
 
       const payloads = (result as { payloads?: unknown }).payloads;

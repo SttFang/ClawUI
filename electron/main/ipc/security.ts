@@ -1,7 +1,7 @@
 import type { IpcMain } from "electron";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { resolveCommandPath } from "../utils/login-shell";
+import { resolveOpenClawPath } from "../utils/openclaw-cli";
 
 const execFileAsync = promisify(execFile);
 
@@ -30,12 +30,6 @@ function assertAllowedPath(path: string): asserts path is AllowedPath {
   if (!ALLOWED_PATHS.has(path as AllowedPath)) {
     throw new Error(`Config path not allowed: ${path}`);
   }
-}
-
-async function resolveOpenClawPath(): Promise<string> {
-  const openclawPath = await resolveCommandPath("openclaw");
-  if (!openclawPath) throw new Error("openclaw not found in PATH");
-  return openclawPath;
 }
 
 export interface SecurityOp {

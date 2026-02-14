@@ -6,12 +6,14 @@ import type {
   ModelsStatusProbeOptions,
 } from "@clawui/types";
 import type { IpcMain } from "electron";
-import { execFile } from "child_process";
-import { promisify } from "util";
 import { mainLog } from "../lib/logger";
-import { resolveCommandPath } from "../utils/login-shell";
-
-const execFileAsync = promisify(execFile);
+import {
+  assertProvider,
+  resolveOpenClawPath,
+  runOpenClaw,
+  runOpenClawJson,
+  trimArg,
+} from "../utils/openclaw-cli";
 
 type ModelsAuthLoginOptions = {
   provider?: string;
@@ -29,73 +31,6 @@ type ModelsAuthOrderInput = {
   provider: string;
   agentId?: string;
 };
-
-type OpenClawExecResult = {
-  stdout: string;
-  stderr: string;
-};
-
-function trimArg(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const next = value.trim();
-  return next ? next : null;
-}
-
-function assertProvider(value: unknown): string {
-  const provider = trimArg(value);
-  if (!provider) {
-    throw new Error("provider is required");
-  }
-  return provider;
-}
-
-function parseJson<T>(output: string, context: string): T {
-  const raw = output.trim();
-  if (!raw) {
-    throw new Error(`${context}: empty output`);
-  }
-  try {
-    return JSON.parse(raw) as T;
-  } catch (error) {
-    throw new Error(
-      `${context}: invalid JSON output (${error instanceof Error ? error.message : String(error)})`,
-      { cause: error },
-    );
-  }
-}
-
-async function resolveOpenClawPath(): Promise<string> {
-  const openclawPath = await resolveCommandPath("openclaw");
-  if (!openclawPath) throw new Error("openclaw not found in PATH");
-  return openclawPath;
-}
-
-async function runOpenClaw(
-  openclawPath: string,
-  args: string[],
-  timeoutMs = 30_000,
-): Promise<OpenClawExecResult> {
-  const res = await execFileAsync(openclawPath, args, {
-    timeout: timeoutMs,
-    maxBuffer: 10 * 1024 * 1024,
-    encoding: "utf8",
-    env: { ...process.env },
-  });
-  return {
-    stdout: String(res.stdout ?? ""),
-    stderr: String(res.stderr ?? ""),
-  };
-}
-
-async function runOpenClawJson<T>(
-  openclawPath: string,
-  args: string[],
-  context: string,
-  timeoutMs = 30_000,
-): Promise<T> {
-  const { stdout } = await runOpenClaw(openclawPath, args, timeoutMs);
-  return parseJson<T>(stdout, context);
-}
 
 function buildModelsStatusArgs(options?: ModelsStatusProbeOptions): string[] {
   const args = ["models", "status", "--json"];

@@ -1,4 +1,5 @@
 export { useExecLifecycleStore } from "./store";
+export { initExecLifecycleListener } from "./listener";
 export {
   buildFallbackAttemptId,
   buildExecLifecycleKey,

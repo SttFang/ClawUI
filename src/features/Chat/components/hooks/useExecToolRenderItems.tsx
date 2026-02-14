@@ -1,6 +1,6 @@
 import type { DynamicToolUIPart, UIMessage } from "ai";
 import type { ReactElement } from "react";
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ExecActionItem } from "@/components/A2UI";
 import { getCommandFromInput, isExecToolName } from "@/lib/exec";
@@ -147,25 +147,6 @@ function findLatestPendingApproval(params: {
   );
 }
 
-function buildSyncSignature(records: ExecLifecycleRecord[]): string {
-  return records
-    .map((record) =>
-      [
-        record.attemptId,
-        record.lifecycleKey,
-        record.status,
-        record.messageId,
-        record.partIndex,
-        record.approvalId ?? "",
-        record.gatewayId ?? "",
-        record.updatedAtMs,
-        record.endedAtMs ?? "",
-        record.decision ?? "",
-      ].join("|"),
-    )
-    .join(";");
-}
-
 function resolveAttemptIdForTerminal(params: {
   terminal: ParsedSystemTerminal;
   sessionKey: string;
@@ -238,9 +219,8 @@ export function useExecToolRenderItems(
       s.latestAttemptIdBySessionCommand,
     ]),
   );
-  const lastSyncSignatureRef = useRef("");
 
-  const projection = useMemo(() => {
+  const execItemsByIndex = useMemo(() => {
     const pendingLifecycleByKey = new Map<string, ExecLifecycleRecord>();
     const execItemsByIndex = new Map<number, UseExecToolRenderItem>();
     const seenAttempts = new Set<string>();
@@ -344,10 +324,7 @@ export function useExecToolRenderItems(
       pendingLifecycleByKey.set(targetAttemptId, nextTerminal);
     }
 
-    return {
-      itemsByIndex: Object.fromEntries(execItemsByIndex) as UseExecToolRenderItemsResult,
-      pendingLifecycle: Array.from(pendingLifecycleByKey.values()),
-    };
+    return Object.fromEntries(execItemsByIndex) as UseExecToolRenderItemsResult;
   }, [
     approvalQueue,
     attemptIdByApprovalId,
@@ -361,13 +338,5 @@ export function useExecToolRenderItems(
     sessionKey,
   ]);
 
-  useEffect(() => {
-    if (!projection.pendingLifecycle.length) return;
-    const signature = buildSyncSignature(projection.pendingLifecycle);
-    if (signature === lastSyncSignatureRef.current) return;
-    lastSyncSignatureRef.current = signature;
-    useExecLifecycleStore.getState().upsertBatch(projection.pendingLifecycle);
-  }, [projection.pendingLifecycle]);
-
-  return projection.itemsByIndex;
+  return execItemsByIndex;
 }

@@ -1,13 +1,23 @@
 export { useExecLifecycleStore } from "./store";
 export {
+  buildFallbackAttemptId,
   buildExecLifecycleKey,
+  buildSessionCommandKey,
   deriveExecLifecycleStatus,
   extractRunIdFromToolCallId,
   getCommandFromInput,
   isTerminalExecLifecycleStatus,
   mergeExecLifecycleRecord,
+  normalizeSessionKey,
   normalizeCommand,
   projectExecLifecycleRecord,
 } from "./projector";
-export { selectExecLifecycleByKey, selectExecLifecycleBySession } from "./selectors";
+export {
+  selectAttemptIdByApprovalId,
+  selectAttemptIdByGatewayId,
+  selectAttemptIdByToolCallId,
+  selectExecLifecycleByKey,
+  selectExecLifecycleBySession,
+  selectLatestAttemptIdBySessionCommand,
+} from "./selectors";
 export type { ExecLifecycleRecord, ExecLifecycleStatus, ExecLifecycleStore } from "./types";

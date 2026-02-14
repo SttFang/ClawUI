@@ -7,12 +7,16 @@ export type ExecLifecycleStatus =
   | "error";
 
 export type ExecLifecycleRecord = {
+  attemptId: string;
   lifecycleKey: string;
   runId: string;
   sessionKey: string;
   command: string;
   normalizedCommand: string;
   status: ExecLifecycleStatus;
+  gatewayId?: string;
+  requestId?: string;
+  decision?: "allow-once" | "allow-always" | "deny" | "timeout";
   toolCallId: string;
   toolName: string;
   messageId: string;
@@ -31,6 +35,10 @@ export type ExecLifecycleRecord = {
 
 export interface ExecLifecycleState {
   recordsByKey: Record<string, ExecLifecycleRecord>;
+  attemptIdByApprovalId: Record<string, string>;
+  attemptIdByGatewayId: Record<string, string>;
+  attemptIdByToolCallId: Record<string, string>;
+  latestAttemptIdBySessionCommand: Record<string, string>;
 }
 
 export interface ExecLifecycleActions {

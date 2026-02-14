@@ -23,11 +23,11 @@ export function ExecActionItem(props: { record: ExecLifecycleRecord }) {
     statusLabel = t("a2ui.toolState.running");
   } else if (record.status === "completed") {
     statusLabel = t("a2ui.execAction.statusDone");
-  } else if (
-    record.status === "denied" ||
-    record.status === "timeout" ||
-    record.status === "error"
-  ) {
+  } else if (record.status === "denied") {
+    statusLabel = t("a2ui.execAction.statusDenied");
+  } else if (record.status === "timeout") {
+    statusLabel = t("a2ui.execAction.statusTimeout");
+  } else if (record.status === "error") {
     statusLabel = t("a2ui.execAction.statusError");
   }
 

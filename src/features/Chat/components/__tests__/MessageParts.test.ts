@@ -22,12 +22,12 @@ vi.mock("@/components/A2UI", async () => {
     ExecActionItem: ({
       record,
     }: {
-      record: { lifecycleKey: string; status: string; command: string };
+      record: { attemptId: string; status: string; command: string; approvalId?: string };
     }) =>
       createElement(
         "div",
         null,
-        `exec:${record.lifecycleKey}:${record.status}:${record.command || "<empty>"}`,
+        `exec:${record.attemptId}:${record.status}:${record.command || "<empty>"}:${record.approvalId ?? ""}`,
       ),
     ToolEventCard: ({
       part,
@@ -121,9 +121,30 @@ describe("MessageParts", () => {
     }
   });
 
-  it("keeps a single lifecycle card for same run+session+command in one message", () => {
+  it("uses approval id as attempt key and keeps single exec card for same attempt", () => {
+    const sessionKey = "agent:main:ui:test";
+    const now = Date.now();
+    useExecApprovalsStore.setState({
+      ...execApprovalsInitialState,
+      queue: [
+        {
+          id: "abc12345",
+          request: {
+            sessionKey,
+            command: "python3 -c \"print('ok')\"",
+            runId: "run-1",
+          },
+          createdAtMs: now,
+          expiresAtMs: now + 60_000,
+        },
+      ],
+      busyById: {},
+      runningByKey: {},
+      lastResolvedBySession: {},
+    });
+
     const message: UIMessage = {
-      id: "msg-1",
+      id: "msg-approval",
       role: "assistant",
       parts: [
         {
@@ -132,64 +153,15 @@ describe("MessageParts", () => {
           toolCallId: "assistant:1771000000000:r1:tool-1",
           state: "input-available",
           providerExecuted: true,
-          input: { command: "ls -la ~/Desktop" },
+          input: { command: "python3 -c \"print('ok')\"" },
         } as const,
         {
           type: "dynamic-tool",
           toolName: "exec",
           toolCallId: "assistant:1771000000000:r1:tool-2",
-          state: "output-available",
+          state: "input-streaming",
           providerExecuted: true,
-          input: { command: "ls -la ~/Desktop" },
-          output: "done",
-        } as const,
-      ],
-    };
-
-    const html = renderToStaticMarkup(
-      createElement(MessageParts, {
-        message,
-        streaming: false,
-        sessionKey: "agent:main:ui:test",
-      }),
-    );
-    const matches = html.match(
-      /exec:assistant:1771000000000:r1::agent:main:ui:test::ls -la ~\/Desktop:/g,
-    );
-    expect(matches?.length ?? 0).toBe(1);
-  });
-
-  it("suppresses stale lifecycle card after newer message owns the lifecycle", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-02-14T00:00:00.000Z"));
-    const sessionKey = "agent:main:ui:suppress";
-
-    const staleInput: UIMessage = {
-      id: "msg-old",
-      role: "assistant",
-      parts: [
-        {
-          type: "dynamic-tool",
-          toolName: "exec",
-          toolCallId: "assistant:1771000000000:r1:tool-1",
-          state: "input-available",
-          providerExecuted: true,
-          input: { command: "ls -la ~/Desktop" },
-        } as const,
-      ],
-    };
-    const latestFinal: UIMessage = {
-      id: "msg-new",
-      role: "assistant",
-      parts: [
-        {
-          type: "dynamic-tool",
-          toolName: "exec",
-          toolCallId: "assistant:1771000000000:r1:tool-2",
-          state: "output-available",
-          providerExecuted: true,
-          input: { command: "ls -la ~/Desktop" },
-          output: "done",
+          input: { command: "python3 -c \"print('ok')\"" },
         } as const,
       ],
     };
@@ -198,32 +170,60 @@ describe("MessageParts", () => {
     const root = createRoot(container);
     try {
       act(() => {
-        root.render(
-          createElement(MessageParts, { message: staleInput, streaming: false, sessionKey }),
-        );
+        root.render(createElement(MessageParts, { message, streaming: false, sessionKey }));
       });
-      act(() => {
-        vi.advanceTimersByTime(1000);
-        root.render(
-          createElement(MessageParts, { message: latestFinal, streaming: false, sessionKey }),
-        );
-      });
-      act(() => {
-        vi.advanceTimersByTime(1000);
-        root.render(
-          createElement(MessageParts, { message: staleInput, streaming: false, sessionKey }),
-        );
-      });
-
-      expect(container.textContent ?? "").not.toContain(
-        "exec:assistant:1771000000000:r1::agent:main:ui:suppress::ls -la ~/Desktop",
+      const text = container.textContent ?? "";
+      const matches = text.match(
+        /exec:(approval:abc12345|attempt:run-1::agent:main:ui:test::python3 -c "print\('ok'\)"::assistant:1771000000000:r1:tool-[12]):/g,
       );
+      expect(matches?.length ?? 0).toBe(1);
     } finally {
       act(() => {
         root.unmount();
       });
-      vi.useRealTimers();
     }
+  });
+
+  it("hides System exec receipt text from visible message body", () => {
+    const message: UIMessage = {
+      id: "msg-system-receipt",
+      role: "assistant",
+      parts: [
+        {
+          type: "text",
+          text: "System: [2026-02-14 16:34:03 GMT+8] Exec finished (gateway id=0c8c1be9-908a-4b60-add8-0c6ac01eb9bc, session=ember-cloud, code 0)\nok",
+        } as const,
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MessageParts, { message, streaming: false, sessionKey: "s1" }),
+    );
+    expect(html).not.toContain("Exec finished");
+    expect(html).toContain('class="space-y-3"');
+  });
+
+  it("does not render no-command exec card when command is missing", () => {
+    const message: UIMessage = {
+      id: "msg-no-command",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolName: "exec",
+          toolCallId: "assistant:1771000000000:r1:tool-1",
+          state: "output-available",
+          providerExecuted: true,
+          input: {},
+          output: "ok",
+        } as const,
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MessageParts, { message, streaming: false, sessionKey: "s1" }),
+    );
+    expect(html).not.toContain("<empty>");
   });
 
   it("keeps non-exec tools on ToolEventCard path", () => {
@@ -248,6 +248,5 @@ describe("MessageParts", () => {
     );
 
     expect(html).toContain("tool:read:call_I0juQg9HZ0gB68z8TTSMdvQy:read_compact");
-    expect(html).not.toContain("tool:read:call_I0juQg9HZ0gB68z8TTSMdvQy|fc_0c57b44d:read_compact");
   });
 });

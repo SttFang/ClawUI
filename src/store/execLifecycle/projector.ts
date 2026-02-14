@@ -20,6 +20,10 @@ type ProjectExecLifecycleInput = {
   approvalId?: string;
   runningMarked: boolean;
   runId?: string;
+  attemptId?: string;
+  gatewayId?: string;
+  requestId?: string;
+  decision?: "allow-once" | "allow-always" | "deny" | "timeout";
 };
 
 function normalizeWhitespace(value: string): string {
@@ -33,17 +37,6 @@ function toRecord(value: unknown): Record<string, unknown> | null {
 function isExecPreliminary(part: DynamicToolUIPart): boolean {
   const marker = (part as unknown as { preliminary?: unknown }).preliminary;
   return marker === true;
-}
-
-export function normalizeCommand(value: string): string {
-  return normalizeWhitespace(value);
-}
-
-export function getCommandFromInput(input: unknown): string {
-  const record = toRecord(input);
-  if (!record) return "";
-  const command = record.command;
-  return typeof command === "string" ? command.trim() : "";
 }
 
 function getCwdFromInput(input: unknown): string | undefined {
@@ -62,29 +55,64 @@ function getYieldMsFromInput(input: unknown): number | undefined {
   return typeof yieldMs === "number" ? yieldMs : undefined;
 }
 
+export function normalizeCommand(value: string): string {
+  return normalizeWhitespace(value);
+}
+
+export function normalizeSessionKey(value: string): string {
+  return value.trim();
+}
+
+export function getCommandFromInput(input: unknown): string {
+  const record = toRecord(input);
+  if (!record) return "";
+  const command = record.command;
+  return typeof command === "string" ? command.trim() : "";
+}
+
 export function extractRunIdFromToolCallId(toolCallId: string): string {
   const normalized = toolCallId.trim();
   if (!normalized) return "";
   const base = normalized.includes("|") ? normalized.split("|")[0] : normalized;
   const markerIndex = base.indexOf(":tool");
-  if (markerIndex > 0) {
-    return base.slice(0, markerIndex);
-  }
+  if (markerIndex > 0) return base.slice(0, markerIndex);
   return base;
 }
 
-export function buildExecLifecycleKey(input: {
+export function buildSessionCommandKey(sessionKey: string, command: string): string {
+  return `${normalizeSessionKey(sessionKey)}::${normalizeCommand(command)}`;
+}
+
+export function buildFallbackAttemptId(input: {
   runId?: string;
   sessionKey: string;
   command: string;
   toolCallId: string;
 }): string {
-  const runSegment = input.runId?.trim() || "run:unknown";
+  const runSegment =
+    input.runId?.trim() || extractRunIdFromToolCallId(input.toolCallId) || "run:unknown";
   const normalizedCommand = normalizeCommand(input.command);
   if (!normalizedCommand) {
-    return `${runSegment}::${input.sessionKey}::<no-command>::${input.toolCallId}`;
+    return `attempt:${runSegment}::${normalizeSessionKey(input.sessionKey)}::<no-command>::${input.toolCallId}`;
   }
-  return `${runSegment}::${input.sessionKey}::${normalizedCommand}`;
+  return `attempt:${runSegment}::${normalizeSessionKey(input.sessionKey)}::${normalizedCommand}::${input.toolCallId}`;
+}
+
+export function buildExecLifecycleKey(input: {
+  attemptId: string;
+  runId?: string;
+  sessionKey: string;
+  command: string;
+  toolCallId: string;
+}): string {
+  const attemptId = input.attemptId.trim();
+  if (attemptId) return attemptId;
+  return buildFallbackAttemptId({
+    runId: input.runId,
+    sessionKey: input.sessionKey,
+    command: input.command,
+    toolCallId: input.toolCallId,
+  });
 }
 
 export function deriveExecLifecycleStatus(input: {
@@ -92,7 +120,10 @@ export function deriveExecLifecycleStatus(input: {
   preliminary: boolean;
   approvalRequested: boolean;
   runningMarked: boolean;
+  decision?: "allow-once" | "allow-always" | "deny" | "timeout";
 }): ExecLifecycleStatus {
+  if (input.decision === "timeout") return "timeout";
+  if (input.decision === "deny") return "denied";
   if (input.partState === "output-error") return "error";
   if (input.partState === "output-available" && !input.preliminary) return "completed";
   if (input.approvalRequested) return "pending_approval";
@@ -114,33 +145,46 @@ export function isTerminalExecLifecycleStatus(status: ExecLifecycleStatus): bool
 
 export function projectExecLifecycleRecord(input: ProjectExecLifecycleInput): ExecLifecycleRecord {
   const command = getCommandFromInput(input.part.input);
-  const cwd = getCwdFromInput(input.part.input);
-  const yieldMs = getYieldMsFromInput(input.part.input);
   const normalizedCommand = normalizeCommand(command);
-  const preliminary = isExecPreliminary(input.part);
   const runId =
     input.runId?.trim() || extractRunIdFromToolCallId(input.part.toolCallId) || "run:unknown";
+  const attemptId =
+    input.attemptId?.trim() ||
+    (input.approvalId?.trim() ? `approval:${input.approvalId.trim()}` : "") ||
+    buildFallbackAttemptId({
+      runId,
+      sessionKey: input.sessionKey,
+      command,
+      toolCallId: input.part.toolCallId,
+    });
   const lifecycleKey = buildExecLifecycleKey({
+    attemptId,
     runId,
     sessionKey: input.sessionKey,
     command,
     toolCallId: input.part.toolCallId,
   });
+  const preliminary = isExecPreliminary(input.part);
   const status = deriveExecLifecycleStatus({
     partState: input.part.state,
     preliminary,
     approvalRequested: input.approvalRequested,
     runningMarked: input.runningMarked,
+    decision: input.decision,
   });
   const endedAtMs = isTerminalExecLifecycleStatus(status) ? input.now : undefined;
 
   return {
+    attemptId,
     lifecycleKey,
     runId,
-    sessionKey: input.sessionKey,
+    sessionKey: normalizeSessionKey(input.sessionKey),
     command,
     normalizedCommand,
     status,
+    gatewayId: input.gatewayId,
+    requestId: input.requestId,
+    decision: input.decision,
     toolCallId: input.part.toolCallId,
     toolName: input.part.toolName,
     messageId: input.messageId,
@@ -151,8 +195,8 @@ export function projectExecLifecycleRecord(input: ProjectExecLifecycleInput): Ex
     updatedAtMs: input.now,
     endedAtMs,
     approvalId: input.approvalId,
-    cwd,
-    yieldMs,
+    cwd: getCwdFromInput(input.part.input),
+    yieldMs: getYieldMsFromInput(input.part.input),
     errorText: input.part.errorText,
     sourceToolCallIds: [input.part.toolCallId],
   };
@@ -176,10 +220,15 @@ export function mergeExecLifecycleRecord(
   return {
     ...current,
     ...incoming,
+    attemptId: current.attemptId || incoming.attemptId,
+    lifecycleKey: current.lifecycleKey || incoming.lifecycleKey,
     runId: current.runId === "run:unknown" ? incoming.runId : current.runId,
     command: incoming.command || current.command,
     normalizedCommand: incoming.normalizedCommand || current.normalizedCommand,
     status: dominant.status,
+    gatewayId: incoming.gatewayId ?? current.gatewayId,
+    requestId: incoming.requestId ?? current.requestId,
+    decision: incoming.decision ?? current.decision,
     partState: dominant.partState,
     preliminary: dominant.preliminary,
     approvalId: incoming.approvalId ?? current.approvalId,

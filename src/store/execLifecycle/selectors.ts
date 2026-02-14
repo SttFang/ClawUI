@@ -17,3 +17,31 @@ export function selectExecLifecycleBySession(
     .filter((record) => record.sessionKey === normalized)
     .sort((a, b) => a.startedAtMs - b.startedAtMs);
 }
+
+export function selectAttemptIdByApprovalId(
+  state: ExecLifecycleState,
+  approvalId: string,
+): string | undefined {
+  return state.attemptIdByApprovalId[approvalId];
+}
+
+export function selectAttemptIdByGatewayId(
+  state: ExecLifecycleState,
+  gatewayId: string,
+): string | undefined {
+  return state.attemptIdByGatewayId[gatewayId];
+}
+
+export function selectAttemptIdByToolCallId(
+  state: ExecLifecycleState,
+  toolCallId: string,
+): string | undefined {
+  return state.attemptIdByToolCallId[toolCallId];
+}
+
+export function selectLatestAttemptIdBySessionCommand(
+  state: ExecLifecycleState,
+  sessionCommandKey: string,
+): string | undefined {
+  return state.latestAttemptIdBySessionCommand[sessionCommandKey];
+}

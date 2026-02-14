@@ -157,8 +157,6 @@ export function MessageParts(props: {
   }, [isThinking]);
 
   const nodes = useMemo(() => {
-    const hasToolPart = message.parts.some((part) => isDynamicToolPartLike(part));
-    const foldToolReceiptText = message.role !== "user" && hasToolPart;
     const nextItems: (RenderableItem | null)[] = Array.from(
       { length: message.parts.length },
       () => null,
@@ -169,7 +167,7 @@ export function MessageParts(props: {
 
       if (isTextPartLike(part)) {
         if (!part.text.trim()) continue;
-        if (foldToolReceiptText && isLikelyToolReceiptText(part.text)) continue;
+        if (message.role !== "user" && isLikelyToolReceiptText(part.text)) continue;
         nextItems[index] = {
           kind: "text",
           key: `text:${index}`,
@@ -189,13 +187,13 @@ export function MessageParts(props: {
       if (policy.kind === "hidden") continue;
 
       if (policy.kind === "exec_card" && isExecToolName(part.toolName)) {
-        const execNode = execItemsByIndex[index];
-        if (!execNode) continue;
+        const execItem = execItemsByIndex[index];
+        if (!execItem) continue;
         nextItems[index] = {
           kind: "tool",
-          key: `exec:${index}`,
-          toolCallId: `exec:${index}`,
-          node: execNode,
+          key: `exec:${execItem.attemptId}:${index}`,
+          toolCallId: execItem.attemptId,
+          node: execItem.node,
         };
         continue;
       }
@@ -222,7 +220,7 @@ export function MessageParts(props: {
     }
 
     return aggregateRenderableItems(nextItems).map((item) => item.node);
-  }, [execItemsByIndex, message.parts, message.role, sessionKey, streaming]);
+  }, [execItemsByIndex, message.parts, sessionKey, streaming]);
 
   return (
     <div className="space-y-3">

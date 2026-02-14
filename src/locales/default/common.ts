@@ -943,6 +943,8 @@ const common = {
       viewFullOutput: "查看完整输出",
       hideFullOutput: "收起完整输出",
       statusDone: "已完成",
+      statusDenied: "已拒绝",
+      statusTimeout: "审批超时",
       statusError: "错误",
       noOutput: "无可展示输出",
     },

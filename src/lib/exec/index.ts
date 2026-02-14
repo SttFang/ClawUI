@@ -9,3 +9,13 @@ export {
   makeExecApprovalKey,
 } from "./normalize";
 export { getCommandFromInput } from "./commandParsing";
+export {
+  parseSystemTerminalText,
+  parseSystemTs,
+  parseToolCallTimestamp,
+  isLikelyToolReceiptText,
+  mapStatusToPartState,
+  mapStatusToDecision,
+  createTerminalRecord,
+  type ParsedSystemTerminal,
+} from "./systemTextParsing";

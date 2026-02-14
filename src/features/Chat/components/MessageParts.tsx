@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ToolEventCard } from "@/components/A2UI";
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
 import { isExecToolName, normalizeToolCallId } from "@/lib/exec";
+import { isLikelyToolReceiptText } from "@/lib/exec/systemTextParsing";
 import { useExecToolRenderItems } from "./hooks/useExecToolRenderItems";
 import { MessageText } from "./MessageText";
 
@@ -29,23 +30,6 @@ type TextPartLike = {
   text: string;
   state?: "streaming";
 };
-
-function normalizeToolReceiptText(value: string): string {
-  return value.replace(/\s+/g, " ").trim().toLowerCase();
-}
-
-function isLikelyToolReceiptText(value: string): boolean {
-  const normalized = normalizeToolReceiptText(value);
-  if (!normalized) return false;
-  return (
-    normalized.startsWith("system:") ||
-    normalized.includes("approval required") ||
-    normalized.includes("approve to run") ||
-    normalized.includes("exec finished") ||
-    normalized.includes("enoent:") ||
-    (normalized.startsWith("{") && normalized.includes('"status"') && normalized.includes('"tool"'))
-  );
-}
 
 function isTextPartLike(part: unknown): part is TextPartLike {
   if (!part || typeof part !== "object") return false;

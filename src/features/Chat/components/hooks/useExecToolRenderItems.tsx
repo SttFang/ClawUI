@@ -4,6 +4,11 @@ import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ExecCard } from "@/components/A2UI";
 import { getCommandFromInput, isExecToolName } from "@/lib/exec";
+import {
+  createTerminalRecord,
+  parseSystemTerminalText,
+  parseToolCallTimestamp,
+} from "@/lib/exec/systemTextParsing";
 import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/exec";
 import {
   buildFallbackAttemptId,
@@ -14,7 +19,6 @@ import {
   projectExecLifecycleRecord,
   useExecLifecycleStore,
   type ExecLifecycleRecord,
-  type ExecLifecycleStatus,
 } from "@/store/exec";
 
 type UseExecToolRenderItemsInput = {
@@ -29,84 +33,9 @@ type UseExecToolRenderItem = {
 
 type UseExecToolRenderItemsResult = Record<number, UseExecToolRenderItem>;
 
-type ParsedSystemTerminal = {
-  status: ExecLifecycleStatus;
-  gatewayId?: string;
-  approvalId?: string;
-  command?: string;
-  atMs: number;
-};
-
-function parseToolCallTimestamp(toolCallId: string): number {
-  const assistantMatch = toolCallId.match(/assistant:(\d{10,})/);
-  if (assistantMatch) {
-    const parsed = Number.parseInt(assistantMatch[1], 10);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-
-  const genericMatch = toolCallId.match(/:(\d{10,})(?::|$)/);
-  if (genericMatch) {
-    const parsed = Number.parseInt(genericMatch[1], 10);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-
-  return 0;
-}
-
-function parseSystemTs(text: string): number {
-  const match = text.match(/\[(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+GMT([+-]\d{1,2})\]/i);
-  if (!match) return 0;
-  const datetime = match[1];
-  const offsetNum = Number.parseInt(match[2], 10);
-  if (!Number.isFinite(offsetNum)) return 0;
-  const sign = offsetNum >= 0 ? "+" : "-";
-  const abs = Math.abs(offsetNum).toString().padStart(2, "0");
-  const iso = `${datetime.replace(" ", "T")}${sign}${abs}:00`;
-  const parsed = Date.parse(iso);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function parseSystemTerminalText(text: string): ParsedSystemTerminal | null {
-  const trimmed = text.trim();
-  if (!trimmed) return null;
-  const match = trimmed.match(
-    /System:\s*(?:\[[^\]]+\]\s*)?Exec\s+(finished|denied|failed)\s*\(gateway id=([a-f0-9-]+)(?:,\s*([^)]+))?\)\s*:?\s*([^\n]*)?/i,
-  );
-  if (!match) return null;
-  const phase = match[1]?.toLowerCase();
-  const gatewayId = (match[2] ?? "").trim();
-  const extra = (match[3] ?? "").trim().toLowerCase();
-  const commandTail = (match[4] ?? "").trim();
-  const approvalId = gatewayId.split("-")[0]?.trim() || undefined;
-  let status: ExecLifecycleStatus = "error";
-  if (phase === "finished") status = "completed";
-  if (phase === "failed") status = "error";
-  if (phase === "denied") {
-    status =
-      extra.includes("approval-timeout") || extra.includes("timed out") ? "timeout" : "denied";
-  }
-  const atMs = parseSystemTs(trimmed);
-  return {
-    status,
-    gatewayId: gatewayId || undefined,
-    approvalId,
-    command: commandTail || undefined,
-    atMs,
-  };
-}
-
-function mapStatusToPartState(status: ExecLifecycleStatus): DynamicToolUIPart["state"] {
-  if (status === "completed") return "output-available";
-  return "output-error";
-}
-
-function mapStatusToDecision(
-  status: ExecLifecycleStatus,
-): "allow-once" | "allow-always" | "deny" | "timeout" | undefined {
-  if (status === "denied") return "deny";
-  if (status === "timeout") return "timeout";
-  return undefined;
-}
+// ---------------------------------------------------------------------------
+// Approval-queue resolution
+// ---------------------------------------------------------------------------
 
 function findLatestPendingApproval(params: {
   queue: ReturnType<typeof useExecApprovalsStore.getState>["queue"];
@@ -147,8 +76,12 @@ function findLatestPendingApproval(params: {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Terminal-text → attempt resolution
+// ---------------------------------------------------------------------------
+
 function resolveAttemptIdForTerminal(params: {
-  terminal: ParsedSystemTerminal;
+  terminal: { gatewayId?: string; approvalId?: string; command?: string };
   sessionKey: string;
   recordsByKey: Record<string, ExecLifecycleRecord>;
   attemptIdByApprovalId: Record<string, string>;
@@ -177,25 +110,9 @@ function resolveAttemptIdForTerminal(params: {
   return latestRunning?.attemptId;
 }
 
-function createTerminalRecord(
-  base: ExecLifecycleRecord,
-  terminal: ParsedSystemTerminal,
-): ExecLifecycleRecord {
-  const atMs = terminal.atMs || base.updatedAtMs;
-  return {
-    ...base,
-    status: terminal.status,
-    partState: mapStatusToPartState(terminal.status),
-    preliminary: false,
-    command: base.command || terminal.command || "",
-    normalizedCommand: base.normalizedCommand || (terminal.command ?? "").trim(),
-    updatedAtMs: Math.max(base.updatedAtMs, atMs),
-    endedAtMs: Math.max(base.endedAtMs ?? 0, atMs) || atMs,
-    approvalId: base.approvalId ?? terminal.approvalId,
-    gatewayId: base.gatewayId ?? terminal.gatewayId,
-    decision: mapStatusToDecision(terminal.status) ?? base.decision,
-  };
-}
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
 
 export function useExecToolRenderItems(
   input: UseExecToolRenderItemsInput,
@@ -222,9 +139,10 @@ export function useExecToolRenderItems(
 
   const execItemsByIndex = useMemo(() => {
     const pendingLifecycleByKey = new Map<string, ExecLifecycleRecord>();
-    const execItemsByIndex = new Map<number, UseExecToolRenderItem>();
+    const result = new Map<number, UseExecToolRenderItem>();
     const seenAttempts = new Set<string>();
 
+    // Phase 1: project exec tool parts → lifecycle records
     for (let index = message.parts.length - 1; index >= 0; index -= 1) {
       const part = message.parts[index];
       if (part.type !== "dynamic-tool") continue;
@@ -251,12 +169,7 @@ export function useExecToolRenderItems(
         (pendingApproval?.id ? `approval:${pendingApproval.id}` : "") ||
         fromToolCall ||
         (command
-          ? buildFallbackAttemptId({
-              runId,
-              sessionKey,
-              command,
-              toolCallId: part.toolCallId,
-            })
+          ? buildFallbackAttemptId({ runId, sessionKey, command, toolCallId: part.toolCallId })
           : "");
       if (!attemptId && !command) continue;
 
@@ -296,12 +209,14 @@ export function useExecToolRenderItems(
         ? mergeExecLifecycleRecord(authoritative, mergedPending)
         : mergedPending;
       if (!record.command.trim()) continue;
-      execItemsByIndex.set(index, {
+      result.set(index, {
         attemptId: record.attemptId,
         node: <ExecCard key={`exec:${record.attemptId}:${index}`} record={record} />,
       });
     }
 
+    // Phase 2: parse "System: Exec finished/denied/failed ..." terminal text
+    // GATEWAY_DEPENDENCY: relies on unstructured text; replace when Gateway emits structured events
     for (let index = 0; index < message.parts.length; index += 1) {
       const part = message.parts[index];
       if (part.type !== "text") continue;
@@ -320,11 +235,10 @@ export function useExecToolRenderItems(
 
       const base = pendingLifecycleByKey.get(targetAttemptId) ?? recordsByKey[targetAttemptId];
       if (!base) continue;
-      const nextTerminal = createTerminalRecord(base, terminal);
-      pendingLifecycleByKey.set(targetAttemptId, nextTerminal);
+      pendingLifecycleByKey.set(targetAttemptId, createTerminalRecord(base, terminal));
     }
 
-    return Object.fromEntries(execItemsByIndex) as UseExecToolRenderItemsResult;
+    return Object.fromEntries(result) as UseExecToolRenderItemsResult;
   }, [
     approvalQueue,
     attemptIdByApprovalId,

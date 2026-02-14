@@ -7,6 +7,14 @@ import type { ChatNormalizedRunEvent } from "@clawui/types/chat-normalized/event
 import type { ClawUIState, ClawUISessionMetadata } from "@clawui/types/clawui";
 import type { OpenClawConfig, OnboardingOpenClawConfig, ChannelConfig } from "@clawui/types/config";
 import type {
+  CredentialMeta,
+  SetLlmKeyInput,
+  SetChannelTokenInput,
+  SetProxyInput,
+  ValidateKeyResult,
+  DeleteCredentialInput,
+} from "@clawui/types/credentials";
+import type {
   ConfigSchemaV2,
   ConfigSetDraftInputV2,
   ConfigSetDraftResponseV2,
@@ -166,6 +174,14 @@ export interface ElectronAPI {
   };
   secrets: {
     patch: (patch: Record<string, unknown>) => Promise<void>;
+  };
+  credentials: {
+    list: () => Promise<CredentialMeta[]>;
+    setLlmKey: (input: SetLlmKeyInput) => Promise<void>;
+    validate: (provider: string, key: string) => Promise<ValidateKeyResult>;
+    setChannel: (input: SetChannelTokenInput) => Promise<void>;
+    setProxy: (input: SetProxyInput) => Promise<void>;
+    delete: (input: DeleteCredentialInput) => Promise<void>;
   };
   security: {
     get: (paths: string[]) => Promise<Record<string, unknown>>;
@@ -544,6 +560,38 @@ export const ipc = {
       const api = getElectronAPI();
       if (!api?.secrets) throw new Error("Secrets API not available — restart the app");
       await api.secrets.patch(patch);
+    },
+  },
+  credentials: {
+    async list(): Promise<CredentialMeta[]> {
+      const api = getElectronAPI();
+      if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
+      return api.credentials.list();
+    },
+    async setLlmKey(input: SetLlmKeyInput): Promise<void> {
+      const api = getElectronAPI();
+      if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
+      await api.credentials.setLlmKey(input);
+    },
+    async validate(provider: string, key: string): Promise<ValidateKeyResult> {
+      const api = getElectronAPI();
+      if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
+      return api.credentials.validate(provider, key);
+    },
+    async setChannel(input: SetChannelTokenInput): Promise<void> {
+      const api = getElectronAPI();
+      if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
+      await api.credentials.setChannel(input);
+    },
+    async setProxy(input: SetProxyInput): Promise<void> {
+      const api = getElectronAPI();
+      if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
+      await api.credentials.setProxy(input);
+    },
+    async delete(input: DeleteCredentialInput): Promise<void> {
+      const api = getElectronAPI();
+      if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
+      await api.credentials.delete(input);
     },
   },
   security: {

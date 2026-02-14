@@ -209,6 +209,15 @@ contextBridge.exposeInMainWorld("electron", {
   secrets: {
     patch: (patch: Record<string, unknown>) => ipcRenderer.invoke("secrets:patch", patch),
   },
+  credentials: {
+    list: () => ipcRenderer.invoke("credentials:list"),
+    setLlmKey: (input: unknown) => ipcRenderer.invoke("credentials:set-llm-key", input),
+    validate: (provider: string, key: string) =>
+      ipcRenderer.invoke("credentials:validate", provider, key),
+    setChannel: (input: unknown) => ipcRenderer.invoke("credentials:set-channel", input),
+    setProxy: (input: unknown) => ipcRenderer.invoke("credentials:set-proxy", input),
+    delete: (input: unknown) => ipcRenderer.invoke("credentials:delete", input),
+  },
   security: {
     get: (paths: string[]) => ipcRenderer.invoke("security:get", paths),
     apply: (ops: Array<{ path: string; value: unknown }>) =>

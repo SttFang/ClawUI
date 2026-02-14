@@ -814,6 +814,7 @@ const common = {
       nearLimit: "接近上限（80%+）",
       overLimit: "超出上限",
     },
+    viewPlans: "查看套餐对比",
     availablePlans: "可用套餐",
     info: {
       enterprisePrefix: "需要超过团队版的能力？请联系",

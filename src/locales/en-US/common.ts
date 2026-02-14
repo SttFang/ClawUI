@@ -822,6 +822,7 @@ const common = {
       nearLimit: "Near limit (80%+)",
       overLimit: "Over limit",
     },
+    viewPlans: "View plans",
     availablePlans: "Available plans",
     info: {
       enterprisePrefix: "Need more than Team plan offers? Contact us at",

@@ -1,5 +1,15 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "@clawui/ui";
-import { CreditCard, Zap, Users, Check, Loader2, RefreshCw } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@clawui/ui";
+import { ChevronDown, CreditCard, Zap, Users, Check, Loader2, RefreshCw } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -280,37 +290,46 @@ export function Subscription() {
         </CardContent>
       </Card>
 
-      {/* Plan Comparison */}
-      <div>
-        <h2 className="text-lg font-semibold mb-4">{t("subscription.availablePlans")}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {plans.map((plan) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              isCurrent={currentPlan === plan.id}
-              isUpgrading={isUpgrading}
-              onUpgrade={upgradePlan}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Additional Info */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-sm text-muted-foreground space-y-2">
-            <p>
-              {t("subscription.info.enterprisePrefix")}{" "}
-              <a href="mailto:sales@clawui.com" className="text-primary hover:underline">
-                sales@clawui.com
-              </a>{" "}
-              {t("subscription.info.enterpriseSuffix")}
-            </p>
-            <p>{t("subscription.info.trial")}</p>
+      {/* Plan Comparison (collapsed by default) */}
+      <Collapsible>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="flex items-center gap-2">
+            <ChevronDown className="h-4 w-4" />
+            {t("subscription.viewPlans")}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-6 pt-4">
+          <div>
+            <h2 className="text-lg font-semibold mb-4">{t("subscription.availablePlans")}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {plans.map((plan) => (
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  isCurrent={currentPlan === plan.id}
+                  isUpgrading={isUpgrading}
+                  onUpgrade={upgradePlan}
+                />
+              ))}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground space-y-2">
+                <p>
+                  {t("subscription.info.enterprisePrefix")}{" "}
+                  <a href="mailto:sales@clawui.com" className="text-primary hover:underline">
+                    sales@clawui.com
+                  </a>{" "}
+                  {t("subscription.info.enterpriseSuffix")}
+                </p>
+                <p>{t("subscription.info.trial")}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }

@@ -12,9 +12,9 @@ import {
   Select,
 } from "@clawui/ui";
 import { Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChannelConfig } from "@/lib/ipc";
+import { useDialogForm } from "@/hooks/useDialogForm";
 import { channelsLog } from "@/lib/logger";
 
 interface TelegramConfigDialogProps {
@@ -24,6 +24,14 @@ interface TelegramConfigDialogProps {
   onSave: (config: ChannelConfig) => Promise<void>;
 }
 
+type TelegramFields = {
+  botToken: string;
+  dmPolicy: string;
+  groupPolicy: string;
+  requireMention: boolean;
+  historyLimit: number;
+};
+
 export function TelegramConfigDialog({
   open,
   onOpenChange,
@@ -31,41 +39,36 @@ export function TelegramConfigDialog({
   onSave,
 }: TelegramConfigDialogProps) {
   const { t } = useTranslation("common");
-  const [isLoading, setIsLoading] = useState(false);
-  const [botToken, setBotToken] = useState("");
-  const [dmPolicy, setDmPolicy] = useState<string>("pairing");
-  const [groupPolicy, setGroupPolicy] = useState<string>("allowlist");
-  const [requireMention, setRequireMention] = useState(true);
-  const [historyLimit, setHistoryLimit] = useState(50);
 
-  useEffect(() => {
-    if (config) {
-      setBotToken(config.botToken || "");
-      setDmPolicy(config.dmPolicy || "pairing");
-      setGroupPolicy(config.groupPolicy || "allowlist");
-      setRequireMention(config.requireMention ?? true);
-      setHistoryLimit(config.historyLimit ?? 50);
-    }
-  }, [config]);
-
-  const handleSave = async () => {
-    setIsLoading(true);
-    try {
-      await onSave({
+  const { fields, setField, isLoading, handleSave } = useDialogForm<TelegramFields>({
+    config: config
+      ? {
+          botToken: config.botToken || "",
+          dmPolicy: config.dmPolicy || "pairing",
+          groupPolicy: config.groupPolicy || "allowlist",
+          requireMention: config.requireMention ?? true,
+          historyLimit: config.historyLimit ?? 50,
+        }
+      : null,
+    defaults: {
+      botToken: "",
+      dmPolicy: "pairing",
+      groupPolicy: "allowlist",
+      requireMention: true,
+      historyLimit: 50,
+    },
+    onSave: (values) =>
+      onSave({
         enabled: true,
-        botToken,
-        dmPolicy: dmPolicy as ChannelConfig["dmPolicy"],
-        groupPolicy: groupPolicy as ChannelConfig["groupPolicy"],
-        requireMention,
-        historyLimit,
-      });
-      onOpenChange(false);
-    } catch (error) {
-      channelsLog.error("Failed to save config:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        botToken: values.botToken,
+        dmPolicy: values.dmPolicy as ChannelConfig["dmPolicy"],
+        groupPolicy: values.groupPolicy as ChannelConfig["groupPolicy"],
+        requireMention: values.requireMention,
+        historyLimit: values.historyLimit,
+      }),
+    onClose: () => onOpenChange(false),
+    logger: channelsLog,
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -82,8 +85,8 @@ export function TelegramConfigDialog({
               id="botToken"
               type="password"
               placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-              value={botToken}
-              onChange={(e) => setBotToken(e.target.value)}
+              value={fields.botToken}
+              onChange={(e) => setField("botToken", e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
               {t("channels.telegram.botTokenHelpPrefix")}{" "}
@@ -101,7 +104,11 @@ export function TelegramConfigDialog({
 
           <div className="space-y-2">
             <Label htmlFor="dmPolicy">{t("channels.policies.dm")}</Label>
-            <Select id="dmPolicy" value={dmPolicy} onChange={(e) => setDmPolicy(e.target.value)}>
+            <Select
+              id="dmPolicy"
+              value={fields.dmPolicy}
+              onChange={(e) => setField("dmPolicy", e.target.value)}
+            >
               <option value="pairing">{t("channels.policies.pairing")}</option>
               <option value="allowlist">{t("channels.policies.allowlist")}</option>
               <option value="open">{t("channels.policies.open")}</option>
@@ -113,8 +120,8 @@ export function TelegramConfigDialog({
             <Label htmlFor="groupPolicy">{t("channels.policies.groupTelegram")}</Label>
             <Select
               id="groupPolicy"
-              value={groupPolicy}
-              onChange={(e) => setGroupPolicy(e.target.value)}
+              value={fields.groupPolicy}
+              onChange={(e) => setField("groupPolicy", e.target.value)}
             >
               <option value="allowlist">{t("channels.policies.allowlist")}</option>
               <option value="open">{t("channels.policies.open")}</option>
@@ -129,7 +136,10 @@ export function TelegramConfigDialog({
                 {t("channels.fields.requireMentionGroupsHint")}
               </p>
             </div>
-            <Switch checked={requireMention} onCheckedChange={setRequireMention} />
+            <Switch
+              checked={fields.requireMention}
+              onCheckedChange={(v) => setField("requireMention", v)}
+            />
           </div>
 
           <div className="space-y-2">
@@ -139,8 +149,8 @@ export function TelegramConfigDialog({
               type="number"
               min={1}
               max={200}
-              value={historyLimit}
-              onChange={(e) => setHistoryLimit(parseInt(e.target.value) || 50)}
+              value={fields.historyLimit}
+              onChange={(e) => setField("historyLimit", parseInt(e.target.value) || 50)}
             />
             <p className="text-xs text-muted-foreground">{t("channels.fields.historyLimitHint")}</p>
           </div>
@@ -150,7 +160,7 @@ export function TelegramConfigDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t("actions.cancel")}
           </Button>
-          <Button onClick={handleSave} disabled={isLoading || !botToken}>
+          <Button onClick={handleSave} disabled={isLoading || !fields.botToken}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

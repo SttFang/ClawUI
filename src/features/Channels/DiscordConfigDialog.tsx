@@ -12,9 +12,9 @@ import {
   Select,
 } from "@clawui/ui";
 import { Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChannelConfig } from "@/lib/ipc";
+import { useDialogForm } from "@/hooks/useDialogForm";
 import { channelsLog } from "@/lib/logger";
 
 interface DiscordConfigDialogProps {
@@ -24,6 +24,14 @@ interface DiscordConfigDialogProps {
   onSave: (config: ChannelConfig) => Promise<void>;
 }
 
+type DiscordFields = {
+  botToken: string;
+  appToken: string;
+  dmPolicy: string;
+  groupPolicy: string;
+  requireMention: boolean;
+};
+
 export function DiscordConfigDialog({
   open,
   onOpenChange,
@@ -31,41 +39,36 @@ export function DiscordConfigDialog({
   onSave,
 }: DiscordConfigDialogProps) {
   const { t } = useTranslation("common");
-  const [isLoading, setIsLoading] = useState(false);
-  const [botToken, setBotToken] = useState("");
-  const [appToken, setAppToken] = useState("");
-  const [dmPolicy, setDmPolicy] = useState<string>("pairing");
-  const [groupPolicy, setGroupPolicy] = useState<string>("allowlist");
-  const [requireMention, setRequireMention] = useState(true);
 
-  useEffect(() => {
-    if (config) {
-      setBotToken(config.botToken || "");
-      setAppToken(config.appToken || "");
-      setDmPolicy(config.dmPolicy || "pairing");
-      setGroupPolicy(config.groupPolicy || "allowlist");
-      setRequireMention(config.requireMention ?? true);
-    }
-  }, [config]);
-
-  const handleSave = async () => {
-    setIsLoading(true);
-    try {
-      await onSave({
+  const { fields, setField, isLoading, handleSave } = useDialogForm<DiscordFields>({
+    config: config
+      ? {
+          botToken: config.botToken || "",
+          appToken: config.appToken || "",
+          dmPolicy: config.dmPolicy || "pairing",
+          groupPolicy: config.groupPolicy || "allowlist",
+          requireMention: config.requireMention ?? true,
+        }
+      : null,
+    defaults: {
+      botToken: "",
+      appToken: "",
+      dmPolicy: "pairing",
+      groupPolicy: "allowlist",
+      requireMention: true,
+    },
+    onSave: (values) =>
+      onSave({
         enabled: true,
-        botToken,
-        appToken,
-        dmPolicy: dmPolicy as ChannelConfig["dmPolicy"],
-        groupPolicy: groupPolicy as ChannelConfig["groupPolicy"],
-        requireMention,
-      });
-      onOpenChange(false);
-    } catch (error) {
-      channelsLog.error("Failed to save config:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        botToken: values.botToken,
+        appToken: values.appToken,
+        dmPolicy: values.dmPolicy as ChannelConfig["dmPolicy"],
+        groupPolicy: values.groupPolicy as ChannelConfig["groupPolicy"],
+        requireMention: values.requireMention,
+      }),
+    onClose: () => onOpenChange(false),
+    logger: channelsLog,
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -82,8 +85,8 @@ export function DiscordConfigDialog({
               id="botToken"
               type="password"
               placeholder={t("channels.fields.botToken")}
-              value={botToken}
-              onChange={(e) => setBotToken(e.target.value)}
+              value={fields.botToken}
+              onChange={(e) => setField("botToken", e.target.value)}
             />
           </div>
 
@@ -92,8 +95,8 @@ export function DiscordConfigDialog({
             <Input
               id="appToken"
               placeholder={t("channels.fields.applicationId")}
-              value={appToken}
-              onChange={(e) => setAppToken(e.target.value)}
+              value={fields.appToken}
+              onChange={(e) => setField("appToken", e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
               {t("channels.discord.applicationHelpPrefix")}{" "}
@@ -111,7 +114,11 @@ export function DiscordConfigDialog({
 
           <div className="space-y-2">
             <Label htmlFor="dmPolicy">{t("channels.policies.dm")}</Label>
-            <Select id="dmPolicy" value={dmPolicy} onChange={(e) => setDmPolicy(e.target.value)}>
+            <Select
+              id="dmPolicy"
+              value={fields.dmPolicy}
+              onChange={(e) => setField("dmPolicy", e.target.value)}
+            >
               <option value="pairing">{t("channels.policies.pairing")}</option>
               <option value="allowlist">{t("channels.policies.allowlist")}</option>
               <option value="open">{t("channels.policies.open")}</option>
@@ -123,8 +130,8 @@ export function DiscordConfigDialog({
             <Label htmlFor="groupPolicy">{t("channels.policies.groupDiscord")}</Label>
             <Select
               id="groupPolicy"
-              value={groupPolicy}
-              onChange={(e) => setGroupPolicy(e.target.value)}
+              value={fields.groupPolicy}
+              onChange={(e) => setField("groupPolicy", e.target.value)}
             >
               <option value="allowlist">{t("channels.policies.allowlist")}</option>
               <option value="open">{t("channels.policies.open")}</option>
@@ -139,7 +146,10 @@ export function DiscordConfigDialog({
                 {t("channels.fields.requireMentionChannelsHint")}
               </p>
             </div>
-            <Switch checked={requireMention} onCheckedChange={setRequireMention} />
+            <Switch
+              checked={fields.requireMention}
+              onCheckedChange={(v) => setField("requireMention", v)}
+            />
           </div>
         </div>
 
@@ -147,7 +157,7 @@ export function DiscordConfigDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t("actions.cancel")}
           </Button>
-          <Button onClick={handleSave} disabled={isLoading || !botToken}>
+          <Button onClick={handleSave} disabled={isLoading || !fields.botToken}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

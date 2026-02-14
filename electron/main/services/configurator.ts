@@ -1,13 +1,18 @@
 import type { OnboardingOpenClawConfig } from "@clawui/types/config";
 import type { BYOKConfig, SubscriptionConfig } from "@clawui/types/onboarding";
 import { onboardingLog } from "../lib/logger";
+import { ConfigService } from "./config";
 import { ConfigRepository } from "./config-repository";
 
 export { type BYOKConfig, type SubscriptionConfig };
 export type OpenClawConfig = OnboardingOpenClawConfig;
 
 export class ConfiguratorService {
-  private readonly repository = new ConfigRepository();
+  private readonly repository: ConfigRepository;
+
+  constructor(configService?: ConfigService) {
+    this.repository = new ConfigRepository(configService ?? new ConfigService());
+  }
 
   async configureSubscription(config: SubscriptionConfig): Promise<void> {
     onboardingLog.info("[config.subscription]");

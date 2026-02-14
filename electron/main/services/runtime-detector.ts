@@ -5,6 +5,7 @@ import path from "path";
 import { promisify } from "util";
 import { detectorLog } from "../lib/logger";
 import { execInLoginShell, resolveCommandPath } from "../utils/login-shell";
+import { ConfigService } from "./config";
 import { ConfigRepository } from "./config-repository";
 
 const execAsync = promisify(exec);
@@ -24,7 +25,7 @@ export interface RuntimeStatus {
 
 export class RuntimeDetectorService {
   private runtimeDir = path.join(app.getPath("userData"), "runtime");
-  private configRepository = new ConfigRepository();
+  private configRepository = new ConfigRepository(new ConfigService());
   private configPath = this.configRepository.getPath();
 
   async detect(): Promise<RuntimeStatus> {

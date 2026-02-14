@@ -1,14 +1,11 @@
 import type { OnboardingOpenClawConfig } from "@clawui/types/config";
 import type { BYOKConfig, SubscriptionConfig } from "@clawui/types/onboarding";
-import { randomBytes } from "crypto";
 import { existsSync } from "fs";
-import { mkdir, readFile, writeFile } from "fs/promises";
+import { readFile } from "fs/promises";
 import JSON5 from "json5";
-import { homedir } from "os";
-import { dirname, join } from "path";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { configLog } from "../lib/logger";
-import { createDefaultConfig, type OpenClawConfig } from "./config";
+import { ConfigService, type OpenClawConfig } from "./config";
 
 const ENV_ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY";
 const ENV_OPENAI_API_KEY = "OPENAI_API_KEY";
@@ -21,30 +18,6 @@ function isRecord(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function deepMerge<T>(target: T, source: Partial<T>): T {
-  const result = { ...target } as T;
-  for (const key in source) {
-    const sourceValue = source[key];
-    const targetValue = (result as Record<string, unknown>)[key];
-    if (
-      sourceValue &&
-      typeof sourceValue === "object" &&
-      !Array.isArray(sourceValue) &&
-      targetValue &&
-      typeof targetValue === "object" &&
-      !Array.isArray(targetValue)
-    ) {
-      (result as Record<string, unknown>)[key] = deepMerge(
-        targetValue as Record<string, unknown>,
-        sourceValue as Partial<Record<string, unknown>>,
-      );
-    } else if (sourceValue !== undefined) {
-      (result as Record<string, unknown>)[key] = sourceValue;
-    }
-  }
-  return result;
-}
-
 function inferSchemaVersion(raw: JsonObject): string {
   if (isRecord(raw.gateway) && isRecord((raw.gateway as JsonObject).auth)) {
     return "canonical-v2";
@@ -55,17 +28,6 @@ function inferSchemaVersion(raw: JsonObject): string {
   return "unknown";
 }
 
-function normalizeCanonical(raw: JsonObject): OpenClawConfig {
-  const base = createDefaultConfig(DEFAULT_GATEWAY_PORT);
-  const merged = deepMerge(base, raw as Partial<OpenClawConfig>);
-  if (!merged.gateway?.auth?.token) {
-    const gateway = (merged.gateway ??= {});
-    const auth = (gateway.auth ??= {});
-    auth.token = randomBytes(24).toString("base64url");
-  }
-  return merged;
-}
-
 export type ConfigInspectResult = {
   exists: boolean;
   valid: boolean;
@@ -74,77 +36,49 @@ export type ConfigInspectResult = {
 };
 
 export class ConfigRepository {
-  private readonly configPath: string;
-
-  constructor(configPath = join(homedir(), ".openclaw", "openclaw.json")) {
-    this.configPath = configPath;
-  }
+  constructor(private readonly configService: ConfigService) {}
 
   getPath(): string {
-    return this.configPath;
+    return this.configService.getConfigPath();
   }
 
   async inspectCanonicalConfig(): Promise<ConfigInspectResult> {
-    if (!existsSync(this.configPath)) {
-      return {
-        exists: false,
-        valid: false,
-        schemaVersion: null,
-        config: null,
-      };
+    const configPath = this.configService.getConfigPath();
+    if (!existsSync(configPath)) {
+      return { exists: false, valid: false, schemaVersion: null, config: null };
     }
 
     try {
-      const content = await readFile(this.configPath, "utf-8");
+      // Read raw file for schema version detection
+      const content = await readFile(configPath, "utf-8");
       const parsed = JSON5.parse(content);
       if (!isRecord(parsed)) {
-        return {
-          exists: true,
-          valid: false,
-          schemaVersion: "invalid",
-          config: null,
-        };
+        return { exists: true, valid: false, schemaVersion: "invalid", config: null };
       }
+      // Delegate config loading to ConfigService
+      const config = await this.configService.getConfig();
       return {
         exists: true,
         valid: true,
         schemaVersion: inferSchemaVersion(parsed),
-        config: normalizeCanonical(parsed),
+        config,
       };
     } catch (error) {
       configLog.warn("[config.repository.inspect.failed]", error);
-      return {
-        exists: true,
-        valid: false,
-        schemaVersion: "invalid",
-        config: null,
-      };
+      return { exists: true, valid: false, schemaVersion: "invalid", config: null };
     }
   }
 
   async patchCanonicalConfig(partial: Partial<OpenClawConfig>): Promise<OpenClawConfig> {
-    const inspected = await this.inspectCanonicalConfig();
-    const current = inspected.config ?? createDefaultConfig(DEFAULT_GATEWAY_PORT);
-    const next = deepMerge(current, partial);
-    await this.writeCanonicalConfig(next);
-    return next;
+    await this.configService.setConfig(partial);
+    return (await this.configService.getConfig())!;
   }
 
   async patchCanonicalEnv(
     patch: Record<string, string | null | undefined>,
   ): Promise<OpenClawConfig> {
-    const inspected = await this.inspectCanonicalConfig();
-    const current = inspected.config ?? createDefaultConfig(DEFAULT_GATEWAY_PORT);
-    const nextEnv = { ...(current.env ?? {}) };
-    for (const [key, value] of Object.entries(patch)) {
-      if (value === undefined) continue;
-      if (value === null) {
-        delete nextEnv[key];
-      } else {
-        nextEnv[key] = value;
-      }
-    }
-    return this.patchCanonicalConfig({ env: nextEnv });
+    await this.configService.patchEnv(patch);
+    return (await this.configService.getConfig())!;
   }
 
   async configureSubscription(config: SubscriptionConfig): Promise<void> {
@@ -162,10 +96,9 @@ export class ConfigRepository {
   }
 
   async readOnboardingConfig(): Promise<OnboardingOpenClawConfig | null> {
-    const inspected = await this.inspectCanonicalConfig();
-    if (!inspected.exists || !inspected.config) return null;
+    const config = await this.configService.getConfig();
+    if (!config) return null;
 
-    const config = inspected.config;
     const env = config.env ?? {};
 
     const onboardingConfig: OnboardingOpenClawConfig = {
@@ -223,7 +156,7 @@ export class ConfigRepository {
     }
 
     if (updates.server?.port || updates.server?.host) {
-      const nextGateway: Partial<OpenClawConfig["gateway"]> = {};
+      const nextGateway: Partial<NonNullable<OpenClawConfig["gateway"]>> = {};
       if (typeof updates.server.port === "number") {
         nextGateway.port = updates.server.port;
       }
@@ -232,13 +165,5 @@ export class ConfigRepository {
       }
       await this.patchCanonicalConfig({ gateway: nextGateway as OpenClawConfig["gateway"] });
     }
-  }
-
-  private async writeCanonicalConfig(config: OpenClawConfig): Promise<void> {
-    await mkdir(dirname(this.configPath), { recursive: true });
-    await writeFile(this.configPath, JSON.stringify(config, null, 2), {
-      encoding: "utf-8",
-      mode: 0o600,
-    });
   }
 }

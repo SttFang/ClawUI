@@ -82,6 +82,32 @@ describe("execTrace", () => {
     expect(late.status).toBe("completed");
   });
 
+  it("should suppress stale non-terminal snapshot for the same terminal toolCallId", () => {
+    const sessionKey = "agent:main:ui:test";
+    const inputPart = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "tool-same-id-1",
+      state: "input-available",
+      input: { command: "python3 -c \"print('ok')\"" },
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+    const finalPart = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "tool-same-id-1",
+      state: "output-available",
+      input: { command: "python3 -c \"print('ok')\"" },
+      output: "ok",
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+
+    upsertExecTrace(finalPart, sessionKey);
+
+    expect(shouldSuppressExecPart(inputPart, sessionKey)).toBe(true);
+    expect(shouldSuppressExecPart(finalPart, sessionKey)).toBe(false);
+  });
+
   it("should clear trace cache for a specific session", () => {
     const sessionKey = "agent:main:ui:session-a";
     const startPart = {
@@ -262,5 +288,20 @@ describe("execTrace", () => {
 
     expect(shouldSuppressExecPart(olderPending, sessionKey)).toBe(true);
     expect(shouldSuppressExecPart(newerPending, sessionKey)).toBe(false);
+  });
+
+  it("should suppress terminal fallback exec card without explicit command", () => {
+    const sessionKey = "agent:main:ui:suppress";
+    const fallbackTerminal = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "call_without_command",
+      state: "output-available",
+      input: {},
+      output: "No output - tool completed successfully.",
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+
+    expect(shouldSuppressExecPart(fallbackTerminal, sessionKey)).toBe(true);
   });
 });

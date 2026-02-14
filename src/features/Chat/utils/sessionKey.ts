@@ -44,23 +44,3 @@ export function classifySession(params: { sessionKey: string; surface?: string |
 
   return classifySessionKey(params.sessionKey);
 }
-
-export function getSessionSourceBadge(source: SessionSource): string | null {
-  return source === "ui"
-    ? "UI"
-    : source === "discord"
-      ? "Discord"
-      : source === "telegram"
-        ? "Telegram"
-        : source === "slack"
-          ? "Slack"
-          : source === "whatsapp"
-            ? "WhatsApp"
-            : source === "wechat"
-              ? "WeChat"
-              : source === "signal"
-                ? "Signal"
-                : source === "cron"
-                  ? "Cron"
-                  : null;
-}

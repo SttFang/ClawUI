@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { FaDiscord, FaSlack, FaTelegramPlane, FaWhatsapp, FaWeixin } from "react-icons/fa";
 import { cn } from "@/lib/utils";
 import type { SessionListItem } from "../types";
-import { classifySession, getSessionSourceBadge } from "../utils/sessionKey";
+import { classifySession } from "../utils/sessionKey";
 
 function formatRelativeTime(updatedAt: number): string {
   if (!updatedAt || !Number.isFinite(updatedAt)) return "—";
@@ -94,7 +94,6 @@ export function SessionItem(props: {
   } = props;
 
   const { source } = classifySession({ sessionKey: session.id, surface: session.surface });
-  const badge = getSessionSourceBadge(source);
   const updatedText = useMemo(() => formatRelativeTime(session.updatedAt), [session.updatedAt]);
 
   const [renameOpen, setRenameOpen] = useState(false);
@@ -116,9 +115,7 @@ export function SessionItem(props: {
       onClick={onSelect}
       data-testid="session-item"
     >
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 border">
-        <SourceIcon source={source} />
-      </div>
+      <SourceIcon source={source} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm">{metadata?.title ?? session.name}</div>
         {metadata?.summary ? (
@@ -127,11 +124,6 @@ export function SessionItem(props: {
       </div>
 
       <div className="ml-2 flex items-center gap-2">
-        {badge ? (
-          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-            {badge}
-          </span>
-        ) : null}
         <div className="text-[11px] text-muted-foreground tabular-nums">{updatedText}</div>
 
         <DropdownMenu>

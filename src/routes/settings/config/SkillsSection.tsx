@@ -1,39 +1,10 @@
-import { Button, Card, CardContent, Input } from "@clawui/ui";
+import { Button, Input } from "@clawui/ui";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ipc } from "@/lib/ipc";
-
-type SkillInstallOption = {
-  id: string;
-  label: string;
-};
-
-type SkillStatusEntry = {
-  name: string;
-  description: string;
-  source: string;
-  skillKey: string;
-  bundled?: boolean;
-  primaryEnv?: string;
-  emoji?: string;
-  disabled: boolean;
-  blockedByAllowlist: boolean;
-  eligible: boolean;
-  missing: {
-    bins: string[];
-    env: string[];
-    config: string[];
-    os: string[];
-  };
-  install: SkillInstallOption[];
-};
-
-type SkillStatusReport = {
-  skills: SkillStatusEntry[];
-};
-
-type SkillMessageMap = Record<string, { kind: "success" | "error"; text: string }>;
+import type { SkillStatusEntry } from "./skills/useSkillsManager";
+import { SkillCard } from "./skills/SkillCard";
+import { useSkillsManager } from "./skills/useSkillsManager";
 
 type SkillGroup = {
   id: string;
@@ -112,71 +83,22 @@ function groupSkills(skills: SkillStatusEntry[]): SkillGroup[] {
   return ordered;
 }
 
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
-}
-
-function buildMissingSummary(skill: SkillStatusEntry): string[] {
-  return [
-    ...skill.missing.bins.map((item) => `bin:${item}`),
-    ...skill.missing.env.map((item) => `env:${item}`),
-    ...skill.missing.config.map((item) => `config:${item}`),
-    ...skill.missing.os.map((item) => `os:${item}`),
-  ];
-}
-
 export function SkillsSection() {
   const { t } = useTranslation("common");
-  const loadingRef = useRef(false);
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [report, setReport] = useState<SkillStatusReport | null>(null);
   const [filter, setFilter] = useState("");
-  const [edits, setEdits] = useState<Record<string, string>>({});
-  const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [messages, setMessages] = useState<SkillMessageMap>({});
-
-  const setSkillMessage = (
-    skillKey: string,
-    message?: { kind: "success" | "error"; text: string },
-  ) => {
-    setMessages((prev) => {
-      const next = { ...prev };
-      if (message) {
-        next[skillKey] = message;
-      } else {
-        delete next[skillKey];
-      }
-      return next;
-    });
-  };
-
-  const loadSkillsStatus = useCallback(async (clearMessages = false) => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
-
-    if (clearMessages) {
-      setMessages({});
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      const payload = (await ipc.chat.request("skills.status", {})) as SkillStatusReport;
-      setReport(payload);
-    } catch (loadError) {
-      setError(getErrorMessage(loadError));
-    } finally {
-      loadingRef.current = false;
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadSkillsStatus(true);
-  }, [loadSkillsStatus]);
+  const {
+    loading,
+    error,
+    report,
+    edits,
+    setEdits,
+    busyKey,
+    messages,
+    loadSkillsStatus,
+    handleToggle,
+    handleSaveApiKey,
+    handleInstall,
+  } = useSkillsManager();
 
   const filteredSkills = useMemo(() => {
     const list = report?.skills ?? [];
@@ -188,72 +110,6 @@ export function SkillsSection() {
   }, [filter, report]);
 
   const groups = useMemo(() => groupSkills(filteredSkills), [filteredSkills]);
-
-  const handleToggle = async (skill: SkillStatusEntry) => {
-    setBusyKey(skill.skillKey);
-    setError(null);
-    try {
-      const enabled = skill.disabled;
-      await ipc.chat.request("skills.update", { skillKey: skill.skillKey, enabled });
-      await loadSkillsStatus();
-      setSkillMessage(skill.skillKey, {
-        kind: "success",
-        text: enabled ? t("skillsPanel.messages.enabled") : t("skillsPanel.messages.disabled"),
-      });
-    } catch (toggleError) {
-      const message = getErrorMessage(toggleError);
-      setError(message);
-      setSkillMessage(skill.skillKey, { kind: "error", text: message });
-    } finally {
-      setBusyKey(null);
-    }
-  };
-
-  const handleSaveApiKey = async (skillKey: string) => {
-    setBusyKey(skillKey);
-    setError(null);
-    try {
-      const apiKey = edits[skillKey] ?? "";
-      await ipc.chat.request("skills.update", { skillKey, apiKey });
-      await loadSkillsStatus();
-      setSkillMessage(skillKey, {
-        kind: "success",
-        text: t("skillsPanel.messages.apiKeySaved"),
-      });
-    } catch (saveError) {
-      const message = getErrorMessage(saveError);
-      setError(message);
-      setSkillMessage(skillKey, { kind: "error", text: message });
-    } finally {
-      setBusyKey(null);
-    }
-  };
-
-  const handleInstall = async (skill: SkillStatusEntry) => {
-    const option = skill.install[0];
-    if (!option) return;
-
-    setBusyKey(skill.skillKey);
-    setError(null);
-    try {
-      const result = (await ipc.chat.request("skills.install", {
-        name: skill.name,
-        installId: option.id,
-        timeoutMs: 120000,
-      })) as { message?: string };
-      await loadSkillsStatus();
-      setSkillMessage(skill.skillKey, {
-        kind: "success",
-        text: result?.message ?? t("skillsPanel.actions.installed"),
-      });
-    } catch (installError) {
-      const message = getErrorMessage(installError);
-      setError(message);
-      setSkillMessage(skill.skillKey, { kind: "error", text: message });
-    } finally {
-      setBusyKey(null);
-    }
-  };
 
   return (
     <>
@@ -306,120 +162,21 @@ export function SkillsSection() {
               </summary>
 
               <div className="grid gap-3 p-4 md:grid-cols-2">
-                {group.skills.map((skill) => {
-                  const busy = busyKey === skill.skillKey;
-                  const message = messages[skill.skillKey];
-                  const missing = buildMissingSummary(skill);
-                  const reasons = [
-                    ...(skill.disabled ? [t("skillsPanel.reasons.disabled")] : []),
-                    ...(skill.blockedByAllowlist
-                      ? [t("skillsPanel.reasons.blockedByAllowlist")]
-                      : []),
-                  ];
-
-                  return (
-                    <Card key={skill.skillKey}>
-                      <CardContent className="p-4 space-y-3">
-                        <div>
-                          <div className="font-medium text-sm">
-                            {skill.emoji ? `${skill.emoji} ` : ""}
-                            {skill.name}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {skill.description}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <span className="px-2 py-0.5 rounded border">{skill.source}</span>
-                          {skill.bundled ? (
-                            <span className="px-2 py-0.5 rounded border">
-                              {t("skillsPanel.badges.bundled")}
-                            </span>
-                          ) : null}
-                          <span className="px-2 py-0.5 rounded border">
-                            {skill.eligible
-                              ? t("skillsPanel.badges.eligible")
-                              : t("skillsPanel.badges.blocked")}
-                          </span>
-                          {skill.disabled ? (
-                            <span className="px-2 py-0.5 rounded border">
-                              {t("skillsPanel.badges.disabled")}
-                            </span>
-                          ) : null}
-                        </div>
-
-                        {missing.length > 0 ? (
-                          <div className="text-xs text-muted-foreground">
-                            {t("skillsPanel.labels.missing")}: {missing.join(", ")}
-                          </div>
-                        ) : null}
-
-                        {reasons.length > 0 ? (
-                          <div className="text-xs text-muted-foreground">
-                            {t("skillsPanel.labels.reason")}: {reasons.join(", ")}
-                          </div>
-                        ) : null}
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={busy}
-                            onClick={() => void handleToggle(skill)}
-                          >
-                            {skill.disabled
-                              ? t("skillsPanel.actions.enable")
-                              : t("skillsPanel.actions.disable")}
-                          </Button>
-                          {skill.install.length > 0 && skill.missing.bins.length > 0 ? (
-                            <Button
-                              size="sm"
-                              disabled={busy}
-                              onClick={() => void handleInstall(skill)}
-                            >
-                              {busy ? t("skillsPanel.actions.installing") : skill.install[0].label}
-                            </Button>
-                          ) : null}
-                        </div>
-
-                        {skill.primaryEnv ? (
-                          <div className="space-y-2">
-                            <div className="text-xs text-muted-foreground">
-                              {t("skillsPanel.labels.apiKey")}
-                            </div>
-                            <Input
-                              type="password"
-                              value={edits[skill.skillKey] ?? ""}
-                              onChange={(event) =>
-                                setEdits((prev) => ({
-                                  ...prev,
-                                  [skill.skillKey]: event.target.value,
-                                }))
-                              }
-                            />
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={busy}
-                              onClick={() => void handleSaveApiKey(skill.skillKey)}
-                            >
-                              {t("skillsPanel.actions.saveKey")}
-                            </Button>
-                          </div>
-                        ) : null}
-
-                        {message ? (
-                          <div
-                            className={`text-xs ${message.kind === "error" ? "text-destructive" : "text-green-600"}`}
-                          >
-                            {message.text}
-                          </div>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                {group.skills.map((skill) => (
+                  <SkillCard
+                    key={skill.skillKey}
+                    skill={skill}
+                    busy={busyKey === skill.skillKey}
+                    message={messages[skill.skillKey]}
+                    editValue={edits[skill.skillKey] ?? ""}
+                    onEditChange={(value) =>
+                      setEdits((prev) => ({ ...prev, [skill.skillKey]: value }))
+                    }
+                    onToggle={() => void handleToggle(skill)}
+                    onInstall={() => void handleInstall(skill)}
+                    onSaveApiKey={() => void handleSaveApiKey(skill.skillKey)}
+                  />
+                ))}
               </div>
             </details>
           ))}

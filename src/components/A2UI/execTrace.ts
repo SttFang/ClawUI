@@ -126,7 +126,7 @@ export function upsertExecTrace(part: DynamicToolUIPart, sessionKey?: string): E
     sessionKey: normalizedSessionKey,
     toolCallId: part.toolCallId,
     toolOrder: parseToolOrder(part.toolCallId),
-    command: command || "",
+    command: command || "exec",
     status: "running",
     startedAtMs: now,
   };
@@ -204,6 +204,25 @@ export function shouldSuppressExecPart(part: DynamicToolUIPart, sessionKey?: str
   const trace = upsertExecTrace(part, sessionKey);
   const normalizedSessionKey = sessionKey ?? "";
   const command = trace.command.trim();
+  const explicitCommand = getCommand(part.input);
+  const isPartTerminal =
+    part.state === "output-error" ||
+    (part.state === "output-available" && !isExecPreliminary(part));
+  const isFallbackExecTerminal =
+    !explicitCommand &&
+    command.toLowerCase() === "exec" &&
+    (trace.status === "completed" || trace.status === "error");
+
+  if (isFallbackExecTerminal) {
+    return true;
+  }
+
+  // Cross-message dedupe:
+  // Once this toolCallId reached terminal, suppress older non-terminal snapshots
+  // from history replay (input-available / preliminary output-available).
+  if ((trace.status === "completed" || trace.status === "error") && !isPartTerminal) {
+    return true;
+  }
 
   if (trace.status === "completed" || trace.status === "error") {
     if (!command) return false;
@@ -217,7 +236,14 @@ export function shouldSuppressExecPart(part: DynamicToolUIPart, sessionKey?: str
   const terminal = useA2UIExecTraceStore.getState().terminalByCommand[commandKey];
   if (!terminal) return false;
   if (terminal.traceKey === trace.traceKey) return false;
-  if (isCommandActive(normalizedSessionKey, command)) return false;
+  const commandActive = isCommandActive(normalizedSessionKey, command);
+  if (commandActive) {
+    if (trace.toolOrder !== null && terminal.toolOrder !== null) {
+      return trace.toolOrder < terminal.toolOrder;
+    }
+    return false;
+  }
+  if (trace.startedAtMs > terminal.endedAtMs) return false;
 
   if (
     trace.toolOrder !== null &&

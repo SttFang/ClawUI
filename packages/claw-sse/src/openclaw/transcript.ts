@@ -214,13 +214,36 @@ function isLikelyToolReceiptText(text: string): boolean {
   if (!normalized) return false
   return (
     normalized.startsWith('system:') ||
-    normalized.includes('approval required') ||
-    normalized.includes('approve to run') ||
-    normalized.includes('exec finished') ||
-    normalized.includes('exec denied') ||
-    normalized.includes('enoent:') ||
+    normalized.startsWith('approval required') ||
+    normalized.startsWith('approve to run') ||
+    normalized.startsWith('exec finished') ||
+    normalized.startsWith('exec denied') ||
+    normalized.startsWith('enoent:') ||
     (normalized.startsWith('{') && normalized.includes('"status"') && normalized.includes('"tool"'))
   )
+}
+
+const METADATA_HEADER_RE =
+  /^(?:conversation info|sender|thread starter|replied message|forwarded message|chat history)\s*\(/i
+
+const TIMESTAMP_RE =
+  /\[(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?:\s+GMT[+-]\d{1,2})?\]\s*/i
+
+function stripUserMetadataPrefix(text: string): string {
+  const trimmed = text.trim()
+  if (!METADATA_HEADER_RE.test(trimmed)) return trimmed
+
+  let lastTimestampEnd = -1
+  const re = new RegExp(TIMESTAMP_RE.source, 'gi')
+  let match: RegExpExecArray | null
+  while ((match = re.exec(trimmed)) !== null) {
+    lastTimestampEnd = match.index + match[0].length
+  }
+  if (lastTimestampEnd > 0 && lastTimestampEnd < trimmed.length) {
+    return trimmed.slice(lastTimestampEnd).trim()
+  }
+
+  return trimmed
 }
 
 function shouldKeepTextAlongsideToolParts(text: string, toolOutputs: unknown[]): boolean {
@@ -456,7 +479,11 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
           parts.unshift({ type: 'text', text })
         }
       } else {
-        const text = extractTextFromBlocks(contentBlocks, record.content)
+        let text = extractTextFromBlocks(contentBlocks, record.content)
+        if (!text && role === 'user') {
+          text = pickNonEmptyString(record.text, record.message) ?? ''
+        }
+        if (role === 'user') text = stripUserMetadataPrefix(text)
         if (text) {
           parts.push({ type: 'text', text })
         }

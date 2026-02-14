@@ -213,7 +213,7 @@ export function MessageParts(props: {
 
       if (isTextPartLike(part)) {
         if (!part.text.trim()) continue;
-        if (message.role !== "user" && isLikelyToolReceiptText(part.text)) continue;
+        if (isLikelyToolReceiptText(part.text)) continue;
         nextItems[index] = {
           kind: "text",
           key: `text:${index}`,

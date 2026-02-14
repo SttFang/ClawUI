@@ -176,11 +176,18 @@ export class ConfigOrchestrator {
         baseHash: input.baseHash,
       });
       const snapshot = await this.tryGetSnapshotViaGateway();
-      return {
+      const result: ConfigSetDraftResponseV2 = {
         ok: true,
         hash: snapshot?.hash ?? null,
         warnings: [],
       };
+      // Notify gateway to hot-reload config
+      try {
+        await chatWebSocket.request("config.reload", {});
+      } catch {
+        configLog.warn("[config.orchestrator.reload.skipped]");
+      }
+      return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       // Gateway is reachable but rejected request -> surface structured error.

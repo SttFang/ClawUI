@@ -94,6 +94,8 @@ export function isLikelyToolReceiptText(value: string): boolean {
     normalized.startsWith("system:") ||
     normalized.startsWith("approval required") ||
     normalized.startsWith("approve to run") ||
+    normalized.startsWith("conversation info") ||
+    normalized.startsWith("an async command") ||
     (normalized.startsWith("{") && normalized.includes('"status"') && normalized.includes('"tool"'))
   );
 }

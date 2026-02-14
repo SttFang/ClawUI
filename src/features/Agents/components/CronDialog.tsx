@@ -9,8 +9,8 @@ import {
   Switch,
 } from "@clawui/ui";
 import { useTranslation } from "react-i18next";
-import { useAgentsStore, agentsSelectors } from "@/store/agents";
 import { formatCronSchedule, formatTimestamp } from "@/routes/agents/cronFormat";
+import { useAgentsStore, agentsSelectors } from "@/store/agents";
 
 interface CronDialogProps {
   open: boolean;

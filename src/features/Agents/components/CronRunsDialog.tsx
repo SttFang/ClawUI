@@ -8,8 +8,8 @@ import {
   DialogTitle,
 } from "@clawui/ui";
 import { useTranslation } from "react-i18next";
-import { useAgentsStore, agentsSelectors } from "@/store/agents";
 import { formatTimestamp } from "@/routes/agents/cronFormat";
+import { useAgentsStore, agentsSelectors } from "@/store/agents";
 
 export function CronRunsDialog() {
   const { t } = useTranslation("common");

@@ -1,8 +1,8 @@
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@clawui/ui";
 import { CalendarClock } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useAgentsStore, agentsSelectors } from "@/store/agents";
 import { formatTimestamp } from "@/routes/agents/cronFormat";
+import { useAgentsStore, agentsSelectors } from "@/store/agents";
 
 interface CronPanelProps {
   onOpenDialog: () => void;

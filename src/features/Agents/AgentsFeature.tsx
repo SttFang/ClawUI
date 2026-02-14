@@ -2,6 +2,12 @@ import { Button } from "@clawui/ui";
 import { Download } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { buildAgentsExportPayload } from "@/routes/agents/export";
+import { useAgentsStore, agentsSelectors } from "@/store/agents";
+import { useChannelsStore, selectChannels } from "@/store/channels";
+import { useMCPStore, selectServers as selectMcpServers } from "@/store/mcp";
+import { usePluginsStore, selectInstalledPlugins } from "@/store/plugins";
+import { useToolsStore, selectToolsConfig } from "@/store/tools";
 import { AgentCapabilities } from "./components/AgentCapabilities";
 import { AgentExtensions } from "./components/AgentExtensions";
 import { AgentIdentity } from "./components/AgentIdentity";
@@ -11,12 +17,6 @@ import { AgentSkills } from "./components/AgentSkills";
 import { CronDialog } from "./components/CronDialog";
 import { CronPanel } from "./components/CronPanel";
 import { CronRunsDialog } from "./components/CronRunsDialog";
-import { buildAgentsExportPayload } from "@/routes/agents/export";
-import { useAgentsStore, agentsSelectors } from "@/store/agents";
-import { useChannelsStore, selectChannels } from "@/store/channels";
-import { useMCPStore, selectServers as selectMcpServers } from "@/store/mcp";
-import { usePluginsStore, selectInstalledPlugins } from "@/store/plugins";
-import { useToolsStore, selectToolsConfig } from "@/store/tools";
 
 function downloadJson(filename: string, data: unknown): void {
   const content = JSON.stringify(data, null, 2);

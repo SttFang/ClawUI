@@ -52,9 +52,9 @@ export function ExecCompletedSummary(props: { traces: ExecTrace[] }) {
     setExpandedTraceKeys((prev) => ({ ...prev, [traceKey]: !prev[traceKey] }));
   };
 
-  const onToggle = () => {
+  const onToggle = (nextOpen: boolean) => {
     userToggledRef.current = true;
-    setExpanded((prev) => !prev);
+    setExpanded(nextOpen);
   };
 
   return (

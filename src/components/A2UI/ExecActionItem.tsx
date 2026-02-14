@@ -3,13 +3,16 @@ import { Task, TaskContent, TaskItem, TaskTrigger } from "@clawui/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
-import {
-  getPendingApprovalsForSession,
-  makeExecApprovalKey,
-  useExecApprovalsStore,
-} from "@/store/execApprovals";
+import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
 import { deriveExecActionState } from "./execActionState";
-import { isExecPreliminary, upsertExecTrace } from "./execTrace";
+import {
+  buildExecTraceKey,
+  commitExecTraceUpdate,
+  deriveNextExecTrace,
+  isExecPreliminary,
+  selectTerminalByCommandKey,
+  selectTraceByKey,
+} from "./execTrace";
 
 function parseExecInput(input: unknown): { command: string; cwd?: string; yieldMs?: number } {
   if (typeof input !== "object" || input === null) return { command: "" };
@@ -25,31 +28,42 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
   const { part, sessionKey } = props;
 
   const [expanded, setExpanded] = useState(false);
-  const trace = upsertExecTrace(part, sessionKey);
-  const parsed = parseExecInput(part.input);
-  const command = parsed.command || trace.command;
+  const parsed = useMemo(() => parseExecInput(part.input), [part.input]);
   const normalizedSessionKey = sessionKey ?? "";
-  const isInputPhase = part.state === "input-available" || part.state === "input-streaming";
+  const traceKey = buildExecTraceKey(normalizedSessionKey, part.toolCallId);
 
-  const queue = useExecApprovalsStore((s) => s.queue);
-  const pendingApprovals = useMemo(
-    () => getPendingApprovalsForSession(queue, normalizedSessionKey),
-    [queue, normalizedSessionKey],
+  const storedTrace = useA2UIExecTraceStore((s) => selectTraceByKey(s, traceKey));
+  const fallbackTrace = useMemo(
+    () =>
+      deriveNextExecTrace({
+        part,
+        sessionKey: normalizedSessionKey,
+      }).nextTrace,
+    [normalizedSessionKey, part],
   );
-  const runningByKey = useExecApprovalsStore((s) => s.runningByKey);
+  const trace = storedTrace ?? fallbackTrace;
 
-  const currentApproval = useMemo(() => {
+  const command = parsed.command || trace.command;
+  const isInputPhase = part.state === "input-available" || part.state === "input-streaming";
+  const currentApprovalId = useExecApprovalsStore((s) => {
     if (!isInputPhase) return null;
     if (!command) return null;
-    return pendingApprovals.find((entry) => entry.request.command === command) ?? null;
-  }, [command, isInputPhase, pendingApprovals]);
-
-  const approvalRequested = Boolean(currentApproval);
+    const matched = s.queue.find(
+      (entry) =>
+        entry.request.sessionKey === normalizedSessionKey && entry.request.command === command,
+    );
+    return matched?.id ?? null;
+  });
+  const approvalRequested = Boolean(currentApprovalId);
 
   const runningKey = command ? makeExecApprovalKey(normalizedSessionKey, command) : "";
-  const runningAtMs = runningKey ? runningByKey[runningKey] : 0;
-  const terminalByCommand = useA2UIExecTraceStore((s) => s.terminalByCommand);
-  const commandTerminal = runningKey ? terminalByCommand[runningKey] : undefined;
+  const runningAtMs = useExecApprovalsStore((s) =>
+    runningKey ? (s.runningByKey[runningKey] ?? 0) : 0,
+  );
+  const commandTerminal = useA2UIExecTraceStore((s) =>
+    runningKey ? selectTerminalByCommandKey(s, runningKey) : null,
+  );
+
   const coveredByCommandTerminal = useMemo(() => {
     if (!commandTerminal) return false;
     if (commandTerminal.traceKey === trace.traceKey) return false;
@@ -63,14 +77,8 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
       return false;
     }
     return true;
-  }, [
-    commandTerminal,
-    trace.endedAtMs,
-    trace.startedAtMs,
-    trace.status,
-    trace.toolOrder,
-    trace.traceKey,
-  ]);
+  }, [commandTerminal, trace]);
+
   const visualState = deriveExecActionState({
     partState:
       part.state === "input-streaming" ||
@@ -94,6 +102,11 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
   });
 
   useEffect(() => {
+    if (!normalizedSessionKey) return;
+    commitExecTraceUpdate({ part, sessionKey: normalizedSessionKey });
+  }, [normalizedSessionKey, part]);
+
+  useEffect(() => {
     if (approvalRequested || visualState.running) {
       setExpanded(true);
     }
@@ -110,7 +123,7 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
     statusLabel = t("a2ui.execAction.statusError");
   }
 
-  const approvalShortId = currentApproval ? currentApproval.id.slice(-8) : "";
+  const approvalShortId = currentApprovalId ? currentApprovalId.slice(-8) : "";
 
   return (
     <Task open={expanded} onOpenChange={setExpanded}>
@@ -132,7 +145,7 @@ export function ExecActionItem(props: { part: DynamicToolUIPart; sessionKey?: st
 
           <div className="space-y-1">
             <div className="text-[11px] text-muted-foreground">{t("a2ui.execAction.command")}</div>
-            <pre className="max-h-44 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs">
+            <pre className="max-h-44 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs break-words">
               {command || t("a2ui.execAction.noCommand")}
             </pre>
           </div>

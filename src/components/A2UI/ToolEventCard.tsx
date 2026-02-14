@@ -1,10 +1,13 @@
 import type { DynamicToolUIPart } from "ai";
 import { Task, TaskContent, TaskItem, TaskItemFile, TaskTrigger } from "@clawui/ui";
 import { FileText, Loader2 } from "lucide-react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SiReact } from "react-icons/si";
+import type { ExecApprovalsStore } from "@/store/execApprovals";
 import { cn } from "@/lib/utils";
 import { makeExecApprovalKey, useExecApprovalsStore } from "@/store/execApprovals";
+import { EXEC_RUNNING_TTL_MS } from "@/store/execApprovals/helpers";
 
 function formatJson(value: unknown): string {
   try {
@@ -82,6 +85,24 @@ function getExecCommand(input: unknown): string {
   return typeof cmd === "string" ? cmd.trim() : "";
 }
 
+function selectExecCardFlags(
+  state: Pick<ExecApprovalsStore, "queue" | "runningByKey">,
+  sessionKey: string | undefined,
+  command: string,
+): { approvalRequested: boolean; isRunning: boolean } {
+  if (!sessionKey || !command) return { approvalRequested: false, isRunning: false };
+  const normalizedCommand = command.trim();
+  if (!normalizedCommand) return { approvalRequested: false, isRunning: false };
+  const approvalRequested = state.queue.some(
+    (entry) =>
+      entry.request.sessionKey === sessionKey && entry.request.command === normalizedCommand,
+  );
+  const runningKey = makeExecApprovalKey(sessionKey, normalizedCommand);
+  const runningAtMs = state.runningByKey[runningKey] ?? 0;
+  const isRunning = Boolean(runningAtMs && Date.now() - runningAtMs < EXEC_RUNNING_TTL_MS);
+  return { approvalRequested, isRunning };
+}
+
 export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: string }) {
   const { t } = useTranslation("common");
   const { part, sessionKey } = props;
@@ -90,21 +111,14 @@ export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: str
   const state = part.state;
   const query = extractSearchQuery(part.input);
   const readPath = part.toolName === "read" ? extractReadPath(part.input) : "";
-
-  const approvalQueue = useExecApprovalsStore((s) => s.queue);
-  const runningByKey = useExecApprovalsStore((s) => s.runningByKey);
+  const inputText = useMemo(() => formatJson(part.input), [part.input]);
+  const outputText = useMemo(() => formatJson(part.output), [part.output]);
 
   const isExec = part.toolName === "exec";
   const execCommand = isExec ? getExecCommand(part.input) : "";
-  const approvalRequested =
-    isExec && execCommand
-      ? approvalQueue.some(
-          (e) => e.request.sessionKey === sessionKey && e.request.command === execCommand,
-        )
-      : false;
-  const runningKey = isExec && execCommand ? makeExecApprovalKey(sessionKey, execCommand) : "";
-  const runningAtMs = runningKey ? runningByKey[runningKey] : 0;
-  const isRunning = Boolean(runningAtMs && Date.now() - runningAtMs < 2 * 60 * 1000);
+  const execFlags = useExecApprovalsStore((s) => selectExecCardFlags(s, sessionKey, execCommand));
+  const approvalRequested = isExec ? execFlags.approvalRequested : false;
+  const isRunning = isExec ? execFlags.isRunning : false;
 
   const stateLabel =
     state === "input-available" && approvalRequested
@@ -133,12 +147,12 @@ export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: str
             />
           </div>
 
-          {query ? <TaskItem>{`Searching "${query}"`}</TaskItem> : null}
+          {query ? <TaskItem>{t("a2ui.tool.searchingWithQuery", { query })}</TaskItem> : null}
 
           {readPath ? (
             <TaskItem>
               <span className="inline-flex items-center gap-1">
-                Read <FileBadge path={readPath} />
+                {t("a2ui.tool.readingFile")} <FileBadge path={readPath} />
               </span>
             </TaskItem>
           ) : null}
@@ -151,14 +165,14 @@ export function ToolEventCard(props: { part: DynamicToolUIPart; sessionKey?: str
           ) : null}
 
           {state === "input-available" || state === "input-streaming" ? (
-            <pre className="max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs">
-              {formatJson(part.input)}
+            <pre className="max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs break-words">
+              {inputText}
             </pre>
           ) : null}
 
           {state === "output-available" ? (
-            <pre className="max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs">
-              {formatJson(part.output)}
+            <pre className="max-h-64 overflow-auto rounded-lg bg-muted px-3 py-2 text-xs break-words">
+              {outputText}
             </pre>
           ) : null}
 

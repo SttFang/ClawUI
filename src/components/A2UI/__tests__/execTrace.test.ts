@@ -1,8 +1,14 @@
 import type { DynamicToolUIPart } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
 import { initialState as execApprovalsInitialState } from "@/store/execApprovals/initialState";
 import { useExecApprovalsStore } from "@/store/execApprovals/store";
-import { clearTracesForSession, shouldSuppressExecPart, upsertExecTrace } from "../execTrace";
+import {
+  clearTracesForSession,
+  deriveNextExecTrace,
+  shouldSuppressExecPart,
+  upsertExecTrace,
+} from "../execTrace";
 
 describe("execTrace", () => {
   beforeEach(() => {
@@ -17,6 +23,44 @@ describe("execTrace", () => {
     clearTracesForSession("agent:main:ui:test");
     clearTracesForSession("agent:main:ui:session-a");
     clearTracesForSession("agent:main:ui:suppress");
+  });
+
+  it("derives exec trace without writing store", () => {
+    const part = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "tool-derive-1",
+      state: "input-available",
+      input: { command: "pwd" },
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+
+    const before = useA2UIExecTraceStore.getState().tracesByKey;
+    const result = deriveNextExecTrace({
+      part,
+      sessionKey: "agent:main:ui:test",
+    });
+    const after = useA2UIExecTraceStore.getState().tracesByKey;
+
+    expect(result.nextTrace.status).toBe("running");
+    expect(after).toBe(before);
+  });
+
+  it("shouldSuppressExecPart is pure and does not write store", () => {
+    const batchSpy = vi.spyOn(useA2UIExecTraceStore.getState(), "batchSet");
+    const part = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "tool-pure-1",
+      state: "input-available",
+      input: { command: "ls -la" },
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+
+    const result = shouldSuppressExecPart(part, "agent:main:ui:test");
+
+    expect(result).toBe(false);
+    expect(batchSpy).not.toHaveBeenCalled();
   });
 
   it("should mark exec trace as completed when final output arrives", () => {

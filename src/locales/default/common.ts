@@ -952,6 +952,11 @@ const common = {
       running: "执行中",
       runningHint: "已允许，正在执行…",
     },
+    tool: {
+      searching: "搜索中…",
+      searchingWithQuery: "搜索“{{query}}”",
+      readingFile: "读取",
+    },
   },
   thinking: {
     active: "思考中…",

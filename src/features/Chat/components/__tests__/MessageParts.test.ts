@@ -1,8 +1,12 @@
-import type { UIMessage } from "ai";
+import type { DynamicToolUIPart, UIMessage } from "ai";
 import { createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
-import { clearTracesForSession } from "@/components/A2UI/execTrace";
+import { act } from "react-dom/test-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { clearTracesForSession, upsertExecTrace } from "@/components/A2UI/execTrace";
+import { initialState as a2uiExecTraceInitialState } from "@/store/a2uiExecTrace/initialState";
+import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
 import { MessageParts } from "../MessageParts";
 
 vi.mock("react-i18next", () => ({
@@ -13,17 +17,122 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("@/components/A2UI", async () => {
   const actual = await vi.importActual<typeof import("@/components/A2UI")>("@/components/A2UI");
+  const { useA2UIExecTraceStore: useTraceStore } = await vi.importActual<
+    typeof import("@/store/a2uiExecTrace/store")
+  >("@/store/a2uiExecTrace/store");
 
   return {
     ...actual,
-    ExecActionItem: ({ part }: { part: { toolCallId: string; state: string } }) =>
-      createElement("div", null, `exec:${part.toolCallId}:${part.state}`),
+    ExecActionItem: ({ part }: { part: { toolCallId: string; state: string } }) => {
+      useTraceStore((s) => s.terminalByCommand);
+      return createElement("div", null, `exec:${part.toolCallId}:${part.state}`);
+    },
     ToolEventCard: ({ part }: { part: { toolName: string; toolCallId: string } }) =>
       createElement("div", null, `tool:${part.toolName}:${part.toolCallId}`),
   };
 });
 
+if (typeof globalThis !== "undefined") {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+}
+
 describe("MessageParts", () => {
+  beforeEach(() => {
+    useA2UIExecTraceStore.setState({
+      ...a2uiExecTraceInitialState,
+      tracesByKey: {},
+      terminalByCommand: {},
+    });
+  });
+
+  it("keeps renderer console.error at zero for exec render path", () => {
+    const sessionKey = "agent:main:ui:messageparts-console-error-zero";
+    clearTracesForSession(sessionKey);
+
+    const firstMessage: UIMessage = {
+      id: "msg-render-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolName: "exec",
+          toolCallId: "assistant:1771000000000:test:tool-1",
+          state: "input-available",
+          providerExecuted: true,
+          input: { command: "ls -la ~/Desktop" },
+        } as const,
+      ],
+    };
+    const secondMessage: UIMessage = {
+      id: "msg-render-2",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolName: "exec",
+          toolCallId: "assistant:1771000000999:test:tool-1",
+          state: "output-available",
+          providerExecuted: true,
+          input: { command: "ls -la ~/Desktop" },
+          output: "ok",
+        } as const,
+      ],
+    };
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      act(() => {
+        root.render(
+          createElement(MessageParts, { message: firstMessage, streaming: false, sessionKey }),
+        );
+      });
+      act(() => {
+        root.render(
+          createElement(MessageParts, { message: secondMessage, streaming: false, sessionKey }),
+        );
+      });
+      const meaningfulErrors = consoleErrorSpy.mock.calls.filter(([message]) => {
+        const text = String(message);
+        return !text.includes("ReactDOMTestUtils.act");
+      });
+      expect(meaningfulErrors).toHaveLength(0);
+    } finally {
+      act(() => {
+        root.unmount();
+      });
+      consoleErrorSpy.mockRestore();
+      clearTracesForSession(sessionKey);
+    }
+  });
+
+  it("does not write trace store during render", () => {
+    const sessionKey = "agent:main:ui:messageparts-render-pure";
+    clearTracesForSession(sessionKey);
+    const batchSpy = vi.spyOn(useA2UIExecTraceStore.getState(), "batchSet");
+    const message: UIMessage = {
+      id: "msg-render-pure",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          toolName: "exec",
+          toolCallId: "tool-render-pure",
+          state: "input-available",
+          providerExecuted: true,
+          input: { command: "ls -la" },
+        } as const,
+      ],
+    };
+
+    renderToStaticMarkup(createElement(MessageParts, { message, streaming: false, sessionKey }));
+
+    expect(batchSpy).not.toHaveBeenCalled();
+    batchSpy.mockRestore();
+  });
+
   it("suppresses stale input-only exec card after newer terminal card is rendered", () => {
     const sessionKey = "agent:main:ui:messageparts-suppress";
     clearTracesForSession(sessionKey);
@@ -47,6 +156,7 @@ describe("MessageParts", () => {
     renderToStaticMarkup(
       createElement(MessageParts, { message: staleInput, streaming: false, sessionKey }),
     );
+    upsertExecTrace(staleInput.parts[0] as DynamicToolUIPart, sessionKey);
 
     const latestFinal: UIMessage = {
       id: "msg-new",
@@ -68,6 +178,7 @@ describe("MessageParts", () => {
     renderToStaticMarkup(
       createElement(MessageParts, { message: latestFinal, streaming: false, sessionKey }),
     );
+    upsertExecTrace(latestFinal.parts[0] as DynamicToolUIPart, sessionKey);
 
     // Older message re-renders and should be suppressed.
     const html = renderToStaticMarkup(

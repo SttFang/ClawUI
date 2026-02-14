@@ -1,14 +1,19 @@
-import type { UIMessage } from "ai";
-import type { DynamicToolUIPart } from "ai";
+import type { DynamicToolUIPart, UIMessage } from "ai";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { ExecTraceUpdatePayload } from "@/store/a2uiExecTrace/types";
 import { ExecActionItem, ToolEventCard } from "@/components/A2UI";
 import {
+  applyExecTraceUpdateToContext,
+  buildExecTraceKey,
+  createExecTraceContext,
+  deriveNextExecTrace,
   isExecPreliminary,
+  type ExecTrace,
   shouldSuppressExecPart,
-  upsertExecTrace,
 } from "@/components/A2UI/execTrace";
+import { useA2UIExecTraceStore } from "@/store/a2uiExecTrace/store";
 import { MessageText } from "./MessageText";
 
 const AUTO_HIDE_DELAY = 1500;
@@ -71,6 +76,59 @@ function isExecLikeToolName(name: string): boolean {
   return normalized === "exec" || normalized === "bash";
 }
 
+function readCommandFromInput(input: unknown): string {
+  if (!input || typeof input !== "object") return "";
+  const value = (input as Record<string, unknown>).command;
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function traceStatusPriority(trace: ExecTrace): number {
+  if (trace.status === "error") return 4;
+  if (trace.status === "completed") return 3;
+  if (trace.status === "running") return 2;
+  return 1;
+}
+
+function pickPreferredTrace(current: ExecTrace, candidate: ExecTrace): ExecTrace {
+  const currentPriority = traceStatusPriority(current);
+  const candidatePriority = traceStatusPriority(candidate);
+  if (candidatePriority !== currentPriority) {
+    return candidatePriority > currentPriority ? candidate : current;
+  }
+  if (candidate.toolOrder !== null && current.toolOrder !== null) {
+    if (candidate.toolOrder !== current.toolOrder) {
+      return candidate.toolOrder > current.toolOrder ? candidate : current;
+    }
+  } else if (candidate.toolOrder !== null && current.toolOrder === null) {
+    return candidate;
+  } else if (candidate.toolOrder === null && current.toolOrder !== null) {
+    return current;
+  }
+  if (candidate.startedAtMs !== current.startedAtMs) {
+    return candidate.startedAtMs > current.startedAtMs ? candidate : current;
+  }
+  if ((candidate.endedAtMs ?? 0) !== (current.endedAtMs ?? 0)) {
+    return (candidate.endedAtMs ?? 0) > (current.endedAtMs ?? 0) ? candidate : current;
+  }
+  return candidate.traceKey > current.traceKey ? candidate : current;
+}
+
+function mergePendingUpdate(
+  updates: Map<string, ExecTraceUpdatePayload>,
+  incoming: ExecTraceUpdatePayload,
+): void {
+  const current = updates.get(incoming.trace.traceKey);
+  if (!current) {
+    updates.set(incoming.trace.traceKey, incoming);
+    return;
+  }
+  const preferredTrace = pickPreferredTrace(current.trace, incoming.trace);
+  updates.set(incoming.trace.traceKey, {
+    trace: preferredTrace,
+    terminal: incoming.terminal ?? current.terminal,
+  });
+}
+
 function ThinkingIndicator(props: { isStreaming: boolean; duration: number | undefined }) {
   const { t } = useTranslation("common");
   const { isStreaming, duration } = props;
@@ -93,82 +151,7 @@ function ThinkingIndicator(props: { isStreaming: boolean; duration: number | und
   );
 }
 
-function pickMessageRenderableItem(
-  part: unknown,
-  index: number,
-  sessionKey: string,
-  streaming: boolean,
-  options?: { foldToolReceiptText?: boolean },
-) {
-  if (isTextPartLike(part)) {
-    if (!part.text.trim()) return null;
-    if (options?.foldToolReceiptText && isLikelyToolReceiptText(part.text)) return null;
-    return {
-      kind: "text" as const,
-      key: `text:${index}`,
-      node: (
-        <MessageText
-          key={`text:${index}`}
-          text={part.text}
-          isAnimating={streaming && part.state === "streaming"}
-        />
-      ),
-    };
-  }
-
-  if (isDynamicToolPartLike(part)) {
-    if (isExecLikeToolName(part.toolName)) {
-      if (shouldSuppressExecPart(part, sessionKey)) {
-        return null;
-      }
-      const trace = upsertExecTrace(part, sessionKey);
-      if (
-        part.state === "input-available" ||
-        part.state === "input-streaming" ||
-        part.state === "output-error" ||
-        (part.state === "output-available" && isExecPreliminary(part)) ||
-        (part.state === "output-available" && trace.status !== "running")
-      ) {
-        return {
-          kind: "tool" as const,
-          key:
-            trace.status === "completed" || trace.status === "error"
-              ? `exec:${part.toolCallId}:final:${index}`
-              : `exec:${part.toolCallId}:${index}`,
-          toolCallId: part.toolCallId,
-          node: (
-            <ExecActionItem
-              key={`exec:${part.toolCallId}:${index}`}
-              part={part}
-              sessionKey={sessionKey}
-            />
-          ),
-        };
-      }
-
-      return null;
-    }
-
-    return {
-      kind: "tool" as const,
-      key: `tool:${part.toolCallId}:${index}`,
-      toolCallId: part.toolCallId,
-      node: (
-        <ToolEventCard
-          key={`tool:${part.toolCallId}:${index}`}
-          part={part}
-          sessionKey={sessionKey}
-        />
-      ),
-    };
-  }
-
-  return null;
-}
-
-function aggregateRenderableItems(
-  items: ReturnType<typeof pickMessageRenderableItem>[],
-): RenderableItem[] {
+function aggregateRenderableItems(items: (RenderableItem | null)[]): RenderableItem[] {
   const execIndexByToolCallId = new Map<string, number>();
   const result: RenderableItem[] = [];
 
@@ -191,14 +174,6 @@ function aggregateRenderableItems(
   }
 
   return result;
-}
-
-function primeExecTrace(parts: UIMessage["parts"], sessionKey: string): void {
-  for (const part of parts) {
-    if (!isDynamicToolPartLike(part)) continue;
-    if (!isExecLikeToolName(part.toolName)) continue;
-    upsertExecTrace(part, sessionKey);
-  }
 }
 
 export function MessageParts(props: {
@@ -235,24 +210,126 @@ export function MessageParts(props: {
     return undefined;
   }, [isThinking]);
 
-  const renderedItems = useMemo(() => {
+  const renderResult = useMemo(() => {
     const hasToolPart = message.parts.some((part) => isDynamicToolPartLike(part));
     const foldToolReceiptText = message.role !== "user" && hasToolPart;
-    primeExecTrace(message.parts, sessionKey);
-    const pre = message.parts.map((part, index) =>
-      pickMessageRenderableItem(part, index, sessionKey, streaming, {
-        foldToolReceiptText,
-      }),
+    const context = createExecTraceContext();
+    const pendingUpdatesByTraceKey = new Map<string, ExecTraceUpdatePayload>();
+    const nextItems: (RenderableItem | null)[] = Array.from(
+      { length: message.parts.length },
+      () => null,
     );
-    return aggregateRenderableItems(pre).map((item) => item.node);
+    const now = Date.now();
+
+    for (let index = message.parts.length - 1; index >= 0; index -= 1) {
+      const part = message.parts[index];
+      if (isTextPartLike(part)) {
+        if (!part.text.trim()) continue;
+        if (foldToolReceiptText && isLikelyToolReceiptText(part.text)) continue;
+        nextItems[index] = {
+          kind: "text",
+          key: `text:${index}`,
+          node: (
+            <MessageText
+              key={`text:${index}`}
+              text={part.text}
+              isAnimating={streaming && part.state === "streaming"}
+            />
+          ),
+        };
+        continue;
+      }
+
+      if (!isDynamicToolPartLike(part)) continue;
+      if (!isExecLikeToolName(part.toolName)) {
+        nextItems[index] = {
+          kind: "tool",
+          key: `tool:${part.toolCallId}:${index}`,
+          toolCallId: part.toolCallId,
+          node: (
+            <ToolEventCard
+              key={`tool:${part.toolCallId}:${index}`}
+              part={part}
+              sessionKey={sessionKey}
+            />
+          ),
+        };
+        continue;
+      }
+
+      const traceKey = buildExecTraceKey(sessionKey, part.toolCallId);
+      const existing = context.tracesByKey[traceKey];
+      const commandCandidate = readCommandFromInput(part.input) || existing?.command || "";
+      const commandKey = commandCandidate ? `${sessionKey}::${commandCandidate}` : "";
+      const currentTerminal = commandKey ? context.terminalByCommand[commandKey] : undefined;
+      const derived = deriveNextExecTrace({
+        part,
+        sessionKey,
+        existing,
+        currentTerminal,
+        now,
+      });
+      applyExecTraceUpdateToContext(context, derived);
+      mergePendingUpdate(pendingUpdatesByTraceKey, {
+        trace: derived.nextTrace,
+        terminal:
+          derived.commandKey && derived.nextTerminal
+            ? { commandKey: derived.commandKey, terminal: derived.nextTerminal }
+            : undefined,
+      });
+
+      if (
+        shouldSuppressExecPart(part, sessionKey, {
+          trace: derived.nextTrace,
+          tracesByKey: context.tracesByKey,
+          terminalByCommand: context.terminalByCommand,
+        })
+      ) {
+        continue;
+      }
+
+      if (
+        part.state === "input-available" ||
+        part.state === "input-streaming" ||
+        part.state === "output-error" ||
+        (part.state === "output-available" && isExecPreliminary(part)) ||
+        (part.state === "output-available" && derived.nextTrace.status !== "running")
+      ) {
+        nextItems[index] = {
+          kind: "tool",
+          key:
+            derived.nextTrace.status === "completed" || derived.nextTrace.status === "error"
+              ? `exec:${part.toolCallId}:final:${index}`
+              : `exec:${part.toolCallId}:${index}`,
+          toolCallId: part.toolCallId,
+          node: (
+            <ExecActionItem
+              key={`exec:${part.toolCallId}:${index}`}
+              part={part}
+              sessionKey={sessionKey}
+            />
+          ),
+        };
+      }
+    }
+
+    return {
+      nodes: aggregateRenderableItems(nextItems).map((item) => item.node),
+      pendingUpdates: Array.from(pendingUpdatesByTraceKey.values()),
+    };
   }, [message.parts, message.role, sessionKey, streaming]);
+
+  useEffect(() => {
+    if (!renderResult.pendingUpdates.length) return;
+    useA2UIExecTraceStore.getState().batchSet(renderResult.pendingUpdates);
+  }, [renderResult.pendingUpdates]);
 
   return (
     <div className="space-y-3">
       {showIndicator ? (
         <ThinkingIndicator isStreaming={isThinking} duration={thinkingDuration} />
       ) : null}
-      {renderedItems}
+      {renderResult.nodes}
     </div>
   );
 }

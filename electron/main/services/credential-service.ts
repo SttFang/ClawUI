@@ -1,6 +1,5 @@
 import type {
   CredentialMeta,
-  CredentialMode,
   LlmCredentialMeta,
   ChannelCredentialMeta,
   ProxyCredentialMeta,
@@ -18,7 +17,7 @@ import { mkdir, readFile, writeFile } from "fs/promises";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { configLog } from "../lib/logger";
-import { AuthProfileAdapter, type AuthProfileCredential } from "./auth-profile-adapter";
+import { AuthProfileAdapter } from "./auth-profile-adapter";
 import { ConfigService, getNestedValue } from "./config";
 import {
   CHANNEL_TOKEN_DEFS,
@@ -30,40 +29,18 @@ import {
   LEGACY_CHANNEL_ENV_MAP,
   LEGACY_LLM_ENV_MAP,
 } from "./credential-defs";
+import {
+  credentialHasValue,
+  credentialMode,
+  credentialSecret,
+  maskSecret,
+  profileIdForProvider,
+} from "./credential-helpers";
 import { syncExternalCliCredentials } from "./external-cli-sync";
 import { TOOL_CREDENTIAL_DEFS } from "./tool-credential-registry";
 
 export type { ChannelTokenDef, ChannelTokenFieldDef } from "./credential-defs";
 export { CHANNEL_TOKEN_DEFS } from "./credential-defs";
-
-function maskSecret(value: string): string {
-  if (value.length <= 8) return "***";
-  const prefix = value.slice(0, 7);
-  const suffix = value.slice(-3);
-  return `${prefix}***...${suffix}`;
-}
-
-function profileIdForProvider(provider: string): string {
-  return `${provider}:default`;
-}
-
-function credentialHasValue(cred: AuthProfileCredential): boolean {
-  if (cred.type === "api_key") return Boolean(cred.key);
-  if (cred.type === "token") return Boolean(cred.token);
-  if (cred.type === "oauth") return Boolean(cred.access);
-  return false;
-}
-
-function credentialSecret(cred: AuthProfileCredential): string {
-  if (cred.type === "api_key") return cred.key ?? "";
-  if (cred.type === "token") return cred.token;
-  if (cred.type === "oauth") return cred.access;
-  return "";
-}
-
-function credentialMode(cred: AuthProfileCredential): CredentialMode {
-  return cred.type === "api_key" ? "api_key" : cred.type;
-}
 
 export class CredentialService {
   private readonly authProfiles: AuthProfileAdapter;

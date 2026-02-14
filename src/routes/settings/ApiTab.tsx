@@ -4,8 +4,8 @@ import { Key, Loader2, AlertCircle } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { ModelConfig } from "@/components/Settings/ModelConfig";
-import { ProviderCard } from "@/components/Settings/ProviderCard";
+import { ModelConfig } from "@/features/Settings/components/ModelConfig";
+import { ProviderCard } from "@/features/Settings/components/ProviderCard";
 import {
   useSettingsStore,
   selectApiKeys,

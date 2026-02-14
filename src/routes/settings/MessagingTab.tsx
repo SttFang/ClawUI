@@ -289,7 +289,7 @@ function ChannelCard({
           />
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className={fields.length >= 3 ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}>
         {fields.map((f) => {
           const key = `${channelType}:${f.field}`;
           return (
@@ -307,7 +307,7 @@ function ChannelCard({
           );
         })}
         {isEditable && (channelType === "telegram" || channelType === "discord") && (
-          <Button variant="outline" size="sm" onClick={onConfigure}>
+          <Button variant="outline" size="sm" onClick={onConfigure} className="col-span-full">
             <Settings className="w-4 h-4 mr-2" />
             {t("channels.actions.configure")}
           </Button>

@@ -11,6 +11,7 @@ import { readFile } from "fs/promises";
 import JSON5 from "json5";
 import type { ConfigService } from "./config";
 import { configLog } from "../lib/logger";
+import { redactSnapshot, restoreRedactedValues, REDACTED_SENTINEL } from "./snapshot-redact";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
 import { chatWebSocket } from "./chat-websocket";
 
@@ -102,8 +103,8 @@ export class ConfigOrchestrator {
 
   async getSnapshot(): Promise<ConfigSnapshotV2> {
     const gatewaySnapshot = await this.tryGetSnapshotViaGateway();
-    if (gatewaySnapshot) return gatewaySnapshot;
-    return this.readLocalSnapshot();
+    if (gatewaySnapshot) return redactSnapshot(gatewaySnapshot);
+    return redactSnapshot(await this.readLocalSnapshot());
   }
 
   async getSchema(): Promise<ConfigSchemaV2> {
@@ -113,9 +114,24 @@ export class ConfigOrchestrator {
   }
 
   async setDraft(input: ConfigSetDraftInputV2): Promise<ConfigSetDraftResponseV2> {
-    const raw = typeof input.raw === "string" ? input.raw : "";
+    let raw = typeof input.raw === "string" ? input.raw : "";
     if (!raw.trim()) {
       return toOrchestratorFailure("CONFIG_INVALID_RAW", "config raw must be a non-empty string");
+    }
+
+    // Restore redacted sentinel values before sending to gateway
+    if (raw.includes(REDACTED_SENTINEL)) {
+      try {
+        const originalSnapshot = await this.getRawSnapshot();
+        if (originalSnapshot) {
+          const incoming = JSON.parse(raw);
+          const restored = restoreRedactedValues(incoming, originalSnapshot.config);
+          raw = JSON.stringify(restored, null, 2).concat("\n");
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return toOrchestratorFailure("CONFIG_INVALID_RAW", message);
+      }
     }
 
     const baseHash = typeof input.baseHash === "string" ? input.baseHash.trim() : "";
@@ -209,6 +225,17 @@ export class ConfigOrchestrator {
           ? payload.generatedAt
           : new Date().toISOString(),
     };
+  }
+
+  /** Get un-redacted snapshot for sentinel restoration during setDraft. */
+  private async getRawSnapshot(): Promise<ConfigSnapshotV2 | null> {
+    try {
+      await ensureGatewayConnected(this.options.configService);
+      const payload = (await chatWebSocket.request("config.get", {})) as ConfigRpcSnapshot;
+      return this.normalizeGatewaySnapshot(payload);
+    } catch {
+      return this.readLocalSnapshot();
+    }
   }
 
   private async readLocalSnapshot(): Promise<ConfigSnapshotV2> {

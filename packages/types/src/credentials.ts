@@ -2,15 +2,19 @@
 // Credential Types
 // ============================================
 
-export type CredentialCategory = "llm" | "channel" | "proxy";
+export type CredentialMode = "api_key" | "token" | "oauth";
+
+export type CredentialCategory = "llm" | "channel" | "proxy" | "tool";
 
 export interface LlmCredentialMeta {
   category: "llm";
   provider: string;
   profileId: string;
-  mode: "api_key";
+  mode: CredentialMode;
   maskedKey: string;
   hasKey: boolean;
+  expires?: number;
+  email?: string;
 }
 
 export interface ChannelCredentialMeta {
@@ -28,18 +32,43 @@ export interface ProxyCredentialMeta {
   hasValue: boolean;
 }
 
-export type CredentialMeta = LlmCredentialMeta | ChannelCredentialMeta | ProxyCredentialMeta;
+export interface ToolCredentialMeta {
+  category: "tool";
+  toolId: string;
+  configPath: string;
+  label: string;
+  maskedValue: string;
+  hasValue: boolean;
+}
+
+export type CredentialMeta =
+  | LlmCredentialMeta
+  | ChannelCredentialMeta
+  | ProxyCredentialMeta
+  | ToolCredentialMeta;
 
 // IPC input types
 
 export interface SetLlmKeyInput {
-  provider: "anthropic" | "openai";
+  provider: string;
   apiKey: string;
+}
+
+export interface SetLlmTokenInput {
+  provider: string;
+  token: string;
+  expires?: number;
+  email?: string;
 }
 
 export interface SetChannelTokenInput {
   channelType: string;
-  tokenField: "botToken" | "appToken";
+  tokenField: string;
+  value: string;
+}
+
+export interface SetToolKeyInput {
+  toolId: string;
   value: string;
 }
 

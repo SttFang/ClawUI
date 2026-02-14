@@ -316,6 +316,32 @@ function isSyntheticToolCallId(value: string): boolean {
   return false
 }
 
+function mergeToolParts(
+  target: UIMessage,
+  targetPart: Extract<UIMessage['parts'][number], { type: 'dynamic-tool' }>,
+  source: UIMessage,
+  sourcePart: Extract<UIMessage['parts'][number], { type: 'dynamic-tool' }>,
+  sameCall: boolean,
+): UIMessage {
+  const keepSource = toolStatePriority(sourcePart.state) >= toolStatePriority(targetPart.state)
+  if (!keepSource) return target
+  const sourceInputStr = normalizeToolInputForCompare(sourcePart.input)
+  const targetInputStr = normalizeToolInputForCompare(targetPart.input)
+  const sourceInputEmpty = !sourceInputStr || sourceInputStr === '{}' || sourceInputStr === '[]'
+  const targetInputEmpty = !targetInputStr || targetInputStr === '{}' || targetInputStr === '[]'
+  const mergedInput = sourceInputEmpty && !targetInputEmpty ? targetPart.input : sourcePart.input
+  return {
+    ...source,
+    parts: [
+      {
+        ...sourcePart,
+        input: mergedInput,
+        toolCallId: sameCall ? normalizeToolCallId(sourcePart.toolCallId) : sourcePart.toolCallId,
+      },
+    ],
+  } as UIMessage
+}
+
 function collapseAdjacentToolMessages(messages: UIMessage[]): UIMessage[] {
   const collapsed: UIMessage[] = []
   for (const current of messages) {
@@ -345,34 +371,60 @@ function collapseAdjacentToolMessages(messages: UIMessage[]): UIMessage[] {
     const isInputToOutput =
       (lastPart.state === 'input-available' || lastPart.state === 'input-streaming') &&
       (currentPart.state === 'output-available' || currentPart.state === 'output-error')
+    const outputInputStr = normalizeToolInputForCompare(currentPart.input)
+    const outputInputEmpty = !outputInputStr || outputInputStr === '{}' || outputInputStr === '[]'
     const canLinkByStateProgression =
-      isInputToOutput && (isSyntheticToolCallId(currentToolCallId) || isSyntheticToolCallId(lastToolCallId))
+      isInputToOutput &&
+      (isSyntheticToolCallId(currentToolCallId) || isSyntheticToolCallId(lastToolCallId)) &&
+      (sameInput || outputInputEmpty)
 
-    if (!sameTool || (!sameCall && !canLinkBySyntheticId && !canLinkByStateProgression)) {
-      collapsed.push(current)
+    // Only allow empty-output-input merge when there's at most one pending input of this tool
+    let sameToolInputCount = 0
+    if (isInputToOutput && sameTool && outputInputEmpty) {
+      for (const c of collapsed) {
+        const p = c.parts.length === 1 ? c.parts[0] : null
+        if (
+          p &&
+          p.type === 'dynamic-tool' &&
+          p.toolName.trim().toLowerCase() === currentPart.toolName.trim().toLowerCase() &&
+          (p.state === 'input-available' || p.state === 'input-streaming')
+        ) {
+          sameToolInputCount += 1
+        }
+      }
+    }
+    const canLinkByEmptyOutputInput = isInputToOutput && sameTool && outputInputEmpty && sameToolInputCount <= 1
+
+    if (sameTool && (sameCall || canLinkBySyntheticId || canLinkByStateProgression || canLinkByEmptyOutputInput)) {
+      collapsed[collapsed.length - 1] = mergeToolParts(last, lastPart, current, currentPart, sameCall)
       continue
     }
 
-    const keepCurrent = toolStatePriority(currentPart.state) >= toolStatePriority(lastPart.state)
-    if (keepCurrent) {
-      // Merge input from the earlier part when the output part has empty input
-      const currentInputStr = normalizeToolInputForCompare(currentPart.input)
-      const lastInputStr = normalizeToolInputForCompare(lastPart.input)
-      const currentInputEmpty = !currentInputStr || currentInputStr === '{}' || currentInputStr === '[]'
-      const lastInputEmpty = !lastInputStr || lastInputStr === '{}' || lastInputStr === '[]'
-      const mergedInput = currentInputEmpty && !lastInputEmpty ? lastPart.input : currentPart.input
-      const normalizedCurrent = {
-        ...current,
-        parts: [
-          {
-            ...currentPart,
-            input: mergedInput,
-            toolCallId: sameCall ? currentToolCallId : currentPart.toolCallId,
-          },
-        ],
-      } as UIMessage
-      collapsed[collapsed.length - 1] = normalizedCurrent
+    // Backward scan: for output messages with real call IDs, find matching input
+    const isCurrentOutput = currentPart.state === 'output-available' || currentPart.state === 'output-error'
+    if (isCurrentOutput && !isSyntheticToolCallId(currentToolCallId)) {
+      let matchIdx = -1
+      for (let j = collapsed.length - 1; j >= 0; j -= 1) {
+        const candidateMsg = collapsed[j]
+        if (candidateMsg.role !== 'assistant') break
+        const candidatePart = candidateMsg.parts.length === 1 ? candidateMsg.parts[0] : null
+        if (!candidatePart || candidatePart.type !== 'dynamic-tool') continue
+        if (candidatePart.toolName.trim().toLowerCase() !== currentPart.toolName.trim().toLowerCase()) continue
+        const candidateCallId = normalizeToolCallId(candidatePart.toolCallId)
+        if (candidateCallId === currentToolCallId) {
+          matchIdx = j
+          break
+        }
+      }
+      if (matchIdx >= 0) {
+        const matchMsg = collapsed[matchIdx]
+        const matchPart = matchMsg.parts[0] as typeof currentPart
+        collapsed[matchIdx] = mergeToolParts(matchMsg, matchPart, current, currentPart, true)
+        continue
+      }
     }
+
+    collapsed.push(current)
   }
   return collapsed
 }
@@ -438,7 +490,9 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
             (typeof record.tool_name === 'string' && String(record.tool_name).trim()) ||
             baseToolName
 
-          const args = (call.arguments ?? call.args ?? messageToolInput) as unknown
+          const resultRecord = result as Record<string, unknown>
+          const resultInput = resultRecord.input ?? resultRecord.arguments ?? resultRecord.args
+          const args = (call.arguments ?? call.args ?? resultInput ?? messageToolInput) as unknown
           const resultOutput = extractToolResultOutput(result)
           const isToolResultLike = toolResults.length > 0 || hasToolRole
           const maybeOutput = i === 0 ? resultOutput ?? messageToolOutput : resultOutput

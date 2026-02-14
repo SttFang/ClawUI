@@ -144,6 +144,7 @@
 | `vercel-react-native-skills` | React Native/Expo 性能与工程最佳实践 |
 | `supabase-postgres-best-practices` | Postgres 性能与查询/建模最佳实践（Supabase 语境） |
 | `playwright` | 需要浏览器自动化（导航/填表/截图/录制/抓取）时使用 |
+| `playwright-skill` | Playwright 测试与脚本执行的默认 Skill（优先使用） |
 | `agent-browser` | 需要在真实网站完成交互式操作（登录/点击/截图）时使用 |
 | `better-auth-best-practices` | Better Auth 鉴权与安全最佳实践 |
 | `web-artifacts-builder` | 构建/产出可发布的 Web 产物（静态页/截图/包）流程化 |
@@ -159,13 +160,13 @@
 - 在做 React 性能优化（渲染、memoization、数据流、bundle/交互延迟）与工程最佳实践时：使用 `vercel-react-best-practices`。
 - 在做 React Native/Expo 的性能优化、列表/动画/原生模块最佳实践时：使用 `vercel-react-native-skills`。
 - 在写/改 Postgres（表结构、索引、慢查询、SQL 优化、RLS）并希望对齐 Supabase 经验时：使用 `supabase-postgres-best-practices`。
-- 在需要端到端 UI 自动化（页面操作、断言、截图、数据提取）时：使用 `playwright`。
+- 在需要端到端 UI 自动化（页面操作、断言、截图、数据提取）时：优先使用 `playwright-skill`；`playwright` 仅作为 fallback。
 - 在需要更偏“网站操作/流程自动化”的浏览器能力（登录、点击、表单、截图）时：使用 `agent-browser`。
 - 在做 Better Auth 相关的鉴权/会话/安全策略设计与落地时：使用 `better-auth-best-practices`。
 - 在需要把 Web 页面/组件输出成可交付物（静态产物、截图、报告）并流程化时：使用 `web-artifacts-builder`。
 - 在新增/重构/审查 `src/store/**`（尤其 action 分层、slice 拆分、store action 测试）时：使用 `store-best-practice`。
 
--进行 Playwright 测试时，统一使用 Playwright CLI Skill。
+- 执行 Playwright 测试或运行 Playwright 测试脚本（例如 `scripts/e2e/playwright/*.mjs`）时，统一调用 `playwright-skill`。
 
 安装新 skill：
 ```bash

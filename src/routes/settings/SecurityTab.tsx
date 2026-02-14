@@ -1,3 +1,4 @@
+import type { ChangeEvent } from "react";
 import {
   Card,
   CardContent,
@@ -9,88 +10,42 @@ import {
   Select,
   Switch,
 } from "@clawui/ui";
-import { useEffect, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { useConfigManager } from "@/hooks/useConfigManager";
 import { configCoreManager } from "@/store/configDraft/manager";
+
+const SECURITY_PATHS = {
+  allowElevatedWebchat: {
+    path: ["tools", "elevated", "allowFrom", "webchat"],
+    default: false as const,
+  },
+  allowElevatedDiscord: {
+    path: ["tools", "elevated", "allowFrom", "discord"],
+    default: false as const,
+  },
+  sandboxMode: {
+    path: ["agents", "defaults", "sandbox", "mode"],
+    default: "off" as const,
+  },
+  workspaceAccess: {
+    path: ["agents", "defaults", "sandbox", "workspaceAccess"],
+    default: "rw" as const,
+  },
+};
 
 export function SecurityTab() {
   const { t } = useTranslation("common");
 
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [allowElevatedWebchat, setAllowElevatedWebchat] = useState(false);
-  const [allowElevatedDiscord, setAllowElevatedDiscord] = useState(false);
-  const [sandboxMode, setSandboxMode] = useState<string>("off");
-  const [workspaceAccess, setWorkspaceAccess] = useState<string>("rw");
-
-  useEffect(() => {
-    let mounted = true;
-    const applyIfMounted = (fn: () => void) => {
-      if (!mounted) return;
-      fn();
-    };
-
-    setLoading(true);
-    void configCoreManager
-      .loadSnapshot()
-      .then(() => {
-        applyIfMounted(() => {
-          setAllowElevatedWebchat(
-            configCoreManager.getPath(["tools", "elevated", "allowFrom", "webchat"]) === true,
-          );
-          setAllowElevatedDiscord(
-            configCoreManager.getPath(["tools", "elevated", "allowFrom", "discord"]) === true,
-          );
-          const mode = configCoreManager.getPath(["agents", "defaults", "sandbox", "mode"]);
-          if (typeof mode === "string") {
-            setSandboxMode(mode);
-          }
-          const access = configCoreManager.getPath([
-            "agents",
-            "defaults",
-            "sandbox",
-            "workspaceAccess",
-          ]);
-          if (typeof access === "string") {
-            setWorkspaceAccess(access);
-          }
-        });
-      })
-      .catch((error) => {
-        applyIfMounted(() => {
-          setMessage(
-            error instanceof Error
-              ? error.message
-              : t("settings.page.security.messages.loadFailed"),
-          );
-        });
-      })
-      .finally(() => {
-        applyIfMounted(() => setLoading(false));
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [t]);
+  const { fields, setField, loading, message, setMessage, apply } = useConfigManager({
+    manager: configCoreManager,
+    paths: SECURITY_PATHS,
+    messages: { loadFailed: t("settings.page.security.messages.loadFailed") },
+  });
 
   const handleApply = () => {
-    setLoading(true);
-    setMessage(null);
-    void configCoreManager
-      .applyPathPatches([
-        { path: ["tools", "elevated", "allowFrom", "webchat"], value: allowElevatedWebchat },
-        { path: ["tools", "elevated", "allowFrom", "discord"], value: allowElevatedDiscord },
-        { path: ["agents", "defaults", "sandbox", "mode"], value: sandboxMode },
-        { path: ["agents", "defaults", "sandbox", "workspaceAccess"], value: workspaceAccess },
-      ])
-      .then(() => setMessage(t("settings.page.security.messages.updated")))
-      .catch((e) =>
-        setMessage(
-          e instanceof Error ? e.message : t("settings.page.security.messages.applyFailed"),
-        ),
-      )
-      .finally(() => setLoading(false));
+    apply({
+      onSuccess: () => setMessage(t("settings.page.security.messages.updated")),
+    });
   };
 
   return (
@@ -114,8 +69,8 @@ export function SecurityTab() {
             </p>
           </div>
           <Switch
-            checked={allowElevatedWebchat}
-            onCheckedChange={setAllowElevatedWebchat}
+            checked={fields.allowElevatedWebchat as boolean}
+            onCheckedChange={(v) => setField("allowElevatedWebchat", v)}
             disabled={loading}
           />
         </div>
@@ -128,8 +83,8 @@ export function SecurityTab() {
             </p>
           </div>
           <Switch
-            checked={allowElevatedDiscord}
-            onCheckedChange={setAllowElevatedDiscord}
+            checked={fields.allowElevatedDiscord as boolean}
+            onCheckedChange={(v) => setField("allowElevatedDiscord", v)}
             disabled={loading}
           />
         </div>
@@ -137,8 +92,10 @@ export function SecurityTab() {
         <div className="space-y-2">
           <Label>{t("settings.page.security.sandboxMode")}</Label>
           <Select
-            value={sandboxMode}
-            onChange={(e: ChangeEvent<HTMLSelectElement>) => setSandboxMode(e.target.value)}
+            value={fields.sandboxMode as string}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+              setField("sandboxMode", e.target.value)
+            }
             disabled={loading}
           >
             <option value="off">{t("settings.page.security.sandboxModeOptions.off")}</option>
@@ -152,8 +109,10 @@ export function SecurityTab() {
         <div className="space-y-2">
           <Label>{t("settings.page.security.workspaceAccess")}</Label>
           <Select
-            value={workspaceAccess}
-            onChange={(e: ChangeEvent<HTMLSelectElement>) => setWorkspaceAccess(e.target.value)}
+            value={fields.workspaceAccess as string}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+              setField("workspaceAccess", e.target.value)
+            }
             disabled={loading}
           >
             <option value="none">{t("settings.page.security.workspaceAccessOptions.none")}</option>

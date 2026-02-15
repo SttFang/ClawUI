@@ -93,7 +93,7 @@ function formatOptionLabel(t: (key: string) => string, v: string): string {
 /* ── Ghost trigger button ────────────────────────────────────── */
 
 const triggerCn = cn(
-  "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs",
+  "inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-xs",
   "text-muted-foreground hover:bg-accent hover:text-foreground",
   "disabled:pointer-events-none disabled:opacity-50",
   "h-7 cursor-default outline-none",

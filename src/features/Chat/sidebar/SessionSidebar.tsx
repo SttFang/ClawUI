@@ -1,5 +1,5 @@
-import { Button, ScrollArea } from "@clawui/ui";
-import { Plus } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, ScrollArea } from "@clawui/ui";
+import { ChevronRight, Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceFilesStore } from "@/store/workspaceFiles";
@@ -22,17 +22,31 @@ export function SessionSidebar() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col border-r bg-card">
-      <div className="p-4 border-b">
-        <Button onClick={onCreateSession} className="w-full" variant="outline">
-          <Plus className="w-4 h-4 mr-2" />
-          {t("newSession")}
-        </Button>
-      </div>
-
       <ScrollArea className="min-h-0 flex-1">
-        <div className="p-2 space-y-1">
-          <SessionList />
-        </div>
+        <Collapsible defaultOpen>
+          <div className="flex w-full items-center gap-1 px-4 py-2 text-xs font-medium text-muted-foreground">
+            <CollapsibleTrigger className="flex flex-1 items-center gap-1 hover:text-foreground">
+              <ChevronRight className="h-3 w-3 transition-transform [[data-state=open]>&]:rotate-90" />
+              <span className="flex-1 text-left">{t("sessionList")}</span>
+            </CollapsibleTrigger>
+            <button
+              type="button"
+              className="rounded p-0.5 hover:bg-muted hover:text-foreground"
+              onClick={onCreateSession}
+              aria-label={t("newSession")}
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </div>
+          <CollapsibleContent>
+            <div className="px-2 pb-2 space-y-0.5">
+              <SessionList />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </ScrollArea>
+
+      <ScrollArea className="shrink-0 max-h-[50%]">
         <WorkspaceFileList />
         <CronResultList />
       </ScrollArea>

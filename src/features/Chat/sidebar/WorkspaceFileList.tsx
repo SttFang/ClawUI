@@ -1,17 +1,40 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@clawui/ui";
-import { ChevronRight, FileText, RefreshCw } from "lucide-react";
+import { ChevronRight, FileText, Folder, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useWorkspaceFilesStore } from "@/store/workspaceFiles";
 
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function WorkspaceFileList() {
   const { t } = useTranslation("chat");
   const files = useWorkspaceFilesStore((s) => s.files);
-  const activeFileName = useWorkspaceFilesStore((s) => s.activeFileName);
+  const currentPath = useWorkspaceFilesStore((s) => s.currentPath);
+  const activeFilePath = useWorkspaceFilesStore((s) => s.activeFilePath);
   const loading = useWorkspaceFilesStore((s) => s.loading);
   const error = useWorkspaceFilesStore((s) => s.error);
   const selectFile = useWorkspaceFilesStore((s) => s.selectFile);
   const loadFiles = useWorkspaceFilesStore((s) => s.loadFiles);
+
+  const handleClick = (file: { name: string; isDirectory: boolean }) => {
+    const relativePath = currentPath ? `${currentPath}/${file.name}` : file.name;
+    if (file.isDirectory) {
+      void loadFiles(relativePath);
+    } else {
+      void selectFile(relativePath);
+    }
+  };
+
+  const handleBack = () => {
+    const parent = currentPath.includes("/")
+      ? currentPath.slice(0, currentPath.lastIndexOf("/"))
+      : "";
+    void loadFiles(parent || undefined);
+  };
 
   return (
     <Collapsible defaultOpen className="border-t">
@@ -23,7 +46,7 @@ export function WorkspaceFileList() {
           className="rounded p-0.5 hover:bg-muted"
           onClick={(e) => {
             e.stopPropagation();
-            void loadFiles();
+            void loadFiles(currentPath || undefined);
           }}
         >
           <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
@@ -36,29 +59,44 @@ export function WorkspaceFileList() {
             <p className="px-2 text-xs text-destructive">{t("workspaceFiles.loadError")}</p>
           )}
 
+          {currentPath && (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-muted-foreground hover:bg-muted"
+            >
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 rotate-180" />
+              <span>..</span>
+            </button>
+          )}
+
           {!loading && files.length === 0 && !error && (
             <p className="px-2 text-xs text-muted-foreground">{t("workspaceFiles.empty")}</p>
           )}
 
-          {files.map((file) => (
-            <button
-              key={file.name}
-              type="button"
-              onClick={() => void selectFile(file.name)}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-muted",
-                activeFileName === file.name && "bg-muted font-medium",
-              )}
-            >
-              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">{file.name}</span>
-              {file.missing && (
-                <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-                  {t("workspaceFiles.missing")}
-                </span>
-              )}
-            </button>
-          ))}
+          {files.map((file) => {
+            const relativePath = currentPath ? `${currentPath}/${file.name}` : file.name;
+            const Icon = file.isDirectory ? Folder : FileText;
+            return (
+              <button
+                key={file.name}
+                type="button"
+                onClick={() => handleClick(file)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-muted",
+                  activeFilePath === relativePath && "bg-muted font-medium",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{file.name}</span>
+                {!file.isDirectory && (
+                  <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+                    {formatSize(file.size)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </CollapsibleContent>
     </Collapsible>

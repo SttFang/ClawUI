@@ -5,12 +5,12 @@ import { WorkspaceFilePanel } from "./panel/WorkspaceFilePanel";
 import { SessionSidebar } from "./sidebar/SessionSidebar";
 
 export function ChatFeature() {
-  const activeFileName = useWorkspaceFilesStore((s) => s.activeFileName);
+  const activeFilePath = useWorkspaceFilesStore((s) => s.activeFilePath);
   return (
     <ChatShell
       sidebar={<SessionSidebar />}
       main={<ChatMain />}
-      panel={activeFileName ? <WorkspaceFilePanel /> : undefined}
+      panel={activeFilePath ? <WorkspaceFilePanel /> : undefined}
     />
   );
 }

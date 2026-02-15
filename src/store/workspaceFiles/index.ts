@@ -1,22 +1,23 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import type { WorkspaceFileEntry } from "@/lib/ipc";
 import { ipc } from "@/lib/ipc";
-import { ensureChatConnected } from "@/services/chat/connection";
-import type { AgentFileEntry } from "./types";
 
-export type { AgentFileEntry };
+export type { WorkspaceFileEntry };
 
 type WorkspaceFilesState = {
-  files: AgentFileEntry[];
-  activeFileName: string | null;
+  files: WorkspaceFileEntry[];
+  /** Relative path currently being browsed (empty string = root) */
+  currentPath: string;
+  activeFilePath: string | null;
   fileContent: string | null;
   loading: boolean;
   error: string | null;
 };
 
 type WorkspaceFilesAction = {
-  loadFiles: () => Promise<void>;
-  selectFile: (name: string) => Promise<void>;
+  loadFiles: (subpath?: string) => Promise<void>;
+  selectFile: (relativePath: string) => Promise<void>;
   closeFile: () => void;
 };
 
@@ -24,7 +25,8 @@ type WorkspaceFilesStore = WorkspaceFilesState & WorkspaceFilesAction;
 
 const initialState: WorkspaceFilesState = {
   files: [],
-  activeFileName: null,
+  currentPath: "",
+  activeFilePath: null,
   fileContent: null,
   loading: false,
   error: null,
@@ -35,14 +37,15 @@ export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
     (set) => ({
       ...initialState,
 
-      loadFiles: async () => {
+      loadFiles: async (subpath?: string) => {
         set({ loading: true, error: null }, false, "loadFiles/start");
         try {
-          await ensureChatConnected();
-          const res = (await ipc.chat.request("agents.files.list", { agentId: "main" })) as {
-            files: AgentFileEntry[];
-          };
-          set({ files: res.files, loading: false }, false, "loadFiles/done");
+          const res = await ipc.workspace.list(subpath);
+          set(
+            { files: res.files, currentPath: subpath ?? "", loading: false },
+            false,
+            "loadFiles/done",
+          );
         } catch (err) {
           set(
             { error: err instanceof Error ? err.message : String(err), loading: false },
@@ -52,18 +55,15 @@ export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
         }
       },
 
-      selectFile: async (name: string) => {
+      selectFile: async (relativePath: string) => {
         set(
-          { activeFileName: name, fileContent: null, loading: true, error: null },
+          { activeFilePath: relativePath, fileContent: null, loading: true, error: null },
           false,
           "selectFile/start",
         );
         try {
-          await ensureChatConnected();
-          const res = (await ipc.chat.request("agents.files.get", { agentId: "main", name })) as {
-            file: { name: string; path: string; content: string };
-          };
-          set({ fileContent: res.file.content, loading: false }, false, "selectFile/done");
+          const res = await ipc.workspace.readFile(relativePath);
+          set({ fileContent: res.content, loading: false }, false, "selectFile/done");
         } catch (err) {
           set(
             { error: err instanceof Error ? err.message : String(err), loading: false },
@@ -74,7 +74,7 @@ export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
       },
 
       closeFile: () => {
-        set({ activeFileName: null, fileContent: null, error: null }, false, "closeFile");
+        set({ activeFilePath: null, fileContent: null, error: null }, false, "closeFile");
       },
     }),
     { name: "WorkspaceFilesStore" },

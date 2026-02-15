@@ -181,4 +181,8 @@ contextBridge.exposeInMainWorld("electron", {
   skills: {
     list: () => ipcRenderer.invoke("skills:list"),
   },
+  workspace: {
+    list: (subpath?: string) => ipcRenderer.invoke("workspace:list", subpath),
+    readFile: (relativePath: string) => ipcRenderer.invoke("workspace:read-file", relativePath),
+  },
 });

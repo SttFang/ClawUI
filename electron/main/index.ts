@@ -14,6 +14,7 @@ import { registerSecurityHandlers } from "./ipc/security";
 import { registerSkillsHandlers } from "./ipc/skills";
 import { registerStateHandlers } from "./ipc/state";
 import { registerUsageHandlers } from "./ipc/usage";
+import { registerWorkspaceHandlers } from "./ipc/workspace";
 import { initLogger, mainLog } from "./lib/logger";
 import { ChatWebSocketService } from "./services/chat-websocket";
 import { ClawUIStateService } from "./services/clawui-state";
@@ -91,6 +92,7 @@ app.whenReady().then(async () => {
   registerSecurityHandlers(ipcMain);
   registerSkillsHandlers(ipcMain, profilesService);
   registerCredentialHandlers(ipcMain, credentialService, oauthService);
+  registerWorkspaceHandlers(ipcMain, configService);
 
   // Create the main window
   const mainWindow = createMainWindow({

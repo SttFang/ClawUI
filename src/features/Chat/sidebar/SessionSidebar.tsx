@@ -10,15 +10,14 @@ import { WorkspaceFileList } from "./WorkspaceFileList";
 export function SessionSidebar() {
   const {
     sessionActions: { onCreateSession },
-    uiState: { wsConnected },
   } = useChatFeature();
 
   const { t } = useTranslation("chat");
   const loadFiles = useWorkspaceFilesStore((s) => s.loadFiles);
 
   useEffect(() => {
-    if (wsConnected) void loadFiles();
-  }, [wsConnected, loadFiles]);
+    void loadFiles();
+  }, [loadFiles]);
 
   return (
     <div className="flex min-h-0 w-64 flex-col border-r bg-card">

@@ -8,21 +8,28 @@ function isMarkdownLike(name: string): boolean {
   return /\.(md|mdx|markdown)$/i.test(name);
 }
 
+function fileName(path: string): string {
+  const i = path.lastIndexOf("/");
+  return i >= 0 ? path.slice(i + 1) : path;
+}
+
 export function WorkspaceFilePanel() {
   const { t } = useTranslation("chat");
-  const activeFileName = useWorkspaceFilesStore((s) => s.activeFileName);
+  const activeFilePath = useWorkspaceFilesStore((s) => s.activeFilePath);
   const fileContent = useWorkspaceFilesStore((s) => s.fileContent);
   const loading = useWorkspaceFilesStore((s) => s.loading);
   const error = useWorkspaceFilesStore((s) => s.error);
   const closeFile = useWorkspaceFilesStore((s) => s.closeFile);
 
-  if (!activeFileName) return null;
+  if (!activeFilePath) return null;
+
+  const name = fileName(activeFilePath);
 
   return (
     <div className="flex w-96 shrink-0 flex-col border-l bg-card">
       {/* Header */}
       <div className="flex items-center gap-2 border-b px-4 py-2">
-        <span className="flex-1 truncate text-sm font-medium">{activeFileName}</span>
+        <span className="flex-1 truncate text-sm font-medium">{name}</span>
         <button
           type="button"
           onClick={closeFile}
@@ -43,7 +50,7 @@ export function WorkspaceFilePanel() {
           {!loading &&
             !error &&
             fileContent != null &&
-            (isMarkdownLike(activeFileName) ? (
+            (isMarkdownLike(name) ? (
               <MessageText text={fileContent} isAnimating={false} />
             ) : (
               <pre className="whitespace-pre-wrap break-words text-sm font-mono">{fileContent}</pre>

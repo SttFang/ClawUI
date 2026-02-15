@@ -211,7 +211,28 @@ export interface ElectronAPI {
   skills?: {
     list: () => Promise<SkillsListResult>;
   };
+  workspace?: {
+    list: (subpath?: string) => Promise<WorkspaceListResult>;
+    readFile: (relativePath: string) => Promise<WorkspaceReadFileResult>;
+  };
 }
+
+export type WorkspaceFileEntry = {
+  name: string;
+  isDirectory: boolean;
+  size: number;
+  updatedAtMs: number;
+};
+
+export type WorkspaceListResult = {
+  dir: string;
+  files: WorkspaceFileEntry[];
+};
+
+export type WorkspaceReadFileResult = {
+  path: string;
+  content: string;
+};
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends (infer U)[] ? U[] : T[K] extends object ? DeepPartial<T[K]> : T[K];
@@ -642,6 +663,18 @@ export const ipc = {
       const api = getElectronAPI();
       if (!api?.skills) throw new Error("Skills API not available — restart the app");
       return api.skills.list();
+    },
+  },
+  workspace: {
+    async list(subpath?: string): Promise<WorkspaceListResult> {
+      const api = getElectronAPI();
+      if (!api?.workspace) throw new Error("Workspace API not available — restart the app");
+      return api.workspace.list(subpath);
+    },
+    async readFile(relativePath: string): Promise<WorkspaceReadFileResult> {
+      const api = getElectronAPI();
+      if (!api?.workspace) throw new Error("Workspace API not available — restart the app");
+      return api.workspace.readFile(relativePath);
     },
   },
 };

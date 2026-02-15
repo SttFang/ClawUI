@@ -5,11 +5,13 @@ import { initChatStreamListener } from "@/store/chat";
 import { initChatRunsListener } from "@/store/chatRuns";
 import { initExecApprovalsListener, initExecLifecycleListener } from "@/store/exec";
 import { initGatewayIpcListener } from "@/store/gateway";
+import { initGatewayActivityListener } from "@/store/gatewayActivity";
 import { initRunMapListener } from "@/store/runMap";
 import { initTheme } from "@/store/ui";
 
 // Initialize IPC listeners and theme once
 initGatewayIpcListener();
+initGatewayActivityListener();
 initChatStreamListener();
 initChatRunsListener();
 initExecApprovalsListener();

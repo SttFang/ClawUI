@@ -1,4 +1,12 @@
-import { Select } from "@clawui/ui";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@clawui/ui";
+import { ChevronDown } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
@@ -82,6 +90,47 @@ function formatOptionLabel(t: (key: string) => string, v: string): string {
   }
 }
 
+/* ── Ghost trigger button ────────────────────────────────────── */
+
+const triggerCn = cn(
+  "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs",
+  "text-muted-foreground hover:bg-accent hover:text-foreground",
+  "disabled:pointer-events-none disabled:opacity-50",
+  "h-7 cursor-default outline-none",
+);
+
+function ControlDropdown(props: {
+  label: string;
+  triggerText: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild disabled={props.disabled}>
+        <button className={triggerCn}>
+          <span className="max-w-[160px] truncate">{props.triggerText}</span>
+          <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuLabel>{props.label}</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={props.value} onValueChange={props.onChange}>
+          {props.options.map((opt) => (
+            <DropdownMenuRadioItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/* ── Main component ──────────────────────────────────────────── */
+
 export function SessionControlStrip(props: {
   sessionKey: string;
   disabled: boolean;
@@ -93,7 +142,9 @@ export function SessionControlStrip(props: {
   const refreshSessions = useChatStore((s) => s.refreshSessions);
 
   const [row, setRow] = useState<GatewaySessionRow | null>(null);
-  const [modelChoices, setModelChoices] = useState<Array<{ key: string; label: string }>>([]);
+  const [modelChoices, setModelChoices] = useState<
+    Array<{ key: string; label: string; display: string }>
+  >([]);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -102,7 +153,6 @@ export function SessionControlStrip(props: {
       await ensureChatConnected();
       const [sessionsPayload, modelsPayload] = (await Promise.all([
         ipc.chat.request("sessions.list", {
-          // `search` will match by key; keep limit small.
           search: sessionKey,
           limit: 10,
           includeDerivedTitles: true,
@@ -123,9 +173,13 @@ export function SessionControlStrip(props: {
           const key = normalizeModelKey(choice);
           if (!key) return null;
           const name = typeof choice.name === "string" ? choice.name.trim() : "";
-          return { key, label: name && name !== key ? `${key} (${name})` : key };
+          return {
+            key,
+            label: name && name !== key ? `${key} (${name})` : key,
+            display: name || key,
+          };
         })
-        .filter((item): item is { key: string; label: string } => Boolean(item));
+        .filter((item): item is { key: string; label: string; display: string } => Boolean(item));
       setModelChoices(options);
     } catch {
       // best-effort only
@@ -151,95 +205,73 @@ export function SessionControlStrip(props: {
     [disabled, load, refreshSessions, sessionKey],
   );
 
+  const isBusy = disabled || saving;
   const thinkingValue = toSelectValue(row?.thinkingLevel);
   const verboseValue = toSelectValue(row?.verboseLevel);
   const reasoningValue = toSelectValue(row?.reasoningLevel);
   const modelValue = toSelectValue(row?.model);
 
+  // Trigger text helpers
+  const modelTrigger =
+    modelValue === "inherit"
+      ? t("sessionStrip.inherit")
+      : (modelChoices.find((m) => m.key === modelValue)?.display ?? modelValue);
+
+  const labeledTrigger = (label: string, value: string) =>
+    value === "inherit" ? label : `${label}\u00b7${formatOptionLabel(t, value)}`;
+
+  // Build option lists
+  const buildOptions = (opts: readonly string[]) =>
+    opts.map((v) => ({ value: v, label: formatOptionLabel(t, v) }));
+
+  const modelOptions: Array<{ value: string; label: string }> = [
+    { value: "inherit", label: t("sessionStrip.inherit") },
+    ...modelChoices.map((m) => ({ value: m.key, label: m.label })),
+  ];
+
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-nowrap items-center gap-1.5",
+        "flex min-w-0 flex-nowrap items-center gap-0.5",
         disabled && "opacity-60",
         className,
       )}
     >
-      <div className="flex items-center gap-1">
-        <div className="whitespace-nowrap text-[11px] text-muted-foreground">
-          {t("sessionStrip.model")}
-        </div>
-        <Select
-          value={modelValue}
-          onChange={(e) => void patch({ model: toPatchValue(e.target.value) })}
-          disabled={disabled || saving}
-          aria-label={t("sessionStrip.model")}
-          className="h-8 w-[200px] px-1.5 pr-7 text-[11px]"
-        >
-          <option value="inherit">{t("sessionStrip.inherit")}</option>
-          {modelChoices.map((model) => (
-            <option key={model.key} value={model.key}>
-              {model.label}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <ControlDropdown
+        label={t("sessionStrip.model")}
+        triggerText={modelTrigger}
+        value={modelValue}
+        options={modelOptions}
+        disabled={isBusy}
+        onChange={(v) => void patch({ model: toPatchValue(v) })}
+      />
 
-      <div className="flex items-center gap-1">
-        <div className="whitespace-nowrap text-[11px] text-muted-foreground">
-          {t("sessionStrip.thinking")}
-        </div>
-        <Select
-          value={thinkingValue}
-          onChange={(e) => void patch({ thinkingLevel: toPatchValue(e.target.value) })}
-          disabled={disabled || saving}
-          aria-label={t("sessionStrip.thinking")}
-          className="h-8 w-[92px] px-1.5 pr-7 text-[11px]"
-        >
-          {THINKING_OPTIONS.map((v) => (
-            <option key={v} value={v}>
-              {formatOptionLabel(t, v)}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <ControlDropdown
+        label={t("sessionStrip.thinking")}
+        triggerText={labeledTrigger(t("sessionStrip.thinking"), thinkingValue)}
+        value={thinkingValue}
+        options={buildOptions(THINKING_OPTIONS)}
+        disabled={isBusy}
+        onChange={(v) => void patch({ thinkingLevel: toPatchValue(v) })}
+      />
 
-      <div className="flex items-center gap-1">
-        <div className="whitespace-nowrap text-[11px] text-muted-foreground">
-          {t("sessionStrip.verbose")}
-        </div>
-        <Select
-          value={verboseValue}
-          onChange={(e) => void patch({ verboseLevel: toPatchValue(e.target.value) })}
-          disabled={disabled || saving}
-          aria-label={t("sessionStrip.verbose")}
-          className="h-8 w-[76px] px-1.5 pr-7 text-[11px]"
-        >
-          {VERBOSE_OPTIONS.map((v) => (
-            <option key={v} value={v}>
-              {formatOptionLabel(t, v)}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <ControlDropdown
+        label={t("sessionStrip.verbose")}
+        triggerText={labeledTrigger(t("sessionStrip.verbose"), verboseValue)}
+        value={verboseValue}
+        options={buildOptions(VERBOSE_OPTIONS)}
+        disabled={isBusy}
+        onChange={(v) => void patch({ verboseLevel: toPatchValue(v) })}
+      />
 
-      <div className="flex items-center gap-1">
-        <div className="whitespace-nowrap text-[11px] text-muted-foreground">
-          {t("sessionStrip.reasoning")}
-        </div>
-        <Select
-          value={reasoningValue}
-          onChange={(e) => void patch({ reasoningLevel: toPatchValue(e.target.value) })}
-          disabled={disabled || saving}
-          aria-label={t("sessionStrip.reasoning")}
-          className="h-8 w-[76px] px-1.5 pr-7 text-[11px]"
-        >
-          {REASONING_OPTIONS.map((v) => (
-            <option key={v} value={v}>
-              {formatOptionLabel(t, v)}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <ControlDropdown
+        label={t("sessionStrip.reasoning")}
+        triggerText={labeledTrigger(t("sessionStrip.reasoning"), reasoningValue)}
+        value={reasoningValue}
+        options={buildOptions(REASONING_OPTIONS)}
+        disabled={isBusy}
+        onChange={(v) => void patch({ reasoningLevel: toPatchValue(v) })}
+      />
     </div>
   );
 }

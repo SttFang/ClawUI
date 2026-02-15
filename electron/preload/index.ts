@@ -184,5 +184,8 @@ contextBridge.exposeInMainWorld("electron", {
   workspace: {
     list: (subpath?: string) => ipcRenderer.invoke("workspace:list", subpath),
     readFile: (relativePath: string) => ipcRenderer.invoke("workspace:read-file", relativePath),
+    readFileBase64: (relativePath: string) =>
+      ipcRenderer.invoke("workspace:read-file-base64", relativePath),
+    runPython: (relativePath: string) => ipcRenderer.invoke("workspace:run-python", relativePath),
   },
 });

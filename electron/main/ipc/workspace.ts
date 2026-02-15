@@ -1,7 +1,8 @@
 import type { IpcMain } from "electron";
+import { execFile } from "node:child_process";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { extname, join } from "node:path";
 import type { ConfigService } from "../services/config";
 
 type WorkspaceFileEntry = {
@@ -53,5 +54,47 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
 
     const content = await readFile(filePath, "utf-8");
     return { path: filePath, content };
+  });
+
+  ipcMain.handle("workspace:read-file-base64", async (_event, relativePath: string) => {
+    const config = await configService.getConfig();
+    const base = resolveWorkspaceDir(config);
+    const filePath = join(base, relativePath);
+
+    if (!filePath.startsWith(base)) {
+      throw new Error("Path traversal not allowed");
+    }
+
+    const buf = await readFile(filePath);
+    return { path: filePath, base64: buf.toString("base64") };
+  });
+
+  ipcMain.handle("workspace:run-python", async (_event, relativePath: string) => {
+    const config = await configService.getConfig();
+    const base = resolveWorkspaceDir(config);
+    const filePath = join(base, relativePath);
+
+    if (!filePath.startsWith(base)) {
+      throw new Error("Path traversal not allowed");
+    }
+    if (extname(filePath) !== ".py") {
+      throw new Error("Only .py files are allowed");
+    }
+
+    return new Promise<{ stdout: string; stderr: string; exitCode: number }>((resolve) => {
+      execFile(
+        "python3",
+        [filePath],
+        { cwd: base, timeout: 30_000, maxBuffer: 1024 * 1024 },
+        (error, stdout, stderr) => {
+          const code = error?.code;
+          resolve({
+            stdout,
+            stderr,
+            exitCode: typeof code === "number" ? code : error ? 1 : 0,
+          });
+        },
+      );
+    });
   });
 }

@@ -214,6 +214,8 @@ export interface ElectronAPI {
   workspace?: {
     list: (subpath?: string) => Promise<WorkspaceListResult>;
     readFile: (relativePath: string) => Promise<WorkspaceReadFileResult>;
+    readFileBase64: (relativePath: string) => Promise<WorkspaceReadFileBase64Result>;
+    runPython: (relativePath: string) => Promise<PythonRunResult>;
   };
 }
 
@@ -232,6 +234,17 @@ export type WorkspaceListResult = {
 export type WorkspaceReadFileResult = {
   path: string;
   content: string;
+};
+
+export type WorkspaceReadFileBase64Result = {
+  path: string;
+  base64: string;
+};
+
+export type PythonRunResult = {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
 };
 
 export type DeepPartial<T> = {
@@ -675,6 +688,16 @@ export const ipc = {
       const api = getElectronAPI();
       if (!api?.workspace) throw new Error("Workspace API not available — restart the app");
       return api.workspace.readFile(relativePath);
+    },
+    async readFileBase64(relativePath: string): Promise<WorkspaceReadFileBase64Result> {
+      const api = getElectronAPI();
+      if (!api?.workspace) throw new Error("Workspace API not available — restart the app");
+      return api.workspace.readFileBase64(relativePath);
+    },
+    async runPython(relativePath: string): Promise<PythonRunResult> {
+      const api = getElectronAPI();
+      if (!api?.workspace) throw new Error("Workspace API not available — restart the app");
+      return api.workspace.runPython(relativePath);
     },
   },
 };

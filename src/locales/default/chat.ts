@@ -61,7 +61,14 @@ const chat = {
     empty: "暂无文件",
     missing: "未创建",
     close: "关闭",
+    closeAll: "关闭全部",
     loadError: "加载失败",
+    runPython: "运行",
+    running: "运行中...",
+    stdout: "标准输出",
+    stderr: "错误输出",
+    exitCode: "退出码",
+    noOutput: "无输出",
   },
 } as const;
 

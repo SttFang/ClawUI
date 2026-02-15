@@ -2,11 +2,13 @@ import type { ChannelConfig } from "@/lib/ipc";
 
 export type SupportedChannelType =
   | "telegram"
-  | "discord"
   | "whatsapp"
+  | "discord"
+  | "irc"
+  | "googlechat"
   | "slack"
-  | "wechat"
-  | "signal";
+  | "signal"
+  | "imessage";
 export type ChannelType = SupportedChannelType | (string & {});
 
 export interface Channel {

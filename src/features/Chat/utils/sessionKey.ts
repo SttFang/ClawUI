@@ -23,8 +23,10 @@ export function classifySessionKey(sessionKey: string): { source: SessionSource;
   if (head === "telegram") return { source: "telegram", hidden: false };
   if (head === "slack") return { source: "slack", hidden: false };
   if (head === "whatsapp") return { source: "whatsapp", hidden: false };
-  if (head === "wechat") return { source: "wechat", hidden: false };
   if (head === "signal") return { source: "signal", hidden: false };
+  if (head === "irc") return { source: "irc", hidden: false };
+  if (head === "googlechat") return { source: "googlechat", hidden: false };
+  if (head === "imessage") return { source: "imessage", hidden: false };
 
   return { source: "unknown", hidden: false };
 }
@@ -38,8 +40,10 @@ export function classifySession(params: { sessionKey: string; surface?: string |
   if (surface === "telegram") return { source: "telegram", hidden: false };
   if (surface === "slack") return { source: "slack", hidden: false };
   if (surface === "whatsapp") return { source: "whatsapp", hidden: false };
-  if (surface === "wechat") return { source: "wechat", hidden: false };
   if (surface === "signal") return { source: "signal", hidden: false };
+  if (surface === "irc") return { source: "irc", hidden: false };
+  if (surface === "googlechat") return { source: "googlechat", hidden: false };
+  if (surface === "imessage") return { source: "imessage", hidden: false };
   if (surface === "cron") return { source: "cron", hidden: false };
 
   return classifySessionKey(params.sessionKey);

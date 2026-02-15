@@ -228,25 +228,33 @@ const common = {
         name: "Telegram",
         description: "连接 Telegram 机器人",
       },
+      whatsapp: {
+        name: "WhatsApp",
+        description: "连接 WhatsApp",
+      },
       discord: {
         name: "Discord",
         description: "连接 Discord 机器人",
       },
-      whatsapp: {
-        name: "WhatsApp",
-        description: "连接 WhatsApp",
+      irc: {
+        name: "IRC",
+        description: "连接 IRC 网络",
+      },
+      googlechat: {
+        name: "Google Chat",
+        description: "连接 Google Workspace Chat",
       },
       slack: {
         name: "Slack",
         description: "连接 Slack 工作区",
       },
-      wechat: {
-        name: "微信",
-        description: "连接微信",
-      },
       signal: {
         name: "Signal",
         description: "连接 Signal",
+      },
+      imessage: {
+        name: "iMessage",
+        description: "连接 iMessage",
       },
     },
     policies: {

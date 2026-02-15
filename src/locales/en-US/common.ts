@@ -231,25 +231,33 @@ const common = {
         name: "Telegram",
         description: "Connect your Telegram bot",
       },
+      whatsapp: {
+        name: "WhatsApp",
+        description: "Connect to WhatsApp",
+      },
       discord: {
         name: "Discord",
         description: "Connect your Discord bot",
       },
-      whatsapp: {
-        name: "WhatsApp",
-        description: "Connect to WhatsApp",
+      irc: {
+        name: "IRC",
+        description: "Connect to IRC networks",
+      },
+      googlechat: {
+        name: "Google Chat",
+        description: "Connect Google Workspace Chat",
       },
       slack: {
         name: "Slack",
         description: "Connect your Slack workspace",
       },
-      wechat: {
-        name: "WeChat",
-        description: "Connect to WeChat",
-      },
       signal: {
         name: "Signal",
         description: "Connect to Signal",
+      },
+      imessage: {
+        name: "iMessage",
+        description: "Connect to iMessage",
       },
     },
     policies: {

@@ -7,8 +7,10 @@ export type SessionSource =
   | "telegram"
   | "slack"
   | "whatsapp"
-  | "wechat"
   | "signal"
+  | "irc"
+  | "googlechat"
+  | "imessage"
   | "cron"
   | "unknown";
 

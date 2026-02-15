@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceFilesStore } from "@/store/workspaceFiles";
 import { useChatFeature } from "../useChatFeature";
+import { CronResultList } from "./CronResultList";
 import { SessionList } from "./SessionList";
 import { WorkspaceFileList } from "./WorkspaceFileList";
 
@@ -33,6 +34,7 @@ export function SessionSidebar() {
           <SessionList />
         </div>
         <WorkspaceFileList />
+        <CronResultList />
       </ScrollArea>
     </div>
   );

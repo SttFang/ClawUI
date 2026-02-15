@@ -42,6 +42,7 @@ const TRACKED_EVENTS = new Set([
   "shutdown",
   "exec.approval.requested",
   "exec.approval.resolved",
+  "cron",
 ]);
 
 function buildLabel(event: string, payload: unknown): string {
@@ -61,6 +62,19 @@ function buildLabel(event: string, payload: unknown): string {
       const decision = typeof p?.decision === "string" ? p.decision : "?";
       const cmd = typeof p?.command === "string" ? p.command : "";
       return cmd ? `${decision} · ${cmd}` : decision;
+    }
+    case "cron": {
+      const action = typeof p?.action === "string" ? p.action : "";
+      const status = typeof p?.status === "string" ? p.status : "";
+      const summary = typeof p?.summary === "string" ? p.summary : "";
+      const error = typeof p?.error === "string" ? p.error : "";
+      const durationMs = typeof p?.durationMs === "number" ? p.durationMs : undefined;
+      const parts = [action];
+      if (status) parts.push(status);
+      if (summary) parts.push(summary);
+      else if (error) parts.push(error);
+      if (durationMs !== undefined) parts.push(`${(durationMs / 1000).toFixed(1)}s`);
+      return parts.join(" · ");
     }
     default:
       return event;
@@ -117,6 +131,8 @@ export const selectLastTickAt = (s: GatewayActivityStore) => s.lastTickAt;
 export const selectTickIntervalMs = (s: GatewayActivityStore) => s.tickIntervalMs;
 export const selectTickCount = (s: GatewayActivityStore) => s.tickCount;
 export const selectActivityEntries = (s: GatewayActivityStore) => s.entries;
+export const selectCronEntries = (s: GatewayActivityStore) =>
+  s.entries.filter((e) => e.event === "cron");
 
 // Listener initialization
 let listenerInitialized = false;

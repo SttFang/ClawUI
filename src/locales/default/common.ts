@@ -43,6 +43,14 @@ const common = {
       noEvents: "暂无事件",
     },
   },
+  cronResults: {
+    title: "定时任务",
+    running: "执行中…",
+    completed: "已完成",
+    failed: "失败",
+    skipped: "已跳过",
+    empty: "暂无执行记录",
+  },
   configBanner: {
     title: "未配置 API Key",
     description: "要开始对话，你需要配置 AI 提供商（Anthropic、OpenAI 等）的 API Key。",

@@ -1,0 +1,94 @@
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@clawui/ui";
+import { CheckCircle2, ChevronRight, Loader2, SkipForward, Timer, XCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import type { GatewayActivityEntry } from "@/store/gatewayActivity";
+import { useGatewayActivityStore, selectCronEntries } from "@/store/gatewayActivity";
+
+const MAX_VISIBLE = 10;
+
+function formatTime(ts: number): string {
+  const d = new Date(ts);
+  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    .map((n) => String(n).padStart(2, "0"))
+    .join(":");
+}
+
+type CronPayload = {
+  jobId?: string;
+  action?: string;
+  status?: string;
+  summary?: string;
+  error?: string;
+  durationMs?: number;
+};
+
+function StatusIcon({ action, status }: { action: string; status?: string }) {
+  if (action === "started") {
+    return <Loader2 className="size-3.5 shrink-0 animate-spin text-amber-500" />;
+  }
+  if (action === "finished") {
+    if (status === "ok") return <CheckCircle2 className="size-3.5 shrink-0 text-green-500" />;
+    if (status === "error") return <XCircle className="size-3.5 shrink-0 text-red-500" />;
+    if (status === "skipped")
+      return <SkipForward className="size-3.5 shrink-0 text-muted-foreground" />;
+  }
+  return <Timer className="size-3.5 shrink-0 text-muted-foreground" />;
+}
+
+function CronEntry({ entry }: { entry: GatewayActivityEntry }) {
+  const { t } = useTranslation("common");
+  const p = (entry.payload ?? {}) as CronPayload;
+  const action = p.action ?? "";
+  const status = p.status;
+  const jobId = p.jobId ? p.jobId.slice(0, 8) : "—";
+
+  let detail: string;
+  if (action === "started") {
+    detail = t("cronResults.running");
+  } else if (action === "finished" && status === "ok") {
+    const label = p.summary || t("cronResults.completed");
+    const dur = typeof p.durationMs === "number" ? ` ${(p.durationMs / 1000).toFixed(1)}s` : "";
+    detail = label + dur;
+  } else if (action === "finished" && status === "error") {
+    detail = p.error || t("cronResults.failed");
+  } else if (action === "finished" && status === "skipped") {
+    detail = p.error || t("cronResults.skipped");
+  } else {
+    detail = action;
+  }
+
+  return (
+    <div className="flex gap-2 py-1 text-xs">
+      <span className="shrink-0 tabular-nums text-muted-foreground">{formatTime(entry.ts)}</span>
+      <StatusIcon action={action} status={status} />
+      <div className="min-w-0">
+        <div className="truncate font-medium">{jobId}</div>
+        <div className="truncate text-muted-foreground">{detail}</div>
+      </div>
+    </div>
+  );
+}
+
+export function CronResultList() {
+  const { t } = useTranslation("common");
+  const cronEntries = useGatewayActivityStore(selectCronEntries);
+
+  if (cronEntries.length === 0) return null;
+
+  const visible = cronEntries.slice(-MAX_VISIBLE).toReversed();
+
+  return (
+    <Collapsible defaultOpen className="px-3 py-2">
+      <CollapsibleTrigger className="flex w-full items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+        <ChevronRight className="size-3 transition-transform [[data-state=open]>&]:rotate-90" />
+        <span>{t("cronResults.title")}</span>
+        <span className="ml-auto tabular-nums text-[10px]">({cronEntries.length})</span>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-1">
+        {visible.map((entry) => (
+          <CronEntry key={entry.id} entry={entry} />
+        ))}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}

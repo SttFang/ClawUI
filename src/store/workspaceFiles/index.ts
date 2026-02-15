@@ -144,7 +144,14 @@ export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
 
         const name = fileNameOf(relativePath);
         const kind = classifyFile(name);
-        const tab: OpenTab = { relativePath, name, kind, content: null, loading: true, error: null };
+        const tab: OpenTab = {
+          relativePath,
+          name,
+          kind,
+          content: null,
+          loading: true,
+          error: null,
+        };
 
         set(
           { openTabs: [...openTabs, tab], activeTabPath: relativePath, pythonResult: null },
@@ -195,11 +202,7 @@ export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
           const neighbor = next[Math.min(idx, next.length - 1)];
           nextActive = neighbor?.relativePath ?? null;
         }
-        set(
-          { openTabs: next, activeTabPath: nextActive, pythonResult: null },
-          false,
-          "closeTab",
-        );
+        set({ openTabs: next, activeTabPath: nextActive, pythonResult: null }, false, "closeTab");
       },
 
       setActiveTab: (relativePath: string) => {
@@ -207,11 +210,7 @@ export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
       },
 
       closeAllTabs: () => {
-        set(
-          { openTabs: [], activeTabPath: null, pythonResult: null },
-          false,
-          "closeAllTabs",
-        );
+        set({ openTabs: [], activeTabPath: null, pythonResult: null }, false, "closeAllTabs");
       },
 
       runPython: async (relativePath: string) => {

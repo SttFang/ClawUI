@@ -14,10 +14,10 @@ export function WorkspaceFileList() {
   const { t } = useTranslation("chat");
   const files = useWorkspaceFilesStore((s) => s.files);
   const currentPath = useWorkspaceFilesStore((s) => s.currentPath);
-  const activeFilePath = useWorkspaceFilesStore((s) => s.activeFilePath);
+  const activeTabPath = useWorkspaceFilesStore((s) => s.activeTabPath);
   const loading = useWorkspaceFilesStore((s) => s.loading);
   const error = useWorkspaceFilesStore((s) => s.error);
-  const selectFile = useWorkspaceFilesStore((s) => s.selectFile);
+  const openFile = useWorkspaceFilesStore((s) => s.openFile);
   const loadFiles = useWorkspaceFilesStore((s) => s.loadFiles);
 
   const handleClick = (file: { name: string; isDirectory: boolean }) => {
@@ -25,7 +25,7 @@ export function WorkspaceFileList() {
     if (file.isDirectory) {
       void loadFiles(relativePath);
     } else {
-      void selectFile(relativePath);
+      void openFile(relativePath);
     }
   };
 
@@ -84,7 +84,7 @@ export function WorkspaceFileList() {
                 onClick={() => handleClick(file)}
                 className={cn(
                   "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-muted",
-                  activeFilePath === relativePath && "bg-muted font-medium",
+                  activeTabPath === relativePath && "bg-muted font-medium",
                 )}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

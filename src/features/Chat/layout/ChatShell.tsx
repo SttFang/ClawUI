@@ -4,14 +4,12 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@clawui/ui
 export function ChatShell(props: { sidebar: ReactNode; main: ReactNode; panel?: ReactNode }) {
   const { sidebar, main, panel } = props;
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full">
+    <ResizablePanelGroup orientation="horizontal" className="h-full">
       <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
         {sidebar}
       </ResizablePanel>
       <ResizableHandle />
-      <ResizablePanel defaultSize={panel ? 55 : 80}>
-        {main}
-      </ResizablePanel>
+      <ResizablePanel defaultSize={panel ? 55 : 80}>{main}</ResizablePanel>
       {panel && (
         <>
           <ResizableHandle />

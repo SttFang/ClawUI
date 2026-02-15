@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ipc } from "@/lib/ipc";
 import { ensureChatConnected } from "@/services/chat/connection";
 import { useChatStore, selectCurrentSession, selectSessions } from "@/store/chat";
-import { MAIN_SESSION_KEY } from "@/store/chat/helpers";
+import { isMainSessionKey, MAIN_SESSION_KEY } from "@/store/chat/helpers";
 import { useGatewayStore, selectIsGatewayRunning } from "@/store/gateway";
 import type { SessionListItem } from "./types";
 import { ChatContext, type ChatContextValue } from "./ChatContext";
@@ -62,7 +62,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const createGatewayUiSession = useCallback(async (): Promise<string> => {
     const sessions = useChatStore.getState().sessions;
-    const hasMain = sessions.some((s) => s.id === MAIN_SESSION_KEY);
+    const hasMain = sessions.some((s) => isMainSessionKey(s.id));
     let key: string;
     if (!hasMain) {
       key = MAIN_SESSION_KEY;

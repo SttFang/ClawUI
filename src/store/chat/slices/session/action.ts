@@ -3,7 +3,12 @@ import { ipc } from "@/lib/ipc";
 import { chatLog } from "@/lib/logger";
 import type { Session } from "../../initialState";
 import type { ChatStore } from "../../store";
-import { generateUiSessionKey, MAIN_SESSION_KEY, parseSessionsListPayload } from "../../helpers";
+import {
+  generateUiSessionKey,
+  isMainSessionKey,
+  MAIN_SESSION_KEY,
+  parseSessionsListPayload,
+} from "../../helpers";
 
 export interface SessionAction {
   refreshSessions: () => Promise<void>;
@@ -63,7 +68,7 @@ export const sessionSlice: StateCreator<
   },
 
   createSession: (name) => {
-    const hasMain = get().sessions.some((s) => s.id === MAIN_SESSION_KEY);
+    const hasMain = get().sessions.some((s) => isMainSessionKey(s.id));
     const id = hasMain ? generateUiSessionKey() : MAIN_SESSION_KEY;
     const now = Date.now();
     const session: Session = {

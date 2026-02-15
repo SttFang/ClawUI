@@ -6,6 +6,9 @@ export const generateMessageId = () => `msg_${Date.now()}_${messageIdCounter++}`
 const DEFAULT_UI_SESSION_PREFIX = "agent:main:ui";
 /** Gateway normalizes "main" → "agent:main:main", matching heartbeat's session. */
 export const MAIN_SESSION_KEY = "main";
+const MAIN_SESSION_KEY_NORMALIZED = "agent:main:main";
+export const isMainSessionKey = (id: string): boolean =>
+  id === MAIN_SESSION_KEY || id === MAIN_SESSION_KEY_NORMALIZED;
 export const generateUiSessionKey = () => `${DEFAULT_UI_SESSION_PREFIX}:${generateChatRunId()}`;
 
 let chatRunIdCounter = 0;

@@ -216,7 +216,10 @@ export function MessageParts(props: {
   const hasVisibleText = message.parts.some(
     (part) => part.type === "text" && typeof part.text === "string" && Boolean(part.text.trim()),
   );
-  const isThinking = streaming && !hasVisibleText;
+  const hasVisibleTools = message.parts.some(
+    (part) => isDynamicToolPartLike(part) && classifyToolRender(part.toolName).kind !== "hidden",
+  );
+  const isThinking = streaming && !hasVisibleText && !hasVisibleTools;
 
   const startTimeRef = useRef<number | null>(null);
   const [thinkingDuration, setThinkingDuration] = useState<number | undefined>(undefined);

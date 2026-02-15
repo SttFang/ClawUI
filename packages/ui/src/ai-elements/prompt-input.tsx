@@ -76,7 +76,7 @@ export function PromptInputAction(props: ButtonProps) {
 }
 
 export function PromptInputSubmit(props: Omit<ButtonProps, "type">) {
-  const { children = "Send", ...rest } = props;
+  const { children, ...rest } = props;
   return (
     <PromptInputAction type="submit" {...rest}>
       {children}

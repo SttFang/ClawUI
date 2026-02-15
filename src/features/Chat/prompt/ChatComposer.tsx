@@ -8,7 +8,7 @@ import {
   PromptInputTools,
   PromptInputSubmit,
 } from "@clawui/ui";
-import { Paperclip } from "lucide-react";
+import { ArrowUp, Paperclip } from "lucide-react";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -132,13 +132,15 @@ export function ChatComposer(props: {
           <PromptInputTools className="min-w-0 flex-1 flex-nowrap items-center gap-1.5">
             <PromptInputAction
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={openFilePicker}
               disabled={composerDisabled}
               aria-label={t("attachFile")}
               title={t("attachFile")}
-              className="w-8 px-0"
+              className="h-7 w-7 text-muted-foreground"
             >
-              <Paperclip className="h-4 w-4" />
+              <Paperclip className="h-3.5 w-3.5" />
             </PromptInputAction>
 
             {showSessionControls ? (
@@ -151,7 +153,14 @@ export function ChatComposer(props: {
           </PromptInputTools>
 
           <PromptInputActions className="ml-auto">
-            <PromptInputSubmit disabled={!canSubmit}>{t("sendMessage")}</PromptInputSubmit>
+            <PromptInputSubmit
+              disabled={!canSubmit}
+              variant="default"
+              size="icon"
+              className="h-8 w-8 rounded-full bg-foreground text-background hover:bg-foreground/90"
+            >
+              <ArrowUp className="h-4 w-4" />
+            </PromptInputSubmit>
           </PromptInputActions>
         </PromptInputFooter>
       </PromptInput>

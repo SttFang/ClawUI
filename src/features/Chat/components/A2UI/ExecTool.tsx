@@ -12,6 +12,22 @@ import { formatJson, getCwdFromInput } from "./toolHelpers";
 
 type ExecDisplayStatus = "pending" | "pending_approval" | "running" | "completed" | "error";
 
+const STATUS_I18N_KEY: Record<ExecDisplayStatus, string> = {
+  running: "a2ui.exec.running",
+  completed: "a2ui.exec.ran",
+  error: "a2ui.exec.failed",
+  pending_approval: "a2ui.exec.awaitingApproval",
+  pending: "a2ui.exec.pending",
+};
+
+const STATUS_DOT_CLASS: Record<ExecDisplayStatus, string> = {
+  completed: "bg-emerald-500",
+  error: "bg-destructive",
+  running: "animate-pulse bg-blue-500",
+  pending: "animate-pulse bg-blue-500",
+  pending_approval: "animate-pulse bg-amber-500",
+};
+
 function deriveDisplayStatus(
   part: DynamicToolUIPart,
   approval: ExecApprovalAugmentation,
@@ -30,13 +46,7 @@ function deriveDisplayStatus(
 function StatusDot(props: { status: ExecDisplayStatus }) {
   return (
     <span
-      className={cn(
-        "inline-block size-2 shrink-0 rounded-full",
-        props.status === "completed" && "bg-emerald-500",
-        props.status === "error" && "bg-destructive",
-        (props.status === "running" || props.status === "pending") && "animate-pulse bg-blue-500",
-        props.status === "pending_approval" && "animate-pulse bg-amber-500",
-      )}
+      className={cn("inline-block size-2 shrink-0 rounded-full", STATUS_DOT_CLASS[props.status])}
     />
   );
 }
@@ -50,18 +60,7 @@ export function ExecTool(props: { part: DynamicToolUIPart; sessionKey: string })
   const command = getCommandFromInput(part.input);
   const primaryCmd = extractPrimaryExecCommand(command);
 
-  let label: string;
-  if (status === "running") {
-    label = t("a2ui.exec.running", { command: primaryCmd });
-  } else if (status === "completed") {
-    label = t("a2ui.exec.ran", { command: primaryCmd });
-  } else if (status === "error") {
-    label = t("a2ui.exec.failed", { command: primaryCmd });
-  } else if (status === "pending_approval") {
-    label = t("a2ui.exec.awaitingApproval", { command: primaryCmd });
-  } else {
-    label = t("a2ui.exec.pending", { command: primaryCmd });
-  }
+  const label = t(STATUS_I18N_KEY[status], { command: primaryCmd });
 
   const isActive = status === "running" || status === "pending_approval";
   const [open, setOpen] = useState(isActive);

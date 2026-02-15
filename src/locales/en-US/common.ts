@@ -977,6 +977,17 @@ const common = {
     seq: "seq {{seq}}",
     run: "run {{runId}}",
     statePreliminary: "{{state}} (partial)",
+    exploring: "Exploring",
+    explored: "Explored",
+    exec: {
+      running: "Running {{command}}",
+      ran: "Ran {{command}}",
+      failed: "Failed {{command}}",
+      awaitingApproval: "{{command}} (awaiting approval)",
+      pending: "{{command}}",
+      inProgress: "In progress",
+      completed: "Completed",
+    },
     execAction: {
       thinking: "Thinking…",
       completedSingle: "Task completed in {{seconds}}s",

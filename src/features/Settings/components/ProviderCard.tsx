@@ -28,6 +28,9 @@ function getAuthStatus(authInfo: ProviderAuthInfo, oauthStatus?: OAuthProviderSt
   if (effective.kind === "token" && effective.detail) {
     return { color: "text-green-500", bg: "bg-green-500", kind: "ok" as const };
   }
+  if (effective.kind === "models.json" && effective.detail) {
+    return { color: "text-green-500", bg: "bg-green-500", kind: "ok" as const };
+  }
   if (effective.kind === "none") {
     return { color: "text-muted-foreground", bg: "bg-gray-400", kind: "unconfigured" as const };
   }
@@ -87,6 +90,11 @@ export function ProviderCard({
       return effective.detail
         ? t("settings.providerCard.auth.token", { name: effective.detail })
         : t("settings.providerCard.auth.tokenShort");
+    }
+    if (effective.kind === "models.json") {
+      return effective.detail
+        ? t("settings.providerCard.auth.modelsJson", { name: effective.detail })
+        : t("settings.providerCard.auth.modelsJsonShort");
     }
     return t("settings.providerCard.auth.notConfigured");
   })();

@@ -1,6 +1,6 @@
 /** Auth method for a provider */
 export interface ProviderAuthEffective {
-  kind: "env" | "profiles" | "token" | "none";
+  kind: "env" | "profiles" | "token" | "models.json" | "missing" | "none";
   detail?: string;
 }
 

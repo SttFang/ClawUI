@@ -696,6 +696,8 @@ const common = {
         oauthExpires: "OAuth（{{date}} 过期）",
         token: "Token {{name}}",
         tokenShort: "Token",
+        modelsJson: "配置文件 {{name}}",
+        modelsJsonShort: "配置文件",
         notConfigured: "未配置",
       },
       oauth: {

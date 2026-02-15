@@ -705,6 +705,8 @@ const common = {
         oauthExpires: "OAuth expires {{date}}",
         token: "token {{name}}",
         tokenShort: "token",
+        modelsJson: "config {{name}}",
+        modelsJsonShort: "config",
         notConfigured: "not configured",
       },
       oauth: {

@@ -104,9 +104,7 @@ export function MessagingTab() {
 
   // Sort: configured channels first, preserve original order within each group
   const sortedDefs = useMemo(() => {
-    const configured = new Set(
-      channels.filter((c) => c.isConfigured).map((c) => c.type),
-    );
+    const configured = new Set(channels.filter((c) => c.isConfigured).map((c) => c.type));
     return [...CHANNEL_DEFS].sort((a, b) => {
       const ac = configured.has(a.channelType as ChannelType) ? 0 : 1;
       const bc = configured.has(b.channelType as ChannelType) ? 0 : 1;
@@ -260,9 +258,7 @@ function ChannelCard({
         </div>
       </div>
       {showFields && (
-        <div
-          className={fields.length >= 3 ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}
-        >
+        <div className={fields.length >= 3 ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}>
           {fields.map((f) => {
             const key = `${channelType}:${f.field}`;
             return (

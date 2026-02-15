@@ -3,11 +3,9 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExecTool, ExecGroup, ToolGroup } from "@/features/Chat/components/A2UI";
-import { buildToolSummary } from "@/features/Chat/components/A2UI/toolHelpers";
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
 import { isExecToolName, normalizeToolCallId } from "@/lib/exec";
 import { isLikelyToolReceiptText } from "@/lib/exec/systemTextParsing";
-import { cn } from "@/lib/utils";
 import { MessageText } from "./MessageText";
 
 const AUTO_HIDE_DELAY = 1500;
@@ -24,7 +22,7 @@ type RenderableItem =
       key: string;
       node: ReactElement;
       toolCallId: string;
-      meta?: { renderKind: "explore" | "exec" | "generic"; part: DynamicToolUIPart };
+      meta?: { renderKind: "explore" | "exec"; part: DynamicToolUIPart };
     };
 
 type TextPartLike = {
@@ -303,25 +301,13 @@ export function MessageParts(props: {
         continue;
       }
 
-      if (policy.kind === "explore") {
-        // Placeholder node; will be replaced by ToolGroup during grouping
-        nextItems[index] = {
-          kind: "tool",
-          key: `tool:${toolCallId}:${index}`,
-          toolCallId,
-          meta: { renderKind: "explore", part: normalizedPart },
-          node: <span key={`tool:${toolCallId}:${index}`} />,
-        };
-        continue;
-      }
-
-      // generic — render with a simple Collapsible card
+      // explore — placeholder; will be replaced by ToolGroup during grouping
       nextItems[index] = {
         kind: "tool",
         key: `tool:${toolCallId}:${index}`,
         toolCallId,
-        meta: { renderKind: "generic", part: normalizedPart },
-        node: <GenericToolCard key={`tool:${toolCallId}:${index}`} part={normalizedPart} />,
+        meta: { renderKind: "explore", part: normalizedPart },
+        node: <span key={`tool:${toolCallId}:${index}`} />,
       };
     }
 
@@ -339,35 +325,6 @@ export function MessageParts(props: {
         <ThinkingIndicator isStreaming={isThinking} duration={thinkingDuration} />
       ) : null}
       {nodes}
-    </div>
-  );
-}
-
-// Minimal generic tool card for non-explore, non-exec tools
-function GenericToolCard(props: { part: DynamicToolUIPart }) {
-  const { part } = props;
-  const summary = buildToolSummary(part);
-  const isDone = part.state === "output-available";
-  const isError = part.state === "output-error";
-
-  return (
-    <div className="space-y-1 text-sm">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <span
-          className={cn(
-            "inline-block size-2 shrink-0 rounded-full",
-            isDone && "bg-emerald-500",
-            isError && "bg-destructive",
-            !isDone && !isError && "animate-pulse bg-blue-500",
-          )}
-        />
-        <span className="truncate">{summary}</span>
-      </div>
-      {isError && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-          {part.errorText}
-        </div>
-      )}
     </div>
   );
 }

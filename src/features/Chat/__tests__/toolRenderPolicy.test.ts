@@ -19,8 +19,8 @@ describe("toolRenderPolicy", () => {
     expect(classifyToolRender(name).kind).toBe("hidden");
   });
 
-  it("falls back unknown tools to generic", () => {
-    expect(classifyToolRender("plugin_custom_tool").kind).toBe("generic");
+  it("falls back unknown tools to explore", () => {
+    expect(classifyToolRender("plugin_custom_tool").kind).toBe("explore");
   });
 
   it("isExploreToolName guards correctly", () => {
@@ -51,8 +51,8 @@ describe("toolRenderPolicy", () => {
     "edit",
     "apply_patch",
     "process",
-  ])("classifies %s as generic", (name) => {
-    expect(classifyToolRender(name).kind).toBe("generic");
+  ])("classifies %s as explore", (name) => {
+    expect(classifyToolRender(name).kind).toBe("explore");
   });
 
   it("is case-insensitive", () => {

@@ -1,6 +1,6 @@
 import { isExecToolName } from "@/lib/exec";
 
-export type ToolRenderKind = "explore" | "exec" | "generic" | "hidden";
+export type ToolRenderKind = "explore" | "exec" | "hidden";
 
 export type ToolRenderPolicy = {
   kind: ToolRenderKind;
@@ -36,7 +36,7 @@ export function isExploreToolName(toolName: string): boolean {
 
 export function classifyToolRender(toolName: string): ToolRenderPolicy {
   const normalized = toolName.trim().toLowerCase();
-  if (!normalized) return { kind: "generic" };
+  if (!normalized) return { kind: "explore" };
 
   if (HIDDEN_TOOL_NAMES.has(normalized)) {
     return { kind: "hidden" };
@@ -48,5 +48,5 @@ export function classifyToolRender(toolName: string): ToolRenderPolicy {
     return { kind: "explore", maxPreviewChars: EXPLORE_PREVIEW_CHARS };
   }
 
-  return { kind: "generic" };
+  return { kind: "explore" };
 }

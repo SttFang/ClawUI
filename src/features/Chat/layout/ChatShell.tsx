@@ -5,20 +5,27 @@ import { usePanelRef } from "react-resizable-panels";
 export function ChatShell(props: { sidebar: ReactNode; main: ReactNode; panel?: ReactNode }) {
   const { sidebar, main, panel } = props;
   const filePanelRef = usePanelRef();
+  const hasPanel = panel != null;
 
   useEffect(() => {
     const handle = filePanelRef.current;
     if (!handle) return;
-    if (panel) {
+    if (hasPanel) {
       if (handle.isCollapsed()) handle.expand();
     } else {
       if (!handle.isCollapsed()) handle.collapse();
     }
-  }, [panel, filePanelRef]);
+  }, [hasPanel, filePanelRef]);
 
   return (
     <ResizablePanelGroup id="chat-layout" orientation="horizontal" className="h-full">
-      <ResizablePanel id="sidebar" defaultSize={20} minSize="180px" maxSize={35}>
+      <ResizablePanel
+        id="sidebar"
+        className="flex flex-col"
+        defaultSize={20}
+        minSize="180px"
+        maxSize={35}
+      >
         {sidebar}
       </ResizablePanel>
       <ResizableHandle />

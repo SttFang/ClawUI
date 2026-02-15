@@ -38,20 +38,19 @@ export function WorkspaceFileList() {
 
   return (
     <Collapsible defaultOpen className="border-t">
-      <CollapsibleTrigger className="flex w-full items-center gap-1 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-        <ChevronRight className="h-3 w-3 transition-transform [[data-state=open]>&]:rotate-90" />
-        <span className="flex-1 text-left">{t("workspaceFiles.title")}</span>
+      <div className="flex w-full items-center gap-1 px-4 py-2 text-xs font-medium text-muted-foreground">
+        <CollapsibleTrigger className="flex flex-1 items-center gap-1 hover:text-foreground">
+          <ChevronRight className="h-3 w-3 transition-transform [[data-state=open]>&]:rotate-90" />
+          <span className="flex-1 text-left">{t("workspaceFiles.title")}</span>
+        </CollapsibleTrigger>
         <button
           type="button"
-          className="rounded p-0.5 hover:bg-muted"
-          onClick={(e) => {
-            e.stopPropagation();
-            void loadFiles(currentPath || undefined);
-          }}
+          className="rounded p-0.5 hover:bg-muted hover:text-foreground"
+          onClick={() => void loadFiles(currentPath || undefined)}
         >
           <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
         </button>
-      </CollapsibleTrigger>
+      </div>
 
       <CollapsibleContent>
         <div className="px-2 pb-2 space-y-0.5">

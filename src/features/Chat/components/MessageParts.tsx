@@ -71,11 +71,45 @@ function aggregateRenderableItems(items: (RenderableItem | null)[]): RenderableI
   return result;
 }
 
+const TOOL_STATE_PRIORITY: Record<string, number> = {
+  "output-error": 4,
+  "output-available": 3,
+  "input-streaming": 2,
+  "input-available": 1,
+};
+
+function isEmptyInput(input: unknown): boolean {
+  if (input == null) return true;
+  const str = typeof input === "string" ? input : JSON.stringify(input);
+  return !str || str === "{}" || str === "[]";
+}
+
+function deduplicateToolParts(parts: DynamicToolUIPart[]): DynamicToolUIPart[] {
+  const byId = new Map<string, DynamicToolUIPart>();
+  for (const part of parts) {
+    const id = normalizeToolCallId(part.toolCallId);
+    const existing = byId.get(id);
+    if (!existing) {
+      byId.set(id, part);
+      continue;
+    }
+    const existingPri = TOOL_STATE_PRIORITY[existing.state] ?? 0;
+    const currentPri = TOOL_STATE_PRIORITY[part.state] ?? 0;
+    if (currentPri > existingPri) {
+      const mergedInput =
+        isEmptyInput(part.input) && !isEmptyInput(existing.input) ? existing.input : part.input;
+      byId.set(id, { ...part, input: mergedInput });
+    } else if (isEmptyInput(existing.input) && !isEmptyInput(part.input)) {
+      byId.set(id, { ...existing, input: part.input });
+    }
+  }
+  return Array.from(byId.values());
+}
+
 function groupExploreTools(items: RenderableItem[]): RenderableItem[] {
   const exploreParts: DynamicToolUIPart[] = [];
   let firstExploreIndex = -1;
 
-  // Collect all explore items
   for (let i = 0; i < items.length; i += 1) {
     const item = items[i];
     if (item.kind === "tool" && item.meta?.renderKind === "explore") {
@@ -86,7 +120,8 @@ function groupExploreTools(items: RenderableItem[]): RenderableItem[] {
 
   if (!exploreParts.length) return items;
 
-  // Build result: insert one ToolGroup at first explore position, skip the rest
+  const deduped = deduplicateToolParts(exploreParts);
+
   const result: RenderableItem[] = [];
   let groupInserted = false;
 
@@ -99,7 +134,7 @@ function groupExploreTools(items: RenderableItem[]): RenderableItem[] {
           kind: "tool",
           key,
           toolCallId: key,
-          node: <ToolGroup key={key} parts={exploreParts} />,
+          node: <ToolGroup key={key} parts={deduped} />,
         });
         groupInserted = true;
       }

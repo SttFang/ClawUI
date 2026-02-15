@@ -1,15 +1,17 @@
-import { Button } from "@clawui/ui";
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from "@clawui/ui";
 import { Download } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AgentCapabilities } from "./components/AgentCapabilities";
 import { AgentExtensions } from "./components/AgentExtensions";
-import { AgentIdentity } from "./components/AgentIdentity";
-import { AgentInputs } from "./components/AgentInputs";
-import { AgentList } from "./components/AgentList";
+import { AgentHero, type AttributeType } from "./components/AgentHero";
 import { AgentSkills } from "./components/AgentSkills";
+import { AgentSwitcher } from "./components/AgentSwitcher";
+import { AttributeDialog } from "./components/AttributeDialog";
 import { CronDialog } from "./components/CronDialog";
 import { CronPanel } from "./components/CronPanel";
 import { CronRunsDialog } from "./components/CronRunsDialog";
+import { NodesPanel } from "./components/NodesPanel";
 import { useAgentsData, useAgentsExport } from "./hooks";
 
 export function AgentsFeature() {
@@ -18,41 +20,70 @@ export function AgentsFeature() {
   const { handleExport } = useAgentsExport(data);
   const { configError, cronDialogOpen, setCronDialogOpen, handleOpenCronDialog } = data;
 
+  const [editingAttribute, setEditingAttribute] = useState<AttributeType | null>(null);
+
   return (
-    <div className="h-full overflow-y-auto p-6">
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold">{t("agents.title")}</h1>
-            <p className="text-muted-foreground">{t("agents.description")}</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={handleExport} className="shrink-0">
-            <Download className="w-4 h-4 mr-2" />
-            {t("agents.actions.exportJson")}
-          </Button>
-        </div>
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Top: Agent Switcher */}
+      <div className="flex items-center justify-between pr-4">
+        <AgentSwitcher />
+        <Button variant="outline" size="sm" onClick={handleExport} className="shrink-0">
+          <Download className="w-4 h-4 mr-2" />
+          {t("agents.actions.exportJson")}
+        </Button>
+      </div>
 
-        {configError && (
-          <div className="mb-4 p-4 bg-destructive/10 border border-destructive rounded-lg">
-            <div className="font-medium text-destructive">{t("agents.errorTitle")}</div>
-            <div className="text-sm text-destructive/90">{configError}</div>
-          </div>
-        )}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto px-6 pb-6">
+          {configError && (
+            <div className="mt-4 p-4 bg-destructive/10 border border-destructive rounded-lg">
+              <div className="font-medium text-destructive">{t("agents.errorTitle")}</div>
+              <div className="text-sm text-destructive/90">{configError}</div>
+            </div>
+          )}
 
-        <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-          <AgentList />
+          {/* Hero: pixel avatar + attribute cards */}
+          <AgentHero onOpenAttribute={setEditingAttribute} />
 
-          <div className="space-y-4">
-            <AgentIdentity />
-            <AgentInputs />
-            <AgentCapabilities />
-            <AgentExtensions />
-            <AgentSkills />
-            <CronPanel onOpenDialog={handleOpenCronDialog} />
-          </div>
+          {/* Bottom Tabs */}
+          <Tabs defaultValue="capabilities">
+            <TabsList className="w-full justify-start gap-1 h-auto p-1">
+              <TabsTrigger value="capabilities" className="px-5 py-2.5 text-sm">
+                {t("agents.agentDesktop.tabs.capabilities")}
+              </TabsTrigger>
+              <TabsTrigger value="skills" className="px-5 py-2.5 text-sm">
+                {t("agents.agentDesktop.tabs.skills")}
+              </TabsTrigger>
+              <TabsTrigger value="nodes" className="px-5 py-2.5 text-sm">
+                {t("agents.agentDesktop.tabs.nodes")}
+              </TabsTrigger>
+              <TabsTrigger value="cron" className="px-5 py-2.5 text-sm">
+                {t("agents.agentDesktop.tabs.cron")}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="capabilities" className="mt-4 space-y-4">
+              <AgentCapabilities />
+              <AgentExtensions />
+            </TabsContent>
+
+            <TabsContent value="skills" className="mt-4">
+              <AgentSkills />
+            </TabsContent>
+
+            <TabsContent value="nodes" className="mt-4">
+              <NodesPanel />
+            </TabsContent>
+
+            <TabsContent value="cron" className="mt-4">
+              <CronPanel onOpenDialog={handleOpenCronDialog} />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
+      {/* Dialogs */}
+      <AttributeDialog type={editingAttribute} onClose={() => setEditingAttribute(null)} />
       <CronDialog open={cronDialogOpen} onOpenChange={setCronDialogOpen} />
       <CronRunsDialog />
     </div>

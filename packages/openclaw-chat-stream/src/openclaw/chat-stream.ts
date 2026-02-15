@@ -68,7 +68,10 @@ export function createOpenClawChatStream(params: {
       let pendingChatAliasRunId: string | null = null
       let pendingChatAliasEvent: OpenClawChatEvent | null = null
       const pendingToolCalls = new Set<string>()
-      const textPartId = 'text-1'
+      let textPartCounter = 1
+      let currentTextPartId = `text-${textPartCounter}`
+      let toolSplitPending = false
+      let toolSplitAt = -1
       const buffered: GatewayEventFrame[] = []
       let unsubscribe: (() => void) | null = null
       const CHAT_ALIAS_GRACE_MS = 250
@@ -263,11 +266,29 @@ export function createOpenClawChatStream(params: {
         controller.close()
       }
 
+      // 工具到达时：关闭当前 text part，标记分割点
+      const closeTextForToolSplit = () => {
+        if (!didStartText || toolSplitPending) return
+        controller.enqueue({ type: 'text-end', id: currentTextPartId })
+        didStartText = false
+        toolSplitPending = true
+        toolSplitAt = currentText.length
+      }
+
+      // 工具后文本到达时：创建新 text part
+      const startPostToolTextPart = () => {
+        textPartCounter++
+        currentTextPartId = `text-${textPartCounter}`
+        didStartText = true
+        toolSplitPending = false
+        controller.enqueue({ type: 'text-start', id: currentTextPartId })
+      }
+
       const ensureTextStarted = () => {
         if (didStartText) return
         didStartText = true
         controller.enqueue({ type: 'start-step' })
-        controller.enqueue({ type: 'text-start', id: textPartId })
+        controller.enqueue({ type: 'text-start', id: currentTextPartId })
       }
 
       const finishOnce = (opts?: { kind?: 'ok' | 'abort'; reason?: string }) => {
@@ -287,7 +308,7 @@ export function createOpenClawChatStream(params: {
         }
         // Always close the active text part to avoid leaving it in "streaming".
         if (didStartText) {
-          controller.enqueue({ type: 'text-end', id: textPartId })
+          controller.enqueue({ type: 'text-end', id: currentTextPartId })
         }
         controller.enqueue({ type: 'finish-step' })
         if (opts?.kind === 'abort') {
@@ -318,10 +339,14 @@ export function createOpenClawChatStream(params: {
 
       const updateTextWithSnapshot = (nextText: string) => {
         if (!nextText) return
+        // 工具后新文本到达 → 创建新 text part
+        if (toolSplitPending && nextText.length > toolSplitAt) {
+          startPostToolTextPart()
+        }
         if (!currentText) {
           ensureTextStarted()
           currentText = nextText
-          controller.enqueue({ type: 'text-delta', id: textPartId, delta: nextText })
+          controller.enqueue({ type: 'text-delta', id: currentTextPartId, delta: nextText })
           return
         }
         // Ignore non-monotonic snapshots (best-effort).
@@ -329,7 +354,7 @@ export function createOpenClawChatStream(params: {
         ensureTextStarted()
         const delta = computeSuffixDelta(currentText, nextText)
         currentText = nextText
-        if (delta) controller.enqueue({ type: 'text-delta', id: textPartId, delta })
+        if (delta) controller.enqueue({ type: 'text-delta', id: currentTextPartId, delta })
       }
 
       const handleChatEvent = (evt: OpenClawChatEvent) => {
@@ -407,7 +432,7 @@ export function createOpenClawChatStream(params: {
           if (!currentText) {
             ensureTextStarted()
             currentText = fallbackText
-            controller.enqueue({ type: 'text-delta', id: textPartId, delta: fallbackText })
+            controller.enqueue({ type: 'text-delta', id: currentTextPartId, delta: fallbackText })
             return
           }
 
@@ -415,7 +440,7 @@ export function createOpenClawChatStream(params: {
           if (fallbackText.startsWith(currentText)) {
             const delta = computeSuffixDelta(currentText, fallbackText)
             currentText = fallbackText
-            if (delta) controller.enqueue({ type: 'text-delta', id: textPartId, delta })
+            if (delta) controller.enqueue({ type: 'text-delta', id: currentTextPartId, delta })
             return
           }
 
@@ -428,7 +453,7 @@ export function createOpenClawChatStream(params: {
           if (canAppendDivergentText) {
             const separator = currentText.endsWith('\n') ? '\n' : '\n\n'
             currentText = `${currentText}${separator}${normalizedFallbackText}`
-            controller.enqueue({ type: 'text-delta', id: textPartId, delta: `${separator}${normalizedFallbackText}` })
+            controller.enqueue({ type: 'text-delta', id: currentTextPartId, delta: `${separator}${normalizedFallbackText}` })
             return
           }
 
@@ -468,6 +493,7 @@ export function createOpenClawChatStream(params: {
         const meta = typeof tool.meta === 'string' && tool.meta.trim() ? tool.meta.trim() : undefined
 
         if (phase === 'start') {
+          closeTextForToolSplit()
           pendingToolCalls.add(toolCallId)
           controller.enqueue({
             type: 'tool-input-available',

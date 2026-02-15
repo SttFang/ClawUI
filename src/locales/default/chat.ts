@@ -56,6 +56,13 @@ const chat = {
     delete: "删除",
     confirmDelete: "确定要删除这个会话吗？（默认只删除会话条目，不删除 transcript）",
   },
+  workspaceFiles: {
+    title: "工作区文件",
+    empty: "暂无文件",
+    missing: "未创建",
+    close: "关闭",
+    loadError: "加载失败",
+  },
 } as const;
 
 export default chat;

@@ -41,9 +41,10 @@ export class ChatTransport extends EventEmitter {
   private ws: WebSocket | null = null;
   private gatewayUrl = `ws://127.0.0.1:${DEFAULT_GATEWAY_PORT}`;
   private gatewayToken = "";
-  private reconnectAttempts = 0;
-  private readonly maxReconnectAttempts = 5;
-  private readonly reconnectDelay = 1000;
+  private backoffMs = 1000;
+  private lastTick: number | null = null;
+  private tickIntervalMs = 30_000;
+  private tickTimer: NodeJS.Timeout | null = null;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private connectPromise: Promise<void> | null = null;
   private shouldReconnect = true;
@@ -101,6 +102,11 @@ export class ChatTransport extends EventEmitter {
     this.shouldReconnect = false;
     this.connected = false;
     this.connectPromise = null;
+    this.lastTick = null;
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = null;
+    }
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -179,6 +185,11 @@ export class ChatTransport extends EventEmitter {
       socket.on("close", (code, reason) => {
         chatLog.info("[ws.closed]", `code=${code}`, `reason=${String(reason)}`);
         this.connected = false;
+        this.lastTick = null;
+        if (this.tickTimer) {
+          clearInterval(this.tickTimer);
+          this.tickTimer = null;
+        }
         if (this.ws === socket) {
           this.ws = null;
         }
@@ -289,8 +300,14 @@ export class ChatTransport extends EventEmitter {
         if (response.ok) {
           chatLog.info("[acp.connected]", `durationMs=${Date.now() - t0}`);
           this.handleConnectResponse(response.payload, role);
+          const helloPayload = response.payload as Record<string, unknown> | undefined;
+          const policy = helloPayload?.policy as Record<string, unknown> | undefined;
+          if (typeof policy?.tickIntervalMs === "number")
+            this.tickIntervalMs = policy.tickIntervalMs;
+          this.lastTick = Date.now();
+          this.backoffMs = 1000;
+          this.startTickWatch();
           this.connected = true;
-          this.reconnectAttempts = 0;
           this.emit("connected");
           chatLog.info("[ws.connected]", `durationMs=${Date.now() - t0}`);
           callbacks?.resolve();
@@ -347,6 +364,9 @@ export class ChatTransport extends EventEmitter {
           }
           return;
         }
+        if (message.event === "tick") {
+          this.lastTick = Date.now();
+        }
         this.emit("event", message);
         return;
       }
@@ -386,18 +406,26 @@ export class ChatTransport extends EventEmitter {
     this.pendingRequests.clear();
   }
 
+  private startTickWatch(): void {
+    if (this.tickTimer) clearInterval(this.tickTimer);
+    const interval = Math.max(this.tickIntervalMs, 1000);
+    this.tickTimer = setInterval(() => {
+      if (!this.lastTick) return;
+      if (Date.now() - this.lastTick > this.tickIntervalMs * 2) {
+        chatLog.warn("[tick.timeout]", `gap=${Date.now() - this.lastTick}ms`);
+        this.ws?.close(4000, "tick timeout");
+      }
+    }, interval);
+  }
+
   private attemptReconnect(): void {
     if (!this.shouldReconnect || this.connectPromise || this.isConnected()) return;
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) return;
-
-    this.reconnectAttempts += 1;
-    chatLog.info(
-      "[ws.reconnect]",
-      `attempt=${this.reconnectAttempts}/${this.maxReconnectAttempts}`,
-    );
+    const delay = this.backoffMs;
+    this.backoffMs = Math.min(this.backoffMs * 2, 30_000);
+    chatLog.info("[ws.reconnect]", `delay=${delay}ms`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect().catch(() => {});
-    }, this.reconnectDelay * this.reconnectAttempts);
+    }, delay);
   }
 }

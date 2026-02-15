@@ -1,5 +1,6 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@clawui/ui";
 import { ChevronRight, FileText, Folder, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useWorkspaceFilesStore } from "@/store/workspaceFiles";
@@ -19,6 +20,14 @@ export function WorkspaceFileList() {
   const error = useWorkspaceFilesStore((s) => s.error);
   const openFile = useWorkspaceFilesStore((s) => s.openFile);
   const loadFiles = useWorkspaceFilesStore((s) => s.loadFiles);
+  const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    const shouldAutoCollapse = !loading && !error && currentPath === "" && files.length === 0;
+    if (shouldAutoCollapse) {
+      setOpen(false);
+    }
+  }, [currentPath, error, files.length, loading]);
 
   const handleClick = (file: { name: string; isDirectory: boolean }) => {
     const relativePath = currentPath ? `${currentPath}/${file.name}` : file.name;
@@ -37,7 +46,7 @@ export function WorkspaceFileList() {
   };
 
   return (
-    <Collapsible defaultOpen className="border-t">
+    <Collapsible open={open} onOpenChange={setOpen} className="border-t">
       <div className="flex w-full items-center gap-1 px-4 py-2 text-xs font-medium text-muted-foreground">
         <CollapsibleTrigger className="flex flex-1 items-center gap-1 hover:text-foreground">
           <ChevronRight className="h-3 w-3 transition-transform [[data-state=open]>&]:rotate-90" />

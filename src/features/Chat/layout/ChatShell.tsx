@@ -1,6 +1,5 @@
+import type { ReactNode } from "react";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@clawui/ui";
-import { useEffect, type ReactNode } from "react";
-import { usePanelRef } from "react-resizable-panels";
 
 export const CHAT_LAYOUT_SIZES = {
   sidebar: {
@@ -22,18 +21,7 @@ export const CHAT_LAYOUT_SIZES = {
 
 export function ChatShell(props: { sidebar: ReactNode; main: ReactNode; panel?: ReactNode }) {
   const { sidebar, main, panel } = props;
-  const filePanelRef = usePanelRef();
   const hasPanel = panel != null;
-
-  useEffect(() => {
-    const handle = filePanelRef.current;
-    if (!handle) return;
-    if (hasPanel) {
-      if (handle.isCollapsed()) handle.expand();
-    } else {
-      if (!handle.isCollapsed()) handle.collapse();
-    }
-  }, [hasPanel, filePanelRef]);
 
   return (
     <ResizablePanelGroup id="chat-layout" orientation="horizontal" className="h-full">
@@ -55,19 +43,22 @@ export function ChatShell(props: { sidebar: ReactNode; main: ReactNode; panel?: 
       >
         {main}
       </ResizablePanel>
-      <ResizableHandle disabled={!panel} />
-      <ResizablePanel
-        id="file-panel"
-        className="flex flex-col"
-        panelRef={filePanelRef}
-        defaultSize={CHAT_LAYOUT_SIZES.filePanel.defaultSize}
-        minSize={CHAT_LAYOUT_SIZES.filePanel.minSize}
-        maxSize={CHAT_LAYOUT_SIZES.filePanel.maxSize}
-        collapsible
-        collapsedSize={CHAT_LAYOUT_SIZES.filePanel.collapsedSize}
-      >
-        {panel}
-      </ResizablePanel>
+      {hasPanel ? (
+        <>
+          <ResizableHandle />
+          <ResizablePanel
+            id="file-panel"
+            className="flex flex-col"
+            defaultSize={CHAT_LAYOUT_SIZES.filePanel.defaultSize}
+            minSize={CHAT_LAYOUT_SIZES.filePanel.minSize}
+            maxSize={CHAT_LAYOUT_SIZES.filePanel.maxSize}
+            collapsible
+            collapsedSize={CHAT_LAYOUT_SIZES.filePanel.collapsedSize}
+          >
+            {panel}
+          </ResizablePanel>
+        </>
+      ) : null}
     </ResizablePanelGroup>
   );
 }

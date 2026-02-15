@@ -1,4 +1,4 @@
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@clawui/ui";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, ScrollArea } from "@clawui/ui";
 import { ChevronRight, FileText, Folder, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -62,50 +62,52 @@ export function WorkspaceFileList() {
       </div>
 
       <CollapsibleContent>
-        <div className="px-2 pb-2 space-y-0.5">
-          {error && (
-            <p className="px-2 text-xs text-destructive">{t("workspaceFiles.loadError")}</p>
-          )}
+        <ScrollArea className="max-h-40">
+          <div className="px-2 pb-2 space-y-0.5">
+            {error && (
+              <p className="px-2 text-xs text-destructive">{t("workspaceFiles.loadError")}</p>
+            )}
 
-          {currentPath && (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-muted-foreground hover:bg-muted"
-            >
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 rotate-180" />
-              <span>..</span>
-            </button>
-          )}
-
-          {!loading && files.length === 0 && !error && (
-            <p className="px-2 text-xs text-muted-foreground">{t("workspaceFiles.empty")}</p>
-          )}
-
-          {files.map((file) => {
-            const relativePath = currentPath ? `${currentPath}/${file.name}` : file.name;
-            const Icon = file.isDirectory ? Folder : FileText;
-            return (
+            {currentPath && (
               <button
-                key={file.name}
                 type="button"
-                onClick={() => handleClick(file)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-muted",
-                  activeTabPath === relativePath && "bg-muted font-medium",
-                )}
+                onClick={handleBack}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-muted-foreground hover:bg-muted"
               >
-                <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate">{file.name}</span>
-                {!file.isDirectory && (
-                  <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-                    {formatSize(file.size)}
-                  </span>
-                )}
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 rotate-180" />
+                <span>..</span>
               </button>
-            );
-          })}
-        </div>
+            )}
+
+            {!loading && files.length === 0 && !error && (
+              <p className="px-2 text-xs text-muted-foreground">{t("workspaceFiles.empty")}</p>
+            )}
+
+            {files.map((file) => {
+              const relativePath = currentPath ? `${currentPath}/${file.name}` : file.name;
+              const Icon = file.isDirectory ? Folder : FileText;
+              return (
+                <button
+                  key={file.name}
+                  type="button"
+                  onClick={() => handleClick(file)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-muted",
+                    activeTabPath === relativePath && "bg-muted font-medium",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{file.name}</span>
+                  {!file.isDirectory && (
+                    <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+                      {formatSize(file.size)}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </ScrollArea>
       </CollapsibleContent>
     </Collapsible>
   );

@@ -46,10 +46,8 @@ export function SessionSidebar() {
         </Collapsible>
       </ScrollArea>
 
-      <ScrollArea className="shrink-0 max-h-[50%]">
-        <WorkspaceFileList />
-        <CronResultList />
-      </ScrollArea>
+      <WorkspaceFileList />
+      <CronResultList />
     </div>
   );
 }

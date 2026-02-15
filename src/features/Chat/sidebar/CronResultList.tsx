@@ -1,4 +1,4 @@
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@clawui/ui";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, ScrollArea } from "@clawui/ui";
 import { CheckCircle2, ChevronRight, Loader2, SkipForward, Timer, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
@@ -88,11 +88,13 @@ export function CronResultList() {
         <span className="tabular-nums text-[10px]">({cronEntries.length})</span>
       </div>
       <CollapsibleContent>
-        <div className="px-2 pb-2 space-y-0.5">
-          {visible.map((entry: GatewayActivityEntry) => (
-            <CronEntry key={entry.id} entry={entry} />
-          ))}
-        </div>
+        <ScrollArea className="max-h-40">
+          <div className="px-2 pb-2 space-y-0.5">
+            {visible.map((entry: GatewayActivityEntry) => (
+              <CronEntry key={entry.id} entry={entry} />
+            ))}
+          </div>
+        </ScrollArea>
       </CollapsibleContent>
     </Collapsible>
   );

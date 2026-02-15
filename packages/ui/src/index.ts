@@ -47,6 +47,7 @@ export {
   type ChartConfig,
 } from "./chart";
 export { Popover, PopoverTrigger, PopoverContent } from "./popover";
+export { Sheet, SheetContent, SheetHeader, SheetTitle } from "./sheet";
 export {
   DropdownMenu,
   DropdownMenuTrigger,

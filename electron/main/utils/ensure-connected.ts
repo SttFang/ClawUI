@@ -1,8 +1,9 @@
 import type { ChatWebSocketService } from "../services/chat-websocket";
 import type { ConfigService } from "../services/config";
+import { loadOrCreateDeviceIdentity } from "../services/chat/device-identity";
 
 /**
- * Shared helper: read gateway config -> set token/url -> connect if needed.
+ * Shared helper: read gateway config -> set token/url -> init device identity -> connect if needed.
  */
 export async function ensureGatewayConnected(
   configService: ConfigService,
@@ -18,6 +19,9 @@ export async function ensureGatewayConnected(
   } else if (config?.gateway?.port) {
     chatWebSocket.setGatewayUrl(`ws://127.0.0.1:${config.gateway.port}`);
   }
+
+  chatWebSocket.setDeviceIdentity(loadOrCreateDeviceIdentity());
+
   if (!chatWebSocket.isConnected()) {
     await chatWebSocket.connect();
   }

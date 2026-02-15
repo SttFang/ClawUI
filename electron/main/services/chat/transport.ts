@@ -1,8 +1,11 @@
 import { randomUUID } from "crypto";
 import { EventEmitter } from "events";
 import WebSocket from "ws";
+import type { DeviceIdentity } from "./device-identity";
 import { DEFAULT_GATEWAY_PORT } from "../../constants";
 import { chatLog } from "../../lib/logger";
+import { buildDeviceAuthPayload, loadDeviceAuthToken, storeDeviceAuthToken } from "./device-auth";
+import { publicKeyRawBase64UrlFromPem, signDevicePayload } from "./device-identity";
 
 interface ACPRequest {
   type: "req";
@@ -49,6 +52,16 @@ export class ChatTransport extends EventEmitter {
   private readonly instanceId = randomUUID();
   private clientVersion = "0.1.0";
 
+  private deviceIdentity: DeviceIdentity | null = null;
+  private connectNonce: string | null = null;
+  private connectSent = false;
+  private connectTimer: NodeJS.Timeout | null = null;
+  private doConnectCallbacks: {
+    resolve: () => void;
+    reject: (err: Error) => void;
+    t0: number;
+  } | null = null;
+
   setGatewayUrl(url: string): void {
     this.gatewayUrl = url;
   }
@@ -59,6 +72,10 @@ export class ChatTransport extends EventEmitter {
 
   setClientVersion(version: string): void {
     this.clientVersion = version;
+  }
+
+  setDeviceIdentity(identity: DeviceIdentity): void {
+    this.deviceIdentity = identity;
   }
 
   isConnected(): boolean {
@@ -87,6 +104,10 @@ export class ChatTransport extends EventEmitter {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
+    }
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
     }
     this.cleanupSocket();
   }
@@ -145,20 +166,10 @@ export class ChatTransport extends EventEmitter {
       const socket = new WebSocket(this.gatewayUrl);
       this.ws = socket;
 
-      socket.on("open", async () => {
+      socket.on("open", () => {
         chatLog.info("[ws.open]", `durationMs=${Date.now() - t0}`);
-        try {
-          await this.sendConnectFrame();
-          this.connected = true;
-          this.reconnectAttempts = 0;
-          this.emit("connected");
-          chatLog.info("[ws.connected]", `durationMs=${Date.now() - t0}`);
-          resolve();
-        } catch (error) {
-          chatLog.error("[acp.connect.failed]", error);
-          this.ws?.close();
-          reject(error);
-        }
+        this.doConnectCallbacks = { resolve, reject, t0 };
+        this.queueConnect();
       });
 
       socket.on("message", (data: WebSocket.Data) => {
@@ -186,9 +197,62 @@ export class ChatTransport extends EventEmitter {
     });
   }
 
-  private async sendConnectFrame(): Promise<void> {
+  private queueConnect(): void {
+    this.connectNonce = null;
+    this.connectSent = false;
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+    }
+    this.connectTimer = setTimeout(() => {
+      this.connectTimer = null;
+      this.sendConnectFrame();
+    }, 750);
+  }
+
+  private sendConnectFrame(): void {
+    if (this.connectSent) return;
+    this.connectSent = true;
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
+    }
+
     const connectId = randomUUID();
-    const t0 = Date.now();
+    const callbacks = this.doConnectCallbacks;
+    const t0 = callbacks?.t0 ?? Date.now();
+    const role = "operator";
+    const scopes = ["operator.admin", "operator.read", "operator.approvals"];
+
+    const storedToken = this.deviceIdentity
+      ? loadDeviceAuthToken({ deviceId: this.deviceIdentity.deviceId, role })?.token
+      : null;
+    const authToken = this.gatewayToken || storedToken || undefined;
+
+    const signedAtMs = Date.now();
+    const nonce = this.connectNonce ?? undefined;
+
+    let device: Record<string, unknown> | undefined;
+    if (this.deviceIdentity) {
+      const payload = buildDeviceAuthPayload({
+        deviceId: this.deviceIdentity.deviceId,
+        clientId: "openclaw-macos",
+        clientMode: "ui",
+        role,
+        scopes,
+        signedAtMs,
+        token: authToken ?? null,
+        nonce,
+      });
+      const signature = signDevicePayload(this.deviceIdentity.privateKeyPem, payload);
+      device = {
+        id: this.deviceIdentity.deviceId,
+        publicKey: publicKeyRawBase64UrlFromPem(this.deviceIdentity.publicKeyPem),
+        signature,
+        signedAt: signedAtMs,
+        nonce,
+      };
+    }
+
     const connectRequest: ACPRequest = {
       type: "req",
       id: connectId,
@@ -204,49 +268,88 @@ export class ChatTransport extends EventEmitter {
           mode: "ui",
           instanceId: this.instanceId,
         },
-        scopes: ["operator.admin", "operator.approvals"],
+        role,
+        scopes,
         caps: ["tool-events"],
-        auth: {
-          token: this.gatewayToken,
-        },
+        auth: authToken ? { token: authToken } : undefined,
+        device,
       },
     };
 
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pendingRequests.delete(connectId);
-        reject(new Error("Connect timeout"));
-      }, 10_000);
+    const timeout = setTimeout(() => {
+      this.pendingRequests.delete(connectId);
+      const err = new Error("Connect timeout");
+      callbacks?.reject(err);
+      this.doConnectCallbacks = null;
+    }, 10_000);
 
-      this.pendingRequests.set(connectId, {
-        resolve: (response) => {
-          clearTimeout(timeout);
-          if (response.ok) {
-            chatLog.info("[acp.connected]", `durationMs=${Date.now() - t0}`);
-            resolve();
-            return;
-          }
+    this.pendingRequests.set(connectId, {
+      resolve: (response) => {
+        clearTimeout(timeout);
+        if (response.ok) {
+          chatLog.info("[acp.connected]", `durationMs=${Date.now() - t0}`);
+          this.handleConnectResponse(response.payload, role);
+          this.connected = true;
+          this.reconnectAttempts = 0;
+          this.emit("connected");
+          chatLog.info("[ws.connected]", `durationMs=${Date.now() - t0}`);
+          callbacks?.resolve();
+        } else {
           chatLog.warn(
             "[acp.connect.rejected]",
             response.error?.message,
             `durationMs=${Date.now() - t0}`,
           );
-          reject(new Error(response.error?.message || "Connect failed"));
-        },
-        reject: (error) => {
-          clearTimeout(timeout);
-          reject(error);
-        },
-      });
-
-      chatLog.debug("[acp.connect.send]");
-      this.ws?.send(JSON.stringify(connectRequest));
+          callbacks?.reject(new Error(response.error?.message || "Connect failed"));
+          this.ws?.close();
+        }
+        this.doConnectCallbacks = null;
+      },
+      reject: (error) => {
+        clearTimeout(timeout);
+        callbacks?.reject(error);
+        this.doConnectCallbacks = null;
+      },
     });
+
+    chatLog.debug("[acp.connect.send]", this.deviceIdentity ? "device=yes" : "device=no");
+    this.ws?.send(JSON.stringify(connectRequest));
+  }
+
+  private handleConnectResponse(payload: unknown, role: string): void {
+    if (!this.deviceIdentity || !payload || typeof payload !== "object") return;
+    const auth = (payload as Record<string, unknown>).auth as Record<string, unknown> | undefined;
+    if (!auth) return;
+    const deviceToken = typeof auth.deviceToken === "string" ? auth.deviceToken : null;
+    if (deviceToken) {
+      storeDeviceAuthToken({
+        deviceId: this.deviceIdentity.deviceId,
+        role: typeof auth.role === "string" ? auth.role : role,
+        token: deviceToken,
+        scopes: Array.isArray(auth.scopes) ? (auth.scopes as string[]) : [],
+      });
+      chatLog.info("[device.token.stored]", `role=${role}`);
+    }
   }
 
   private handleMessage(data: string): void {
     try {
       const message = JSON.parse(data) as ACPMessage;
+
+      if (message.type === "event") {
+        if (!this.connected && message.event === "connect.challenge") {
+          const payload = message.payload as { nonce?: unknown } | undefined;
+          const nonce = payload && typeof payload.nonce === "string" ? payload.nonce : null;
+          if (nonce) {
+            chatLog.debug("[acp.challenge]", `nonce=${nonce.slice(0, 8)}...`);
+            this.connectNonce = nonce;
+            this.sendConnectFrame();
+          }
+          return;
+        }
+        this.emit("event", message);
+        return;
+      }
 
       if (message.type === "res") {
         const pending = this.pendingRequests.get(message.id);
@@ -254,11 +357,6 @@ export class ChatTransport extends EventEmitter {
           this.pendingRequests.delete(message.id);
           pending.resolve(message);
         }
-        return;
-      }
-
-      if (message.type === "event") {
-        this.emit("event", message);
       }
     } catch (error) {
       chatLog.error("[ws.parse.error]", error);

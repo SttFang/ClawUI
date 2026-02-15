@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { EventEmitter } from "events";
+import type { DeviceIdentity } from "./chat/device-identity";
 import { chatLog } from "../lib/logger";
 import { ChatEventAdapter } from "./chat/event-adapter";
 import { ChatTransport, type TransportGatewayEventFrame } from "./chat/transport";
@@ -54,6 +55,10 @@ export class ChatWebSocketService extends EventEmitter {
 
   setClientVersion(version: string): void {
     this.transport.setClientVersion(version);
+  }
+
+  setDeviceIdentity(identity: DeviceIdentity): void {
+    this.transport.setDeviceIdentity(identity);
   }
 
   async connect(): Promise<void> {

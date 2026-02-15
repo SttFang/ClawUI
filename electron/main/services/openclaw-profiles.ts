@@ -44,20 +44,29 @@ export class OpenClawProfilesService {
   }
 
   /**
-   * Symlink the rescue gateway's agents dir to the main one so auth-profiles
-   * (LLM API keys) are shared without duplication.
+   * Symlink the rescue gateway's agent credential dir to the main one so
+   * auth-profiles (LLM API keys) are shared without duplication.
+   *
+   * We symlink at `agents/main/agent` (not the whole `agents` dir) because
+   * the rescue profile keeps its own `agents/main/sessions`.
    */
   private async ensureSharedAgents(): Promise<void> {
-    const mainAgentsDir = join(homedir(), ".openclaw", "agents");
-    const rescueAgentsDir = join(homedir(), `.openclaw-${CONFIG_AGENT_PROFILE_NAME}`, "agents");
+    const mainAgentDir = join(homedir(), ".openclaw", "agents", "main", "agent");
+    const rescueAgentDir = join(
+      homedir(),
+      `.openclaw-${CONFIG_AGENT_PROFILE_NAME}`,
+      "agents",
+      "main",
+      "agent",
+    );
     // Already exists (real dir or symlink) — skip
-    if (existsSync(rescueAgentsDir)) return;
+    if (existsSync(rescueAgentDir)) return;
     // Main dir doesn't exist yet (no credentials configured) — skip
-    if (!existsSync(mainAgentsDir)) return;
+    if (!existsSync(mainAgentDir)) return;
 
-    await mkdir(dirname(rescueAgentsDir), { recursive: true });
+    await mkdir(dirname(rescueAgentDir), { recursive: true });
     try {
-      await symlink(mainAgentsDir, rescueAgentsDir, "dir");
+      await symlink(mainAgentDir, rescueAgentDir, "dir");
     } catch (err) {
       // Windows without developer mode: fall back to junction
       if (
@@ -65,7 +74,7 @@ export class OpenClawProfilesService {
         ((err as NodeJS.ErrnoException).code === "EPERM" ||
           (err as NodeJS.ErrnoException).code === "ENOTSUP")
       ) {
-        await symlink(mainAgentsDir, rescueAgentsDir, "junction");
+        await symlink(mainAgentDir, rescueAgentDir, "junction");
       } else {
         throw err;
       }

@@ -1,5 +1,5 @@
 import { useChat } from "@ai-sdk/react";
-import { createOpenClawChatTransport } from "@clawui/claw-sse";
+import { createOpenClawChatTransport } from "@clawui/openclaw-chat-stream";
 import { Button } from "@clawui/ui";
 import { MessageSquare } from "lucide-react";
 import { useMemo, useState } from "react";

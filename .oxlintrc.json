@@ -35,7 +35,7 @@
     "**/.turbo/**",
     "**/.cache/**",
     "pnpm-lock.yaml",
-    "packages/claw-sse/**",
+    "packages/openclaw-chat-stream/**",
     "resources/**"
   ]
 }

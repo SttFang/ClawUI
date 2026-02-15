@@ -46,8 +46,8 @@ export default defineConfig({
       alias: {
         "@clawui/config-core": resolve("packages/config-core/src/index.ts"),
         "@clawui/config-core/": resolve("packages/config-core/src/"),
-        "@clawui/claw-sse": resolve("packages/claw-sse/src/index.ts"),
-        "@clawui/claw-sse/": resolve("packages/claw-sse/src/"),
+        "@clawui/openclaw-chat-stream": resolve("packages/openclaw-chat-stream/src/index.ts"),
+        "@clawui/openclaw-chat-stream/": resolve("packages/openclaw-chat-stream/src/"),
         "@": resolve("src"),
         "@components": resolve("src/components"),
         "@features": resolve("src/features"),

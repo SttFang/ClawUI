@@ -85,7 +85,7 @@
 
 UI 处理建议：
 - “覆盖式更新”更稳：只更新为更长的文本（避免短文本回退）
-- 如果你需要 token-delta 语义，可在 UI 侧做 suffix diff（见后续 `packages/claw-sse`）
+- 如果你需要 token-delta 语义，可在 UI 侧做 suffix diff（见后续 `packages/openclaw-chat-stream`）
 
 详见：`docs/openclaw/streaming-events.md`
 

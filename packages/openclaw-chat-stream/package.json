@@ -1,5 +1,5 @@
 {
-  "name": "@clawui/claw-sse",
+  "name": "@clawui/openclaw-chat-stream",
   "version": "0.0.0",
   "private": true,
   "type": "module",

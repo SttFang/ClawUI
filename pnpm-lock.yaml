@@ -11,9 +11,9 @@ importers:
       '@ai-sdk/react':
         specifier: ^3.0.79
         version: 3.0.79(react@19.2.4)(zod@4.3.6)
-      '@clawui/claw-sse':
+      '@clawui/openclaw-chat-stream':
         specifier: workspace:*
-        version: link:packages/claw-sse
+        version: link:packages/openclaw-chat-stream
       '@clawui/ui':
         specifier: workspace:*
         version: link:packages/ui
@@ -190,13 +190,13 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.10)(jiti@2.6.1)(jsdom@28.0.0(@noble/hashes@2.0.1))(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
-  packages/claw-sse:
+  packages/config-core: {}
+
+  packages/openclaw-chat-stream:
     dependencies:
       ai:
         specifier: ^6.0.77
         version: 6.0.77(zod@4.3.6)
-
-  packages/config-core: {}
 
   packages/types: {}
 

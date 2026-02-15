@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import { openclawTranscriptToUIMessages } from "@clawui/claw-sse";
+import { openclawTranscriptToUIMessages } from "@clawui/openclaw-chat-stream";
 import { useCallback, useRef } from "react";
 import { ipc } from "@/lib/ipc";
 import { chatLog } from "@/lib/logger";

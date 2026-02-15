@@ -1,4 +1,4 @@
-import type { OpenClawChatTransportAdapter } from "@clawui/claw-sse";
+import type { OpenClawChatTransportAdapter } from "@clawui/openclaw-chat-stream";
 import { ipc } from "@/lib/ipc";
 import { ensureChatConnected } from "@/services/chat/connection";
 

@@ -128,9 +128,6 @@ app.whenReady().then(async () => {
     // Rescue gateway shares the main config's env (API keys etc.) but uses its own port/tools.
     const rescueConfig = await profilesService.getConfigService("configAgent").getConfig();
     if (rescueConfig) {
-      if (config?.env) {
-        rescueConfig.env = { ...config.env, ...(rescueConfig.env ?? {}) };
-      }
       rescueGateway.setConfig(rescueConfig);
     }
   } catch (error) {

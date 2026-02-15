@@ -1,5 +1,7 @@
+import { existsSync } from "fs";
+import { mkdir, symlink } from "fs/promises";
 import { homedir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
 import { CONFIG_AGENT_PROFILE_NAME } from "../constants";
 import { ConfigService, createDefaultConfig, type OpenClawConfig } from "./config";
 
@@ -38,6 +40,36 @@ export class OpenClawProfilesService {
   async initialize(): Promise<void> {
     await this.mainConfigService.initialize();
     await this.configAgentConfigService.initialize();
+    await this.ensureSharedAgents();
+  }
+
+  /**
+   * Symlink the rescue gateway's agents dir to the main one so auth-profiles
+   * (LLM API keys) are shared without duplication.
+   */
+  private async ensureSharedAgents(): Promise<void> {
+    const mainAgentsDir = join(homedir(), ".openclaw", "agents");
+    const rescueAgentsDir = join(homedir(), `.openclaw-${CONFIG_AGENT_PROFILE_NAME}`, "agents");
+    // Already exists (real dir or symlink) — skip
+    if (existsSync(rescueAgentsDir)) return;
+    // Main dir doesn't exist yet (no credentials configured) — skip
+    if (!existsSync(mainAgentsDir)) return;
+
+    await mkdir(dirname(rescueAgentsDir), { recursive: true });
+    try {
+      await symlink(mainAgentsDir, rescueAgentsDir, "dir");
+    } catch (err) {
+      // Windows without developer mode: fall back to junction
+      if (
+        process.platform === "win32" &&
+        ((err as NodeJS.ErrnoException).code === "EPERM" ||
+          (err as NodeJS.ErrnoException).code === "ENOTSUP")
+      ) {
+        await symlink(mainAgentsDir, rescueAgentsDir, "junction");
+      } else {
+        throw err;
+      }
+    }
   }
 
   getConfigPath(profileId: OpenClawProfileId): string {

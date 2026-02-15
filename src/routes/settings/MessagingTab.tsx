@@ -1,14 +1,6 @@
-import {
-  Button,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-  Input,
-  Label,
-  Switch,
-} from "@clawui/ui";
-import { CheckCircle2, ChevronDown, Loader2, Settings } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Button, Input, Label, Switch } from "@clawui/ui";
+import { CheckCircle2, Loader2, Settings } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import type { ChannelConfig } from "@/lib/ipc";
@@ -30,13 +22,11 @@ const CHANNEL_DEFS = [
     channelType: "discord",
     label: "Discord",
     fields: [{ field: "token", label: "Bot Token" }],
-    primary: true,
   },
   {
     channelType: "telegram",
     label: "Telegram",
     fields: [{ field: "botToken", label: "Bot Token" }],
-    primary: true,
   },
   {
     channelType: "slack",
@@ -47,31 +37,26 @@ const CHANNEL_DEFS = [
       { field: "userToken", label: "User Token" },
       { field: "signingSecret", label: "Signing Secret" },
     ],
-    primary: true,
   },
   {
     channelType: "signal",
     label: "Signal",
     fields: [{ field: "account", label: "Phone Number" }],
-    primary: false,
   },
   {
     channelType: "whatsapp",
     label: "WhatsApp",
     fields: [{ field: "authDir", label: "Auth Directory" }],
-    primary: false,
   },
   {
     channelType: "irc",
     label: "IRC",
     fields: [{ field: "password", label: "Server Password" }],
-    primary: false,
   },
   {
     channelType: "googlechat",
     label: "Google Chat",
     fields: [{ field: "serviceAccountFile", label: "Service Account File" }],
-    primary: false,
   },
 ] as const;
 
@@ -117,12 +102,17 @@ export function MessagingTab() {
     return channels.find((c) => c.type === type)?.config ?? null;
   };
 
-  const getChannelState = (channelType: string) => {
-    return channels.find((c) => c.type === channelType);
-  };
-
-  const primaryDefs = CHANNEL_DEFS.filter((d) => d.primary);
-  const secondaryDefs = CHANNEL_DEFS.filter((d) => !d.primary);
+  // Sort: configured channels first, preserve original order within each group
+  const sortedDefs = useMemo(() => {
+    const configured = new Set(
+      channels.filter((c) => c.isConfigured).map((c) => c.type),
+    );
+    return [...CHANNEL_DEFS].sort((a, b) => {
+      const ac = configured.has(a.channelType as ChannelType) ? 0 : 1;
+      const bc = configured.has(b.channelType as ChannelType) ? 0 : 1;
+      return ac - bc;
+    });
+  }, [channels]);
 
   return (
     <div className="space-y-6">
@@ -145,10 +135,9 @@ export function MessagingTab() {
         </div>
       ) : null}
 
-      {/* Primary channels */}
       <div className="rounded-lg border divide-y">
-        {primaryDefs.map((ch) => {
-          const channelState = getChannelState(ch.channelType);
+        {sortedDefs.map((ch) => {
+          const channelState = channels.find((c) => c.type === ch.channelType);
           const Icon = getChannelBrandIcon(ch.channelType as ChannelType);
           return (
             <ChannelCard
@@ -156,7 +145,7 @@ export function MessagingTab() {
               channelType={ch.channelType}
               label={ch.label}
               fields={ch.fields}
-              icon={Icon ? <Icon size={22} /> : null}
+              icon={Icon ? <Icon size={18} /> : null}
               isEnabled={channelState?.isEnabled ?? false}
               isConfigured={channelState?.isConfigured ?? false}
               isEditable={channelState?.isEditable ?? false}
@@ -171,43 +160,6 @@ export function MessagingTab() {
           );
         })}
       </div>
-
-      {/* Secondary channels (collapsible) */}
-      <Collapsible>
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" className="flex items-center gap-2">
-            <ChevronDown className="h-4 w-4" />
-            {t("settings.page.messaging.moreChannels")}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-4">
-          <div className="rounded-lg border divide-y">
-            {secondaryDefs.map((ch) => {
-              const channelState = getChannelState(ch.channelType);
-              const Icon = getChannelBrandIcon(ch.channelType as ChannelType);
-              return (
-                <ChannelCard
-                  key={ch.channelType}
-                  channelType={ch.channelType}
-                  label={ch.label}
-                  fields={ch.fields}
-                  icon={Icon ? <Icon size={22} /> : null}
-                  isEnabled={channelState?.isEnabled ?? false}
-                  isConfigured={channelState?.isConfigured ?? false}
-                  isEditable={channelState?.isEditable ?? false}
-                  channelValues={channelValues}
-                  setChannelValue={setChannelValue}
-                  isLoading={isLoading}
-                  onEnable={() => enableChannel(ch.channelType as ChannelType)}
-                  onDisable={() => disableChannel(ch.channelType as ChannelType)}
-                  onConfigure={() => handleConfigure(ch.channelType as ChannelType)}
-                  t={t}
-                />
-              );
-            })}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
 
       {/* Sticky unsaved-changes bar */}
       {hasUnsaved && (
@@ -280,6 +232,9 @@ function ChannelCard({
   onConfigure: () => void;
   t: (key: string, opts?: Record<string, unknown>) => string;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const showFields = isConfigured || isExpanded;
+
   return (
     <div className="px-4 py-3 space-y-3">
       <div className="flex items-center justify-between">
@@ -290,36 +245,48 @@ function ChannelCard({
             {isConfigured ? t("channels.status.configured") : t("channels.status.notConfigured")}
           </span>
         </div>
-        <Switch
-          checked={isEnabled}
-          onCheckedChange={(checked) => (checked ? onEnable() : onDisable())}
-          disabled={!isConfigured}
-        />
+        <div className="flex items-center gap-2">
+          {!isConfigured && !isExpanded && (
+            <Button variant="outline" size="sm" onClick={() => setIsExpanded(true)}>
+              {t("channels.actions.configure")}
+            </Button>
+          )}
+          {isConfigured && (
+            <Switch
+              checked={isEnabled}
+              onCheckedChange={(checked) => (checked ? onEnable() : onDisable())}
+            />
+          )}
+        </div>
       </div>
-      <div className={fields.length >= 3 ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}>
-        {fields.map((f) => {
-          const key = `${channelType}:${f.field}`;
-          return (
-            <div key={key} className="space-y-1.5">
-              <Label htmlFor={key}>{f.label}</Label>
-              <Input
-                id={key}
-                type="password"
-                value={channelValues[key] ?? ""}
-                onChange={(e) => setChannelValue(key, e.target.value)}
-                placeholder="..."
-                disabled={isLoading}
-              />
-            </div>
-          );
-        })}
-        {isEditable && (channelType === "telegram" || channelType === "discord") && (
-          <Button variant="outline" size="sm" onClick={onConfigure} className="col-span-full">
-            <Settings className="w-4 h-4 mr-2" />
-            {t("channels.actions.configure")}
-          </Button>
-        )}
-      </div>
+      {showFields && (
+        <div
+          className={fields.length >= 3 ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}
+        >
+          {fields.map((f) => {
+            const key = `${channelType}:${f.field}`;
+            return (
+              <div key={key} className="space-y-1.5">
+                <Label htmlFor={key}>{f.label}</Label>
+                <Input
+                  id={key}
+                  type="password"
+                  value={channelValues[key] ?? ""}
+                  onChange={(e) => setChannelValue(key, e.target.value)}
+                  placeholder="..."
+                  disabled={isLoading}
+                />
+              </div>
+            );
+          })}
+          {isEditable && (channelType === "telegram" || channelType === "discord") && (
+            <Button variant="outline" size="sm" onClick={onConfigure} className="col-span-full">
+              <Settings className="w-4 h-4 mr-2" />
+              {t("channels.actions.configure")}
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

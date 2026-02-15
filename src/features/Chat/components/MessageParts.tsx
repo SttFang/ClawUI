@@ -273,9 +273,16 @@ export function MessageParts(props: {
       if (policy.kind === "hidden") continue;
 
       const stableToolCallId = normalizeToolCallId(part.toolCallId);
+      const needsIdNorm = stableToolCallId && stableToolCallId !== part.toolCallId;
+      const needsStateNorm =
+        !streaming && part.state !== "output-available" && part.state !== "output-error";
       const normalizedPart =
-        stableToolCallId && stableToolCallId !== part.toolCallId
-          ? ({ ...part, toolCallId: stableToolCallId } as DynamicToolUIPart)
+        needsIdNorm || needsStateNorm
+          ? ({
+              ...part,
+              ...(needsIdNorm ? { toolCallId: stableToolCallId } : undefined),
+              ...(needsStateNorm ? { state: "output-available" as const } : undefined),
+            } as DynamicToolUIPart)
           : part;
       const toolCallId = stableToolCallId || part.toolCallId;
 

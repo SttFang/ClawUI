@@ -8,12 +8,23 @@ import { buildLoginShellInvocation, execInLoginShell } from "../utils/login-shel
 
 export type GatewayStatus = "stopped" | "starting" | "running" | "error";
 
+export interface GatewayServiceOptions {
+  /** OpenClaw `--profile` name. When set, all CLI commands use this profile. */
+  profile?: string;
+}
+
 export class GatewayService extends EventEmitter {
   private process: ChildProcess | null = null;
   private status: GatewayStatus = "stopped";
   private config: CanonicalOpenClawConfig | null = null;
   private port = DEFAULT_GATEWAY_PORT;
   private monitorTimer: NodeJS.Timeout | null = null;
+  private readonly profile: string | undefined;
+
+  constructor(options?: GatewayServiceOptions) {
+    super();
+    this.profile = options?.profile;
+  }
 
   setConfig(config: CanonicalOpenClawConfig): void {
     this.config = config;
@@ -116,7 +127,7 @@ export class GatewayService extends EventEmitter {
 
       // Run via a login shell so PATH matches the user's terminal environment.
       // This is important on macOS where GUI apps often have a minimal PATH.
-      const gatewayCmd = `openclaw gateway --port ${this.port}`;
+      const gatewayCmd = this.buildGatewayCommand();
       const { file: command, args: fullArgs } = buildLoginShellInvocation(gatewayCmd);
 
       gatewayLog.info("[gateway.spawn]", command, fullArgs.join(" "));
@@ -181,7 +192,10 @@ export class GatewayService extends EventEmitter {
     // If we didn't start it, try stopping the gateway service (best-effort) so UI controls still work.
     if (!this.process) {
       try {
-        await execInLoginShell("openclaw gateway stop", { timeoutMs: 30_000 });
+        const stopCmd = this.profile
+          ? `openclaw --profile ${this.profile} gateway stop`
+          : "openclaw gateway stop";
+        await execInLoginShell(stopCmd, { timeoutMs: 30_000 });
       } catch (error) {
         gatewayLog.warn("[gateway.stop.failed]", "CLI stop failed:", error);
       }
@@ -260,6 +274,11 @@ export class GatewayService extends EventEmitter {
     }
 
     this.removeAllListeners();
+  }
+
+  private buildGatewayCommand(): string {
+    const prefix = this.profile ? `openclaw --profile ${this.profile}` : "openclaw";
+    return `${prefix} gateway --port ${this.port}`;
   }
 
   private setStatus(status: GatewayStatus): void {

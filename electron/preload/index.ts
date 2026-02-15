@@ -188,4 +188,46 @@ contextBridge.exposeInMainWorld("electron", {
       ipcRenderer.invoke("workspace:read-file-base64", relativePath),
     runPython: (relativePath: string) => ipcRenderer.invoke("workspace:run-python", relativePath),
   },
+  rescue: {
+    gateway: {
+      start: () => ipcRenderer.invoke("rescue:gateway-start"),
+      stop: () => ipcRenderer.invoke("rescue:gateway-stop"),
+      getStatus: () => ipcRenderer.invoke("rescue:gateway-status"),
+      onStatusChange: (callback: (status: GatewayStatus) => void) => {
+        const listener = (_event: Electron.IpcRendererEvent, status: GatewayStatus) =>
+          callback(status);
+        ipcRenderer.on("rescue:gateway-status-changed", listener);
+        return () => ipcRenderer.removeListener("rescue:gateway-status-changed", listener);
+      },
+    },
+    chat: {
+      connect: (url?: string) => ipcRenderer.invoke("rescue:connect", url),
+      disconnect: () => ipcRenderer.invoke("rescue:disconnect"),
+      send: (request: ChatRequest) => ipcRenderer.invoke("rescue:send", request),
+      request: (method: string, params?: Record<string, unknown>) =>
+        ipcRenderer.invoke("rescue:request", method, params),
+      isConnected: () => ipcRenderer.invoke("rescue:isConnected"),
+      onStream: (callback: (event: ChatStreamEvent) => void) => {
+        const listener = (_event: Electron.IpcRendererEvent, data: ChatStreamEvent) =>
+          callback(data);
+        ipcRenderer.on("rescue:stream", listener);
+        return () => ipcRenderer.removeListener("rescue:stream", listener);
+      },
+      onConnected: (callback: () => void) => {
+        const listener = () => callback();
+        ipcRenderer.on("rescue:connected", listener);
+        return () => ipcRenderer.removeListener("rescue:connected", listener);
+      },
+      onDisconnected: (callback: () => void) => {
+        const listener = () => callback();
+        ipcRenderer.on("rescue:disconnected", listener);
+        return () => ipcRenderer.removeListener("rescue:disconnected", listener);
+      },
+      onError: (callback: (error: string) => void) => {
+        const listener = (_event: Electron.IpcRendererEvent, error: string) => callback(error);
+        ipcRenderer.on("rescue:error", listener);
+        return () => ipcRenderer.removeListener("rescue:error", listener);
+      },
+    },
+  },
 });

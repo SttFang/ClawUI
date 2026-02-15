@@ -1056,6 +1056,17 @@ const common = {
     done: "思考了 {{seconds}} 秒",
     doneShort: "思考了几秒",
   },
+  rescue: {
+    title: "救援助手",
+    trigger: "打开救援助手",
+    inputPlaceholder: "输入指令…",
+    status: {
+      running: "运行中",
+      starting: "启动中",
+      stopped: "已停止",
+      error: "错误",
+    },
+  },
 } as const;
 
 export default common;

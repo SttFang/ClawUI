@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@clawui/ui";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
+import { RescueLayout } from "@/features/RescueAgent";
 import {
   isSettingsTab,
   resolveTabFromSection,
@@ -45,40 +46,42 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold">{t("settings.page.title")}</h1>
-          <p className="text-muted-foreground">{t("settings.page.description")}</p>
+    <RescueLayout>
+      <div className="h-full overflow-y-auto p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-2xl font-semibold">{t("settings.page.title")}</h1>
+            <p className="text-muted-foreground">{t("settings.page.description")}</p>
+          </div>
+
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
+            <TabsList className="mb-6 h-auto bg-transparent p-0 border-b rounded-none w-full justify-start gap-6">
+              {(["general", "ai", "messaging", "capabilities"] as const).map((tab) => (
+                <TabsTrigger
+                  key={tab}
+                  value={tab}
+                  className="rounded-none border-b-2 border-transparent px-0 pb-2.5 pt-1 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                >
+                  {t(`settings.page.tabs.${tab}`)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <TabsContent value="general">
+              <GeneralTab />
+            </TabsContent>
+            <TabsContent value="ai">
+              <AiServicesTab />
+            </TabsContent>
+            <TabsContent value="messaging">
+              <MessagingTab />
+            </TabsContent>
+            <TabsContent value="capabilities">
+              <CapabilitiesTab />
+            </TabsContent>
+          </Tabs>
         </div>
-
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="mb-6 h-auto bg-transparent p-0 border-b rounded-none w-full justify-start gap-6">
-            {(["general", "ai", "messaging", "capabilities"] as const).map((tab) => (
-              <TabsTrigger
-                key={tab}
-                value={tab}
-                className="rounded-none border-b-2 border-transparent px-0 pb-2.5 pt-1 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-              >
-                {t(`settings.page.tabs.${tab}`)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <TabsContent value="general">
-            <GeneralTab />
-          </TabsContent>
-          <TabsContent value="ai">
-            <AiServicesTab />
-          </TabsContent>
-          <TabsContent value="messaging">
-            <MessagingTab />
-          </TabsContent>
-          <TabsContent value="capabilities">
-            <CapabilitiesTab />
-          </TabsContent>
-        </Tabs>
       </div>
-    </div>
+    </RescueLayout>
   );
 }

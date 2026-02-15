@@ -1,5 +1,6 @@
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { app, BrowserWindow, ipcMain, session } from "electron";
+import { CONFIG_AGENT_PROFILE_NAME } from "./constants";
 import { registerAppHandlers } from "./ipc/app";
 import { registerChatHandlers } from "./ipc/chat";
 import { registerConfigHandlers } from "./ipc/config";
@@ -9,6 +10,7 @@ import { registerMetadataHandlers } from "./ipc/metadata";
 import { registerModelsHandlers } from "./ipc/models";
 import { registerOnboardingHandlers } from "./ipc/onboarding";
 import { registerProfilesHandlers } from "./ipc/profiles";
+import { registerRescueHandlers } from "./ipc/rescue";
 import { registerSecretsHandlers } from "./ipc/secrets";
 import { registerSecurityHandlers } from "./ipc/security";
 import { registerSkillsHandlers } from "./ipc/skills";
@@ -33,6 +35,8 @@ initLogger();
 // Services
 const chatWebSocket = new ChatWebSocketService();
 const gatewayService = new GatewayService();
+const rescueChatWs = new ChatWebSocketService();
+const rescueGateway = new GatewayService({ profile: CONFIG_AGENT_PROFILE_NAME });
 const profilesService = new OpenClawProfilesService();
 const configService = profilesService.getConfigService("main");
 const configOrchestrator = new ConfigOrchestrator({
@@ -93,6 +97,11 @@ app.whenReady().then(async () => {
   registerSkillsHandlers(ipcMain, profilesService);
   registerCredentialHandlers(ipcMain, credentialService, oauthService);
   registerWorkspaceHandlers(ipcMain, configService);
+  registerRescueHandlers(
+    rescueGateway,
+    rescueChatWs,
+    profilesService.getConfigService("configAgent"),
+  );
 
   // Create the main window
   const mainWindow = createMainWindow({
@@ -115,6 +124,14 @@ app.whenReady().then(async () => {
     const config = await configService.getConfig();
     if (config) {
       gatewayService.setConfig(config);
+    }
+    // Rescue gateway shares the main config's env (API keys etc.) but uses its own port/tools.
+    const rescueConfig = await profilesService.getConfigService("configAgent").getConfig();
+    if (rescueConfig) {
+      if (config?.env) {
+        rescueConfig.env = { ...config.env, ...(rescueConfig.env ?? {}) };
+      }
+      rescueGateway.setConfig(rescueConfig);
     }
   } catch (error) {
     mainLog.error("Failed to initialize services:", error);
@@ -151,5 +168,5 @@ app.on("window-all-closed", () => {
 
 // Clean up on quit
 app.on("before-quit", async () => {
-  await gatewayService.dispose();
+  await Promise.all([gatewayService.dispose(), rescueGateway.dispose()]);
 });

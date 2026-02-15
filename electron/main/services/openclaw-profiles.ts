@@ -1,10 +1,9 @@
 import { homedir } from "os";
 import { join } from "path";
+import { CONFIG_AGENT_PROFILE_NAME } from "../constants";
 import { ConfigService, createDefaultConfig, type OpenClawConfig } from "./config";
 
 export type OpenClawProfileId = "main" | "configAgent";
-
-const CONFIG_AGENT_PROFILE_NAME = "clawui-config-agent";
 
 function resolveProfileConfigPath(profileId: OpenClawProfileId): string {
   if (profileId === "main") return join(homedir(), ".openclaw", "openclaw.json");
@@ -23,12 +22,11 @@ export class OpenClawProfilesService {
     });
 
     const configAgentDefaults: OpenClawConfig = createDefaultConfig(19789);
-    // Min-permission defaults: this profile is meant to generate patches/metadata,
-    // not to execute local tools. Any "elevated" changes are applied by ClawUI with
-    // strict allowlists, not by this agent directly.
+    // Rescue agent needs fs + runtime + exec to manage the main gateway configuration.
+    // Only web tools are denied to limit attack surface.
     configAgentDefaults.tools = {
-      allow: [],
-      deny: ["exec", "group:fs", "web_*"],
+      allow: ["group:fs", "group:runtime", "exec"],
+      deny: ["web_*"],
     };
 
     this.configAgentConfigService = new ConfigService({

@@ -1,5 +1,10 @@
 import { AgentsFeature } from "@/features/Agents";
+import { RescueLayout } from "@/features/RescueAgent";
 
 export default function AgentsPage() {
-  return <AgentsFeature />;
+  return (
+    <RescueLayout>
+      <AgentsFeature />
+    </RescueLayout>
+  );
 }

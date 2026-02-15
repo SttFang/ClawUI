@@ -217,6 +217,25 @@ export interface ElectronAPI {
     readFileBase64: (relativePath: string) => Promise<WorkspaceReadFileBase64Result>;
     runPython: (relativePath: string) => Promise<PythonRunResult>;
   };
+  rescue?: {
+    gateway: {
+      start: () => Promise<void>;
+      stop: () => Promise<void>;
+      getStatus: () => Promise<GatewayStatus>;
+      onStatusChange: (callback: (status: GatewayStatus) => void) => () => void;
+    };
+    chat: {
+      connect: (url?: string) => Promise<boolean>;
+      disconnect: () => Promise<boolean>;
+      send: (request: ChatRequest) => Promise<string>;
+      request: (method: string, params?: Record<string, unknown>) => Promise<unknown>;
+      isConnected: () => Promise<boolean>;
+      onStream: (callback: (event: ChatStreamEvent) => void) => () => void;
+      onConnected: (callback: () => void) => () => void;
+      onDisconnected: (callback: () => void) => () => void;
+      onError: (callback: (error: string) => void) => () => void;
+    };
+  };
 }
 
 export type WorkspaceFileEntry = {
@@ -698,6 +717,66 @@ export const ipc = {
       const api = getElectronAPI();
       if (!api?.workspace) throw new Error("Workspace API not available — restart the app");
       return api.workspace.runPython(relativePath);
+    },
+  },
+  rescue: {
+    gateway: {
+      async start() {
+        const api = getElectronAPI();
+        await api?.rescue?.gateway.start();
+      },
+      async stop() {
+        const api = getElectronAPI();
+        await api?.rescue?.gateway.stop();
+      },
+      async getStatus(): Promise<GatewayStatus> {
+        const api = getElectronAPI();
+        return api?.rescue?.gateway.getStatus() ?? Promise.resolve("stopped" as const);
+      },
+      onStatusChange(callback: (status: GatewayStatus) => void) {
+        const api = getElectronAPI();
+        return api?.rescue?.gateway.onStatusChange(callback) ?? (() => {});
+      },
+    },
+    chat: {
+      async connect(url?: string) {
+        const api = getElectronAPI();
+        return api?.rescue?.chat.connect(url) ?? false;
+      },
+      async disconnect() {
+        const api = getElectronAPI();
+        return api?.rescue?.chat.disconnect() ?? false;
+      },
+      async send(request: ChatRequest) {
+        const api = getElectronAPI();
+        if (!api?.rescue?.chat) throw new Error("Rescue API not available");
+        return api.rescue.chat.send(request);
+      },
+      async request(method: string, params?: Record<string, unknown>) {
+        const api = getElectronAPI();
+        if (!api?.rescue?.chat) throw new Error("Rescue API not available");
+        return api.rescue.chat.request(method, params);
+      },
+      async isConnected() {
+        const api = getElectronAPI();
+        return api?.rescue?.chat.isConnected() ?? false;
+      },
+      onStream(callback: (event: ChatStreamEvent) => void) {
+        const api = getElectronAPI();
+        return api?.rescue?.chat.onStream(callback) ?? (() => {});
+      },
+      onConnected(callback: () => void) {
+        const api = getElectronAPI();
+        return api?.rescue?.chat.onConnected(callback) ?? (() => {});
+      },
+      onDisconnected(callback: () => void) {
+        const api = getElectronAPI();
+        return api?.rescue?.chat.onDisconnected(callback) ?? (() => {});
+      },
+      onError(callback: (error: string) => void) {
+        const api = getElectronAPI();
+        return api?.rescue?.chat.onError(callback) ?? (() => {});
+      },
     },
   },
 };

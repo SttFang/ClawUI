@@ -10,7 +10,7 @@ export function ChatMain() {
   } = useChatFeature();
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       {configValid === false && showBanner ? (
         <div className="p-4 pb-0">
           <ConfigBanner

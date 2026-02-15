@@ -18,6 +18,9 @@ export interface CanonicalGatewayConfig {
 export interface CanonicalOpenClawConfig {
   meta?: Record<string, unknown>;
   gateway?: CanonicalGatewayConfig;
+  discovery?: {
+    mdns?: { mode?: "off" | "minimal" | "full" };
+  };
   agents?: {
     defaults?: {
       workspace?: string;

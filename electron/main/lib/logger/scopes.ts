@@ -11,3 +11,4 @@ export const updaterLog = log.scope("updater");
 export const installerLog = log.scope("installer");
 export const detectorLog = log.scope("detector");
 export const onboardingLog = log.scope("onboarding");
+export const profilesLog = log.scope("profiles");

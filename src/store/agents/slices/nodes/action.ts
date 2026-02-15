@@ -20,7 +20,7 @@ export const nodesSlice: StateCreator<
   loadNodes: async () => {
     set({ nodesLoading: true }, false, "loadNodes/start");
     try {
-      const res = (await ipc.chat.request("nodes", { action: "status" })) as {
+      const res = (await ipc.chat.request("node.list", {})) as {
         nodes?: NodeInfo[];
       };
       set({ nodes: res?.nodes ?? [], nodesError: null, nodesLoading: false }, false, "loadNodes");
@@ -33,10 +33,10 @@ export const nodesSlice: StateCreator<
 
   loadPendingNodes: async () => {
     try {
-      const res = (await ipc.chat.request("nodes", { action: "pending" })) as {
+      const res = (await ipc.chat.request("node.pair.list", {})) as {
         requests?: PendingNode[];
       };
-      set({ pendingNodes: res?.requests ?? [] }, false, "loadPendingNodes");
+      set({ pendingNodes: res?.requests ?? [], nodesError: null }, false, "loadPendingNodes");
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       agentsLog.warn("[nodes.pending] failed:", message);
@@ -45,11 +45,10 @@ export const nodesSlice: StateCreator<
 
   approveNode: async (requestId) => {
     try {
-      await ipc.chat.request("nodes", { action: "approve", requestId });
-      // Refresh both lists
+      await ipc.chat.request("node.pair.approve", { requestId });
       const [statusRes, pendingRes] = await Promise.all([
-        ipc.chat.request("nodes", { action: "status" }) as Promise<{ nodes?: NodeInfo[] }>,
-        ipc.chat.request("nodes", { action: "pending" }) as Promise<{ requests?: PendingNode[] }>,
+        ipc.chat.request("node.list", {}) as Promise<{ nodes?: NodeInfo[] }>,
+        ipc.chat.request("node.pair.list", {}) as Promise<{ requests?: PendingNode[] }>,
       ]);
       set(
         { nodes: statusRes?.nodes ?? [], pendingNodes: pendingRes?.requests ?? [] },
@@ -65,8 +64,8 @@ export const nodesSlice: StateCreator<
 
   rejectNode: async (requestId) => {
     try {
-      await ipc.chat.request("nodes", { action: "reject", requestId });
-      const res = (await ipc.chat.request("nodes", { action: "pending" })) as {
+      await ipc.chat.request("node.pair.reject", { requestId });
+      const res = (await ipc.chat.request("node.pair.list", {})) as {
         requests?: PendingNode[];
       };
       set({ pendingNodes: res?.requests ?? [] }, false, "rejectNode");

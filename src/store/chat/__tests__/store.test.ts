@@ -92,6 +92,31 @@ describe("ChatStore", () => {
       expect(session.createdAt).toBeLessThanOrEqual(after);
       expect(session.updatedAt).toBe(session.createdAt);
     });
+
+    it("should generate unique key when main session exists with normalized id", () => {
+      // Gateway normalizes "main" → "agent:main:main", so hasMain must match both forms
+      useChatStore.setState({
+        ...initialState,
+        sessions: [
+          {
+            id: "agent:main:main",
+            name: "Main",
+            messages: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        ],
+        currentSessionId: "agent:main:main",
+      });
+
+      const { createSession } = useChatStore.getState();
+      const newId = createSession();
+
+      expect(newId).not.toBe("main");
+      expect(newId).not.toBe("agent:main:main");
+      expect(newId).toMatch(/^agent:main:ui:/);
+      expect(useChatStore.getState().sessions).toHaveLength(2);
+    });
   });
 
   describe("selectSession", () => {

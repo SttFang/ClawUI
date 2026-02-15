@@ -308,6 +308,34 @@ describe("ToolsStore", () => {
       expect(state.config.execAsk).toBe("off");
       expect(state.config.execSecurity).toBe("deny");
     });
+
+    it("should add exec to deny list when deny mode (sandbox bypass fix)", async () => {
+      await useToolsStore.getState().setAccessMode("deny");
+      expect(useToolsStore.getState().config.denyList).toContain("exec");
+
+      const patch = getLastPersistPatch();
+      expect(patch.tools?.deny).toContain("exec");
+    });
+
+    it("should remove exec from deny list when leaving deny mode", async () => {
+      await useToolsStore.getState().setAccessMode("deny");
+      expect(useToolsStore.getState().config.denyList).toContain("exec");
+
+      await useToolsStore.getState().setAccessMode("auto");
+      expect(useToolsStore.getState().config.denyList).not.toContain("exec");
+    });
+
+    it("should not duplicate exec in deny list", async () => {
+      useToolsStore.setState({
+        ...initialState,
+        config: { ...initialState.config, denyList: ["exec"] },
+      });
+
+      await useToolsStore.getState().setAccessMode("deny");
+
+      const denyList = useToolsStore.getState().config.denyList;
+      expect(denyList.filter((id) => id === "exec")).toHaveLength(1);
+    });
   });
 
   describe("exec settings", () => {

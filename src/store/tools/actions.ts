@@ -105,6 +105,14 @@ export function createToolsActions(
               : config.execHost === "sandbox"
                 ? "deny"
                 : "allowlist";
+        // Sandbox bypasses exec security checks entirely, so when deny mode
+        // is active we must also block exec at the tool-policy level.
+        const nextDenyList =
+          mode === "deny"
+            ? config.denyList.includes("exec")
+              ? config.denyList
+              : [...config.denyList, "exec"]
+            : config.denyList.filter((id) => id !== "exec");
         set(
           {
             config: {
@@ -112,6 +120,7 @@ export function createToolsActions(
               accessMode: mode,
               execAsk: nextAsk,
               execSecurity: nextSecurity,
+              denyList: nextDenyList,
             },
           },
           false,

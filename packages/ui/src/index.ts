@@ -46,6 +46,7 @@ export {
   ChartStyle,
   type ChartConfig,
 } from "./chart";
+export { Popover, PopoverTrigger, PopoverContent } from "./popover";
 export {
   DropdownMenu,
   DropdownMenuTrigger,

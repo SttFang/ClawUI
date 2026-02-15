@@ -146,29 +146,31 @@ export function MessagingTab() {
       ) : null}
 
       {/* Primary channels */}
-      {primaryDefs.map((ch) => {
-        const channelState = getChannelState(ch.channelType);
-        const Icon = getChannelBrandIcon(ch.channelType as ChannelType);
-        return (
-          <ChannelCard
-            key={ch.channelType}
-            channelType={ch.channelType}
-            label={ch.label}
-            fields={ch.fields}
-            icon={Icon ? <Icon size={22} /> : null}
-            isEnabled={channelState?.isEnabled ?? false}
-            isConfigured={channelState?.isConfigured ?? false}
-            isEditable={channelState?.isEditable ?? false}
-            channelValues={channelValues}
-            setChannelValue={setChannelValue}
-            isLoading={isLoading}
-            onEnable={() => enableChannel(ch.channelType as ChannelType)}
-            onDisable={() => disableChannel(ch.channelType as ChannelType)}
-            onConfigure={() => handleConfigure(ch.channelType as ChannelType)}
-            t={t}
-          />
-        );
-      })}
+      <div className="rounded-lg border divide-y">
+        {primaryDefs.map((ch) => {
+          const channelState = getChannelState(ch.channelType);
+          const Icon = getChannelBrandIcon(ch.channelType as ChannelType);
+          return (
+            <ChannelCard
+              key={ch.channelType}
+              channelType={ch.channelType}
+              label={ch.label}
+              fields={ch.fields}
+              icon={Icon ? <Icon size={22} /> : null}
+              isEnabled={channelState?.isEnabled ?? false}
+              isConfigured={channelState?.isConfigured ?? false}
+              isEditable={channelState?.isEditable ?? false}
+              channelValues={channelValues}
+              setChannelValue={setChannelValue}
+              isLoading={isLoading}
+              onEnable={() => enableChannel(ch.channelType as ChannelType)}
+              onDisable={() => disableChannel(ch.channelType as ChannelType)}
+              onConfigure={() => handleConfigure(ch.channelType as ChannelType)}
+              t={t}
+            />
+          );
+        })}
+      </div>
 
       {/* Secondary channels (collapsible) */}
       <Collapsible>
@@ -178,30 +180,32 @@ export function MessagingTab() {
             {t("settings.page.messaging.moreChannels")}
           </Button>
         </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-4 pt-4">
-          {secondaryDefs.map((ch) => {
-            const channelState = getChannelState(ch.channelType);
-            const Icon = getChannelBrandIcon(ch.channelType as ChannelType);
-            return (
-              <ChannelCard
-                key={ch.channelType}
-                channelType={ch.channelType}
-                label={ch.label}
-                fields={ch.fields}
-                icon={Icon ? <Icon size={22} /> : null}
-                isEnabled={channelState?.isEnabled ?? false}
-                isConfigured={channelState?.isConfigured ?? false}
-                isEditable={channelState?.isEditable ?? false}
-                channelValues={channelValues}
-                setChannelValue={setChannelValue}
-                isLoading={isLoading}
-                onEnable={() => enableChannel(ch.channelType as ChannelType)}
-                onDisable={() => disableChannel(ch.channelType as ChannelType)}
-                onConfigure={() => handleConfigure(ch.channelType as ChannelType)}
-                t={t}
-              />
-            );
-          })}
+        <CollapsibleContent className="pt-4">
+          <div className="rounded-lg border divide-y">
+            {secondaryDefs.map((ch) => {
+              const channelState = getChannelState(ch.channelType);
+              const Icon = getChannelBrandIcon(ch.channelType as ChannelType);
+              return (
+                <ChannelCard
+                  key={ch.channelType}
+                  channelType={ch.channelType}
+                  label={ch.label}
+                  fields={ch.fields}
+                  icon={Icon ? <Icon size={22} /> : null}
+                  isEnabled={channelState?.isEnabled ?? false}
+                  isConfigured={channelState?.isConfigured ?? false}
+                  isEditable={channelState?.isEditable ?? false}
+                  channelValues={channelValues}
+                  setChannelValue={setChannelValue}
+                  isLoading={isLoading}
+                  onEnable={() => enableChannel(ch.channelType as ChannelType)}
+                  onDisable={() => disableChannel(ch.channelType as ChannelType)}
+                  onConfigure={() => handleConfigure(ch.channelType as ChannelType)}
+                  t={t}
+                />
+              );
+            })}
+          </div>
         </CollapsibleContent>
       </Collapsible>
 
@@ -277,15 +281,13 @@ function ChannelCard({
   t: (key: string, opts?: Record<string, unknown>) => string;
 }) {
   return (
-    <div className="rounded-lg border px-4 py-3 space-y-3">
+    <div className="px-4 py-3 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           {icon}
           <span className="text-sm font-medium">{label}</span>
           <span className="text-xs text-muted-foreground">
-            {isConfigured
-              ? t("channels.status.configured")
-              : t("channels.status.notConfigured")}
+            {isConfigured ? t("channels.status.configured") : t("channels.status.notConfigured")}
           </span>
         </div>
         <Switch
@@ -294,9 +296,7 @@ function ChannelCard({
           disabled={!isConfigured}
         />
       </div>
-      <div
-        className={fields.length >= 3 ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}
-      >
+      <div className={fields.length >= 3 ? "grid grid-cols-1 md:grid-cols-2 gap-3" : "space-y-3"}>
         {fields.map((f) => {
           const key = `${channelType}:${f.field}`;
           return (

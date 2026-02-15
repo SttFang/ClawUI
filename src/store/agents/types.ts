@@ -46,3 +46,20 @@ export type CronRunsEntry = {
   sessionId?: string;
   sessionKey?: string;
 };
+
+export type NodeInfo = {
+  nodeId: string;
+  displayName?: string;
+  platform?: string;
+  version?: string;
+  caps?: string[];
+  connected?: boolean;
+  paired?: boolean;
+};
+
+export type PendingNode = {
+  requestId: string;
+  displayName?: string;
+  platform?: string;
+  expiresAtMs?: number;
+};

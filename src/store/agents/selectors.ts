@@ -26,6 +26,12 @@ const selectCronError = (s: AgentsStoreState) => s.cronError;
 const selectCronBusyJobId = (s: AgentsStoreState) => s.cronBusyJobId;
 const selectCronRunsData = (s: AgentsStoreState) => s.cronRunsData;
 
+// --- nodes selectors ---
+const selectNodes = (s: AgentsStoreState) => s.nodes;
+const selectPendingNodes = (s: AgentsStoreState) => s.pendingNodes;
+const selectNodesError = (s: AgentsStoreState) => s.nodesError;
+const selectNodesLoading = (s: AgentsStoreState) => s.nodesLoading;
+
 export const agentsSelectors = {
   selectAgents,
   selectSelectedAgentId,
@@ -41,4 +47,8 @@ export const agentsSelectors = {
   selectCronError,
   selectCronBusyJobId,
   selectCronRunsData,
+  selectNodes,
+  selectPendingNodes,
+  selectNodesError,
+  selectNodesLoading,
 };

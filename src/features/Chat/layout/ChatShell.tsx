@@ -5,15 +5,17 @@ export function ChatShell(props: { sidebar: ReactNode; main: ReactNode; panel?: 
   const { sidebar, main, panel } = props;
   return (
     <ResizablePanelGroup orientation="horizontal" className="h-full">
-      <ResizablePanel defaultSize={20} minSize={15} maxSize={35}>
+      <ResizablePanel defaultSize={20} minSize="180px" maxSize={35}>
         {sidebar}
       </ResizablePanel>
       <ResizableHandle />
-      <ResizablePanel defaultSize={panel ? 55 : 80}>{main}</ResizablePanel>
+      <ResizablePanel minSize="300px" defaultSize={panel ? 55 : 80}>
+        {main}
+      </ResizablePanel>
       {panel && (
         <>
           <ResizableHandle />
-          <ResizablePanel defaultSize={25} minSize={20} maxSize={50}>
+          <ResizablePanel defaultSize={25} minSize="240px" maxSize={50}>
             {panel}
           </ResizablePanel>
         </>

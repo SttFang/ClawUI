@@ -20,7 +20,7 @@ export function SessionSidebar() {
   }, [loadFiles]);
 
   return (
-    <div className="flex min-h-0 w-64 flex-col border-r bg-card">
+    <div className="flex min-h-0 h-full flex-col border-r bg-card">
       <div className="p-4 border-b">
         <Button onClick={onCreateSession} className="w-full" variant="outline">
           <Plus className="w-4 h-4 mr-2" />

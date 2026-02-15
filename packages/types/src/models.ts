@@ -88,6 +88,7 @@ export interface ModelCatalogEntry {
   name: string;
   input?: string;
   contextWindow?: number;
+  reasoning?: boolean;
   local?: boolean;
   available?: boolean;
   tags?: string[];

@@ -3,6 +3,7 @@ import { getCommandFromInput } from "@/lib/exec";
 import {
   buildExecTraceKey,
   isExecPreliminary,
+  isOutputStillRunning,
   type DeriveNextExecTraceParams,
   type DeriveNextExecTraceResult,
   type ExecTrace,
@@ -81,7 +82,9 @@ export function deriveNextExecTrace(params: DeriveNextExecTraceParams): DeriveNe
   const command = getCommandFromInput(params.part.input);
   const incomingFinal =
     params.part.state === "output-error" ||
-    (params.part.state === "output-available" && !isExecPreliminary(params.part));
+    (params.part.state === "output-available" &&
+      !isExecPreliminary(params.part) &&
+      !isOutputStillRunning(params.part));
 
   const base: ExecTrace = params.existing ?? {
     traceKey,
@@ -157,7 +160,7 @@ export function deriveNextExecTrace(params: DeriveNextExecTraceParams): DeriveNe
     delete next.output;
     delete next.errorText;
   } else if (params.part.state === "output-available") {
-    if (isExecPreliminary(params.part)) {
+    if (isExecPreliminary(params.part) || isOutputStillRunning(params.part)) {
       next.status = "running";
       delete next.endedAtMs;
       delete next.durationMs;

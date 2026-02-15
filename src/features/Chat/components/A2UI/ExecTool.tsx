@@ -1,26 +1,26 @@
 import type { DynamicToolUIPart } from "ai";
 import { Task, TaskContent, TaskItem, TaskTrigger } from "@clawui/ui";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCommandFromInput } from "@/lib/exec";
 import { cn } from "@/lib/utils";
 import type { ExecApprovalAugmentation } from "../hooks/useExecApprovalStatus";
 import { useExecApprovalStatus } from "../hooks/useExecApprovalStatus";
 import { extractPrimaryExecCommand } from "./execDisplay";
+import { isExecPreliminary, isOutputStillRunning } from "./execTrace/types";
 import { formatJson, getCwdFromInput } from "./toolHelpers";
 
 type ExecDisplayStatus = "pending" | "pending_approval" | "running" | "completed" | "error";
-
-function isExecPreliminary(part: DynamicToolUIPart): boolean {
-  return (part as unknown as { preliminary?: unknown }).preliminary === true;
-}
 
 function deriveDisplayStatus(
   part: DynamicToolUIPart,
   approval: ExecApprovalAugmentation,
 ): ExecDisplayStatus {
   if (part.state === "output-error") return "error";
-  if (part.state === "output-available" && !isExecPreliminary(part)) return "completed";
-  if (part.state === "output-available" && isExecPreliminary(part)) return "running";
+  if (part.state === "output-available") {
+    if (isExecPreliminary(part) || isOutputStillRunning(part)) return "running";
+    return "completed";
+  }
   if (part.state === "input-streaming") return "running";
   if (approval?.status === "running") return "running";
   if (approval?.status === "pending_approval") return "pending_approval";
@@ -63,11 +63,20 @@ export function ExecTool(props: { part: DynamicToolUIPart; sessionKey: string })
     label = t("a2ui.exec.pending", { command: primaryCmd });
   }
 
-  const autoOpen = status === "running" || status === "pending_approval";
+  const isActive = status === "running" || status === "pending_approval";
+  const [open, setOpen] = useState(isActive);
+  const prevActive = useRef(isActive);
+  useEffect(() => {
+    if (isActive !== prevActive.current) {
+      setOpen(isActive);
+      prevActive.current = isActive;
+    }
+  }, [isActive]);
+
   const cwd = getCwdFromInput(part.input);
 
   return (
-    <Task defaultOpen={autoOpen}>
+    <Task open={open} onOpenChange={setOpen}>
       <TaskTrigger title={label}>
         <div className="flex w-full cursor-pointer items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
           <StatusDot status={status} />
@@ -79,7 +88,7 @@ export function ExecTool(props: { part: DynamicToolUIPart; sessionKey: string })
           {command}
         </pre>
         {cwd && <TaskItem className="text-xs text-muted-foreground">in {cwd}</TaskItem>}
-        {status === "completed" && part.output != null && (
+        {(status === "completed" || status === "running") && part.output != null && (
           <pre className="max-h-64 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs break-words whitespace-pre-wrap">
             {formatJson(part.output)}
           </pre>

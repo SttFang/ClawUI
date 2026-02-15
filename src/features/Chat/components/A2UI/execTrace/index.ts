@@ -11,7 +11,7 @@ import type { DeriveNextExecTraceResult, ExecTrace, ExecTraceContext } from "./t
 import { deriveNextExecTrace, makeCommandKey } from "./derivation";
 
 export type { ExecTraceStatus, ExecTrace, ExecTraceContext, SuppressionContext } from "./types";
-export { buildExecTraceKey, isExecPreliminary } from "./types";
+export { buildExecTraceKey, isExecPreliminary, isOutputStillRunning } from "./types";
 export {
   deriveNextExecTrace,
   makeCommandKey,

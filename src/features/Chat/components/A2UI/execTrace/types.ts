@@ -38,3 +38,9 @@ export function isExecPreliminary(part: DynamicToolUIPart): boolean {
   const maybe = (part as unknown as { preliminary?: unknown }).preliminary;
   return maybe === true;
 }
+
+export function isOutputStillRunning(part: DynamicToolUIPart): boolean {
+  if (part.state !== "output-available") return false;
+  if (typeof part.output !== "string") return false;
+  return part.output.includes("Command still running (session ");
+}

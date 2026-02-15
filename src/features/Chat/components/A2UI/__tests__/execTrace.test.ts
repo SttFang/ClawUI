@@ -340,6 +340,44 @@ describe("execTrace", () => {
     expect(shouldSuppressExecPart(newerPending, sessionKey)).toBe(false);
   });
 
+  it("should treat 'Command still running' output as running, not completed", () => {
+    const part = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "tool-bg-1",
+      state: "output-available",
+      input: { command: "python3 long_task.py" },
+      output:
+        "Command still running (session glow-cove, pid 31133). Use process (list/poll/log/write/kill/clear/remove) for follow-up.",
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+
+    const result = deriveNextExecTrace({
+      part,
+      sessionKey: "agent:main:ui:test",
+    });
+
+    expect(result.nextTrace.status).toBe("running");
+  });
+
+  it("should not suppress a background-running exec part", () => {
+    const sessionKey = "agent:main:ui:test";
+    const bgPart = {
+      type: "dynamic-tool",
+      toolName: "exec",
+      toolCallId: "tool-bg-suppress-1",
+      state: "output-available",
+      input: { command: "python3 long_task.py" },
+      output:
+        "Command still running (session glow-cove, pid 31133). Use process (list/poll/log/write/kill/clear/remove) for follow-up.",
+      providerExecuted: true,
+    } as DynamicToolUIPart;
+
+    commitExecTraceUpdate({ part: bgPart, sessionKey });
+
+    expect(shouldSuppressExecPart(bgPart, sessionKey)).toBe(false);
+  });
+
   it("should suppress terminal fallback exec card without explicit command", () => {
     const sessionKey = "agent:main:ui:suppress";
     const fallbackTerminal = {

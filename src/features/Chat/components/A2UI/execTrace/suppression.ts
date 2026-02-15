@@ -5,6 +5,7 @@ import { deriveNextExecTrace, isTraceNewer, makeCommandKey } from "./derivation"
 import {
   buildExecTraceKey,
   isExecPreliminary,
+  isOutputStillRunning,
   type ExecTrace,
   type SuppressionContext,
 } from "./types";
@@ -86,7 +87,7 @@ export function shouldSuppressExecPart(
   const explicitCommand = getCommandFromInput(part.input);
   const isPartTerminal =
     part.state === "output-error" ||
-    (part.state === "output-available" && !isExecPreliminary(part));
+    (part.state === "output-available" && !isExecPreliminary(part) && !isOutputStillRunning(part));
   const isFallbackExecTerminal =
     !explicitCommand &&
     command.toLowerCase() === "exec" &&

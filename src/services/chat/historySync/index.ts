@@ -30,8 +30,9 @@ export function useOpenClawHistorySync(params: {
   sessionKey: string;
   hasSession: boolean;
   setMessages: (messages: UIMessage[]) => void;
+  isStreaming?: boolean;
 }) {
-  const { sessionKey, hasSession, setMessages } = params;
+  const { sessionKey, hasSession, setMessages, isStreaming = false } = params;
   const normalizedSessionKey = sessionKey.trim();
 
   const lastResolvedApproval = useExecApprovalsStore(
@@ -43,10 +44,16 @@ export function useOpenClawHistorySync(params: {
   const lastHandledApprovalIdRef = useRef<string | null>(null);
   const recoveryUntilMsRef = useRef(0);
   const lastSessionKeyRef = useRef(normalizedSessionKey);
+  const isStreamingRef = useRef(isStreaming);
+  const prevIsStreamingRef = useRef(isStreaming);
 
   useEffect(() => {
     setMessagesRef.current = setMessages;
   }, [setMessages]);
+
+  useEffect(() => {
+    isStreamingRef.current = isStreaming;
+  }, [isStreaming]);
 
   const extendRecoveryWindow = useCallback((durationMs: number) => {
     if (durationMs <= 0) return;
@@ -62,6 +69,7 @@ export function useOpenClawHistorySync(params: {
     hasSession,
     setMessagesRef,
     isRecoveryActive,
+    isStreamingRef,
   });
 
   // Reset state on session change
@@ -126,6 +134,14 @@ export function useOpenClawHistorySync(params: {
     normalizedSessionKey,
     refreshHistory,
   ]);
+
+  // Catchup refresh when streaming ends
+  useEffect(() => {
+    if (prevIsStreamingRef.current && !isStreaming) {
+      void refreshHistory({ force: true, reason: "stream-ended", allowRetry: true });
+    }
+    prevIsStreamingRef.current = isStreaming;
+  }, [isStreaming, refreshHistory]);
 
   // Initial session load
   useEffect(() => {

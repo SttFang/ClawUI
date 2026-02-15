@@ -57,10 +57,13 @@ export function OpenClawChatPanel(props: {
   const chat = useChat({ id: effectiveSessionKey, transport });
   const [input, setInput] = useState("");
 
+  const isStreaming = chat.status === "streaming";
+
   useOpenClawHistorySync({
     sessionKey: normalizedSessionKey,
     hasSession,
     setMessages: chat.setMessages,
+    isStreaming,
   });
 
   const isBusy = chat.status === "submitted" || chat.status === "streaming";

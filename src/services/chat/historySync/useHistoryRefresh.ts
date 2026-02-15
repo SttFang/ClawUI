@@ -27,8 +27,10 @@ export function useHistoryRefresh(params: {
   hasSession: boolean;
   setMessagesRef: React.RefObject<(messages: UIMessage[]) => void>;
   isRecoveryActive: () => boolean;
+  isStreamingRef: React.RefObject<boolean>;
 }) {
-  const { normalizedSessionKey, hasSession, setMessagesRef, isRecoveryActive } = params;
+  const { normalizedSessionKey, hasSession, setMessagesRef, isRecoveryActive, isStreamingRef } =
+    params;
 
   const historyInFlightRef = useRef(false);
   const lastHistorySuccessAtRef = useRef(0);
@@ -126,9 +128,18 @@ export function useHistoryRefresh(params: {
         }
 
         if (changed) {
-          lastHistorySigRef.current = sig;
-          lastAppliedMessagesRef.current = uiMessages;
-          setMessagesRef.current(uiMessages);
+          if (isStreamingRef.current) {
+            chatLog.info(
+              "[chat.history.refresh.skipped]",
+              `session=${normalizedSessionKey}`,
+              `reason=${reason}`,
+              "streaming active",
+            );
+          } else {
+            lastHistorySigRef.current = sig;
+            lastAppliedMessagesRef.current = uiMessages;
+            setMessagesRef.current(uiMessages);
+          }
         }
 
         chatLog.info(
@@ -155,7 +166,7 @@ export function useHistoryRefresh(params: {
         historyInFlightRef.current = false;
       }
     },
-    [hasSession, isRecoveryActive, normalizedSessionKey, setMessagesRef],
+    [hasSession, isRecoveryActive, isStreamingRef, normalizedSessionKey, setMessagesRef],
   );
 
   const resetRefreshState = useCallback(() => {

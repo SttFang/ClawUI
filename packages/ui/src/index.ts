@@ -56,6 +56,7 @@ export {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuLabel,
+  DropdownMenuRadioItem,
 } from "./dropdown-menu";
 
 // AI Elements (local, inspired by https://elements.ai-sdk.dev)

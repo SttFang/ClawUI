@@ -10,7 +10,7 @@ function pickNonEmptyString(...values: unknown[]): string | null {
   return null
 }
 
-function normalizeToolCallId(value: string): string {
+export function normalizeToolCallId(value: string): string {
   const normalized = value.trim()
   if (!normalized) return normalized
   const separatorIndex = normalized.indexOf('|')

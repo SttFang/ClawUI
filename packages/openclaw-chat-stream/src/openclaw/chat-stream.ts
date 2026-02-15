@@ -2,6 +2,7 @@ import type { UIMessage, UIMessageChunk } from 'ai'
 
 import { computeSuffixDelta } from './delta'
 import { extractOpenClawTextFromMessage } from './extract'
+import { normalizeToolCallId } from './transcript'
 import { extractUserText } from './user'
 import type {
   GatewayEventFrame,
@@ -448,7 +449,7 @@ export function createOpenClawChatStream(params: {
 
         const toolName = String(tool.name ?? '').trim()
         const toolRecord = tool as Record<string, unknown>
-        const toolCallId = (() => {
+        const toolCallId = normalizeToolCallId((() => {
           const candidates = [
             tool.toolCallId,
             toolRecord.tool_call_id,
@@ -460,7 +461,7 @@ export function createOpenClawChatStream(params: {
             if (typeof candidate === 'string' && candidate.trim()) return candidate.trim()
           }
           return ''
-        })()
+        })())
         const phase = typeof tool.phase === 'string' ? tool.phase : ''
         if (!toolName || !toolCallId) return
 

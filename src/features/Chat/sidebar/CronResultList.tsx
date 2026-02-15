@@ -1,6 +1,7 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@clawui/ui";
 import { CheckCircle2, ChevronRight, Loader2, SkipForward, Timer, XCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import type { GatewayActivityEntry } from "@/store/gatewayActivity";
 import { useGatewayActivityStore, selectCronEntries } from "@/store/gatewayActivity";
 
@@ -71,23 +72,27 @@ function CronEntry({ entry }: { entry: GatewayActivityEntry }) {
 
 export function CronResultList() {
   const { t } = useTranslation("common");
-  const cronEntries = useGatewayActivityStore(selectCronEntries);
+  const cronEntries = useGatewayActivityStore(useShallow(selectCronEntries));
 
   if (cronEntries.length === 0) return null;
 
   const visible = cronEntries.slice(-MAX_VISIBLE).toReversed();
 
   return (
-    <Collapsible defaultOpen className="px-3 py-2">
-      <CollapsibleTrigger className="flex w-full items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
-        <ChevronRight className="size-3 transition-transform [[data-state=open]>&]:rotate-90" />
-        <span>{t("cronResults.title")}</span>
-        <span className="ml-auto tabular-nums text-[10px]">({cronEntries.length})</span>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="mt-1">
-        {visible.map((entry) => (
-          <CronEntry key={entry.id} entry={entry} />
-        ))}
+    <Collapsible defaultOpen className="border-t">
+      <div className="flex w-full items-center gap-1 px-4 py-2 text-xs font-medium text-muted-foreground">
+        <CollapsibleTrigger className="flex flex-1 items-center gap-1 hover:text-foreground">
+          <ChevronRight className="h-3 w-3 transition-transform [[data-state=open]>&]:rotate-90" />
+          <span className="flex-1 text-left">{t("cronResults.title")}</span>
+        </CollapsibleTrigger>
+        <span className="tabular-nums text-[10px]">({cronEntries.length})</span>
+      </div>
+      <CollapsibleContent>
+        <div className="px-2 pb-2 space-y-0.5">
+          {visible.map((entry: GatewayActivityEntry) => (
+            <CronEntry key={entry.id} entry={entry} />
+          ))}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );

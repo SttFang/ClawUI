@@ -171,27 +171,29 @@ export function AiServicesTab() {
         </Card>
       )}
 
-      {providerInfos
-        .filter((p) => PRIMARY_PROVIDERS.has(p.provider))
-        .map((provider) => (
-          <ProviderCard
-            key={provider.provider}
-            provider={provider.provider}
-            authInfo={provider}
-            oauthStatus={
-              modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined
-            }
-            apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
-            onApiKeyChange={handleApiKeyChange(provider.provider)}
-            onApiKeySave={() => void saveApiKeys(provider.provider)}
-            isSaving={isSaving}
-            saveSuccess={saveSuccess}
-            canSaveApiKey={canSaveApiKeyForProvider({
-              providerId: provider.provider,
-              modelsStatus,
-            })}
-          />
-        ))}
+      <div className="rounded-lg border divide-y">
+        {providerInfos
+          .filter((p) => PRIMARY_PROVIDERS.has(p.provider))
+          .map((provider) => (
+            <ProviderCard
+              key={provider.provider}
+              provider={provider.provider}
+              authInfo={provider}
+              oauthStatus={
+                modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined
+              }
+              apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
+              onApiKeyChange={handleApiKeyChange(provider.provider)}
+              onApiKeySave={() => void saveApiKeys(provider.provider)}
+              isSaving={isSaving}
+              saveSuccess={saveSuccess}
+              canSaveApiKey={canSaveApiKeyForProvider({
+                providerId: provider.provider,
+                modelsStatus,
+              })}
+            />
+          ))}
+      </div>
 
       {(() => {
         const secondary = providerInfos.filter((p) => !PRIMARY_PROVIDERS.has(p.provider));
@@ -204,26 +206,28 @@ export function AiServicesTab() {
                 {t("settings.page.ai.moreProviders", { count: secondary.length })}
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4 pt-4">
-              {secondary.map((provider) => (
-                <ProviderCard
-                  key={provider.provider}
-                  provider={provider.provider}
-                  authInfo={provider}
-                  oauthStatus={
-                    modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined
-                  }
-                  apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
-                  onApiKeyChange={handleApiKeyChange(provider.provider)}
-                  onApiKeySave={() => void saveApiKeys(provider.provider)}
-                  isSaving={isSaving}
-                  saveSuccess={saveSuccess}
-                  canSaveApiKey={canSaveApiKeyForProvider({
-                    providerId: provider.provider,
-                    modelsStatus,
-                  })}
-                />
-              ))}
+            <CollapsibleContent className="pt-4">
+              <div className="rounded-lg border divide-y">
+                {secondary.map((provider) => (
+                  <ProviderCard
+                    key={provider.provider}
+                    provider={provider.provider}
+                    authInfo={provider}
+                    oauthStatus={
+                      modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined
+                    }
+                    apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
+                    onApiKeyChange={handleApiKeyChange(provider.provider)}
+                    onApiKeySave={() => void saveApiKeys(provider.provider)}
+                    isSaving={isSaving}
+                    saveSuccess={saveSuccess}
+                    canSaveApiKey={canSaveApiKeyForProvider({
+                      providerId: provider.provider,
+                      modelsStatus,
+                    })}
+                  />
+                ))}
+              </div>
             </CollapsibleContent>
           </Collapsible>
         );

@@ -112,7 +112,7 @@ export function ProviderCard({
 
   return (
     <>
-      <div className="rounded-lg border px-4 py-3 space-y-2">
+      <div className="px-4 py-3 space-y-2">
         {/* Header: icon + name + auth + status */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">

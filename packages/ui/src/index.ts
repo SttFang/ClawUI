@@ -8,6 +8,7 @@ export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
 export { Input, type InputProps } from "./input";
 export { Label, type LabelProps } from "./label";
 export { Progress } from "./progress";
+export { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "./resizable";
 export { ScrollArea, ScrollBar } from "./scroll-area";
 export { Switch, type SwitchProps } from "./switch";
 export {

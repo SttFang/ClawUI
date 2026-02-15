@@ -210,6 +210,7 @@ export function MessageParts(props: {
   sessionKey: string;
 }) {
   const { message, streaming, sessionKey } = props;
+  const { t } = useTranslation("common");
 
   const hasVisibleText = message.parts.some(
     (part) => part.type === "text" && typeof part.text === "string" && Boolean(part.text.trim()),
@@ -218,6 +219,10 @@ export function MessageParts(props: {
     (part) => isDynamicToolPartLike(part) && classifyToolRender(part.toolName).kind !== "hidden",
   );
   const isThinking = streaming && !hasVisibleText && !hasVisibleTools;
+  const hasStreamingText = message.parts.some(
+    (part) => isTextPartLike(part) && part.state === "streaming",
+  );
+  const showTail = streaming && !isThinking && !hasStreamingText;
 
   const startTimeRef = useRef<number | null>(null);
   const [thinkingDuration, setThinkingDuration] = useState<number | undefined>(undefined);
@@ -317,7 +322,7 @@ export function MessageParts(props: {
     return execGrouped.map((item) => item.node);
   }, [message.parts, sessionKey, streaming]);
 
-  if (!nodes.length && !showIndicator) return null;
+  if (!nodes.length && !showIndicator && !showTail) return null;
 
   return (
     <div className="space-y-3">
@@ -325,6 +330,11 @@ export function MessageParts(props: {
         <ThinkingIndicator isStreaming={isThinking} duration={thinkingDuration} />
       ) : null}
       {nodes}
+      {showTail ? (
+        <div className="text-muted-foreground" aria-label="thinking">
+          <span className="claw-text-shimmer">{t("thinking.active")}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

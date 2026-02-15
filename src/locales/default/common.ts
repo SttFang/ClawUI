@@ -212,6 +212,33 @@ const common = {
       runsTitle: "运行记录",
       runsEmpty: "没有运行记录。",
     },
+    agentDesktop: {
+      switcher: { create: "新建智能体" },
+      hero: {
+        soul: { title: "灵魂", summary: "SOUL.md" },
+        personality: { title: "性格", summary: "人格特征" },
+        memory: { title: "记忆", summary: "{{count}} 条长期记忆" },
+        goals: { title: "目标", summary: "任务导向" },
+        channels: { title: "渠道", summary: "{{count}} 个渠道" },
+        sandbox: { title: "沙盒", summary: "{{status}}" },
+      },
+      tabs: {
+        capabilities: "能力",
+        skills: "Skills",
+        nodes: "设备",
+        cron: "定时任务",
+      },
+      nodes: {
+        paired: "已配对设备",
+        pending: "待配对请求",
+        empty: "暂无已配对设备",
+        approve: "批准",
+        reject: "拒绝",
+        online: "在线",
+        offline: "离线",
+        expires: "{{minutes}} 分钟后过期",
+      },
+    },
   },
   channels: {
     title: "渠道",

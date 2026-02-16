@@ -1,11 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import WebSocket from "ws";
+import { buildConnectFrame, handleConnectResponsePayload, extractChallengeNonce } from "./acp-connect";
 import type { DeviceIdentity } from "./device-identity";
 import { DEFAULT_GATEWAY_PORT } from "../../constants";
 import { chatLog } from "../../lib/logger";
-import { buildDeviceAuthPayload, loadDeviceAuthToken, storeDeviceAuthToken } from "./device-auth";
-import { publicKeyRawBase64UrlFromPem, signDevicePayload } from "./device-identity";
 
 interface ACPRequest {
   type: "req";
@@ -228,64 +227,16 @@ export class ChatTransport extends EventEmitter {
       this.connectTimer = null;
     }
 
-    const connectId = randomUUID();
+    const { frame, connectId } = buildConnectFrame({
+      clientVersion: this.clientVersion,
+      instanceId: this.instanceId,
+      gatewayToken: this.gatewayToken,
+      deviceIdentity: this.deviceIdentity,
+      nonce: this.connectNonce,
+    });
+
     const callbacks = this.doConnectCallbacks;
     const t0 = callbacks?.t0 ?? Date.now();
-    const role = "operator";
-    const scopes = ["operator.admin", "operator.read", "operator.approvals"];
-
-    const storedToken = this.deviceIdentity
-      ? loadDeviceAuthToken({ deviceId: this.deviceIdentity.deviceId, role })?.token
-      : null;
-    const authToken = this.gatewayToken || storedToken || undefined;
-
-    const signedAtMs = Date.now();
-    const nonce = this.connectNonce ?? undefined;
-
-    let device: Record<string, unknown> | undefined;
-    if (this.deviceIdentity) {
-      const payload = buildDeviceAuthPayload({
-        deviceId: this.deviceIdentity.deviceId,
-        clientId: "openclaw-macos",
-        clientMode: "ui",
-        role,
-        scopes,
-        signedAtMs,
-        token: authToken ?? null,
-        nonce,
-      });
-      const signature = signDevicePayload(this.deviceIdentity.privateKeyPem, payload);
-      device = {
-        id: this.deviceIdentity.deviceId,
-        publicKey: publicKeyRawBase64UrlFromPem(this.deviceIdentity.publicKeyPem),
-        signature,
-        signedAt: signedAtMs,
-        nonce,
-      };
-    }
-
-    const connectRequest: ACPRequest = {
-      type: "req",
-      id: connectId,
-      method: "connect",
-      params: {
-        minProtocol: 1,
-        maxProtocol: 3,
-        client: {
-          id: "openclaw-macos",
-          displayName: "ClawUI",
-          version: this.clientVersion,
-          platform: process.platform,
-          mode: "ui",
-          instanceId: this.instanceId,
-        },
-        role,
-        scopes,
-        caps: ["tool-events"],
-        auth: authToken ? { token: authToken } : undefined,
-        device,
-      },
-    };
 
     const timeout = setTimeout(() => {
       this.pendingRequests.delete(connectId);
@@ -299,7 +250,7 @@ export class ChatTransport extends EventEmitter {
         clearTimeout(timeout);
         if (response.ok) {
           chatLog.info("[acp.connected]", `durationMs=${Date.now() - t0}`);
-          this.handleConnectResponse(response.payload, role);
+          handleConnectResponsePayload(response.payload, "operator", this.deviceIdentity);
           const helloPayload = response.payload as Record<string, unknown> | undefined;
           const policy = helloPayload?.policy as Record<string, unknown> | undefined;
           if (typeof policy?.tickIntervalMs === "number")
@@ -330,23 +281,7 @@ export class ChatTransport extends EventEmitter {
     });
 
     chatLog.debug("[acp.connect.send]", this.deviceIdentity ? "device=yes" : "device=no");
-    this.ws?.send(JSON.stringify(connectRequest));
-  }
-
-  private handleConnectResponse(payload: unknown, role: string): void {
-    if (!this.deviceIdentity || !payload || typeof payload !== "object") return;
-    const auth = (payload as Record<string, unknown>).auth as Record<string, unknown> | undefined;
-    if (!auth) return;
-    const deviceToken = typeof auth.deviceToken === "string" ? auth.deviceToken : null;
-    if (deviceToken) {
-      storeDeviceAuthToken({
-        deviceId: this.deviceIdentity.deviceId,
-        role: typeof auth.role === "string" ? auth.role : role,
-        token: deviceToken,
-        scopes: Array.isArray(auth.scopes) ? (auth.scopes as string[]) : [],
-      });
-      chatLog.info("[device.token.stored]", `role=${role}`);
-    }
+    this.ws?.send(JSON.stringify(frame));
   }
 
   private handleMessage(data: string): void {
@@ -355,8 +290,7 @@ export class ChatTransport extends EventEmitter {
 
       if (message.type === "event") {
         if (!this.connected && message.event === "connect.challenge") {
-          const payload = message.payload as { nonce?: unknown } | undefined;
-          const nonce = payload && typeof payload.nonce === "string" ? payload.nonce : null;
+          const nonce = extractChallengeNonce(message.payload);
           if (nonce) {
             chatLog.debug("[acp.challenge]", `nonce=${nonce.slice(0, 8)}...`);
             this.connectNonce = nonce;

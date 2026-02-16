@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExecTool, ExecGroup, ToolGroup } from "@/features/Chat/components/A2UI";
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
-import { isExecToolName, normalizeToolCallId } from "@/lib/exec";
+import { isExecToolName } from "@/lib/exec";
+import { normalizeToolCallId, toolStatePriority } from "@/lib/tool-call";
 import { isLikelyToolReceiptText } from "@/lib/exec/systemTextParsing";
 import { MessageText } from "./MessageText";
 
@@ -69,13 +70,6 @@ function aggregateRenderableItems(items: (RenderableItem | null)[]): RenderableI
   return result;
 }
 
-const TOOL_STATE_PRIORITY: Record<string, number> = {
-  "output-error": 4,
-  "output-available": 3,
-  "input-streaming": 2,
-  "input-available": 1,
-};
-
 function isEmptyInput(input: unknown): boolean {
   if (input == null) return true;
   const str = typeof input === "string" ? input : JSON.stringify(input);
@@ -91,8 +85,8 @@ function deduplicateToolParts(parts: DynamicToolUIPart[]): DynamicToolUIPart[] {
       byId.set(id, part);
       continue;
     }
-    const existingPri = TOOL_STATE_PRIORITY[existing.state] ?? 0;
-    const currentPri = TOOL_STATE_PRIORITY[part.state] ?? 0;
+    const existingPri = toolStatePriority(existing.state);
+    const currentPri = toolStatePriority(part.state);
     if (currentPri > existingPri) {
       const mergedInput =
         isEmptyInput(part.input) && !isEmptyInput(existing.input) ? existing.input : part.input;

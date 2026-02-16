@@ -694,6 +694,118 @@ describe('openclawTranscriptToUIMessages', () => {
     }
   })
 
+  // --- bindToolCallLifecycles: non-adjacent / interleaved / synthetic fallback ---
+
+  it('should bind non-adjacent input/output by toolCallId across intervening messages', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'a-read',
+        role: 'assistant',
+        toolCallId: 'call_READ',
+        toolName: 'read',
+        content: [{ type: 'toolcall', name: 'read', arguments: { path: '/a.txt' } }],
+      },
+      {
+        id: 'a-text',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Thinking...' }],
+      },
+      {
+        id: 'tr-read',
+        role: 'toolResult',
+        toolCallId: 'call_READ',
+        toolName: 'read',
+        result: 'file contents',
+      },
+    ])
+
+    const toolParts = ui.flatMap(m => m.parts).filter(p => p.type === 'dynamic-tool')
+    expect(toolParts).toHaveLength(1)
+    const part = toolParts[0]
+    if (part?.type === 'dynamic-tool') {
+      expect(part.toolCallId).toBe('call_READ')
+      expect(part.input).toEqual({ path: '/a.txt' })
+      expect(part.output).toBe('file contents')
+      expect(part.state).toBe('output-available')
+    }
+  })
+
+  it('should fallback synthetic input to real output via toolName+input match', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'assistant:123:abc:1',
+        role: 'assistant',
+        toolName: 'grep',
+        content: [{ type: 'toolcall', name: 'grep', arguments: { pattern: 'foo' } }],
+      },
+      {
+        id: 'call_GREP1',
+        role: 'toolResult',
+        toolCallId: 'call_GREP1',
+        toolName: 'grep',
+        input: { pattern: 'foo' },
+        result: 'line 42: foo',
+      },
+    ])
+
+    const toolParts = ui.flatMap(m => m.parts).filter(p => p.type === 'dynamic-tool')
+    expect(toolParts).toHaveLength(1)
+    if (toolParts[0]?.type === 'dynamic-tool') {
+      expect(toolParts[0].state).toBe('output-available')
+      expect(toolParts[0].input).toEqual({ pattern: 'foo' })
+      expect(toolParts[0].output).toBe('line 42: foo')
+    }
+  })
+
+  it('should not mis-merge multiple same-toolName calls with different toolCallIds', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'a-read-1',
+        role: 'assistant',
+        toolCallId: 'call_R1',
+        toolName: 'read',
+        content: [{ type: 'toolcall', name: 'read', arguments: { path: '/x.txt' } }],
+      },
+      {
+        id: 'a-read-2',
+        role: 'assistant',
+        toolCallId: 'call_R2',
+        toolName: 'read',
+        content: [{ type: 'toolcall', name: 'read', arguments: { path: '/y.txt' } }],
+      },
+      {
+        id: 'tr-read-1',
+        role: 'toolResult',
+        toolCallId: 'call_R1',
+        toolName: 'read',
+        result: 'contents of x',
+      },
+      {
+        id: 'tr-read-2',
+        role: 'toolResult',
+        toolCallId: 'call_R2',
+        toolName: 'read',
+        result: 'contents of y',
+      },
+    ])
+
+    const toolParts = ui.flatMap(m => m.parts).filter(p => p.type === 'dynamic-tool')
+    expect(toolParts).toHaveLength(2)
+
+    const r1 = toolParts.find(p => p.type === 'dynamic-tool' && p.toolCallId === 'call_R1')
+    const r2 = toolParts.find(p => p.type === 'dynamic-tool' && p.toolCallId === 'call_R2')
+    expect(r1).toBeDefined()
+    expect(r2).toBeDefined()
+    if (r1?.type === 'dynamic-tool') {
+      expect(r1.input).toEqual({ path: '/x.txt' })
+      expect(r1.output).toBe('contents of x')
+    }
+    if (r2?.type === 'dynamic-tool') {
+      expect(r2.input).toEqual({ path: '/y.txt' })
+      expect(r2.output).toBe('contents of y')
+    }
+  })
+
   it('should not incorrectly merge interleaved batch exec calls', () => {
     const ui = openclawTranscriptToUIMessages([
       {
@@ -746,6 +858,53 @@ describe('openclawTranscriptToUIMessages', () => {
     if (partB?.type === 'dynamic-tool') {
       expect(partB.input).toEqual({ command: 'git status' })
       expect(partB.output).toBe('On branch master')
+    }
+  })
+
+  it('should extract toolCallId from content block id field (OpenClaw transcript format)', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'msg-1',
+        role: 'assistant',
+        content: [{ type: 'toolCall', id: 'call_OC1', name: 'exec', arguments: { command: 'openclaw status' } }],
+      },
+      {
+        id: 'msg-2',
+        role: 'assistant',
+        content: [{ type: 'toolCall', id: 'call_OC2', name: 'exec', arguments: { command: 'openclaw gateway status' } }],
+      },
+      {
+        id: 'tr-1',
+        role: 'toolResult',
+        toolCallId: 'call_OC1',
+        toolName: 'exec',
+        result: 'status output',
+      },
+      {
+        id: 'tr-2',
+        role: 'toolResult',
+        toolCallId: 'call_OC2',
+        toolName: 'exec',
+        result: 'gateway output',
+      },
+    ])
+
+    const toolParts = ui.flatMap(m => m.parts).filter(p => p.type === 'dynamic-tool')
+    expect(toolParts).toHaveLength(2)
+
+    const p1 = toolParts.find(p => p.type === 'dynamic-tool' && p.toolCallId === 'call_OC1')
+    const p2 = toolParts.find(p => p.type === 'dynamic-tool' && p.toolCallId === 'call_OC2')
+    expect(p1).toBeDefined()
+    expect(p2).toBeDefined()
+    if (p1?.type === 'dynamic-tool') {
+      expect(p1.state).toBe('output-available')
+      expect(p1.input).toEqual({ command: 'openclaw status' })
+      expect(p1.output).toBe('status output')
+    }
+    if (p2?.type === 'dynamic-tool') {
+      expect(p2.state).toBe('output-available')
+      expect(p2.input).toEqual({ command: 'openclaw gateway status' })
+      expect(p2.output).toBe('gateway output')
     }
   })
 })

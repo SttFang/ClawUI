@@ -1,11 +1,12 @@
 import type { UIMessage, UIMessageChunk } from 'ai'
 
-import { computeSuffixDelta } from './delta'
 import { extractOpenClawTextFromMessage } from './extract'
 import { resolveToolCallId } from '@clawui/types/tool-call'
 import { extractUserText } from './user'
 import { createApprovalRecovery } from './approval-recovery'
 import { createFinishPolicy } from './finish-policy'
+import { createRunBinding } from './run-binding'
+import { createMessageAssembler } from './message-assembler'
 import type {
   GatewayEventFrame,
   OpenClawAgentEventPayload,
@@ -47,204 +48,38 @@ export function createOpenClawChatStream(params: {
 
   return new ReadableStream<UIMessageChunk>({
     start(controller) {
-      // run 绑定策略（OpenClaw v2026）:
-      // - `chat` 事件只按 clientRunId 处理，避免跨 run 串包。
-      // - `agent` 事件允许早期绑定一次内部 runId（用于 tool/lifecycle 展示）。
-      let clientRunId: string | null = null
-      let boundChatRunId: string | null = null
-      let boundAgentRunId: string | null = null
-      let currentText = ''
-      let didStartText = false
-      let hasSeenClientChatEvent = false
       let streamStartedAt = 0
-      let assistantFallbackTimer: ReturnType<typeof setTimeout> | null = null
-      let pendingChatAliasTimer: ReturnType<typeof setTimeout> | null = null
-      let pendingAssistantText: string | null = null
-      const approval = createApprovalRecovery(() => streamStartedAt)
-      let pendingChatAliasRunId: string | null = null
-      let pendingChatAliasEvent: OpenClawChatEvent | null = null
-      let textPartCounter = 1
-      let currentTextPartId = `text-${textPartCounter}`
-      let toolSplitPending = false
-      let toolSplitAt = -1
       const buffered: GatewayEventFrame[] = []
       let unsubscribe: (() => void) | null = null
-      const CHAT_ALIAS_GRACE_MS = 250
 
-      const cancelExternalTimers = () => {
-        if (assistantFallbackTimer) {
-          clearTimeout(assistantFallbackTimer)
-          assistantFallbackTimer = null
-        }
-        if (pendingChatAliasTimer) {
-          clearTimeout(pendingChatAliasTimer)
-          pendingChatAliasTimer = null
-        }
-      }
+      const approval = createApprovalRecovery(() => streamStartedAt)
+      const enqueue = (chunk: UIMessageChunk) => controller.enqueue(chunk)
+
+      const asm = createMessageAssembler(approval, { enqueue })
 
       const finish = createFinishPolicy({
-        hasActiveTextPart: () => didStartText,
-        activeTextPartId: () => currentTextPartId,
-        cancelExternalTimers,
+        hasActiveTextPart: () => asm.hasActiveTextPart,
+        activeTextPartId: () => asm.currentTextPartId,
+        cancelExternalTimers: () => {
+          asm.dispose()
+          binding.dispose()
+        },
         unsubscribe: () => unsubscribe?.(),
-        enqueue: (chunk) => controller.enqueue(chunk),
+        enqueue,
         closeController: () => controller.close(),
       })
 
-      const isStaleAgentEvent = (ts: unknown) => {
-        if (typeof ts !== 'number') return false
-        if (!Number.isFinite(ts)) return false
-        if (streamStartedAt <= 0) return false
-        // Drop events clearly older than current stream start, preventing cross-run/session pollution.
-        return ts + 1000 < streamStartedAt
-      }
-
-      const isContinuationSnapshotEvent = (evt: OpenClawChatEvent) => {
-        if (currentText.length === 0) return false
-        if (evt.state !== 'delta' && evt.state !== 'final') return false
-        const nextText = extractOpenClawTextFromMessage(evt.message) ?? ''
-        if (!nextText) return false
-        return nextText.length >= currentText.length && nextText.startsWith(currentText)
-      }
-
-      const clearPendingChatAlias = () => {
-        if (pendingChatAliasTimer) {
-          clearTimeout(pendingChatAliasTimer)
-          pendingChatAliasTimer = null
-        }
-        pendingChatAliasRunId = null
-        pendingChatAliasEvent = null
-      }
-
-      const queuePendingChatAlias = (evt: OpenClawChatEvent) => {
-        if (!clientRunId) return
-        if (evt.runId === clientRunId) return
-        const isApprovalActive = approval.hasRecentApprovalActivity()
-        const continuationSnapshot = isContinuationSnapshotEvent(evt)
-        if (hasSeenClientChatEvent && !isApprovalActive && !continuationSnapshot) return
-        if (finish.isFinished) return
-        if (boundChatRunId) return
-        if (currentText.length > 0 && !isApprovalActive && !continuationSnapshot) return
-        if (evt.state !== 'delta' && evt.state !== 'final') return
-
-        pendingChatAliasRunId = evt.runId
-        pendingChatAliasEvent = evt
-        if (pendingChatAliasTimer) return
-        pendingChatAliasTimer = setTimeout(() => {
-          pendingChatAliasTimer = null
-          const queuedRunId = pendingChatAliasRunId
-          const queuedEvent = pendingChatAliasEvent
-          pendingChatAliasRunId = null
-          pendingChatAliasEvent = null
-          if (!queuedRunId || !queuedEvent) return
-          const isApprovalActive = approval.hasRecentApprovalActivity()
-          const continuationSnapshot = isContinuationSnapshotEvent(queuedEvent)
-          if (
-            (hasSeenClientChatEvent && !isApprovalActive && !continuationSnapshot) ||
-            finish.isFinished ||
-            boundChatRunId ||
-            (currentText.length > 0 && !isApprovalActive && !continuationSnapshot)
-          ) {
-            return
-          }
-
-          boundChatRunId = queuedRunId
-          handleChatEvent(queuedEvent)
-        }, CHAT_ALIAS_GRACE_MS)
-      }
-
-      const isCurrentChatRun = (rid: string) => {
-        if (clientRunId != null && rid === clientRunId) return true
-        return boundChatRunId != null && rid === boundChatRunId
-      }
-
-      const maybeBindChatRunId = (evt: OpenClawChatEvent) => {
-        if (!clientRunId) return
-        if (!evt.runId || evt.runId === clientRunId) return
-        if (boundChatRunId) return
-        const isApprovalActive = approval.hasRecentApprovalActivity()
-        const continuationSnapshot = isContinuationSnapshotEvent(evt)
-        if (hasSeenClientChatEvent && !isApprovalActive && !continuationSnapshot) return
-        if (finish.isFinished) return
-        // NOTE:
-        // OpenClaw exec approvals can pause a run for long periods. If we only allow
-        // early-time binding, the resumed `chat.delta/final` (internal runId) is dropped,
-        // causing "approved but no response until next message" regressions.
-        //
-        // Some runs emit pre-approval text on clientRunId, then resume on an internal runId.
-        // During an approval recovery window, allow rebinding even after prior chat snapshots.
-        if (currentText.length > 0 && !isApprovalActive && !continuationSnapshot) return
-        const elapsed = streamStartedAt > 0 ? Date.now() - streamStartedAt : 0
-        const allowDelayedBind = elapsed >= 30_000
-        const canTrustAliasWithoutGrace =
-          (boundAgentRunId != null && evt.runId === boundAgentRunId) ||
-          isApprovalActive ||
-          allowDelayedBind
-        if (!canTrustAliasWithoutGrace && evt.state !== 'final') return
-        if (evt.state !== 'delta' && evt.state !== 'final') return
-        boundChatRunId = evt.runId
-      }
-
-      const isCurrentAgentRun = (rid: string) => {
-        if (clientRunId == null) return false
-        if (rid === clientRunId) return true
-        return boundAgentRunId != null && rid === boundAgentRunId
-      }
-
-      const maybeBindAgentRunId = (params: {
-        rid: string
-        stream: OpenClawAgentEventPayload['stream']
-        seq?: number
-        phase?: string
-      }) => {
-        const { rid, stream, phase, seq } = params
-        if (!rid || !clientRunId) return
-        if (rid === clientRunId) return
-        if (boundAgentRunId) return
-        const isApprovalActive = approval.hasRecentApprovalActivity()
-        if (hasSeenClientChatEvent && !isApprovalActive) return
-        const elapsed = streamStartedAt > 0 ? Date.now() - streamStartedAt : 0
-        const likelyFreshSeq = typeof seq === 'number' ? seq <= 12 : true
-        const allowDelayedBind = elapsed >= 30_000
-        if (!likelyFreshSeq && !allowDelayedBind && !isApprovalActive) return
-
-        const normalizedPhase = typeof phase === 'string' ? phase : ''
-        const canBindFromLifecycle =
-          stream === 'lifecycle' &&
-          (normalizedPhase === 'start' || normalizedPhase === 'bootstrap' || !normalizedPhase)
-        const canBindFromTool =
-          stream === 'tool' && (normalizedPhase === 'start' || normalizedPhase === 'update')
-
-        if (!canBindFromLifecycle && !canBindFromTool) return
-        boundAgentRunId = rid
-      }
-
-
-      // 工具到达时：关闭当前 text part，标记分割点
-      const closeTextForToolSplit = () => {
-        if (!didStartText || toolSplitPending) return
-        controller.enqueue({ type: 'text-end', id: currentTextPartId })
-        didStartText = false
-        toolSplitPending = true
-        toolSplitAt = currentText.length
-      }
-
-      // 工具后文本到达时：创建新 text part
-      const startPostToolTextPart = () => {
-        textPartCounter++
-        currentTextPartId = `text-${textPartCounter}`
-        didStartText = true
-        toolSplitPending = false
-        controller.enqueue({ type: 'text-start', id: currentTextPartId })
-      }
-
-      const ensureTextStarted = () => {
-        if (didStartText) return
-        didStartText = true
-        controller.enqueue({ type: 'start-step' })
-        controller.enqueue({ type: 'text-start', id: currentTextPartId })
-      }
-
+      const binding = createRunBinding(approval, {
+        currentTextLength: () => asm.currentTextLength,
+        isContinuationSnapshot: (evt) => {
+          if (evt.state !== 'delta' && evt.state !== 'final') return false
+          const nextText = extractOpenClawTextFromMessage(evt.message) ?? ''
+          if (!nextText) return false
+          return asm.isContinuationOf(nextText)
+        },
+        isFinished: () => finish.isFinished,
+        onDeferredChatEvent: (evt) => handleChatEvent(evt),
+      })
 
       const onAbort = () => {
         finish.onUserAbort(() => {
@@ -260,48 +95,17 @@ export function createOpenClawChatStream(params: {
         abortSignal.addEventListener('abort', onAbort, { once: true })
       }
 
-      const updateTextWithSnapshot = (nextText: string) => {
-        if (!nextText) return
-        // 工具后新文本到达 → 创建新 text part
-        if (toolSplitPending && nextText.length > toolSplitAt) {
-          startPostToolTextPart()
-        }
-        if (!currentText) {
-          ensureTextStarted()
-          currentText = nextText
-          controller.enqueue({ type: 'text-delta', id: currentTextPartId, delta: nextText })
-          return
-        }
-        // Ignore non-monotonic snapshots (best-effort).
-        if (nextText.length < currentText.length) return
-        ensureTextStarted()
-        const delta = computeSuffixDelta(currentText, nextText)
-        currentText = nextText
-        if (delta) controller.enqueue({ type: 'text-delta', id: currentTextPartId, delta })
-      }
-
       const handleChatEvent = (evt: OpenClawChatEvent) => {
         if (evt.sessionKey !== sessionKey) return
-        if (clientRunId && evt.runId === clientRunId) {
-          clearPendingChatAlias()
-        }
-        maybeBindChatRunId(evt)
-        if (!isCurrentChatRun(evt.runId)) {
-          queuePendingChatAlias(evt)
-          return
-        }
-        clearPendingChatAlias()
-        hasSeenClientChatEvent = true
+        const verdict = binding.processChatRunId(evt)
+        if (verdict !== 'accept') return
+        binding.markClientChatSeen()
 
         if (evt.state === 'delta' || evt.state === 'final') {
-          if (assistantFallbackTimer) {
-            clearTimeout(assistantFallbackTimer)
-            assistantFallbackTimer = null
-          }
-          pendingAssistantText = null
+          asm.lockToChatSource()
           finish.onChatDeltaOrFinal()
           const nextText = extractOpenClawTextFromMessage(evt.message) ?? ''
-          updateTextWithSnapshot(nextText)
+          asm.updateTextWithSnapshot(nextText)
           if (evt.state === 'final') {
             finish.onChatFinal()
           }
@@ -322,74 +126,30 @@ export function createOpenClawChatStream(params: {
       const handleAssistantEvent = (evt: OpenClawAgentEventPayload) => {
         const assistantData =
           evt.data && typeof evt.data === 'object' ? (evt.data as Record<string, unknown>) : null
-        maybeBindAgentRunId({
+        const accepted = binding.processAgentRunId({
           rid: evt.runId,
           stream: evt.stream,
           seq: evt.seq,
           phase: typeof assistantData?.phase === 'string' ? assistantData.phase : undefined,
         })
-        if (!isCurrentAgentRun(evt.runId)) return
+        if (!accepted) return
         if (evt.stream !== 'assistant') return
-        // Preferred source remains `chat.delta/final`. But when some providers/runs
-        // only emit assistant stream (or chat stream is delayed after approvals),
-        // use assistant text as a fallback to avoid "approved but no visible reply".
-        if (hasSeenClientChatEvent) return
+        if (binding.hasSeenClientChatEvent) return
 
         const text = typeof assistantData?.text === 'string' ? assistantData.text : ''
         if (!text) return
 
-        pendingAssistantText = text
-        if (assistantFallbackTimer) clearTimeout(assistantFallbackTimer)
-        assistantFallbackTimer = setTimeout(() => {
-          assistantFallbackTimer = null
-          if (!pendingAssistantText) return
-          if (hasSeenClientChatEvent) return
-
-          const fallbackText = pendingAssistantText
-          pendingAssistantText = null
-
-          if (!currentText) {
-            ensureTextStarted()
-            currentText = fallbackText
-            controller.enqueue({ type: 'text-delta', id: currentTextPartId, delta: fallbackText })
-            return
-          }
-
-          // Handle both snapshot-like and chunk-like assistant payloads.
-          if (fallbackText.startsWith(currentText)) {
-            const delta = computeSuffixDelta(currentText, fallbackText)
-            currentText = fallbackText
-            if (delta) controller.enqueue({ type: 'text-delta', id: currentTextPartId, delta })
-            return
-          }
-
-          const normalizedFallbackText = fallbackText.trim()
-          if (!normalizedFallbackText) return
-
-          const canAppendDivergentText =
-            (approval.hasRecentApprovalActivity() || approval.hasRecentToolTerminalActivity()) &&
-            !currentText.includes(normalizedFallbackText)
-          if (canAppendDivergentText) {
-            const separator = currentText.endsWith('\n') ? '\n' : '\n\n'
-            currentText = `${currentText}${separator}${normalizedFallbackText}`
-            controller.enqueue({ type: 'text-delta', id: currentTextPartId, delta: `${separator}${normalizedFallbackText}` })
-            return
-          }
-
-          // Ambiguous divergence without approval/tool terminal context: avoid blind append,
-          // otherwise old/stale runs can pollute the current assistant message.
-          return
-        }, 300)
+        asm.handleAssistantText(text, binding.hasSeenClientChatEvent)
       }
 
       const handleToolEvent = (evt: OpenClawAgentEventPayload, tool: OpenClawToolEventData) => {
-        maybeBindAgentRunId({
+        const accepted = binding.processAgentRunId({
           rid: evt.runId,
           stream: evt.stream,
           seq: evt.seq,
           phase: typeof tool.phase === 'string' ? tool.phase : undefined,
         })
-        if (!isCurrentAgentRun(evt.runId)) return
+        if (!accepted) return
 
         const toolName = String(tool.name ?? '').trim()
         const toolRecord = tool as Record<string, unknown>
@@ -400,15 +160,14 @@ export function createOpenClawChatStream(params: {
         const meta = typeof tool.meta === 'string' && tool.meta.trim() ? tool.meta.trim() : undefined
 
         if (phase === 'start') {
-          closeTextForToolSplit()
+          asm.closeTextForToolSplit()
           finish.addPendingTool(toolCallId)
-          controller.enqueue({
+          enqueue({
             type: 'tool-input-available',
             toolCallId,
             toolName,
             input: tool.args,
             providerExecuted: true,
-            // ClawUI doesn't ship a static tool registry; treat OpenClaw tool events as dynamic tools.
             dynamic: true,
             title: meta,
           })
@@ -417,7 +176,7 @@ export function createOpenClawChatStream(params: {
 
         if (phase === 'update') {
           finish.addPendingTool(toolCallId)
-          controller.enqueue({
+          enqueue({
             type: 'tool-output-available',
             toolCallId,
             output: tool.partialResult,
@@ -433,8 +192,6 @@ export function createOpenClawChatStream(params: {
           const hasResult = typeof tool.result !== 'undefined'
           const hasPartialResult = typeof tool.partialResult !== 'undefined'
 
-          // For exec/bash, `phase=end` can be an envelope close event without final payload.
-          // Do not promote it to completed output in that case.
           if (phase === 'end' && !isError && !hasResult && !hasPartialResult) {
             finish.removePendingTool(toolCallId)
             return
@@ -449,7 +206,7 @@ export function createOpenClawChatStream(params: {
                 : typeof tool.partialResult === 'string'
                   ? tool.partialResult
                   : 'tool error'
-            controller.enqueue({
+            enqueue({
               type: 'tool-output-error',
               toolCallId,
               errorText,
@@ -465,7 +222,7 @@ export function createOpenClawChatStream(params: {
               : ''
           const output = hasResult ? tool.result : hasPartialResult ? tool.partialResult : fallbackOutput
 
-          controller.enqueue({
+          enqueue({
             type: 'tool-output-available',
             toolCallId,
             output,
@@ -475,18 +232,17 @@ export function createOpenClawChatStream(params: {
         }
       }
 
-
       const handleLifecycleEvent = (evt: OpenClawAgentEventPayload, lifecycle: OpenClawLifecycleEventData) => {
-        maybeBindAgentRunId({
+        const accepted = binding.processAgentRunId({
           rid: evt.runId,
           stream: evt.stream,
           seq: evt.seq,
           phase: typeof lifecycle.phase === 'string' ? lifecycle.phase : undefined,
         })
-        if (!isCurrentAgentRun(evt.runId)) return
+        if (!accepted) return
         const phase = typeof lifecycle.phase === 'string' ? lifecycle.phase : null
         if (phase) {
-          controller.enqueue({
+          enqueue({
             type: 'data-openclaw-lifecycle',
             data: {
               runId: evt.runId,
@@ -500,10 +256,6 @@ export function createOpenClawChatStream(params: {
           })
         }
         if (phase === 'end') {
-          // Fallback only: OpenClaw 的 WS 事件顺序里 `agent.lifecycle=end` 往往早于 `chat.final`。
-          // 如果这里立刻 finish，会导致尾部内容被截断（错过紧随其后的 chat.final）。
-          //
-          // 这里做一个“可被 chat.delta 取消”的兜底：只要后续还有 chat.delta/final，timer 会被清掉。
           finish.onLifecycleEnd()
           return
         }
@@ -532,8 +284,6 @@ export function createOpenClawChatStream(params: {
           return
         }
         if (frame.event === 'exec.approval.resolved') {
-          // Some gateway versions only include id/decision; if we've seen a matching request
-          // in this stream window, keep the alias window alive.
           if (approval.hasRecentApprovalActivity()) {
             approval.noteApprovalActivity()
           }
@@ -545,7 +295,7 @@ export function createOpenClawChatStream(params: {
           if (typeof payload.runId !== 'string') return
           if (typeof payload.sessionKey !== 'string') return
           if (typeof payload.state !== 'string') return
-          if (!clientRunId) return
+          if (!binding.clientRunId) return
           handleChatEvent(payload)
           return
         }
@@ -553,12 +303,11 @@ export function createOpenClawChatStream(params: {
           const payload = frame.payload as OpenClawAgentEventPayload | undefined
           if (!payload || typeof payload !== 'object') return
           if (typeof payload.runId !== 'string') return
-          if (!clientRunId) return
+          if (!binding.clientRunId) return
           if (typeof payload.stream !== 'string') return
           if (!payload.data || typeof payload.data !== 'object') return
-          // Some agent events include sessionKey; if present, use it to avoid cross-session pollution.
           if (typeof payload.sessionKey === 'string' && payload.sessionKey !== sessionKey) return
-          if (isStaleAgentEvent(payload.ts)) return
+          if (binding.isStaleAgentEvent(payload.ts)) return
 
           if (payload.stream === 'tool') {
             handleToolEvent(payload, payload.data as unknown as OpenClawToolEventData)
@@ -575,7 +324,7 @@ export function createOpenClawChatStream(params: {
       }
 
       const handleIncomingFrame = (frame: GatewayEventFrame) => {
-        if (!clientRunId) {
+        if (!binding.clientRunId) {
           buffered.push(frame)
           return
         }
@@ -584,17 +333,18 @@ export function createOpenClawChatStream(params: {
 
       unsubscribe = adapter.onGatewayEvent(handleIncomingFrame)
 
-      // Fire-and-forget async init.
       void (async () => {
         try {
           const connected = await adapter.isConnected?.()
           if (!connected) await adapter.connect?.()
           streamStartedAt = Date.now()
-          clientRunId = await adapter.sendChat({ sessionKey, message: userText })
-          finish.setClientRunId(clientRunId)
+          const runId = await adapter.sendChat({ sessionKey, message: userText })
+          binding.setClientRunId(runId)
+          binding.setStreamStartedAt(streamStartedAt)
+          finish.setClientRunId(runId)
 
-          controller.enqueue({ type: 'start', messageId: clientRunId })
-          ensureTextStarted()
+          enqueue({ type: 'start', messageId: runId })
+          asm.ensureTextStarted()
 
           for (const frame of buffered) processEventFrame(frame)
           buffered.length = 0

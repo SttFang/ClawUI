@@ -279,6 +279,16 @@ export function createRunMapActions(
                 kind: `lifecycle.${phase || "unknown"}`,
                 runId: run.runId,
               });
+            } else if (stream === "compaction" && data) {
+              const phase = typeof data.phase === "string" ? data.phase : "";
+              appendTimeline(session, {
+                id: `compaction:${runIdRaw}:${phase}:${atMs}`,
+                sessionKey,
+                atMs,
+                kind: `compaction.${phase || "unknown"}`,
+                runId: run.runId,
+                payload: { willRetry: data.willRetry },
+              });
             }
 
             return { sessions: { ...state.sessions, [sessionKey]: session } };

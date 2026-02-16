@@ -20,7 +20,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const refreshSessions = useChatStore((s) => s.refreshSessions);
   const selectSession = useChatStore((s) => s.selectSession);
-  const deleteSession = useChatStore((s) => s.deleteSession);
 
   const { configValid, showBanner, onDismissBanner } = useConfigValidation();
   const { sessionMetadata, metaBusyByKey, generateMetadata } = useSessionMetadata();
@@ -101,6 +100,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [renameSession],
   );
 
+  const deleteSession = useCallback(
+    async (id: string) => {
+      await ensureChatConnected();
+      await ipc.chat.request("sessions.delete", { key: id, deleteTranscript: false });
+      await refreshSessions();
+    },
+    [refreshSessions],
+  );
+
+  const onDeleteSession = useCallback(
+    (id: string) => void deleteSession(id).catch(() => {}),
+    [deleteSession],
+  );
+
   const onOneClickConfig = useCallback(() => navigate("/settings?tab=ai"), [navigate]);
   const onManualConfig = useCallback(() => navigate("/settings?tab=ai"), [navigate]);
 
@@ -116,7 +129,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         onCreateSession,
         onSelectSession,
         onRenameSession,
-        onDeleteSession: deleteSession,
+        onDeleteSession,
         onGenerateMetadata: generateMetadata,
       },
       uiState: {
@@ -140,7 +153,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       onCreateSession,
       onSelectSession,
       onRenameSession,
-      deleteSession,
+      onDeleteSession,
       generateMetadata,
       wsConnected,
       isGatewayRunning,

@@ -16,9 +16,9 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { configLog } from "../lib/logger";
+import { configLog } from "../../lib/logger";
 import { AuthProfileAdapter } from "./auth-profile-adapter";
-import { ConfigService, getNestedValue } from "./config";
+import { ConfigService, getNestedValue } from "../config";
 import {
   CHANNEL_TOKEN_DEFS,
   ENV_ANTHROPIC_API_KEY,

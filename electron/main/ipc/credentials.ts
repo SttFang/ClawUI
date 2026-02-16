@@ -6,8 +6,8 @@ import type {
   SetToolKeyInput,
 } from "@clawui/types/credentials";
 import type { IpcMain } from "electron";
-import type { CredentialService } from "../services/credential-service";
-import type { OAuthService } from "../services/oauth-service";
+import type { CredentialService } from "../services/credentials";
+import type { OAuthService } from "../services/credentials";
 
 export function registerCredentialHandlers(
   ipcMain: IpcMain,

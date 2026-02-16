@@ -1,6 +1,6 @@
 import type { ConfigSetDraftInputV2 } from "@clawui/types/config";
 import type { IpcMain } from "electron";
-import { ConfigOrchestrator } from "../services/config-orchestrator";
+import { ConfigOrchestrator } from "../services/config";
 
 function isDraftPayload(value: unknown): value is ConfigSetDraftInputV2 {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;

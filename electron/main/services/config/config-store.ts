@@ -5,19 +5,9 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import JSON5 from "json5";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
-import { DEFAULT_GATEWAY_PORT } from "../constants";
-import { configLog } from "../lib/logger";
-
-/** Read a dot-separated path from a nested object. Returns `undefined` if not found. */
-export function getNestedValue(obj: unknown, path: string): unknown {
-  const keys = path.split(".");
-  let current: unknown = obj;
-  for (const key of keys) {
-    if (current === null || current === undefined || typeof current !== "object") return undefined;
-    current = (current as Record<string, unknown>)[key];
-  }
-  return current;
-}
+import { DEFAULT_GATEWAY_PORT } from "../../constants";
+import { configLog } from "../../lib/logger";
+import { deepMerge } from "./config-utils";
 
 export type OpenClawConfig = CanonicalOpenClawConfig;
 
@@ -120,7 +110,7 @@ export class ConfigService {
     }
 
     // Deep merge the partial config
-    this.config = this.deepMerge(this.config || this.defaultConfig, partial);
+    this.config = deepMerge(this.config || this.defaultConfig, partial);
     await this.saveConfig();
   }
 
@@ -185,33 +175,6 @@ export class ConfigService {
       configLog.error("[config.save.failed]", error);
       throw error;
     }
-  }
-
-  private deepMerge<T>(target: T, source: Partial<T>): T {
-    const result = { ...target } as T;
-
-    for (const key in source) {
-      const sourceValue = source[key];
-      const targetValue = (result as Record<string, unknown>)[key];
-
-      if (
-        sourceValue &&
-        typeof sourceValue === "object" &&
-        !Array.isArray(sourceValue) &&
-        targetValue &&
-        typeof targetValue === "object" &&
-        !Array.isArray(targetValue)
-      ) {
-        (result as Record<string, unknown>)[key] = this.deepMerge(
-          targetValue,
-          sourceValue as Partial<typeof targetValue>,
-        );
-      } else {
-        (result as Record<string, unknown>)[key] = sourceValue;
-      }
-    }
-
-    return result;
   }
 
   private generateToken(): string {

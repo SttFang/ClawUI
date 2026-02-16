@@ -1,5 +1,5 @@
 import type { IpcMain } from "electron";
-import type { CredentialService } from "../services/credential-service";
+import type { CredentialService } from "../services/credentials";
 import type { OpenClawProfilesService } from "../services/openclaw-profiles";
 
 const SECRET_REGISTRY: Record<

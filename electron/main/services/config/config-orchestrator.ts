@@ -9,11 +9,11 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import JSON5 from "json5";
-import type { ChatWebSocketService } from "./chat-websocket";
-import type { ConfigService } from "./config";
-import { configLog } from "../lib/logger";
-import { ensureGatewayConnected } from "../utils/ensure-connected";
-import { isRecord } from "../utils/type-guards";
+import type { ChatWebSocketService } from "../chat-websocket";
+import type { ConfigService } from "./config-store";
+import { configLog } from "../../lib/logger";
+import { ensureGatewayConnected } from "../../utils/ensure-connected";
+import { isRecord } from "../../utils/type-guards";
 import { redactSnapshot, restoreRedactedValues, REDACTED_SENTINEL } from "./snapshot-redact";
 
 type JsonObject = Record<string, unknown>;

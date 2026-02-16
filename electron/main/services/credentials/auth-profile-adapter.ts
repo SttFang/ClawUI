@@ -2,8 +2,8 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import lockfile from "proper-lockfile";
-import { configLog } from "../lib/logger";
-import { isRecord } from "../utils/type-guards";
+import { configLog } from "../../lib/logger";
+import { isRecord } from "../../utils/type-guards";
 
 const AUTH_STORE_VERSION = 1;
 const AUTH_PROFILE_FILENAME = "auth-profiles.json";

@@ -5,8 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { detectorLog } from "../lib/logger";
 import { execInLoginShell, resolveCommandPath } from "../utils/login-shell";
-import { ConfigService } from "./config";
-import { ConfigRepository } from "./config-repository";
+import { ConfigService, ConfigRepository } from "./config";
 
 const execAsync = promisify(exec);
 

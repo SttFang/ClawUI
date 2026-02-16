@@ -3,10 +3,10 @@ import type { BYOKConfig, SubscriptionConfig } from "@clawui/types/onboarding";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import JSON5 from "json5";
-import { DEFAULT_GATEWAY_PORT } from "../constants";
-import { configLog } from "../lib/logger";
-import { isRecord } from "../utils/type-guards";
-import { ConfigService, type OpenClawConfig } from "./config";
+import { DEFAULT_GATEWAY_PORT } from "../../constants";
+import { configLog } from "../../lib/logger";
+import { isRecord } from "../../utils/type-guards";
+import { ConfigService, type OpenClawConfig } from "./config-store";
 
 const ENV_ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY";
 const ENV_OPENAI_API_KEY = "OPENAI_API_KEY";

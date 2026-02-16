@@ -1,5 +1,5 @@
 import { net } from "electron";
-import { configLog } from "../lib/logger";
+import { configLog } from "../../lib/logger";
 import { AuthProfileAdapter, type AuthProfileCredential } from "./auth-profile-adapter";
 
 // GitHub Copilot OAuth — same client ID as OpenClaw

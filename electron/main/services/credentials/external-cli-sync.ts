@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { AuthProfileAdapter, AuthProfileCredential } from "./auth-profile-adapter";
-import { configLog } from "../lib/logger";
+import { configLog } from "../../lib/logger";
 
 interface ExternalCliDef {
   profileId: string;

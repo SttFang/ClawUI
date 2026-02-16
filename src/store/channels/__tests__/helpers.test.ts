@@ -41,4 +41,40 @@ describe("channels helpers", () => {
     expect(discord?.config?.botToken).toBe("discord-bot-token");
     expect(discord?.config?.appToken).toBe("discord-app-id");
   });
+
+  it("should read discord dmPolicy/allowFrom from top-level aliases", () => {
+    const mapped = mapSnapshotToChannels(defaultChannels, {
+      channels: {
+        discord: {
+          enabled: true,
+          token: "tok",
+          dmPolicy: "open",
+          allowFrom: ["*"],
+          groupPolicy: "open",
+        },
+      },
+    });
+
+    const discord = mapped.find((channel) => channel.type === "discord");
+    expect(discord?.config?.dmPolicy).toBe("open");
+    expect(discord?.config?.allowFrom).toEqual(["*"]);
+  });
+
+  it("should prefer dm object over top-level aliases for discord", () => {
+    const mapped = mapSnapshotToChannels(defaultChannels, {
+      channels: {
+        discord: {
+          enabled: true,
+          token: "tok",
+          dmPolicy: "open",
+          allowFrom: ["*"],
+          dm: { policy: "pairing", allowFrom: ["user1"] },
+        },
+      },
+    });
+
+    const discord = mapped.find((channel) => channel.type === "discord");
+    expect(discord?.config?.dmPolicy).toBe("pairing");
+    expect(discord?.config?.allowFrom).toEqual(["user1"]);
+  });
 });

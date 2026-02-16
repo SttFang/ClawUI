@@ -87,8 +87,9 @@ function mapActualChannelToUi(channelId: string, rawChannel: unknown): ChannelCo
     config.botToken = readString(source.token);
     config.appToken = readString(source.appToken);
     const dm = asRecord(source.dm);
-    config.dmPolicy = readString(dm?.policy) as ChannelConfig["dmPolicy"];
-    config.allowFrom = toStringArray(dm?.allowFrom);
+    config.dmPolicy = (readString(dm?.policy) ??
+      readString(source.dmPolicy)) as ChannelConfig["dmPolicy"];
+    config.allowFrom = toStringArray(dm?.allowFrom) ?? toStringArray(source.allowFrom);
   } else if (channelId === "slack") {
     config.botToken = readString(source.botToken);
     config.appToken = readString(source.appToken);

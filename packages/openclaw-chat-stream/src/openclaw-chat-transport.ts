@@ -1,10 +1,10 @@
 import type { ChatTransport, UIMessage } from 'ai'
 
-import { createOpenClawChatStream } from './openclaw/chat-stream'
-import type { OpenClawChatTransportAdapter } from './openclaw/chat-adapter'
+import { createOpenClawChatStream } from './stream/chat-stream'
+import type { OpenClawChatTransportAdapter } from './stream/chat-adapter'
 
-export type { GatewayEventFrame } from './openclaw/types'
-export type { OpenClawChatTransportAdapter } from './openclaw/chat-adapter'
+export type { GatewayEventFrame } from './stream/types'
+export type { OpenClawChatTransportAdapter } from './stream/chat-adapter'
 
 export function createOpenClawChatTransport(params: {
   sessionKey: string

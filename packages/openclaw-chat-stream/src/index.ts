@@ -1,2 +1,2 @@
 export { createOpenClawChatTransport, type OpenClawChatTransportAdapter } from './openclaw-chat-transport'
-export { openclawTranscriptToUIMessages } from './openclaw/transcript'
+export { openclawTranscriptToUIMessages } from './transcript'

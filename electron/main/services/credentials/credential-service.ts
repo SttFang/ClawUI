@@ -14,8 +14,8 @@ import type {
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { configLog } from "../../lib/logger";
-import { AuthProfileAdapter } from "./auth-profile-adapter";
 import { ConfigService, getNestedValue } from "../config";
+import { AuthProfileAdapter } from "./auth-profile-adapter";
 import {
   CHANNEL_TOKEN_DEFS,
   ENV_PROXY_TOKEN,
@@ -211,5 +211,4 @@ export class CredentialService {
     const valid = prefixes.some((p) => key.startsWith(p));
     return valid ? { valid: true } : { valid: false, error: `Invalid key prefix for ${provider}` };
   }
-
 }

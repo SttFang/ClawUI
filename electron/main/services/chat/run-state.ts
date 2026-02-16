@@ -1,6 +1,6 @@
 import type { ChatNormalizedRunEvent } from "@clawui/types";
-import { isTerminalStatus, type ConsumeApprovalResult, type RunState } from "./run-types";
 import { ApprovalState, type RunStateAccess } from "./approval-state";
+import { isTerminalStatus, type ConsumeApprovalResult, type RunState } from "./run-types";
 
 export {
   DEFAULT_PENDING_APPROVAL_TTL_MS,

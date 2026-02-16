@@ -5,10 +5,10 @@ import type {
   ConfigSetDraftResponseV2,
   ConfigSnapshotV2,
 } from "@clawui/types/config";
+import JSON5 from "json5";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import JSON5 from "json5";
 import type { ChatWebSocketService } from "../chat-websocket";
 import type { ConfigService } from "./config-store";
 import { configLog } from "../../lib/logger";

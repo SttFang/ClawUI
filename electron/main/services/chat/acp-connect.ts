@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { buildDeviceAuthPayload, loadDeviceAuthToken, storeDeviceAuthToken } from "./device-auth";
-import { publicKeyRawBase64UrlFromPem, signDevicePayload, type DeviceIdentity } from "./device-identity";
 import { chatLog } from "../../lib/logger";
+import { buildDeviceAuthPayload, loadDeviceAuthToken, storeDeviceAuthToken } from "./device-auth";
+import {
+  publicKeyRawBase64UrlFromPem,
+  signDevicePayload,
+  type DeviceIdentity,
+} from "./device-identity";
 
 export interface ConnectFrameParams {
   clientVersion: string;

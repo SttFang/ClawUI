@@ -1,5 +1,5 @@
-import { BrowserWindow } from "electron";
 import type { EventEmitter } from "node:events";
+import { BrowserWindow } from "electron";
 
 /**
  * Send to a specific window, guarding against destroyed windows.
@@ -42,10 +42,7 @@ export function forwardToWindow(
 /**
  * Wire an EventEmitter's events to ALL windows using a mapping.
  */
-export function forwardToAll(
-  emitter: EventEmitter,
-  mapping: Record<string, string>,
-): () => void {
+export function forwardToAll(emitter: EventEmitter, mapping: Record<string, string>): () => void {
   const cleanups: Array<() => void> = [];
   for (const [emitterEvent, ipcChannel] of Object.entries(mapping)) {
     const handler = (...args: unknown[]) => broadcastToWindows(ipcChannel, ...args);

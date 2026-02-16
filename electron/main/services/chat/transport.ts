@@ -1,10 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import WebSocket from "ws";
-import { buildConnectFrame, handleConnectResponsePayload, extractChallengeNonce } from "./acp-connect";
 import type { DeviceIdentity } from "./device-identity";
 import { DEFAULT_GATEWAY_PORT } from "../../constants";
 import { chatLog } from "../../lib/logger";
+import {
+  buildConnectFrame,
+  handleConnectResponsePayload,
+  extractChallengeNonce,
+} from "./acp-connect";
 
 interface ACPRequest {
   type: "req";

@@ -165,7 +165,8 @@ export class ApprovalState {
     }
 
     if (!run && requestedSession) {
-      run = this.runs.getLatestActiveRun(requestedSession) ?? this.runs.getLatestRun(requestedSession);
+      run =
+        this.runs.getLatestActiveRun(requestedSession) ?? this.runs.getLatestRun(requestedSession);
     }
 
     if (!run && approval.sessionKey) {

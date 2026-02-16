@@ -1,8 +1,8 @@
 import type { CanonicalOpenClawConfig } from "@clawui/types/config";
+import JSON5 from "json5";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import JSON5 from "json5";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { DEFAULT_GATEWAY_PORT } from "../../constants";

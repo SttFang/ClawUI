@@ -76,8 +76,7 @@ contextBridge.exposeInMainWorld("electron", {
       createEventListener<[ChatStreamEvent]>("chat:stream", cb),
     onConnected: (cb: () => void) => createVoidListener("chat:connected", cb),
     onDisconnected: (cb: () => void) => createVoidListener("chat:disconnected", cb),
-    onError: (cb: (error: string) => void) =>
-      createEventListener<[string]>("chat:error", cb),
+    onError: (cb: (error: string) => void) => createEventListener<[string]>("chat:error", cb),
     onNormalizedEvent: (cb: (event: ChatNormalizedRunEvent) => void) =>
       createEventListener<[ChatNormalizedRunEvent]>("chat:normalized-event", cb),
   },
@@ -167,8 +166,7 @@ contextBridge.exposeInMainWorld("electron", {
         createEventListener<[ChatStreamEvent]>("rescue:stream", cb),
       onConnected: (cb: () => void) => createVoidListener("rescue:connected", cb),
       onDisconnected: (cb: () => void) => createVoidListener("rescue:disconnected", cb),
-      onError: (cb: (error: string) => void) =>
-        createEventListener<[string]>("rescue:error", cb),
+      onError: (cb: (error: string) => void) => createEventListener<[string]>("rescue:error", cb),
     },
   },
 });

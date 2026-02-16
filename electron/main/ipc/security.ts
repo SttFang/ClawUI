@@ -38,27 +38,24 @@ export interface SecurityOp {
 }
 
 export function registerSecurityHandlers(ipcMain: IpcMain): void {
-  ipcMain.handle(
-    "security:get",
-    async (_, paths: string[]): Promise<Record<string, unknown>> => {
-      if (!Array.isArray(paths)) throw new Error("paths must be an array");
-      const openclawPath = await resolveOpenClawPath();
+  ipcMain.handle("security:get", async (_, paths: string[]): Promise<Record<string, unknown>> => {
+    if (!Array.isArray(paths)) throw new Error("paths must be an array");
+    const openclawPath = await resolveOpenClawPath();
 
-      const out: Record<string, unknown> = {};
-      for (const p of paths) {
-        if (typeof p !== "string") continue;
-        assertAllowedPath(p);
-        const res = await execFileAsync(openclawPath, ["config", "get", "--json", p], {
-          timeout: 30_000,
-          maxBuffer: 2 * 1024 * 1024,
-          encoding: "utf8",
-        });
-        const raw = String(res.stdout ?? "").trim();
-        out[p] = raw ? JSON.parse(raw) : null;
-      }
-      return out;
-    },
-  );
+    const out: Record<string, unknown> = {};
+    for (const p of paths) {
+      if (typeof p !== "string") continue;
+      assertAllowedPath(p);
+      const res = await execFileAsync(openclawPath, ["config", "get", "--json", p], {
+        timeout: 30_000,
+        maxBuffer: 2 * 1024 * 1024,
+        encoding: "utf8",
+      });
+      const raw = String(res.stdout ?? "").trim();
+      out[p] = raw ? JSON.parse(raw) : null;
+    }
+    return out;
+  });
 
   ipcMain.handle("security:apply", async (_, ops: SecurityOp[]): Promise<void> => {
     if (!Array.isArray(ops)) throw new Error("ops must be an array");

@@ -1,6 +1,6 @@
-import { configLog } from "../../lib/logger";
-import type { AuthProfileAdapter } from "./auth-profile-adapter";
 import type { ConfigService } from "../config";
+import type { AuthProfileAdapter } from "./auth-profile-adapter";
+import { configLog } from "../../lib/logger";
 import { getNestedValue } from "../config";
 import {
   ENV_ANTHROPIC_API_KEY,
@@ -36,10 +36,7 @@ export async function migrateLegacyKeys(
       key: envValue,
     });
     await configService.patchEnv({ [envKey]: null });
-    configLog.info(
-      "[credential.migrate]",
-      `provider=${provider} envKey=${envKey} → auth-profiles`,
-    );
+    configLog.info("[credential.migrate]", `provider=${provider} envKey=${envKey} → auth-profiles`);
   }
 
   // Channel tokens: env → config paths

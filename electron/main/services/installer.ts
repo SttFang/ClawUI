@@ -1,5 +1,6 @@
 import { installerLog } from "../lib/logger";
-import { execInLoginShell, resolveCommandPath } from "../utils/login-shell";
+import { resolveCommandPath } from "../utils/login-shell";
+import { safeExecFile } from "../utils/safe-exec";
 
 export interface InstallProgress {
   stage: "checking-requirements" | "installing-openclaw" | "verifying" | "complete" | "error";
@@ -66,7 +67,9 @@ export class InstallerService {
     const t0 = Date.now();
     installerLog.info("[install.check.node]");
     // Require Node.js >= 22
-    const { stdout: nodeVersionOutput } = await execInLoginShell("node --version", {
+    const nodePath = await resolveCommandPath("node");
+    if (!nodePath) throw new Error("node not found in PATH");
+    const { stdout: nodeVersionOutput } = await safeExecFile(nodePath, ["--version"], {
       timeoutMs: 10_000,
     });
     const nodeVersion = nodeVersionOutput.trim();
@@ -76,7 +79,9 @@ export class InstallerService {
     }
 
     // Require npm
-    await execInLoginShell("npm --version", { timeoutMs: 10_000 });
+    const npmPath = await resolveCommandPath("npm");
+    if (!npmPath) throw new Error("npm not found in PATH");
+    await safeExecFile(npmPath, ["--version"], { timeoutMs: 10_000 });
     installerLog.info(
       "[install.check.node.ok]",
       `version=${nodeVersion}`,
@@ -86,13 +91,16 @@ export class InstallerService {
 
   private async installOpenClawGlobal(onProgress: ProgressCallback): Promise<void> {
     const spec = process.env.CLAWUI_OPENCLAW_SPEC || DEFAULT_OPENCLAW_SPEC;
+    if (!/^[a-zA-Z0-9@._/-]+$/.test(spec)) {
+      throw new Error(`Invalid package spec: ${spec}`);
+    }
     const t0 = Date.now();
     installerLog.info("[install.npm]", `spec=${spec}`);
-    await execInLoginShell(
-      // Keep it quiet-ish but still show errors
-      `npm --no-fund --no-audit install -g ${spec}`,
-      { timeoutMs: 10 * 60_000 },
-    );
+    const npmPath = await resolveCommandPath("npm");
+    if (!npmPath) throw new Error("npm not found in PATH");
+    await safeExecFile(npmPath, ["--no-fund", "--no-audit", "install", "-g", spec], {
+      timeoutMs: 10 * 60_000,
+    });
 
     installerLog.info("[install.npm.ok]", `spec=${spec}`, `durationMs=${Date.now() - t0}`);
     onProgress({
@@ -109,7 +117,7 @@ export class InstallerService {
     if (!openclawPath)
       throw new Error("OpenClaw installation verification failed: openclaw not found in PATH");
 
-    const { stdout } = await execInLoginShell("openclaw --version", { timeoutMs: 10_000 });
+    const { stdout } = await safeExecFile(openclawPath, ["--version"], { timeoutMs: 10_000 });
     if (!stdout.trim())
       throw new Error("OpenClaw installation verification failed: could not read version");
     installerLog.info(
@@ -123,7 +131,9 @@ export class InstallerService {
   async uninstall(): Promise<void> {
     const t0 = Date.now();
     installerLog.info("[uninstall.start]");
-    await execInLoginShell("npm uninstall -g openclaw", { timeoutMs: 5 * 60_000 });
+    const npmPath = await resolveCommandPath("npm");
+    if (!npmPath) throw new Error("npm not found in PATH");
+    await safeExecFile(npmPath, ["uninstall", "-g", "openclaw"], { timeoutMs: 5 * 60_000 });
     installerLog.info("[uninstall.complete]", `durationMs=${Date.now() - t0}`);
   }
 }

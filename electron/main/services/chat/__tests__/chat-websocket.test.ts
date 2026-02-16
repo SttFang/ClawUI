@@ -35,3 +35,62 @@ describe("ChatWebSocketService request", () => {
     });
   });
 });
+
+describe("ChatWebSocketService handleEvent — abort", () => {
+  function createService() {
+    const service = new ChatWebSocketService() as any;
+    service.transport = { on: vi.fn(), isConnected: () => true };
+    service.normalizer = { ingestGatewayEvent: vi.fn(() => []) };
+    return service;
+  }
+
+  function abortEvent(message?: unknown) {
+    return {
+      event: "chat",
+      payload: {
+        runId: "run-1",
+        sessionKey: "session-1",
+        state: "aborted",
+        ...(message !== undefined ? { message } : {}),
+      },
+    };
+  }
+
+  it("abort event emits final delta and end (not error)", () => {
+    const service = createService();
+    const events: any[] = [];
+    service.on("stream", (e: any) => events.push(e));
+
+    service.handleEvent(abortEvent({ content: [{ type: "text", text: "partial reply" }] }));
+
+    expect(events).toEqual([
+      {
+        type: "delta",
+        sessionId: "session-1",
+        messageId: "run-1",
+        content: "partial reply",
+      },
+      { type: "end", sessionId: "session-1", messageId: "run-1" },
+    ]);
+  });
+
+  it("abort event without message emits end only", () => {
+    const service = createService();
+    const events: any[] = [];
+    service.on("stream", (e: any) => events.push(e));
+
+    service.handleEvent(abortEvent());
+
+    expect(events).toEqual([{ type: "end", sessionId: "session-1", messageId: "run-1" }]);
+  });
+
+  it("abort event does not emit error type", () => {
+    const service = createService();
+    const events: any[] = [];
+    service.on("stream", (e: any) => events.push(e));
+
+    service.handleEvent(abortEvent({ content: [{ type: "text", text: "hello" }] }));
+
+    expect(events.every((e) => e.type !== "error")).toBe(true);
+  });
+});

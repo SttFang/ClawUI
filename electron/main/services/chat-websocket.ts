@@ -233,11 +233,19 @@ export class ChatWebSocketService extends EventEmitter {
     }
 
     if (state === "aborted") {
+      const content = extractText(payload.message);
+      if (content) {
+        this.emit("stream", {
+          type: "delta",
+          sessionId: sessionKey,
+          messageId: runId,
+          content,
+        });
+      }
       this.emit("stream", {
-        type: "error",
+        type: "end",
         sessionId: sessionKey,
         messageId: runId,
-        error: "aborted",
       });
       return;
     }

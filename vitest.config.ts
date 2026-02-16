@@ -10,6 +10,7 @@ export default defineConfig({
       "src/**/__tests__/**/*.test.ts",
       "packages/**/__tests__/**/*.test.ts",
       "packages/**/*.test.ts",
+      "electron/**/__tests__/**/*.test.ts",
     ],
   },
   resolve: {

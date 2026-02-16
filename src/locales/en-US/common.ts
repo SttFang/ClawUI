@@ -1018,6 +1018,9 @@ const common = {
     done: "Thought for {{seconds}} seconds",
     doneShort: "Thought for a few seconds",
   },
+  compaction: {
+    active: "Compacting context…",
+  },
 } as const;
 
 export default common;

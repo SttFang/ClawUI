@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { StickToBottom } from "use-stick-to-bottom";
 import { cn } from "@/lib/utils";
 import { useOpenClawHistorySync } from "@/services/chat/useOpenClawHistorySync";
+import { selectIsCompacting, useCompactionStore } from "@/store/compaction";
 import { type ComposerImageAttachment, ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
 import { AssistantMessageItem } from "./AssistantMessageItem";
@@ -58,6 +59,7 @@ export function OpenClawChatPanel(props: {
   const [input, setInput] = useState("");
 
   const isStreaming = chat.status === "streaming";
+  const isCompacting = useCompactionStore(selectIsCompacting(effectiveSessionKey));
 
   useOpenClawHistorySync({
     sessionKey: normalizedSessionKey,
@@ -125,6 +127,14 @@ export function OpenClawChatPanel(props: {
               );
             })
           )}
+
+          {isCompacting ? (
+            <div className="group is-assistant flex w-full justify-center">
+              <div className="w-full max-w-[95%] min-w-0 text-sm">
+                <span className="claw-text-shimmer">{tCommon("compaction.active")}</span>
+              </div>
+            </div>
+          ) : null}
 
           {chat.error ? (
             <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

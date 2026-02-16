@@ -1064,6 +1064,9 @@ const common = {
     done: "思考了 {{seconds}} 秒",
     doneShort: "思考了几秒",
   },
+  compaction: {
+    active: "整理上下文中…",
+  },
   rescue: {
     title: "救援助手",
     trigger: "打开救援助手",

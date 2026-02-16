@@ -1,7 +1,7 @@
 import { useChat } from "@ai-sdk/react";
 import { createOpenClawChatTransport } from "@clawui/openclaw-chat-stream";
 import { Button } from "@clawui/ui";
-import { MessageSquare } from "lucide-react";
+import { BookmarkIcon, MessageSquare } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StickToBottom } from "use-stick-to-bottom";
@@ -129,10 +129,12 @@ export function OpenClawChatPanel(props: {
           )}
 
           {isCompacting ? (
-            <div className="group is-assistant flex w-full justify-center">
-              <div className="w-full max-w-[95%] min-w-0 text-sm">
-                <span className="claw-text-shimmer">{tCommon("compaction.active")}</span>
-              </div>
+            <div className="flex items-center gap-1.5 overflow-hidden text-muted-foreground">
+              <BookmarkIcon className="size-3.5 shrink-0 animate-pulse" />
+              <span className="claw-text-shimmer shrink-0 text-xs">
+                {tCommon("compaction.active")}
+              </span>
+              <hr className="flex-1 border-t border-border" />
             </div>
           ) : null}
 

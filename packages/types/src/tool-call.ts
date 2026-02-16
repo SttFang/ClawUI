@@ -52,9 +52,7 @@ export function normalizeToolCallId(value: string): string {
  *
  * The result is passed through `normalizeToolCallId`.
  */
-export function resolveToolCallId(
-  record: Record<string, unknown> | null,
-): string {
+export function resolveToolCallId(record: Record<string, unknown> | null): string {
   if (!record) return "";
   const candidates = [
     record.toolCallId,
@@ -78,10 +76,8 @@ export function resolveToolCallId(
 export function isSyntheticToolCallId(value: string): boolean {
   const normalized = value.trim();
   if (!normalized) return true;
-  if (normalized.endsWith(":tool") || normalized.includes(":tool-"))
-    return true;
-  if (normalized.startsWith("assistant:") || normalized.startsWith("system:"))
-    return true;
+  if (normalized.endsWith(":tool") || normalized.includes(":tool-")) return true;
+  if (normalized.startsWith("assistant:") || normalized.startsWith("system:")) return true;
   return false;
 }
 
@@ -101,9 +97,6 @@ export function toolStatePriority(state: unknown): number {
 /**
  * Returns true if `incoming` state is higher or equal priority than `current`.
  */
-export function isHigherOrEqualPriority(
-  incoming: unknown,
-  current: unknown,
-): boolean {
+export function isHigherOrEqualPriority(incoming: unknown, current: unknown): boolean {
   return toolStatePriority(incoming) >= toolStatePriority(current);
 }

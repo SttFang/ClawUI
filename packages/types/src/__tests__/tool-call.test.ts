@@ -47,9 +47,7 @@ describe("resolveToolCallId", () => {
   });
 
   it("resolves from toolCallId first", () => {
-    expect(
-      resolveToolCallId({ toolCallId: "call_a", tool_call_id: "call_b" }),
-    ).toBe("call_a");
+    expect(resolveToolCallId({ toolCallId: "call_a", tool_call_id: "call_b" })).toBe("call_a");
   });
 
   it("falls back through candidate fields in order", () => {
@@ -61,18 +59,12 @@ describe("resolveToolCallId", () => {
   });
 
   it("normalizes the resolved value", () => {
-    expect(resolveToolCallId({ toolCallId: "call_abc|extra" })).toBe(
-      "call_abc",
-    );
+    expect(resolveToolCallId({ toolCallId: "call_abc|extra" })).toBe("call_abc");
   });
 
   it("skips empty string candidates", () => {
-    expect(
-      resolveToolCallId({ toolCallId: "", tool_call_id: "call_real" }),
-    ).toBe("call_real");
-    expect(resolveToolCallId({ toolCallId: "   ", id: "fallback" })).toBe(
-      "fallback",
-    );
+    expect(resolveToolCallId({ toolCallId: "", tool_call_id: "call_real" })).toBe("call_real");
+    expect(resolveToolCallId({ toolCallId: "   ", id: "fallback" })).toBe("fallback");
   });
 });
 
@@ -151,20 +143,12 @@ describe("TOOL_CALL_STATE_PRIORITY", () => {
 
 describe("isHigherOrEqualPriority", () => {
   it("returns true when incoming >= current", () => {
-    expect(isHigherOrEqualPriority("output-available", "input-available")).toBe(
-      true,
-    );
-    expect(
-      isHigherOrEqualPriority("output-available", "output-available"),
-    ).toBe(true);
-    expect(isHigherOrEqualPriority("output-error", "output-available")).toBe(
-      true,
-    );
+    expect(isHigherOrEqualPriority("output-available", "input-available")).toBe(true);
+    expect(isHigherOrEqualPriority("output-available", "output-available")).toBe(true);
+    expect(isHigherOrEqualPriority("output-error", "output-available")).toBe(true);
   });
 
   it("returns false when incoming < current", () => {
-    expect(isHigherOrEqualPriority("input-available", "output-available")).toBe(
-      false,
-    );
+    expect(isHigherOrEqualPriority("input-available", "output-available")).toBe(false);
   });
 });

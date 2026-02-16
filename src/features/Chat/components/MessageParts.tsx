@@ -5,8 +5,8 @@ import { useTranslation } from "react-i18next";
 import { ExecTool, ExecGroup, ToolGroup } from "@/features/Chat/components/A2UI";
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
 import { isExecToolName } from "@/lib/exec";
-import { normalizeToolCallId, toolStatePriority } from "@/lib/tool-call";
 import { isLikelyToolReceiptText } from "@/lib/exec/systemTextParsing";
+import { normalizeToolCallId, toolStatePriority } from "@/lib/tool-call";
 import { MessageText } from "./MessageText";
 
 const AUTO_HIDE_DELAY = 1500;

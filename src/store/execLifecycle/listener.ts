@@ -1,8 +1,8 @@
+import { resolveToolCallId } from "@clawui/types/tool-call";
 import type { GatewayEventFrame } from "@/lib/ipc";
 import { isExecToolName, isRecord, normalizeCommand, normalizeSessionKey } from "@/lib/exec";
 import { ipc } from "@/lib/ipc";
 import { chatLog } from "@/lib/logger";
-import { resolveToolCallId } from "@clawui/types/tool-call";
 import type { ExecLifecycleStatus } from "./types";
 import { buildFallbackAttemptId, extractRunIdFromToolCallId } from "./projector";
 import { useExecLifecycleStore } from "./store";

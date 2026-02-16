@@ -1,41 +1,45 @@
-import { ScrollArea } from "@clawui/ui";
-import { cn } from "@clawui/ui";
-import { useRef, useEffect } from "react";
+import { useMemo } from "react";
+import { StickToBottom } from "use-stick-to-bottom";
+import { AssistantMessageItem } from "@/features/Chat/components/AssistantMessageItem";
+import { ScrollToBottomButton } from "@/features/Chat/components/ScrollToBottomButton";
+import { UserMessageItem } from "@/features/Chat/components/UserMessageItem";
 import { useRescueStore, selectRescueMessages } from "@/store/rescue";
+import { rescueToUIMessage } from "./rescueAdapter";
 
 export function RescueMessageList() {
   const messages = useRescueStore(selectRescueMessages);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  const uiMessages = useMemo(() => messages.map(rescueToUIMessage), [messages]);
+
+  const streamingMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant" && messages[i].isStreaming) return messages[i].id;
+    }
+    return null;
   }, [messages]);
 
   return (
-    <ScrollArea className="flex-1 px-4 py-3">
-      <div className="space-y-3">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-          >
-            <div
-              className={cn(
-                "max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap break-words",
-                msg.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-foreground",
-              )}
-            >
-              {msg.content}
-              {msg.isStreaming && (
-                <span className="ml-0.5 inline-block w-1.5 h-4 bg-current animate-pulse align-text-bottom" />
-              )}
-            </div>
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-    </ScrollArea>
+    <StickToBottom
+      className="relative min-h-0 flex-1 overflow-hidden overscroll-contain px-4 pt-4 pb-4 touch-pan-y"
+      resize="smooth"
+      initial="smooth"
+    >
+      <StickToBottom.Content className="flex w-full flex-col gap-6">
+        {uiMessages.map((msg) =>
+          msg.role === "user" ? (
+            <UserMessageItem key={msg.id} message={msg} sessionKey="rescue" />
+          ) : (
+            <AssistantMessageItem
+              key={msg.id}
+              message={msg}
+              sessionKey="rescue"
+              streaming={msg.id === streamingMessageId}
+            />
+          ),
+        )}
+      </StickToBottom.Content>
+
+      <ScrollToBottomButton />
+    </StickToBottom>
   );
 }

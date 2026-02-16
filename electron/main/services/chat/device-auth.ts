@@ -1,6 +1,7 @@
 import { app } from "electron";
 import fs from "node:fs";
 import path from "node:path";
+import { chatLog } from "../../lib/logger";
 
 export type DeviceAuthEntry = {
   token: string;
@@ -58,7 +59,8 @@ function readStore(filePath: string): DeviceAuthStore | null {
     if (parsed?.version !== 1 || typeof parsed.deviceId !== "string") return null;
     if (!parsed.tokens || typeof parsed.tokens !== "object") return null;
     return parsed;
-  } catch {
+  } catch (err) {
+    chatLog.debug("[auth.store.load.ignored]", err);
     return null;
   }
 }

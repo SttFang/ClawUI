@@ -114,16 +114,16 @@ export class OpenClawProfilesService {
     let stat: ReturnType<typeof lstatSync> | null = null;
     try {
       stat = lstatSync(rescueAgentDir);
-    } catch {
-      /* ENOENT */
+    } catch (err) {
+      profilesLog.debug("[profiles.symlink.stat.ignored]", err);
     }
 
     if (stat?.isSymbolicLink()) {
       try {
         const target = readlinkSync(rescueAgentDir);
         if (target === mainAgentDir) return; // correct symlink — done
-      } catch {
-        /* broken symlink */
+      } catch (err) {
+        profilesLog.debug("[profiles.symlink.read.ignored]", err);
       }
       await unlink(rescueAgentDir); // stale/broken — remove
     } else if (stat) {

@@ -2,6 +2,7 @@ import { app } from "electron";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { chatLog } from "../../lib/logger";
 
 export type DeviceIdentity = {
   deviceId: string;
@@ -74,8 +75,8 @@ export function loadOrCreateDeviceIdentity(
         };
       }
     }
-  } catch {
-    // fall through to regenerate
+  } catch (err) {
+    chatLog.debug("[identity.load.ignored]", err);
   }
 
   const { publicKey, privateKey } = crypto.generateKeyPairSync("ed25519");

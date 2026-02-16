@@ -54,7 +54,9 @@ export class GatewayService extends EventEmitter {
     // Lightweight reachability check. This lets us reflect external starts/stops
     // (e.g. user manages gateway via `openclaw gateway install/stop`) in the UI.
     this.monitorTimer = setInterval(() => {
-      this.refreshReachability().catch(() => {});
+      this.refreshReachability().catch((err) => {
+        gatewayLog.debug("[gateway.reachability.ignored]", err);
+      });
     }, 3_000);
   }
 
@@ -255,7 +257,8 @@ export class GatewayService extends EventEmitter {
         proc.once("exit", () => resolve());
         try {
           proc.kill("SIGTERM");
-        } catch {
+        } catch (err) {
+          gatewayLog.debug("[gateway.kill.ignored]", err);
           resolve();
           return;
         }
@@ -264,8 +267,8 @@ export class GatewayService extends EventEmitter {
           if (this.process) {
             try {
               this.process.kill("SIGKILL");
-            } catch {
-              // ignore
+            } catch (err) {
+              gatewayLog.debug("[gateway.sigkill.ignored]", err);
             }
           }
           resolve();

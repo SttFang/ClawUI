@@ -69,8 +69,8 @@ export class RuntimeDetectorService {
           nodeVersion: version,
           nodePath: embeddedNodePath,
         };
-      } catch {
-        // Fall through to system Node.js
+      } catch (err) {
+        detectorLog.debug("[detect.embedded.ignored]", err);
       }
     }
 

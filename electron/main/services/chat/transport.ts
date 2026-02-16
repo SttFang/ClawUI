@@ -389,7 +389,9 @@ export class ChatTransport extends EventEmitter {
     if (!socket) return;
 
     if (socket.readyState === WebSocket.CONNECTING) {
-      socket.once("error", () => {});
+      socket.once("error", (err) => {
+        chatLog.debug("[transport.cleanup.ignored]", err);
+      });
       socket.terminate();
       return;
     }
@@ -425,7 +427,9 @@ export class ChatTransport extends EventEmitter {
     chatLog.info("[ws.reconnect]", `delay=${delay}ms`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      this.connect().catch(() => {});
+      this.connect().catch((err) => {
+        chatLog.debug("[transport.reconnect.ignored]", err);
+      });
     }, delay);
   }
 }

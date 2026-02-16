@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import { chmod, mkdir, readFile, rename, writeFile } from "fs/promises";
 import { dirname, join } from "path";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
+import { mainLog } from "../lib/logger";
 
 export type Theme = "light" | "dark" | "system";
 export type MotionPreference = "system" | "reduce" | "no-preference";
@@ -161,7 +162,8 @@ export class ClawUIStateService {
       const parsed = JSON.parse(raw) as Partial<ClawUIState>;
       // Keep it resilient: unknown keys are preserved by merge; missing keys are filled by default.
       this.state = deepMerge(DEFAULT_STATE, parsed as any);
-    } catch {
+    } catch (err) {
+      mainLog.debug("[state.load.ignored]", err);
       this.state = DEFAULT_STATE;
       await this.save();
     }
@@ -174,8 +176,8 @@ export class ClawUIStateService {
     await rename(tmp, path);
     try {
       await chmod(path, 0o600);
-    } catch {
-      // Best-effort: permission setting may fail on some platforms.
+    } catch (err) {
+      mainLog.debug("[state.chmod.ignored]", err);
     }
   }
 }

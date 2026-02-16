@@ -2,6 +2,7 @@ import type { UIMessage } from "ai";
 import { useCallback, useEffect, useRef } from "react";
 import { clearTracesForSession } from "@/features/Chat/components/A2UI/execTrace";
 import { ipc, type ChatNormalizedRunEvent, type GatewayEventFrame } from "@/lib/ipc";
+import { historyLog } from "@/lib/logger";
 import { useExecApprovalsStore } from "@/store/exec";
 import { resetHeartbeatBackoff, shouldRefreshHistoryOnHeartbeat } from "../historyRefreshPolicy";
 import {
@@ -106,6 +107,7 @@ export function useOpenClawHistorySync(params: {
   useEffect(() => {
     const previousSessionKey = lastSessionKeyRef.current;
     if (previousSessionKey && previousSessionKey !== normalizedSessionKey) {
+      historyLog.info("[session.change]", { from: previousSessionKey, to: normalizedSessionKey });
       clearTracesForSession(previousSessionKey);
       resetHeartbeatBackoff(previousSessionKey);
     }

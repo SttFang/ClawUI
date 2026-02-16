@@ -7,6 +7,8 @@
  * 信号优先级：critical (0ms) > high (合并窗口) > normal (节流) > low (heartbeat 回退)
  */
 
+import { historyLog } from "@/lib/logger";
+
 export type SignalPriority = "critical" | "high" | "normal" | "low";
 
 export interface RefreshSignal {
@@ -63,6 +65,7 @@ export function createHistoryRefreshScheduler(cb: SchedulerCallbacks): HistoryRe
   };
 
   const execute = (signal: RefreshSignal) => {
+    historyLog.debug("[signal.execute]", signal.reason, { force: signal.force });
     void cb.executeRefresh({
       force: signal.force,
       reason: signal.reason,
@@ -82,6 +85,7 @@ export function createHistoryRefreshScheduler(cb: SchedulerCallbacks): HistoryRe
 
   const emit = (signal: RefreshSignal) => {
     if (signal.priority === "critical") {
+      historyLog.debug("[signal.emit]", signal.reason, { priority: "critical" });
       clearHighMerge();
       execute(signal);
       return;
@@ -90,6 +94,7 @@ export function createHistoryRefreshScheduler(cb: SchedulerCallbacks): HistoryRe
     if (signal.priority === "high") {
       if (pendingHighSignal) {
         pendingHighSignal = mergeSignals(pendingHighSignal, signal);
+        historyLog.debug("[signal.merge]", pendingHighSignal.reason);
         return;
       }
       pendingHighSignal = signal;
@@ -107,6 +112,7 @@ export function createHistoryRefreshScheduler(cb: SchedulerCallbacks): HistoryRe
   };
 
   const emitApprovalRecovery = () => {
+    historyLog.info("[signal.recovery]", "approval recovery started");
     cb.extendRecoveryWindow(APPROVAL_RECOVERY_WINDOW_MS);
     cb.resetHeartbeatBackoff();
     clearApprovalFollowups();

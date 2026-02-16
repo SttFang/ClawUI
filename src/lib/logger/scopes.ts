@@ -7,6 +7,7 @@ export const startupLog = log.scope("startup");
 export const chatLog = log.scope("chat");
 export const schedulerLog = log.scope("scheduler");
 export const toolsLog = log.scope("tools");
+export const historyLog = log.scope("history");
 export const channelsLog = log.scope("channels");
 export const subscriptionLog = log.scope("subscription");
 export const uiLog = log.scope("ui");

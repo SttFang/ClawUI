@@ -138,14 +138,13 @@ export class ConfigService {
   async patchPath(path: string, value: unknown): Promise<void> {
     const cfg = (await this.getConfig()) ?? { ...this.defaultConfig };
     const keys = path.split(".");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let obj: any = cfg;
+    let obj: Record<string, unknown> = cfg as Record<string, unknown>;
     for (let i = 0; i < keys.length - 1; i++) {
       const k = keys[i];
       if (obj[k] === undefined || obj[k] === null || typeof obj[k] !== "object") {
         obj[k] = {};
       }
-      obj = obj[k];
+      obj = obj[k] as Record<string, unknown>;
     }
     const lastKey = keys[keys.length - 1];
     if (value === null || value === undefined) {

@@ -4,6 +4,7 @@ import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { mainLog } from "../lib/logger";
+import { deepMerge } from "./config/config-utils";
 
 export type Theme = "light" | "dark" | "system";
 export type MotionPreference = "system" | "reduce" | "no-preference";
@@ -92,23 +93,6 @@ const DEFAULT_STATE: ClawUIState = {
   },
 };
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
-}
-
-function deepMerge<T>(target: T, source: Partial<T>): T {
-  const result = (Array.isArray(target) ? [...target] : { ...target }) as Record<string, unknown>;
-  for (const [key, sourceValue] of Object.entries(source as Record<string, unknown>)) {
-    const targetValue = result[key];
-    if (isPlainObject(targetValue) && isPlainObject(sourceValue)) {
-      result[key] = deepMerge(targetValue, sourceValue as Partial<typeof targetValue>);
-    } else if (sourceValue !== undefined) {
-      result[key] = sourceValue;
-    }
-  }
-  return result as T;
-}
-
 export class ClawUIStateService {
   private statePath: string | null = null;
   private state: ClawUIState | null = null;
@@ -144,14 +128,14 @@ export class ClawUIStateService {
 
   async patch(partial: DeepPartial<ClawUIState>): Promise<ClawUIState> {
     const current = await this.get();
-    this.state = deepMerge(current, partial as any);
+    this.state = deepMerge(current, partial as Partial<ClawUIState>);
     await this.save();
     return this.state;
   }
 
   async replace(next: Partial<ClawUIState>): Promise<ClawUIState> {
     // Import/restore flow: keep defaults for missing keys.
-    this.state = deepMerge(DEFAULT_STATE, next as any);
+    this.state = deepMerge(DEFAULT_STATE, next);
     await this.save();
     return this.state;
   }
@@ -161,7 +145,7 @@ export class ClawUIStateService {
       const raw = await readFile(this.getPath(), "utf-8");
       const parsed = JSON.parse(raw) as Partial<ClawUIState>;
       // Keep it resilient: unknown keys are preserved by merge; missing keys are filled by default.
-      this.state = deepMerge(DEFAULT_STATE, parsed as any);
+      this.state = deepMerge(DEFAULT_STATE, parsed);
     } catch (err) {
       mainLog.debug("[state.load.ignored]", err);
       this.state = DEFAULT_STATE;

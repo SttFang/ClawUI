@@ -13,6 +13,7 @@
     "./models": "./src/models.ts",
     "./clawui": "./src/clawui.ts",
     "./credentials": "./src/credentials.ts",
-    "./run-map": "./src/run-map.ts"
+    "./run-map": "./src/run-map.ts",
+    "./tool-call": "./src/tool-call.ts"
   }
 }

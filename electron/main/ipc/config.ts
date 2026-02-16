@@ -22,7 +22,7 @@ export function registerConfigHandlers(
     return orchestrator.getSchema();
   });
 
-  ipcMain.handle("config:set-draft", async (_event, raw: unknown) => {
+  ipcMain.handle("config:set-draft", async (_, raw: unknown) => {
     if (!isDraftPayload(raw)) {
       return {
         ok: false,

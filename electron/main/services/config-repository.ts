@@ -1,7 +1,7 @@
 import type { OnboardingOpenClawConfig } from "@clawui/types/config";
 import type { BYOKConfig, SubscriptionConfig } from "@clawui/types/onboarding";
-import { existsSync } from "fs";
-import { readFile } from "fs/promises";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import JSON5 from "json5";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { configLog } from "../lib/logger";

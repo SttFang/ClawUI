@@ -1,8 +1,8 @@
 import type { IpcMain } from "electron";
 import type { OpenDialogOptions, SaveDialogOptions } from "electron";
 import { BrowserWindow, dialog } from "electron";
-import { readFile, writeFile } from "fs/promises";
-import { basename } from "path";
+import { readFile, writeFile } from "node:fs/promises";
+import { basename } from "node:path";
 import type { ClawUIState, ClawUIStateService, DeepPartial } from "../services/clawui-state";
 
 export function registerStateHandlers(ipcMain: IpcMain, stateService: ClawUIStateService): void {
@@ -12,7 +12,7 @@ export function registerStateHandlers(ipcMain: IpcMain, stateService: ClawUIStat
 
   ipcMain.handle(
     "state:patch",
-    async (_event, partial: DeepPartial<ClawUIState>): Promise<ClawUIState> => {
+    async (_, partial: DeepPartial<ClawUIState>): Promise<ClawUIState> => {
       // Renderer never gets to patch secrets here; this is for ClawUI's own state only.
       return stateService.patch(partial);
     },

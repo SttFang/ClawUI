@@ -1,5 +1,5 @@
-import { randomUUID } from "crypto";
-import { EventEmitter } from "events";
+import { randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
 import type { DeviceIdentity } from "./chat/device-identity";
 import { chatLog } from "../lib/logger";
 import { ChatEventAdapter } from "./chat/event-adapter";

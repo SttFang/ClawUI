@@ -1,7 +1,7 @@
 import { app } from "electron";
-import { existsSync } from "fs";
-import { chmod, mkdir, readFile, rename, writeFile } from "fs/promises";
-import { dirname, join } from "path";
+import { existsSync } from "node:fs";
+import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { mainLog } from "../lib/logger";
 

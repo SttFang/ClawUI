@@ -1,6 +1,6 @@
 import type { BrowserWindow as BrowserWindowType } from "electron";
 import { BrowserWindow, shell } from "electron";
-import { join } from "path";
+import { join } from "node:path";
 import { mainLog } from "../lib/logger";
 import { buildWindowChromeOptions } from "./chrome-config";
 

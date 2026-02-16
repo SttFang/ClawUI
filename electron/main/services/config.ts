@@ -1,10 +1,10 @@
 import type { CanonicalOpenClawConfig } from "@clawui/types/config";
-import { randomBytes } from "crypto";
-import { existsSync } from "fs";
-import { readFile, writeFile, mkdir } from "fs/promises";
+import { randomBytes } from "node:crypto";
+import { existsSync } from "node:fs";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import JSON5 from "json5";
-import { homedir } from "os";
-import { join, dirname } from "path";
+import { homedir } from "node:os";
+import { join, dirname } from "node:path";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { configLog } from "../lib/logger";
 

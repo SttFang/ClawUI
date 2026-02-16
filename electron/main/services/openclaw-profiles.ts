@@ -1,7 +1,7 @@
-import { existsSync, lstatSync, readlinkSync } from "fs";
-import { mkdir, rm, symlink, unlink } from "fs/promises";
-import { homedir } from "os";
-import { dirname, join } from "path";
+import { existsSync, lstatSync, readlinkSync } from "node:fs";
+import { mkdir, rm, symlink, unlink } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import { CONFIG_AGENT_PROFILE_NAME } from "../constants";
 import { profilesLog } from "../lib/logger";
 import { ConfigService, createDefaultConfig, type OpenClawConfig } from "./config";

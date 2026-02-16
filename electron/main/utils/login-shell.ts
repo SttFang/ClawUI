@@ -1,6 +1,6 @@
-import { execFile } from "child_process";
-import { existsSync } from "fs";
-import { promisify } from "util";
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 

@@ -1,6 +1,6 @@
-import { existsSync } from "fs";
-import { mkdir, readFile, writeFile } from "fs/promises";
-import { dirname, join } from "path";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import lockfile from "proper-lockfile";
 import { configLog } from "../lib/logger";
 import { isRecord } from "../utils/type-guards";

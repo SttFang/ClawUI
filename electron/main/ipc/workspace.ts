@@ -21,7 +21,7 @@ function resolveWorkspaceDir(
 }
 
 export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: ConfigService): void {
-  ipcMain.handle("workspace:list", async (_event, subpath?: string) => {
+  ipcMain.handle("workspace:list", async (_, subpath?: string) => {
     const config = await configService.getConfig();
     const base = resolveWorkspaceDir(config);
     const dir = subpath ? safePath(base, subpath) : base;
@@ -43,7 +43,7 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
     return { dir, files };
   });
 
-  ipcMain.handle("workspace:read-file", async (_event, relativePath: string) => {
+  ipcMain.handle("workspace:read-file", async (_, relativePath: string) => {
     const config = await configService.getConfig();
     const base = resolveWorkspaceDir(config);
     const filePath = safePath(base, relativePath);
@@ -52,7 +52,7 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
     return { path: filePath, content };
   });
 
-  ipcMain.handle("workspace:read-file-base64", async (_event, relativePath: string) => {
+  ipcMain.handle("workspace:read-file-base64", async (_, relativePath: string) => {
     const config = await configService.getConfig();
     const base = resolveWorkspaceDir(config);
     const filePath = safePath(base, relativePath);
@@ -61,7 +61,7 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
     return { path: filePath, base64: buf.toString("base64") };
   });
 
-  ipcMain.handle("workspace:run-python", async (_event, relativePath: string) => {
+  ipcMain.handle("workspace:run-python", async (_, relativePath: string) => {
     const config = await configService.getConfig();
     const base = resolveWorkspaceDir(config);
     const filePath = safePath(base, relativePath);

@@ -69,7 +69,7 @@ export function registerMetadataHandlers(
 
   ipcMain.handle(
     "metadata:generate",
-    async (_event, sessionKeyInput: unknown): Promise<ClawUISessionMetadata> => {
+    async (_, sessionKeyInput: unknown): Promise<ClawUISessionMetadata> => {
       const sessionKey = coerceSessionKey(sessionKeyInput);
       if (!sessionKey) throw new Error("Invalid sessionKey");
 

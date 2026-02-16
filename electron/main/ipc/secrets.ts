@@ -44,7 +44,7 @@ export function registerSecretsHandlers(
   profiles: OpenClawProfilesService,
   credentialService?: CredentialService,
 ): void {
-  ipcMain.handle("secrets:patch", async (_event, patch: Record<string, unknown>) => {
+  ipcMain.handle("secrets:patch", async (_, patch: Record<string, unknown>) => {
     const validated = validatePatch(patch);
 
     if (credentialService) {

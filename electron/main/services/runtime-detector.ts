@@ -1,8 +1,8 @@
-import { exec } from "child_process";
+import { exec } from "node:child_process";
 import { app } from "electron";
-import { existsSync } from "fs";
-import path from "path";
-import { promisify } from "util";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { promisify } from "node:util";
 import { detectorLog } from "../lib/logger";
 import { execInLoginShell, resolveCommandPath } from "../utils/login-shell";
 import { ConfigService } from "./config";

@@ -77,7 +77,7 @@ function toProfileList(input: unknown): string[] {
 export function registerModelsHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(
     "models:status",
-    async (_event, options?: ModelsStatusProbeOptions): Promise<ModelsStatus | null> => {
+    async (_, options?: ModelsStatusProbeOptions): Promise<ModelsStatus | null> => {
       const openclawPath = await resolveOpenClawPath();
       const args = buildModelsStatusArgs(options);
       try {
@@ -104,7 +104,7 @@ export function registerModelsHandlers(ipcMain: IpcMain): void {
     );
   });
 
-  ipcMain.handle("models:set-default", async (_event, model: string): Promise<void> => {
+  ipcMain.handle("models:set-default", async (_, model: string): Promise<void> => {
     const value = trimArg(model);
     if (!value) throw new Error("model is required");
     const openclawPath = await resolveOpenClawPath();
@@ -120,14 +120,14 @@ export function registerModelsHandlers(ipcMain: IpcMain): void {
     );
   });
 
-  ipcMain.handle("models:fallbacks-add", async (_event, model: string): Promise<void> => {
+  ipcMain.handle("models:fallbacks-add", async (_, model: string): Promise<void> => {
     const value = trimArg(model);
     if (!value) throw new Error("model is required");
     const openclawPath = await resolveOpenClawPath();
     await runOpenClaw(openclawPath, ["models", "fallbacks", "add", value], 40_000);
   });
 
-  ipcMain.handle("models:fallbacks-remove", async (_event, model: string): Promise<void> => {
+  ipcMain.handle("models:fallbacks-remove", async (_, model: string): Promise<void> => {
     const value = trimArg(model);
     if (!value) throw new Error("model is required");
     const openclawPath = await resolveOpenClawPath();
@@ -141,7 +141,7 @@ export function registerModelsHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle(
     "models:auth-order-get",
-    async (_event, input: ModelsAuthOrderInput): Promise<ModelsAuthOrderResult> => {
+    async (_, input: ModelsAuthOrderInput): Promise<ModelsAuthOrderResult> => {
       const provider = assertProvider(input?.provider);
       const args = ["models", "auth", "order", "get", "--provider", provider, "--json"];
       const agentId = trimArg(input?.agentId);
@@ -154,7 +154,7 @@ export function registerModelsHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle(
     "models:auth-order-set",
-    async (_event, input: ModelsAuthOrderSetInput): Promise<ModelsAuthOrderResult> => {
+    async (_, input: ModelsAuthOrderSetInput): Promise<ModelsAuthOrderResult> => {
       const provider = assertProvider(input?.provider);
       const profileIds = toProfileList(input?.profileIds);
       if (profileIds.length === 0) {
@@ -178,7 +178,7 @@ export function registerModelsHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle(
     "models:auth-order-clear",
-    async (_event, input: ModelsAuthOrderInput): Promise<ModelsAuthOrderResult> => {
+    async (_, input: ModelsAuthOrderInput): Promise<ModelsAuthOrderResult> => {
       const provider = assertProvider(input?.provider);
       const args = ["models", "auth", "order", "clear", "--provider", provider];
       const agentId = trimArg(input?.agentId);
@@ -196,7 +196,7 @@ export function registerModelsHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle(
     "models:auth-login",
-    async (_event, options?: ModelsAuthLoginOptions): Promise<{ ok: true; stdout: string }> => {
+    async (_, options?: ModelsAuthLoginOptions): Promise<{ ok: true; stdout: string }> => {
       const openclawPath = await resolveOpenClawPath();
       const args = buildModelsAuthLoginArgs(options);
       const { stdout, stderr } = await runOpenClaw(openclawPath, args, 120_000);

@@ -1,6 +1,6 @@
 import { IpcMain } from "electron";
-import { readdir } from "fs/promises";
-import { dirname, join } from "path";
+import { readdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type { OpenClawProfileId, OpenClawProfilesService } from "../services/openclaw-profiles";
 
 type SkillsProfileList = {

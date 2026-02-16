@@ -17,14 +17,14 @@ export function registerProfilesHandlers(
 
   ipcMain.handle(
     "profiles:patch-env-both",
-    async (_event, patch: Record<string, string | null | undefined>) => {
+    async (_, patch: Record<string, string | null | undefined>) => {
       await profiles.patchEnvBoth(patch);
     },
   );
 
   ipcMain.handle(
     "profiles:config-path",
-    async (_event, profileId: OpenClawProfileId): Promise<string> => {
+    async (_, profileId: OpenClawProfileId): Promise<string> => {
       return profiles.getConfigPath(profileId);
     },
   );

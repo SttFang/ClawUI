@@ -1,6 +1,6 @@
 import type { CanonicalOpenClawConfig } from "@clawui/types/config";
-import { spawn, ChildProcess } from "child_process";
-import { EventEmitter } from "events";
+import { spawn, ChildProcess } from "node:child_process";
+import { EventEmitter } from "node:events";
 import net from "net";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { gatewayLog } from "../lib/logger";

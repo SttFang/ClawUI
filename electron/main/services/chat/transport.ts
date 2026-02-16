@@ -1,5 +1,5 @@
-import { randomUUID } from "crypto";
-import { EventEmitter } from "events";
+import { randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
 import WebSocket from "ws";
 import type { DeviceIdentity } from "./device-identity";
 import { DEFAULT_GATEWAY_PORT } from "../../constants";

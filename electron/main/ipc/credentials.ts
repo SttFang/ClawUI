@@ -18,46 +18,46 @@ export function registerCredentialHandlers(
     return credentialService.getAllCredentials();
   });
 
-  ipcMain.handle("credentials:set-llm-key", async (_event, input: SetLlmKeyInput) => {
+  ipcMain.handle("credentials:set-llm-key", async (_, input: SetLlmKeyInput) => {
     await credentialService.setLlmKey(input);
   });
 
-  ipcMain.handle("credentials:validate", async (_event, provider: string, key: string) => {
+  ipcMain.handle("credentials:validate", async (_, provider: string, key: string) => {
     return credentialService.validateLlmKey(provider, key);
   });
 
-  ipcMain.handle("credentials:set-channel", async (_event, input: SetChannelTokenInput) => {
+  ipcMain.handle("credentials:set-channel", async (_, input: SetChannelTokenInput) => {
     await credentialService.setChannelToken(input);
   });
 
-  ipcMain.handle("credentials:set-proxy", async (_event, input: SetProxyInput) => {
+  ipcMain.handle("credentials:set-proxy", async (_, input: SetProxyInput) => {
     await credentialService.setProxy(input);
   });
 
-  ipcMain.handle("credentials:set-tool-key", async (_event, input: SetToolKeyInput) => {
+  ipcMain.handle("credentials:set-tool-key", async (_, input: SetToolKeyInput) => {
     await credentialService.setToolApiKey(input);
   });
 
-  ipcMain.handle("credentials:delete", async (_event, input: DeleteCredentialInput) => {
+  ipcMain.handle("credentials:delete", async (_, input: DeleteCredentialInput) => {
     await credentialService.deleteCredential(input);
   });
 
   // --- OAuth handlers ---
 
-  ipcMain.handle("credentials:oauth-device-start", async (_event, provider: string) => {
+  ipcMain.handle("credentials:oauth-device-start", async (_, provider: string) => {
     if (!oauthService) throw new Error("OAuth service not available");
     return oauthService.startDeviceCodeFlow(provider);
   });
 
   ipcMain.handle(
     "credentials:oauth-device-poll",
-    async (_event, provider: string, deviceCode: string, interval: number) => {
+    async (_, provider: string, deviceCode: string, interval: number) => {
       if (!oauthService) throw new Error("OAuth service not available");
       return oauthService.pollDeviceCodeToken(provider, deviceCode, interval);
     },
   );
 
-  ipcMain.handle("credentials:oauth-refresh", async (_event, profileId: string) => {
+  ipcMain.handle("credentials:oauth-refresh", async (_, profileId: string) => {
     if (!oauthService) throw new Error("OAuth service not available");
     return oauthService.refreshIfNeeded(profileId);
   });

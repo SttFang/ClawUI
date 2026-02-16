@@ -5,9 +5,9 @@ import type {
   ConfigSetDraftResponseV2,
   ConfigSnapshotV2,
 } from "@clawui/types/config";
-import { createHash } from "crypto";
-import { existsSync } from "fs";
-import { readFile } from "fs/promises";
+import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import JSON5 from "json5";
 import type { ChatWebSocketService } from "./chat-websocket";
 import type { ConfigService } from "./config";

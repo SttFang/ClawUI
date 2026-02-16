@@ -1,7 +1,7 @@
-import { existsSync } from "fs";
-import { readFile } from "fs/promises";
-import { homedir } from "os";
-import { join } from "path";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { AuthProfileAdapter, AuthProfileCredential } from "./auth-profile-adapter";
 import { configLog } from "../lib/logger";
 

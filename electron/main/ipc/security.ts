@@ -1,6 +1,6 @@
 import type { IpcMain } from "electron";
-import { execFile } from "child_process";
-import { promisify } from "util";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { resolveOpenClawPath } from "../utils/openclaw-cli";
 
 const execFileAsync = promisify(execFile);
@@ -40,7 +40,7 @@ export interface SecurityOp {
 export function registerSecurityHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(
     "security:get",
-    async (_event, paths: string[]): Promise<Record<string, unknown>> => {
+    async (_, paths: string[]): Promise<Record<string, unknown>> => {
       if (!Array.isArray(paths)) throw new Error("paths must be an array");
       const openclawPath = await resolveOpenClawPath();
 
@@ -60,7 +60,7 @@ export function registerSecurityHandlers(ipcMain: IpcMain): void {
     },
   );
 
-  ipcMain.handle("security:apply", async (_event, ops: SecurityOp[]): Promise<void> => {
+  ipcMain.handle("security:apply", async (_, ops: SecurityOp[]): Promise<void> => {
     if (!Array.isArray(ops)) throw new Error("ops must be an array");
     const openclawPath = await resolveOpenClawPath();
 

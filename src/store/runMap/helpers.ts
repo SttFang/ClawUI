@@ -8,8 +8,11 @@ import type {
   TimelineEvent,
   ToolCallNode,
 } from "@clawui/types/run-map";
+import { resolveToolCallId } from "@clawui/types/tool-call";
 import type { ChatNormalizedRunEvent } from "@/lib/ipc";
 import { MAX_TIMELINE_EVENTS } from "./initialState";
+
+export { resolveToolCallId };
 
 export function normalizeSessionKey(sessionKey: string | null | undefined): string {
   return typeof sessionKey === "string" ? sessionKey.trim() : "";
@@ -17,24 +20,6 @@ export function normalizeSessionKey(sessionKey: string | null | undefined): stri
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-export function resolveToolCallId(record: Record<string, unknown> | null): string {
-  if (!record) return "";
-  const candidates = [
-    record.toolCallId,
-    record.tool_call_id,
-    record.toolUseId,
-    record.tool_use_id,
-    record.id,
-    record.toolId,
-  ];
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) {
-      return candidate.trim();
-    }
-  }
-  return "";
 }
 
 export function inferStatusFromKind(event: ChatNormalizedRunEvent): RunStatus {

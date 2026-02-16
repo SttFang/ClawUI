@@ -1,5 +1,6 @@
 import type { DynamicToolUIPart } from "ai";
 import { getCommandFromInput, normalizeCommand, normalizeSessionKey, toRecord } from "@/lib/exec";
+import { extractRunIdFromToolCallId } from "@/lib/tool-call";
 import type { ExecLifecycleRecord, ExecLifecycleStatus } from "./types";
 
 export const EXEC_LIFECYCLE_STATUS_PRIORITY: Record<ExecLifecycleStatus, number> = {
@@ -49,15 +50,7 @@ function getYieldMsFromInput(input: unknown): number | undefined {
 }
 
 export { getCommandFromInput, normalizeCommand, normalizeSessionKey } from "@/lib/exec";
-
-export function extractRunIdFromToolCallId(toolCallId: string): string {
-  const normalized = toolCallId.trim();
-  if (!normalized) return "";
-  const base = normalized.includes("|") ? normalized.split("|")[0] : normalized;
-  const markerIndex = base.indexOf(":tool");
-  if (markerIndex > 0) return base.slice(0, markerIndex);
-  return base;
-}
+export { extractRunIdFromToolCallId } from "@/lib/tool-call";
 
 export function buildSessionCommandKey(sessionKey: string, command: string): string {
   return `${normalizeSessionKey(sessionKey)}::${normalizeCommand(command)}`;

@@ -17,6 +17,7 @@ export default defineConfig({
     alias: {
       "@clawui/config-core": resolve(__dirname, "packages/config-core/src/index.ts"),
       "@clawui/config-core/": resolve(__dirname, "packages/config-core/src/"),
+      "@clawui/types/tool-call": resolve(__dirname, "packages/types/src/tool-call.ts"),
       "@": resolve(__dirname, "src"),
       "@components": resolve(__dirname, "src/components"),
       "@features": resolve(__dirname, "src/features"),

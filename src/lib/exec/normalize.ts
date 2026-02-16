@@ -5,6 +5,9 @@
  * to ensure a single source of truth for key derivation.
  */
 
+// Re-export from the shared types package (single source of truth).
+export { normalizeToolCallId } from "@clawui/types/tool-call";
+
 /** Collapse whitespace sequences to a single space. */
 export function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
@@ -26,24 +29,6 @@ export function normalizeSessionKey(value: string | null | undefined): string {
 
 export function normalizeCommand(value: string): string {
   return normalizeWhitespace(value);
-}
-
-/**
- * Extract the primary tool-call ID from a value that may contain a `|` separator.
- *
- * OpenClaw's ACP protocol appends extra context after a `|` delimiter
- * (e.g. `call_abc123|extra-info`). When the primary segment starts with
- * `call_` we strip the suffix; otherwise we return the full value.
- */
-export function normalizeToolCallId(value: string): string {
-  const normalized = value.trim();
-  if (!normalized) return normalized;
-  const separatorIndex = normalized.indexOf("|");
-  if (separatorIndex <= 0) return normalized;
-  const primary = normalized.slice(0, separatorIndex).trim();
-  if (!primary) return normalized;
-  if (primary.startsWith("call_")) return primary;
-  return normalized;
 }
 
 /**

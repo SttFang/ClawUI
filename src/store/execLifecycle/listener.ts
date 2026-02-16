@@ -2,21 +2,12 @@ import type { GatewayEventFrame } from "@/lib/ipc";
 import { isExecToolName, isRecord, normalizeCommand, normalizeSessionKey } from "@/lib/exec";
 import { ipc } from "@/lib/ipc";
 import { chatLog } from "@/lib/logger";
+import { resolveToolCallId } from "@clawui/types/tool-call";
 import type { ExecLifecycleStatus } from "./types";
 import { buildFallbackAttemptId, extractRunIdFromToolCallId } from "./projector";
 import { useExecLifecycleStore } from "./store";
 
 let listenerInitialized = false;
-
-function resolveToolCallId(data: Record<string, unknown>): string {
-  const candidates = [data.toolCallId, data.tool_call_id, data.toolUseId, data.id, data.toolId];
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) {
-      return candidate.trim();
-    }
-  }
-  return "";
-}
 
 function phaseToStatus(phase: string, isExplicitError: boolean): ExecLifecycleStatus | null {
   if (phase === "start") return "running";

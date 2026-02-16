@@ -3,17 +3,22 @@ import { useCallback, useEffect, useRef } from "react";
 import { clearTracesForSession } from "@/features/Chat/components/A2UI/execTrace";
 import { ipc, type ChatNormalizedRunEvent, type GatewayEventFrame } from "@/lib/ipc";
 import { useExecApprovalsStore } from "@/store/exec";
-import {
-  APPROVAL_RECOVERY_FOLLOWUPS_MS,
-  resetHeartbeatBackoff,
-  shouldRefreshHistoryOnHeartbeat,
-} from "../historyRefreshPolicy";
+import { resetHeartbeatBackoff, shouldRefreshHistoryOnHeartbeat } from "../historyRefreshPolicy";
 import {
   isExecToolFinished,
   shouldClearRunningOnNormalizedEvent,
   shouldForceRefreshOnNormalizedEvent,
   shouldRefreshOnNormalizedEvent,
 } from "./guards";
+import {
+  createHistoryRefreshScheduler,
+  mapApprovalRequestedToSignal,
+  mapApprovalResolvedRawToSignal,
+  mapChatStateToSignal,
+  mapHeartbeatToSignal,
+  mapLifecyclePhaseToSignal,
+  type HistoryRefreshScheduler,
+} from "./scheduler";
 import { useHistoryRefresh } from "./useHistoryRefresh";
 
 type LastResolvedApproval = {
@@ -24,7 +29,6 @@ type LastResolvedApproval = {
 
 const APPROVAL_RECOVERY_WINDOW_MS = 120_000;
 const TERMINAL_RECOVERY_WINDOW_MS = 20_000;
-const FORCE_FOLLOWUP_THRESHOLD_MS = 10_000;
 
 export function useOpenClawHistorySync(params: {
   sessionKey: string;
@@ -40,12 +44,12 @@ export function useOpenClawHistorySync(params: {
   );
 
   const setMessagesRef = useRef(setMessages);
-  const approvalRecoveryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const lastHandledApprovalIdRef = useRef<string | null>(null);
   const recoveryUntilMsRef = useRef(0);
   const lastSessionKeyRef = useRef(normalizedSessionKey);
   const isStreamingRef = useRef(isStreaming);
   const prevIsStreamingRef = useRef(isStreaming);
+  const schedulerRef = useRef<HistoryRefreshScheduler | null>(null);
 
   useEffect(() => {
     setMessagesRef.current = setMessages;
@@ -72,6 +76,32 @@ export function useOpenClawHistorySync(params: {
     isStreamingRef,
   });
 
+  // Build scheduler (once per session key)
+  useEffect(() => {
+    const scheduler = createHistoryRefreshScheduler({
+      executeRefresh: (opts) => refreshHistory(opts),
+      extendRecoveryWindow,
+      clearRunningForSession: () =>
+        useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey),
+      resetHeartbeatBackoff: () => resetHeartbeatBackoff(normalizedSessionKey),
+      shouldRefreshOnHeartbeat: () => {
+        const state = useExecApprovalsStore.getState();
+        return shouldRefreshHistoryOnHeartbeat({
+          sessionKey: normalizedSessionKey,
+          queue: state.queue,
+          runningByKey: state.runningByKey,
+          recoveryActive: isRecoveryActive(),
+        });
+      },
+      isRecoveryActive,
+    });
+    schedulerRef.current = scheduler;
+    return () => {
+      scheduler.dispose();
+      schedulerRef.current = null;
+    };
+  }, [normalizedSessionKey, refreshHistory, extendRecoveryWindow, isRecoveryActive]);
+
   // Reset state on session change
   useEffect(() => {
     const previousSessionKey = lastSessionKeyRef.current;
@@ -85,16 +115,12 @@ export function useOpenClawHistorySync(params: {
     lastHandledApprovalIdRef.current = null;
     recoveryUntilMsRef.current = 0;
     resetHeartbeatBackoff(normalizedSessionKey);
-    for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
-    approvalRecoveryTimersRef.current = [];
   }, [normalizedSessionKey, resetRefreshState]);
 
   // Cleanup on unmount
   useEffect(
     () => () => {
       clearPendingTimer();
-      for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
-      approvalRecoveryTimersRef.current = [];
     },
     [clearPendingTimer],
   );
@@ -107,53 +133,40 @@ export function useOpenClawHistorySync(params: {
     if (lastHandledApprovalIdRef.current === resolved.id) return;
 
     lastHandledApprovalIdRef.current = resolved.id;
-    extendRecoveryWindow(APPROVAL_RECOVERY_WINDOW_MS);
-    resetHeartbeatBackoff(normalizedSessionKey);
-    for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
-    approvalRecoveryTimersRef.current = [];
-
-    void refreshHistory({
-      force: true,
-      reason: "approval-resolved-immediate",
-      allowRetry: true,
-    });
-    for (const delayMs of APPROVAL_RECOVERY_FOLLOWUPS_MS) {
-      const timer = setTimeout(() => {
-        void refreshHistory({
-          force: delayMs <= FORCE_FOLLOWUP_THRESHOLD_MS,
-          reason: `approval-resolved-followup-${delayMs}`,
-          allowRetry: true,
-        });
-      }, delayMs);
-      approvalRecoveryTimersRef.current.push(timer);
-    }
-  }, [
-    extendRecoveryWindow,
-    hasSession,
-    lastResolvedApproval,
-    normalizedSessionKey,
-    refreshHistory,
-  ]);
+    schedulerRef.current?.emitApprovalRecovery();
+  }, [hasSession, lastResolvedApproval, normalizedSessionKey]);
 
   // Catchup refresh when streaming ends
   useEffect(() => {
     if (prevIsStreamingRef.current && !isStreaming) {
-      void refreshHistory({ force: true, reason: "stream-ended", allowRetry: true });
+      schedulerRef.current?.emit({
+        priority: "critical",
+        force: true,
+        reason: "stream-ended",
+        allowRetry: true,
+      });
     }
     prevIsStreamingRef.current = isStreaming;
-  }, [isStreaming, refreshHistory]);
+  }, [isStreaming]);
 
   // Initial session load
   useEffect(() => {
     if (!hasSession) return;
-    void refreshHistory({ force: true, reason: "session-init", allowRetry: false });
-  }, [hasSession, refreshHistory]);
+    schedulerRef.current?.emit({
+      priority: "critical",
+      force: true,
+      reason: "session-init",
+      allowRetry: false,
+    });
+  }, [hasSession]);
 
   // Gateway event listener
   useEffect(() => {
     if (!hasSession || !normalizedSessionKey) return;
     return ipc.gateway.onEvent((frame: GatewayEventFrame) => {
       if (frame.type !== "event") return;
+      const scheduler = schedulerRef.current;
+      if (!scheduler) return;
 
       if (frame.event === "heartbeat") {
         const heartbeatPayload =
@@ -166,25 +179,20 @@ export function useOpenClawHistorySync(params: {
             : "";
         if (heartbeatReason === "exec-event") {
           extendRecoveryWindow(TERMINAL_RECOVERY_WINDOW_MS);
-          void refreshHistory({
-            force: true,
-            reason: "heartbeat-exec-event",
-            allowRetry: true,
-          });
-          return;
         }
-
-        const state = useExecApprovalsStore.getState();
-        if (
-          shouldRefreshHistoryOnHeartbeat({
-            sessionKey: normalizedSessionKey,
-            queue: state.queue,
-            runningByKey: state.runningByKey,
-            recoveryActive: isRecoveryActive(),
-          })
-        ) {
-          void refreshHistory({ force: false, reason: "heartbeat", allowRetry: false });
-        }
+        const signal = mapHeartbeatToSignal(
+          heartbeatReason,
+          (() => {
+            const state = useExecApprovalsStore.getState();
+            return shouldRefreshHistoryOnHeartbeat({
+              sessionKey: normalizedSessionKey,
+              queue: state.queue,
+              runningByKey: state.runningByKey,
+              recoveryActive: isRecoveryActive(),
+            });
+          })(),
+        );
+        if (signal) scheduler.emit(signal);
         return;
       }
 
@@ -201,11 +209,7 @@ export function useOpenClawHistorySync(params: {
             : null;
         if (request?.sessionKey !== normalizedSessionKey) return;
         extendRecoveryWindow(APPROVAL_RECOVERY_WINDOW_MS);
-        void refreshHistory({
-          force: false,
-          reason: "approval-requested",
-          allowRetry: true,
-        });
+        scheduler.emit(mapApprovalRequestedToSignal());
         return;
       }
 
@@ -222,21 +226,18 @@ export function useOpenClawHistorySync(params: {
         if (payloadSession && payloadSession !== normalizedSessionKey) return;
 
         extendRecoveryWindow(APPROVAL_RECOVERY_WINDOW_MS);
-        for (const timer of approvalRecoveryTimersRef.current) clearTimeout(timer);
-        approvalRecoveryTimersRef.current = [];
-        void refreshHistory({
-          force: true,
-          reason: "approval-resolved-raw",
-          allowRetry: true,
-        });
+        scheduler.emit(mapApprovalResolvedRawToSignal());
+        // Raw resolved also triggers a short followup
         const fallbackTimer = setTimeout(() => {
-          void refreshHistory({
+          scheduler.emit({
+            priority: "critical",
             force: true,
             reason: "approval-resolved-raw-followup",
             allowRetry: false,
           });
         }, 250);
-        approvalRecoveryTimersRef.current.push(fallbackTimer);
+        // Timer will be cleaned up on scheduler dispose via session change
+        void fallbackTimer;
         return;
       }
 
@@ -244,14 +245,11 @@ export function useOpenClawHistorySync(params: {
         const payload = frame.payload as { sessionKey?: unknown; state?: unknown } | undefined;
         if (!payload || typeof payload !== "object") return;
         if (payload.sessionKey !== normalizedSessionKey) return;
-        if (payload.state === "final" || payload.state === "aborted" || payload.state === "error") {
+        const signal = mapChatStateToSignal(String(payload.state ?? ""));
+        if (signal) {
           useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
           extendRecoveryWindow(TERMINAL_RECOVERY_WINDOW_MS);
-          void refreshHistory({
-            force: true,
-            reason: `chat-${String(payload.state)}`,
-            allowRetry: true,
-          });
+          scheduler.emit(signal);
         }
         return;
       }
@@ -270,24 +268,24 @@ export function useOpenClawHistorySync(params: {
             ? (payload.data as { phase?: unknown })
             : null;
         const phase = typeof data?.phase === "string" ? data.phase : "";
-        if (phase === "end" || phase === "error") {
+        const signal = mapLifecyclePhaseToSignal(phase);
+        if (signal) {
           useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
           extendRecoveryWindow(TERMINAL_RECOVERY_WINDOW_MS);
-          void refreshHistory({
-            force: true,
-            reason: `lifecycle-${phase}`,
-            allowRetry: true,
-          });
+          scheduler.emit(signal);
         }
       }
     });
-  }, [extendRecoveryWindow, hasSession, isRecoveryActive, normalizedSessionKey, refreshHistory]);
+  }, [extendRecoveryWindow, hasSession, isRecoveryActive, normalizedSessionKey]);
 
   // Normalized event listener
   useEffect(() => {
     if (!hasSession || !normalizedSessionKey) return;
     return ipc.chat.onNormalizedEvent((event: ChatNormalizedRunEvent) => {
       if (event.sessionKey !== normalizedSessionKey) return;
+      const scheduler = schedulerRef.current;
+      if (!scheduler) return;
+
       if (event.kind === "run.approval_resolved" || event.kind === "run.waiting_approval") {
         extendRecoveryWindow(APPROVAL_RECOVERY_WINDOW_MS);
       }
@@ -303,14 +301,15 @@ export function useOpenClawHistorySync(params: {
         useExecApprovalsStore.getState().clearRunningForSession(normalizedSessionKey);
       }
       if (shouldRefreshOnNormalizedEvent(event)) {
-        void refreshHistory({
+        scheduler.emit({
+          priority: shouldForceRefreshOnNormalizedEvent(event) ? "critical" : "normal",
           force: shouldForceRefreshOnNormalizedEvent(event),
           reason: event.kind,
           allowRetry: true,
         });
       }
     });
-  }, [extendRecoveryWindow, hasSession, normalizedSessionKey, refreshHistory]);
+  }, [extendRecoveryWindow, hasSession, normalizedSessionKey]);
 
   return { refreshHistory };
 }

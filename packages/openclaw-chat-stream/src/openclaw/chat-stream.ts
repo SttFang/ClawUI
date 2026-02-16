@@ -4,6 +4,7 @@ import { computeSuffixDelta } from './delta'
 import { extractOpenClawTextFromMessage } from './extract'
 import { resolveToolCallId } from '@clawui/types/tool-call'
 import { extractUserText } from './user'
+import { createApprovalRecovery } from './approval-recovery'
 import type {
   GatewayEventFrame,
   OpenClawAgentEventPayload,
@@ -63,8 +64,7 @@ export function createOpenClawChatStream(params: {
       let pendingAssistantText: string | null = null
       let lifecycleEndAt = 0
       let lastChatEventAt = 0
-      let lastApprovalActivityAt = 0
-      let lastToolTerminalActivityAt = 0
+      const approval = createApprovalRecovery(() => streamStartedAt)
       let pendingChatAliasRunId: string | null = null
       let pendingChatAliasEvent: OpenClawChatEvent | null = null
       const pendingToolCalls = new Set<string>()
@@ -75,18 +75,6 @@ export function createOpenClawChatStream(params: {
       const buffered: GatewayEventFrame[] = []
       let unsubscribe: (() => void) | null = null
       const CHAT_ALIAS_GRACE_MS = 250
-      const APPROVAL_ALIAS_WINDOW_MS = 120_000
-      const DIVERGENT_ASSISTANT_APPEND_WINDOW_MS = 120_000
-
-      const hasRecentApprovalActivity = () => {
-        if (!lastApprovalActivityAt) return false
-        return Date.now() - lastApprovalActivityAt <= APPROVAL_ALIAS_WINDOW_MS
-      }
-
-      const hasRecentToolTerminalActivity = () => {
-        if (!lastToolTerminalActivityAt) return false
-        return Date.now() - lastToolTerminalActivityAt <= DIVERGENT_ASSISTANT_APPEND_WINDOW_MS
-      }
 
       const isStaleAgentEvent = (ts: unknown) => {
         if (typeof ts !== 'number') return false
@@ -104,17 +92,6 @@ export function createOpenClawChatStream(params: {
         return nextText.length >= currentText.length && nextText.startsWith(currentText)
       }
 
-      const noteApprovalActivity = (createdAtMs?: unknown) => {
-        if (typeof createdAtMs === 'number' && streamStartedAt > 0 && createdAtMs + 1000 < streamStartedAt) {
-          return
-        }
-        lastApprovalActivityAt = Date.now()
-      }
-
-      const noteToolTerminalActivity = () => {
-        lastToolTerminalActivityAt = Date.now()
-      }
-
       const clearPendingChatAlias = () => {
         if (pendingChatAliasTimer) {
           clearTimeout(pendingChatAliasTimer)
@@ -127,12 +104,12 @@ export function createOpenClawChatStream(params: {
       const queuePendingChatAlias = (evt: OpenClawChatEvent) => {
         if (!clientRunId) return
         if (evt.runId === clientRunId) return
-        const approvalRecovery = hasRecentApprovalActivity()
+        const isApprovalActive = approval.hasRecentApprovalActivity()
         const continuationSnapshot = isContinuationSnapshotEvent(evt)
-        if (hasSeenClientChatEvent && !approvalRecovery && !continuationSnapshot) return
+        if (hasSeenClientChatEvent && !isApprovalActive && !continuationSnapshot) return
         if (didFinish) return
         if (boundChatRunId) return
-        if (currentText.length > 0 && !approvalRecovery && !continuationSnapshot) return
+        if (currentText.length > 0 && !isApprovalActive && !continuationSnapshot) return
         if (evt.state !== 'delta' && evt.state !== 'final') return
 
         pendingChatAliasRunId = evt.runId
@@ -145,13 +122,13 @@ export function createOpenClawChatStream(params: {
           pendingChatAliasRunId = null
           pendingChatAliasEvent = null
           if (!queuedRunId || !queuedEvent) return
-          const approvalRecovery = hasRecentApprovalActivity()
+          const isApprovalActive = approval.hasRecentApprovalActivity()
           const continuationSnapshot = isContinuationSnapshotEvent(queuedEvent)
           if (
-            (hasSeenClientChatEvent && !approvalRecovery && !continuationSnapshot) ||
+            (hasSeenClientChatEvent && !isApprovalActive && !continuationSnapshot) ||
             didFinish ||
             boundChatRunId ||
-            (currentText.length > 0 && !approvalRecovery && !continuationSnapshot)
+            (currentText.length > 0 && !isApprovalActive && !continuationSnapshot)
           ) {
             return
           }
@@ -170,9 +147,9 @@ export function createOpenClawChatStream(params: {
         if (!clientRunId) return
         if (!evt.runId || evt.runId === clientRunId) return
         if (boundChatRunId) return
-        const approvalRecovery = hasRecentApprovalActivity()
+        const isApprovalActive = approval.hasRecentApprovalActivity()
         const continuationSnapshot = isContinuationSnapshotEvent(evt)
-        if (hasSeenClientChatEvent && !approvalRecovery && !continuationSnapshot) return
+        if (hasSeenClientChatEvent && !isApprovalActive && !continuationSnapshot) return
         if (didFinish) return
         // NOTE:
         // OpenClaw exec approvals can pause a run for long periods. If we only allow
@@ -181,12 +158,12 @@ export function createOpenClawChatStream(params: {
         //
         // Some runs emit pre-approval text on clientRunId, then resume on an internal runId.
         // During an approval recovery window, allow rebinding even after prior chat snapshots.
-        if (currentText.length > 0 && !approvalRecovery && !continuationSnapshot) return
+        if (currentText.length > 0 && !isApprovalActive && !continuationSnapshot) return
         const elapsed = streamStartedAt > 0 ? Date.now() - streamStartedAt : 0
         const allowDelayedBind = elapsed >= 30_000
         const canTrustAliasWithoutGrace =
           (boundAgentRunId != null && evt.runId === boundAgentRunId) ||
-          approvalRecovery ||
+          isApprovalActive ||
           allowDelayedBind
         if (!canTrustAliasWithoutGrace && evt.state !== 'final') return
         if (evt.state !== 'delta' && evt.state !== 'final') return
@@ -209,12 +186,12 @@ export function createOpenClawChatStream(params: {
         if (!rid || !clientRunId) return
         if (rid === clientRunId) return
         if (boundAgentRunId) return
-        const approvalRecovery = hasRecentApprovalActivity()
-        if (hasSeenClientChatEvent && !approvalRecovery) return
+        const isApprovalActive = approval.hasRecentApprovalActivity()
+        if (hasSeenClientChatEvent && !isApprovalActive) return
         const elapsed = streamStartedAt > 0 ? Date.now() - streamStartedAt : 0
         const likelyFreshSeq = typeof seq === 'number' ? seq <= 12 : true
         const allowDelayedBind = elapsed >= 30_000
-        if (!likelyFreshSeq && !allowDelayedBind && !approvalRecovery) return
+        if (!likelyFreshSeq && !allowDelayedBind && !isApprovalActive) return
 
         const normalizedPhase = typeof phase === 'string' ? phase : ''
         const canBindFromLifecycle =
@@ -448,7 +425,7 @@ export function createOpenClawChatStream(params: {
           if (!normalizedFallbackText) return
 
           const canAppendDivergentText =
-            (hasRecentApprovalActivity() || hasRecentToolTerminalActivity()) &&
+            (approval.hasRecentApprovalActivity() || approval.hasRecentToolTerminalActivity()) &&
             !currentText.includes(normalizedFallbackText)
           if (canAppendDivergentText) {
             const separator = currentText.endsWith('\n') ? '\n' : '\n\n'
@@ -522,7 +499,7 @@ export function createOpenClawChatStream(params: {
           }
 
           pendingToolCalls.delete(toolCallId)
-          noteToolTerminalActivity()
+          approval.noteToolTerminalActivity()
           if (isError) {
             const errorText =
               typeof tool.result === 'string'
@@ -640,14 +617,14 @@ export function createOpenClawChatStream(params: {
               ? (payload.request as { sessionKey?: unknown }).sessionKey
               : undefined
           if (approvalSessionKey !== sessionKey) return
-          noteApprovalActivity(payload.createdAtMs)
+          approval.noteApprovalActivity(payload.createdAtMs)
           return
         }
         if (frame.event === 'exec.approval.resolved') {
           // Some gateway versions only include id/decision; if we've seen a matching request
           // in this stream window, keep the alias window alive.
-          if (lastApprovalActivityAt > 0) {
-            noteApprovalActivity()
+          if (approval.hasRecentApprovalActivity()) {
+            approval.noteApprovalActivity()
           }
           return
         }

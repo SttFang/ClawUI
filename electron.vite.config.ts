@@ -48,6 +48,8 @@ export default defineConfig({
         "@clawui/config-core/": resolve("packages/config-core/src/"),
         "@clawui/openclaw-chat-stream": resolve("packages/openclaw-chat-stream/src/index.ts"),
         "@clawui/openclaw-chat-stream/": resolve("packages/openclaw-chat-stream/src/"),
+        "@clawui/types": resolve("packages/types/src/index.ts"),
+        "@clawui/types/": resolve("packages/types/src/"),
         "@": resolve("src"),
         "@components": resolve("src/components"),
         "@features": resolve("src/features"),

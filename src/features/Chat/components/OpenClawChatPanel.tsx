@@ -1,3 +1,4 @@
+import type { UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { createOpenClawChatTransport } from "@clawui/openclaw-chat-stream";
 import { Button } from "@clawui/ui";
@@ -14,6 +15,32 @@ import { AssistantMessageItem } from "./AssistantMessageItem";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
 import { SystemMessageItem } from "./SystemMessageItem";
 import { UserMessageItem } from "./UserMessageItem";
+
+const COMPACTION_RE = /^(⚙️\s*)?compact(ion|ed)\b/i;
+
+/** Extract plain text from a UIMessage (first text part only). */
+function extractPlainText(message: UIMessage): string {
+  for (const part of message.parts) {
+    if (part.type === "text" && typeof part.text === "string") return part.text.trim();
+  }
+  return "";
+}
+
+/** True when the assistant message is a Gateway compaction notice. */
+export function isCompactionMessage(message: UIMessage): boolean {
+  if (message.role !== "assistant") return false;
+  return COMPACTION_RE.test(extractPlainText(message));
+}
+
+function CompactionCheckpoint(props: { text: string }) {
+  return (
+    <div className="flex items-center gap-1.5 overflow-hidden text-muted-foreground">
+      <BookmarkIcon className="size-3.5 shrink-0" />
+      <span className="shrink-0 text-xs">{props.text}</span>
+      <hr className="flex-1 border-t border-border" />
+    </div>
+  );
+}
 
 export function buildMessageWithPendingImagePlaceholders(params: {
   text: string;
@@ -115,6 +142,10 @@ export function OpenClawChatPanel(props: {
                 return (
                   <SystemMessageItem key={key} message={message} sessionKey={effectiveSessionKey} />
                 );
+              }
+
+              if (isCompactionMessage(message)) {
+                return <CompactionCheckpoint key={key} text={extractPlainText(message)} />;
               }
 
               return (

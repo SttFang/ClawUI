@@ -312,6 +312,19 @@ export class ChatEventAdapter {
       ];
     }
 
+    if (stream === "compaction") {
+      const phase = typeof data.phase === "string" ? data.phase : "";
+      return [
+        {
+          kind: "run.lifecycle",
+          ...this.state.eventBase(run, { correlationConfidence }),
+          rawEventName: "agent.compaction",
+          rawSeq: seq,
+          metadata: { stream: "compaction", phase, willRetry: data.willRetry },
+        },
+      ];
+    }
+
     return [];
   }
 

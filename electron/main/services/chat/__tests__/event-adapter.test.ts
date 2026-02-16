@@ -93,3 +93,87 @@ describe("ChatEventAdapter approval recovery", () => {
     expect(resolved[0].command).toBe("python3 -c \"print('ok')\"");
   });
 });
+
+describe("ChatEventAdapter compaction events", () => {
+  it("emits run.lifecycle for compaction start", () => {
+    const adapter = new ChatEventAdapter();
+    adapter.onChatSendAccepted({
+      sessionKey: "session-compact",
+      clientRunId: "client-run-compact",
+    });
+
+    const events = adapter.ingestGatewayEvent({
+      type: "event",
+      event: "agent",
+      payload: {
+        runId: "agent-run-1",
+        sessionKey: "session-compact",
+        stream: "compaction",
+        data: { phase: "start" },
+      },
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0].kind).toBe("run.lifecycle");
+    expect(events[0].rawEventName).toBe("agent.compaction");
+    expect(events[0].metadata).toEqual({
+      stream: "compaction",
+      phase: "start",
+      willRetry: undefined,
+    });
+  });
+
+  it("emits run.lifecycle for compaction end with willRetry", () => {
+    const adapter = new ChatEventAdapter();
+    adapter.onChatSendAccepted({
+      sessionKey: "session-compact",
+      clientRunId: "client-run-compact",
+    });
+
+    const events = adapter.ingestGatewayEvent({
+      type: "event",
+      event: "agent",
+      payload: {
+        runId: "agent-run-1",
+        sessionKey: "session-compact",
+        stream: "compaction",
+        data: { phase: "end", willRetry: true },
+      },
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0].kind).toBe("run.lifecycle");
+    expect(events[0].rawEventName).toBe("agent.compaction");
+    expect(events[0].metadata).toEqual({
+      stream: "compaction",
+      phase: "end",
+      willRetry: true,
+    });
+  });
+
+  it("emits run.lifecycle for compaction end without retry", () => {
+    const adapter = new ChatEventAdapter();
+    adapter.onChatSendAccepted({
+      sessionKey: "session-compact",
+      clientRunId: "client-run-compact",
+    });
+
+    const events = adapter.ingestGatewayEvent({
+      type: "event",
+      event: "agent",
+      payload: {
+        runId: "agent-run-1",
+        sessionKey: "session-compact",
+        stream: "compaction",
+        data: { phase: "end", willRetry: false },
+      },
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0].metadata).toEqual({
+      stream: "compaction",
+      phase: "end",
+      willRetry: false,
+    });
+  });
+});

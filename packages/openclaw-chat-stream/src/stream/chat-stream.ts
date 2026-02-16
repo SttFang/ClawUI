@@ -7,6 +7,7 @@ import { createApprovalRecovery } from './approval-recovery'
 import { createFinishPolicy } from './finish-policy'
 import { createRunBinding } from './run-binding'
 import { createMessageAssembler } from './message-assembler'
+import { noopStreamLogger, type StreamLogger } from './logger'
 import type {
   GatewayEventFrame,
   OpenClawAgentEventPayload,
@@ -22,8 +23,9 @@ export function createOpenClawChatStream(params: {
   messages: UIMessage[]
   abortSignal?: AbortSignal
   trigger?: string
+  logger?: StreamLogger
 }): ReadableStream<UIMessageChunk> {
-  const { sessionKey, adapter, messages, abortSignal, trigger } = params
+  const { sessionKey, adapter, messages, abortSignal, trigger, logger: log = noopStreamLogger } = params
 
   const last = messages[messages.length - 1]
   const latestUserText = extractUserText(last)
@@ -98,7 +100,10 @@ export function createOpenClawChatStream(params: {
       const handleChatEvent = (evt: OpenClawChatEvent) => {
         if (evt.sessionKey !== sessionKey) return
         const verdict = binding.processChatRunId(evt)
-        if (verdict !== 'accept') return
+        if (verdict !== 'accept') {
+          log.debug('[bind.chat]', verdict, { runId: evt.runId, state: evt.state })
+          return
+        }
         binding.markClientChatSeen()
 
         if (evt.state === 'delta' || evt.state === 'final') {
@@ -107,6 +112,7 @@ export function createOpenClawChatStream(params: {
           const nextText = extractOpenClawTextFromMessage(evt.message) ?? ''
           asm.updateTextWithSnapshot(nextText)
           if (evt.state === 'final') {
+            log.info('[stream.chatFinal]', { runId: evt.runId })
             finish.onChatFinal()
           }
           return
@@ -119,6 +125,7 @@ export function createOpenClawChatStream(params: {
 
         if (evt.state === 'error') {
           const msg = typeof evt.errorMessage === 'string' ? evt.errorMessage : 'chat error'
+          log.warn('[stream.chatError]', msg)
           finish.onChatError(msg)
         }
       }
@@ -132,7 +139,10 @@ export function createOpenClawChatStream(params: {
           seq: evt.seq,
           phase: typeof assistantData?.phase === 'string' ? assistantData.phase : undefined,
         })
-        if (!accepted) return
+        if (!accepted) {
+          log.debug('[bind.agent]', 'drop', { runId: evt.runId, stream: 'assistant' })
+          return
+        }
         if (evt.stream !== 'assistant') return
         if (binding.hasSeenClientChatEvent) return
 
@@ -339,6 +349,7 @@ export function createOpenClawChatStream(params: {
           if (!connected) await adapter.connect?.()
           streamStartedAt = Date.now()
           const runId = await adapter.sendChat({ sessionKey, message: userText })
+          log.info('[stream.init]', { sessionKey, runId })
           binding.setClientRunId(runId)
           binding.setStreamStartedAt(streamStartedAt)
           finish.setClientRunId(runId)
@@ -350,6 +361,7 @@ export function createOpenClawChatStream(params: {
           buffered.length = 0
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
+          log.warn('[stream.initError]', msg)
           finish.onInitError(msg)
         }
       })()

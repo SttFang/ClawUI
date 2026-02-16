@@ -26,7 +26,6 @@ interface DiscordConfigDialogProps {
 
 type DiscordFields = {
   botToken: string;
-  appToken: string;
   dmPolicy: string;
   groupPolicy: string;
   requireMention: boolean;
@@ -44,7 +43,6 @@ export function DiscordConfigDialog({
     config: config
       ? {
           botToken: config.botToken || "",
-          appToken: config.appToken || "",
           dmPolicy: config.dmPolicy || "pairing",
           groupPolicy: config.groupPolicy || "allowlist",
           requireMention: config.requireMention ?? true,
@@ -52,7 +50,6 @@ export function DiscordConfigDialog({
       : null,
     defaults: {
       botToken: "",
-      appToken: "",
       dmPolicy: "pairing",
       groupPolicy: "allowlist",
       requireMention: true,
@@ -61,7 +58,6 @@ export function DiscordConfigDialog({
       onSave({
         enabled: true,
         botToken: values.botToken,
-        appToken: values.appToken,
         dmPolicy: values.dmPolicy as ChannelConfig["dmPolicy"],
         groupPolicy: values.groupPolicy as ChannelConfig["groupPolicy"],
         requireMention: values.requireMention,
@@ -93,28 +89,6 @@ export function DiscordConfigDialog({
               value={fields.botToken}
               onChange={(e) => setField("botToken", e.target.value)}
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="appToken">{t("channels.fields.applicationId")}</Label>
-            <Input
-              id="appToken"
-              placeholder={t("channels.fields.applicationId")}
-              value={fields.appToken}
-              onChange={(e) => setField("appToken", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("channels.discord.applicationHelpPrefix")}{" "}
-              <a
-                href="https://discord.com/developers/applications"
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary hover:underline"
-              >
-                Discord Developer Portal
-              </a>
-              {t("channels.discord.applicationHelpSuffix")}
-            </p>
           </div>
 
           <div className="space-y-2">

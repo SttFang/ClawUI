@@ -21,22 +21,22 @@ describe("useDialogForm", () => {
       const { fields, setField } = useDialogForm({
         config: {
           botToken: "token-1",
-          appToken: "",
+          label: "",
           requireMention: true,
         },
         defaults: {
           botToken: "",
-          appToken: "",
+          label: "",
           requireMention: false,
         },
         onSave,
       });
 
-      snapshots.push(`${tick}:${fields.appToken}`);
+      snapshots.push(`${tick}:${fields.label}`);
 
       useEffect(() => {
         if (tick === 0) {
-          setField("appToken", "discord-app-id");
+          setField("label", "edited-value");
           setTick(1);
         }
       }, [setField, tick]);
@@ -54,7 +54,7 @@ describe("useDialogForm", () => {
     }
 
     expect(renderError).toBeNull();
-    expect(snapshots.at(-1)).toBe("1:discord-app-id");
+    expect(snapshots.at(-1)).toBe("1:edited-value");
     expect(snapshots.length).toBeLessThan(10);
 
     act(() => {

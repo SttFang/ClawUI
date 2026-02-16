@@ -7,7 +7,6 @@ const SECRET_REGISTRY: Record<
   { channelType: string; tokenField: "botToken" | "appToken" }
 > = {
   DISCORD_BOT_TOKEN: { channelType: "discord", tokenField: "botToken" },
-  DISCORD_APP_TOKEN: { channelType: "discord", tokenField: "appToken" },
   TELEGRAM_BOT_TOKEN: { channelType: "telegram", tokenField: "botToken" },
   SLACK_BOT_TOKEN: { channelType: "slack", tokenField: "botToken" },
   SLACK_APP_TOKEN: { channelType: "slack", tokenField: "appToken" },

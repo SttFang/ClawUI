@@ -3,11 +3,10 @@ import { defaultChannels } from "../defaultChannels";
 import { buildActualChannelPatch, mapSnapshotToChannels } from "../helpers";
 
 describe("channels helpers", () => {
-  it("should persist discord appToken in patch payload", () => {
+  it("should build discord patch without appToken", () => {
     const patch = buildActualChannelPatch("discord", {
       enabled: true,
       botToken: "discord-bot-token",
-      appToken: "discord-app-id",
       dmPolicy: "pairing",
       groupPolicy: "allowlist",
       requireMention: true,
@@ -16,20 +15,19 @@ describe("channels helpers", () => {
     expect(patch).toMatchObject({
       enabled: true,
       token: "discord-bot-token",
-      appToken: "discord-app-id",
       dm: { policy: "pairing" },
       groupPolicy: "allowlist",
       guilds: { "*": { requireMention: true } },
     });
+    expect(patch).not.toHaveProperty("appToken");
   });
 
-  it("should read discord appToken from config snapshot", () => {
+  it("should read discord config from snapshot", () => {
     const mapped = mapSnapshotToChannels(defaultChannels, {
       channels: {
         discord: {
           enabled: true,
           token: "discord-bot-token",
-          appToken: "discord-app-id",
           dm: { policy: "pairing" },
           groupPolicy: "allowlist",
         },
@@ -39,7 +37,6 @@ describe("channels helpers", () => {
     const discord = mapped.find((channel) => channel.type === "discord");
     expect(discord?.isConfigured).toBe(true);
     expect(discord?.config?.botToken).toBe("discord-bot-token");
-    expect(discord?.config?.appToken).toBe("discord-app-id");
   });
 
   it("should read discord dmPolicy/allowFrom from top-level aliases", () => {

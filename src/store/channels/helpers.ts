@@ -85,7 +85,6 @@ function mapActualChannelToUi(channelId: string, rawChannel: unknown): ChannelCo
     config.allowFrom = toStringArray(source.allowFrom);
   } else if (channelId === "discord") {
     config.botToken = readString(source.token);
-    config.appToken = readString(source.appToken);
     const dm = asRecord(source.dm);
     config.dmPolicy = (readString(dm?.policy) ??
       readString(source.dmPolicy)) as ChannelConfig["dmPolicy"];
@@ -165,7 +164,6 @@ export function buildActualChannelPatch(
 
   if (type === "discord") {
     if (typeof config.botToken === "string") patch.token = config.botToken;
-    if (typeof config.appToken === "string") patch.appToken = config.appToken;
     if (typeof config.dmPolicy === "string" || Array.isArray(config.allowFrom)) {
       patch.dm = {
         ...(typeof config.dmPolicy === "string" ? { policy: config.dmPolicy } : {}),

@@ -5,6 +5,7 @@ import { extractOpenClawTextFromMessage } from './extract'
 import { resolveToolCallId } from '@clawui/types/tool-call'
 import { extractUserText } from './user'
 import { createApprovalRecovery } from './approval-recovery'
+import { createFinishPolicy } from './finish-policy'
 import type {
   GatewayEventFrame,
   OpenClawAgentEventPayload,
@@ -52,22 +53,16 @@ export function createOpenClawChatStream(params: {
       let clientRunId: string | null = null
       let boundChatRunId: string | null = null
       let boundAgentRunId: string | null = null
-      let closed = false
       let currentText = ''
       let didStartText = false
-      let didFinish = false
       let hasSeenClientChatEvent = false
       let streamStartedAt = 0
-      let lifecycleFinishTimer: ReturnType<typeof setTimeout> | null = null
       let assistantFallbackTimer: ReturnType<typeof setTimeout> | null = null
       let pendingChatAliasTimer: ReturnType<typeof setTimeout> | null = null
       let pendingAssistantText: string | null = null
-      let lifecycleEndAt = 0
-      let lastChatEventAt = 0
       const approval = createApprovalRecovery(() => streamStartedAt)
       let pendingChatAliasRunId: string | null = null
       let pendingChatAliasEvent: OpenClawChatEvent | null = null
-      const pendingToolCalls = new Set<string>()
       let textPartCounter = 1
       let currentTextPartId = `text-${textPartCounter}`
       let toolSplitPending = false
@@ -75,6 +70,26 @@ export function createOpenClawChatStream(params: {
       const buffered: GatewayEventFrame[] = []
       let unsubscribe: (() => void) | null = null
       const CHAT_ALIAS_GRACE_MS = 250
+
+      const cancelExternalTimers = () => {
+        if (assistantFallbackTimer) {
+          clearTimeout(assistantFallbackTimer)
+          assistantFallbackTimer = null
+        }
+        if (pendingChatAliasTimer) {
+          clearTimeout(pendingChatAliasTimer)
+          pendingChatAliasTimer = null
+        }
+      }
+
+      const finish = createFinishPolicy({
+        hasActiveTextPart: () => didStartText,
+        activeTextPartId: () => currentTextPartId,
+        cancelExternalTimers,
+        unsubscribe: () => unsubscribe?.(),
+        enqueue: (chunk) => controller.enqueue(chunk),
+        closeController: () => controller.close(),
+      })
 
       const isStaleAgentEvent = (ts: unknown) => {
         if (typeof ts !== 'number') return false
@@ -107,7 +122,7 @@ export function createOpenClawChatStream(params: {
         const isApprovalActive = approval.hasRecentApprovalActivity()
         const continuationSnapshot = isContinuationSnapshotEvent(evt)
         if (hasSeenClientChatEvent && !isApprovalActive && !continuationSnapshot) return
-        if (didFinish) return
+        if (finish.isFinished) return
         if (boundChatRunId) return
         if (currentText.length > 0 && !isApprovalActive && !continuationSnapshot) return
         if (evt.state !== 'delta' && evt.state !== 'final') return
@@ -126,7 +141,7 @@ export function createOpenClawChatStream(params: {
           const continuationSnapshot = isContinuationSnapshotEvent(queuedEvent)
           if (
             (hasSeenClientChatEvent && !isApprovalActive && !continuationSnapshot) ||
-            didFinish ||
+            finish.isFinished ||
             boundChatRunId ||
             (currentText.length > 0 && !isApprovalActive && !continuationSnapshot)
           ) {
@@ -150,7 +165,7 @@ export function createOpenClawChatStream(params: {
         const isApprovalActive = approval.hasRecentApprovalActivity()
         const continuationSnapshot = isContinuationSnapshotEvent(evt)
         if (hasSeenClientChatEvent && !isApprovalActive && !continuationSnapshot) return
-        if (didFinish) return
+        if (finish.isFinished) return
         // NOTE:
         // OpenClaw exec approvals can pause a run for long periods. If we only allow
         // early-time binding, the resumed `chat.delta/final` (internal runId) is dropped,
@@ -204,44 +219,6 @@ export function createOpenClawChatStream(params: {
         boundAgentRunId = rid
       }
 
-      const closeOnce = () => {
-        if (closed) return
-        closed = true
-        unsubscribe?.()
-        if (lifecycleFinishTimer) {
-          clearTimeout(lifecycleFinishTimer)
-          lifecycleFinishTimer = null
-        }
-        if (assistantFallbackTimer) {
-          clearTimeout(assistantFallbackTimer)
-          assistantFallbackTimer = null
-        }
-        if (pendingChatAliasTimer) {
-          clearTimeout(pendingChatAliasTimer)
-          pendingChatAliasTimer = null
-        }
-        controller.close()
-      }
-
-      const failOnce = (errorText: string) => {
-        if (closed) return
-        closed = true
-        unsubscribe?.()
-        if (lifecycleFinishTimer) {
-          clearTimeout(lifecycleFinishTimer)
-          lifecycleFinishTimer = null
-        }
-        if (assistantFallbackTimer) {
-          clearTimeout(assistantFallbackTimer)
-          assistantFallbackTimer = null
-        }
-        if (pendingChatAliasTimer) {
-          clearTimeout(pendingChatAliasTimer)
-          pendingChatAliasTimer = null
-        }
-        controller.enqueue({ type: 'error', errorText })
-        controller.close()
-      }
 
       // 工具到达时：关闭当前 text part，标记分割点
       const closeTextForToolSplit = () => {
@@ -268,42 +245,11 @@ export function createOpenClawChatStream(params: {
         controller.enqueue({ type: 'text-start', id: currentTextPartId })
       }
 
-      const finishOnce = (opts?: { kind?: 'ok' | 'abort'; reason?: string }) => {
-        if (didFinish) return
-        didFinish = true
-        if (lifecycleFinishTimer) {
-          clearTimeout(lifecycleFinishTimer)
-          lifecycleFinishTimer = null
-        }
-        if (assistantFallbackTimer) {
-          clearTimeout(assistantFallbackTimer)
-          assistantFallbackTimer = null
-        }
-        if (pendingChatAliasTimer) {
-          clearTimeout(pendingChatAliasTimer)
-          pendingChatAliasTimer = null
-        }
-        // Always close the active text part to avoid leaving it in "streaming".
-        if (didStartText) {
-          controller.enqueue({ type: 'text-end', id: currentTextPartId })
-        }
-        controller.enqueue({ type: 'finish-step' })
-        if (opts?.kind === 'abort') {
-          controller.enqueue({ type: 'abort', reason: opts.reason })
-          controller.enqueue({ type: 'finish', finishReason: 'stop' })
-        } else {
-          controller.enqueue({ type: 'finish' })
-        }
-        closeOnce()
-      }
 
       const onAbort = () => {
-        if (!clientRunId) {
-          finishOnce({ kind: 'abort', reason: 'aborted' })
-          return
-        }
-        void adapter.abortChat?.({ sessionKey, runId: clientRunId }).catch(() => {})
-        finishOnce({ kind: 'abort', reason: 'aborted' })
+        finish.onUserAbort(() => {
+          void adapter.abortChat?.({ sessionKey, runId: finish.clientRunId! }).catch(() => {})
+        })
       }
 
       if (abortSignal) {
@@ -353,27 +299,23 @@ export function createOpenClawChatStream(params: {
             assistantFallbackTimer = null
           }
           pendingAssistantText = null
-          lastChatEventAt = Date.now()
-          if (lifecycleFinishTimer) {
-            clearTimeout(lifecycleFinishTimer)
-            lifecycleFinishTimer = null
-          }
+          finish.onChatDeltaOrFinal()
           const nextText = extractOpenClawTextFromMessage(evt.message) ?? ''
           updateTextWithSnapshot(nextText)
           if (evt.state === 'final') {
-            finishOnce()
+            finish.onChatFinal()
           }
           return
         }
 
         if (evt.state === 'aborted') {
-          finishOnce({ kind: 'abort', reason: 'aborted' })
+          finish.onChatAborted('aborted')
           return
         }
 
         if (evt.state === 'error') {
           const msg = typeof evt.errorMessage === 'string' ? evt.errorMessage : 'chat error'
-          failOnce(msg)
+          finish.onChatError(msg)
         }
       }
 
@@ -459,7 +401,7 @@ export function createOpenClawChatStream(params: {
 
         if (phase === 'start') {
           closeTextForToolSplit()
-          pendingToolCalls.add(toolCallId)
+          finish.addPendingTool(toolCallId)
           controller.enqueue({
             type: 'tool-input-available',
             toolCallId,
@@ -474,7 +416,7 @@ export function createOpenClawChatStream(params: {
         }
 
         if (phase === 'update') {
-          pendingToolCalls.add(toolCallId)
+          finish.addPendingTool(toolCallId)
           controller.enqueue({
             type: 'tool-output-available',
             toolCallId,
@@ -494,11 +436,11 @@ export function createOpenClawChatStream(params: {
           // For exec/bash, `phase=end` can be an envelope close event without final payload.
           // Do not promote it to completed output in that case.
           if (phase === 'end' && !isError && !hasResult && !hasPartialResult) {
-            pendingToolCalls.delete(toolCallId)
+            finish.removePendingTool(toolCallId)
             return
           }
 
-          pendingToolCalls.delete(toolCallId)
+          finish.removePendingTool(toolCallId)
           approval.noteToolTerminalActivity()
           if (isError) {
             const errorText =
@@ -533,37 +475,6 @@ export function createOpenClawChatStream(params: {
         }
       }
 
-      const scheduleLifecycleFinish = () => {
-        if (lifecycleFinishTimer) return
-        lifecycleEndAt = lifecycleEndAt || Date.now()
-        lifecycleFinishTimer = setTimeout(() => {
-          lifecycleFinishTimer = null
-
-          // Don't finish while tools are still running; exec can block chat.delta for a while.
-          if (pendingToolCalls.size > 0) {
-            scheduleLifecycleFinish()
-            return
-          }
-
-          const now = Date.now()
-          const idleForMs = lastChatEventAt > 0 ? now - lastChatEventAt : now - lifecycleEndAt
-          const sinceEndMs = now - lifecycleEndAt
-
-          // If we're still receiving chat.delta, keep waiting.
-          if (lastChatEventAt > 0 && idleForMs < 800) {
-            scheduleLifecycleFinish()
-            return
-          }
-
-          // Give plenty of time for long-running tools; only use lifecycle=end as a last resort.
-          if (sinceEndMs < 20_000) {
-            scheduleLifecycleFinish()
-            return
-          }
-
-          finishOnce()
-        }, 1500)
-      }
 
       const handleLifecycleEvent = (evt: OpenClawAgentEventPayload, lifecycle: OpenClawLifecycleEventData) => {
         maybeBindAgentRunId({
@@ -593,12 +504,12 @@ export function createOpenClawChatStream(params: {
           // 如果这里立刻 finish，会导致尾部内容被截断（错过紧随其后的 chat.final）。
           //
           // 这里做一个“可被 chat.delta 取消”的兜底：只要后续还有 chat.delta/final，timer 会被清掉。
-          scheduleLifecycleFinish()
+          finish.onLifecycleEnd()
           return
         }
         if (phase === 'error') {
           const errText = typeof lifecycle.error === 'string' ? lifecycle.error : 'agent error'
-          failOnce(errText)
+          finish.onLifecycleError(errText)
         }
       }
 
@@ -680,6 +591,7 @@ export function createOpenClawChatStream(params: {
           if (!connected) await adapter.connect?.()
           streamStartedAt = Date.now()
           clientRunId = await adapter.sendChat({ sessionKey, message: userText })
+          finish.setClientRunId(clientRunId)
 
           controller.enqueue({ type: 'start', messageId: clientRunId })
           ensureTextStarted()
@@ -688,7 +600,7 @@ export function createOpenClawChatStream(params: {
           buffered.length = 0
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
-          failOnce(msg)
+          finish.onInitError(msg)
         }
       })()
     },

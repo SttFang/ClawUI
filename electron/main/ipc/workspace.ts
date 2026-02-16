@@ -4,6 +4,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { extname, join } from "node:path";
 import type { ConfigService } from "../services/config";
+import { safePath } from "../utils/safe-path";
 
 type WorkspaceFileEntry = {
   name: string;
@@ -23,7 +24,7 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
   ipcMain.handle("workspace:list", async (_event, subpath?: string) => {
     const config = await configService.getConfig();
     const base = resolveWorkspaceDir(config);
-    const dir = subpath ? join(base, subpath) : base;
+    const dir = subpath ? safePath(base, subpath) : base;
 
     const entries = await readdir(dir, { withFileTypes: true });
     const files: WorkspaceFileEntry[] = [];
@@ -45,12 +46,7 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
   ipcMain.handle("workspace:read-file", async (_event, relativePath: string) => {
     const config = await configService.getConfig();
     const base = resolveWorkspaceDir(config);
-    const filePath = join(base, relativePath);
-
-    // Prevent path traversal
-    if (!filePath.startsWith(base)) {
-      throw new Error("Path traversal not allowed");
-    }
+    const filePath = safePath(base, relativePath);
 
     const content = await readFile(filePath, "utf-8");
     return { path: filePath, content };
@@ -59,11 +55,7 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
   ipcMain.handle("workspace:read-file-base64", async (_event, relativePath: string) => {
     const config = await configService.getConfig();
     const base = resolveWorkspaceDir(config);
-    const filePath = join(base, relativePath);
-
-    if (!filePath.startsWith(base)) {
-      throw new Error("Path traversal not allowed");
-    }
+    const filePath = safePath(base, relativePath);
 
     const buf = await readFile(filePath);
     return { path: filePath, base64: buf.toString("base64") };
@@ -72,11 +64,8 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
   ipcMain.handle("workspace:run-python", async (_event, relativePath: string) => {
     const config = await configService.getConfig();
     const base = resolveWorkspaceDir(config);
-    const filePath = join(base, relativePath);
+    const filePath = safePath(base, relativePath);
 
-    if (!filePath.startsWith(base)) {
-      throw new Error("Path traversal not allowed");
-    }
     if (extname(filePath) !== ".py") {
       throw new Error("Only .py files are allowed");
     }

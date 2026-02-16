@@ -2,20 +2,7 @@ import type { IpcMain } from "electron";
 import type { CredentialService } from "../services/credential-service";
 import type { OpenClawProfilesService } from "../services/openclaw-profiles";
 
-const ALLOWED_SECRET_ENV_KEYS = new Set<string>([
-  // Discord
-  "DISCORD_BOT_TOKEN",
-  "DISCORD_APP_TOKEN",
-
-  // Telegram
-  "TELEGRAM_BOT_TOKEN",
-
-  // Slack
-  "SLACK_BOT_TOKEN",
-  "SLACK_APP_TOKEN",
-]);
-
-const ENV_KEY_TO_CHANNEL: Record<
+const SECRET_REGISTRY: Record<
   string,
   { channelType: string; tokenField: "botToken" | "appToken" }
 > = {
@@ -25,6 +12,8 @@ const ENV_KEY_TO_CHANNEL: Record<
   SLACK_BOT_TOKEN: { channelType: "slack", tokenField: "botToken" },
   SLACK_APP_TOKEN: { channelType: "slack", tokenField: "appToken" },
 };
+
+const ALLOWED_SECRET_ENV_KEYS = new Set(Object.keys(SECRET_REGISTRY));
 
 function validatePatch(patch: Record<string, unknown>): Record<string, string | null> {
   const out: Record<string, string | null> = {};
@@ -60,7 +49,7 @@ export function registerSecretsHandlers(
 
     if (credentialService) {
       for (const [key, value] of Object.entries(validated)) {
-        const mapping = ENV_KEY_TO_CHANNEL[key];
+        const mapping = SECRET_REGISTRY[key];
         if (mapping) {
           await credentialService.setChannelToken({
             channelType: mapping.channelType,

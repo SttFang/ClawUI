@@ -3,10 +3,12 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExecTool, ExecGroup, ToolGroup } from "@/features/Chat/components/A2UI";
+import {
+  deduplicateToolParts,
+  normalizeMessageParts,
+} from "@/features/Chat/lib/normalizeMessageParts";
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
 import { isExecToolName } from "@/lib/exec";
-import { isLikelyToolReceiptText } from "@/lib/exec/systemTextParsing";
-import { normalizeToolCallId, toolStatePriority } from "@/lib/tool-call";
 import { MessageText } from "./MessageText";
 
 const AUTO_HIDE_DELAY = 1500;
@@ -68,34 +70,6 @@ function aggregateRenderableItems(items: (RenderableItem | null)[]): RenderableI
   }
 
   return result;
-}
-
-function isEmptyInput(input: unknown): boolean {
-  if (input == null) return true;
-  const str = typeof input === "string" ? input : JSON.stringify(input);
-  return !str || str === "{}" || str === "[]";
-}
-
-function deduplicateToolParts(parts: DynamicToolUIPart[]): DynamicToolUIPart[] {
-  const byId = new Map<string, DynamicToolUIPart>();
-  for (const part of parts) {
-    const id = normalizeToolCallId(part.toolCallId);
-    const existing = byId.get(id);
-    if (!existing) {
-      byId.set(id, part);
-      continue;
-    }
-    const existingPri = toolStatePriority(existing.state);
-    const currentPri = toolStatePriority(part.state);
-    if (currentPri > existingPri) {
-      const mergedInput =
-        isEmptyInput(part.input) && !isEmptyInput(existing.input) ? existing.input : part.input;
-      byId.set(id, { ...part, input: mergedInput });
-    } else if (isEmptyInput(existing.input) && !isEmptyInput(part.input)) {
-      byId.set(id, { ...existing, input: part.input });
-    }
-  }
-  return Array.from(byId.values());
 }
 
 function groupExploreTools(items: RenderableItem[]): RenderableItem[] {
@@ -206,14 +180,19 @@ export function MessageParts(props: {
   const { message, streaming, sessionKey } = props;
   const { t } = useTranslation("common");
 
-  const hasVisibleText = message.parts.some(
+  const normalizedParts = useMemo(
+    () => normalizeMessageParts(message.parts, { streaming }),
+    [message.parts, streaming],
+  );
+
+  const hasVisibleText = normalizedParts.some(
     (part) => part.type === "text" && typeof part.text === "string" && Boolean(part.text.trim()),
   );
-  const hasVisibleTools = message.parts.some(
+  const hasVisibleTools = normalizedParts.some(
     (part) => isDynamicToolPartLike(part) && classifyToolRender(part.toolName).kind !== "hidden",
   );
   const isThinking = streaming && !hasVisibleText && !hasVisibleTools;
-  const hasStreamingText = message.parts.some(
+  const hasStreamingText = normalizedParts.some(
     (part) => isTextPartLike(part) && part.state === "streaming",
   );
   const showTail = streaming && !isThinking && !hasStreamingText;
@@ -241,16 +220,14 @@ export function MessageParts(props: {
 
   const nodes = useMemo(() => {
     const nextItems: (RenderableItem | null)[] = Array.from(
-      { length: message.parts.length },
+      { length: normalizedParts.length },
       () => null,
     );
 
-    for (let index = message.parts.length - 1; index >= 0; index -= 1) {
-      const part = message.parts[index];
+    for (let index = normalizedParts.length - 1; index >= 0; index -= 1) {
+      const part = normalizedParts[index];
 
       if (isTextPartLike(part)) {
-        if (!part.text.trim()) continue;
-        if (isLikelyToolReceiptText(part.text)) continue;
         nextItems[index] = {
           kind: "text",
           key: `text:${index}`,
@@ -269,43 +246,26 @@ export function MessageParts(props: {
       const policy = classifyToolRender(part.toolName);
       if (policy.kind === "hidden") continue;
 
-      const stableToolCallId = normalizeToolCallId(part.toolCallId);
-      const needsIdNorm = stableToolCallId && stableToolCallId !== part.toolCallId;
-      const needsStateNorm =
-        !streaming && part.state !== "output-available" && part.state !== "output-error";
-      const normalizedPart =
-        needsIdNorm || needsStateNorm
-          ? ({
-              ...part,
-              ...(needsIdNorm ? { toolCallId: stableToolCallId } : undefined),
-              ...(needsStateNorm ? { state: "output-available" as const } : undefined),
-            } as DynamicToolUIPart)
-          : part;
-      const toolCallId = stableToolCallId || part.toolCallId;
+      const toolCallId = part.toolCallId;
 
       if (policy.kind === "exec" && isExecToolName(part.toolName)) {
         nextItems[index] = {
           kind: "tool",
           key: `exec:${toolCallId}:${index}`,
           toolCallId,
-          meta: { renderKind: "exec", part: normalizedPart },
+          meta: { renderKind: "exec", part },
           node: (
-            <ExecTool
-              key={`exec:${toolCallId}:${index}`}
-              part={normalizedPart}
-              sessionKey={sessionKey}
-            />
+            <ExecTool key={`exec:${toolCallId}:${index}`} part={part} sessionKey={sessionKey} />
           ),
         };
         continue;
       }
 
-      // explore — placeholder; will be replaced by ToolGroup during grouping
       nextItems[index] = {
         kind: "tool",
         key: `tool:${toolCallId}:${index}`,
         toolCallId,
-        meta: { renderKind: "explore", part: normalizedPart },
+        meta: { renderKind: "explore", part },
         node: <span key={`tool:${toolCallId}:${index}`} />,
       };
     }
@@ -314,7 +274,7 @@ export function MessageParts(props: {
     const exploredGrouped = groupExploreTools(aggregated);
     const execGrouped = groupExecTools(exploredGrouped, sessionKey);
     return execGrouped.map((item) => item.node);
-  }, [message.parts, sessionKey, streaming]);
+  }, [normalizedParts, sessionKey, streaming]);
 
   if (!nodes.length && !showIndicator && !showTail) return null;
 

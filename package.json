@@ -31,6 +31,7 @@
   "dependencies": {
     "@ai-sdk/react": "^3.0.79",
     "@clawui/openclaw-chat-stream": "workspace:*",
+    "@clawui/types": "workspace:*",
     "@clawui/ui": "workspace:*",
     "@electron-toolkit/utils": "^4.0.0",
     "@iconify/icons-logos": "^1.2.36",

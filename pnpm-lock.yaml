@@ -14,6 +14,9 @@ importers:
       '@clawui/openclaw-chat-stream':
         specifier: workspace:*
         version: link:packages/openclaw-chat-stream
+      '@clawui/types':
+        specifier: workspace:*
+        version: link:packages/types
       '@clawui/ui':
         specifier: workspace:*
         version: link:packages/ui

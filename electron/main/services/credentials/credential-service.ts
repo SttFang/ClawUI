@@ -11,9 +11,6 @@ import type {
   ValidateKeyResult,
   DeleteCredentialInput,
 } from "@clawui/types/credentials";
-import { safeStorage } from "electron";
-import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { configLog } from "../../lib/logger";
@@ -21,12 +18,9 @@ import { AuthProfileAdapter } from "./auth-profile-adapter";
 import { ConfigService, getNestedValue } from "../config";
 import {
   CHANNEL_TOKEN_DEFS,
-  ENV_ANTHROPIC_API_KEY,
-  ENV_OPENAI_API_KEY,
   ENV_PROXY_TOKEN,
   ENV_PROXY_URL,
   KEY_PREFIX_MAP,
-  LEGACY_CHANNEL_ENV_MAP,
   LEGACY_LLM_ENV_MAP,
 } from "./credential-defs";
 import {
@@ -36,7 +30,9 @@ import {
   maskSecret,
   profileIdForProvider,
 } from "./credential-helpers";
+import { EncryptedCache } from "./encrypted-cache";
 import { syncExternalCliCredentials } from "./external-cli-sync";
+import { migrateLegacyKeys } from "./legacy-migration";
 import { TOOL_CREDENTIAL_DEFS } from "./tool-credential-registry";
 
 export type { ChannelTokenDef, ChannelTokenFieldDef } from "./credential-defs";
@@ -44,13 +40,12 @@ export { CHANNEL_TOKEN_DEFS } from "./credential-defs";
 
 export class CredentialService {
   private readonly authProfiles: AuthProfileAdapter;
-  private readonly encCachePath: string;
-  private encCache: Record<string, Buffer> = {};
+  private readonly encCache: EncryptedCache;
 
   constructor(private readonly configService: ConfigService) {
     const openclawDir = dirname(configService.getConfigPath());
     this.authProfiles = new AuthProfileAdapter(join(openclawDir, "agents"));
-    this.encCachePath = join(homedir(), ".clawui", "credentials.enc");
+    this.encCache = new EncryptedCache(join(homedir(), ".clawui", "credentials.enc"));
   }
 
   getAuthProfileAdapter(): AuthProfileAdapter {
@@ -59,8 +54,8 @@ export class CredentialService {
 
   async initialize(): Promise<void> {
     const t0 = Date.now();
-    await this.loadEncCache();
-    await this.migrateLegacyKeys();
+    await this.encCache.load();
+    await migrateLegacyKeys(this.configService, this.authProfiles);
     await syncExternalCliCredentials(this.authProfiles);
     configLog.info("[credential.init]", `durationMs=${Date.now() - t0}`);
   }
@@ -144,7 +139,7 @@ export class CredentialService {
       provider: input.provider,
       key: input.apiKey,
     });
-    await this.encCacheSet(`llm:${input.provider}`, input.apiKey);
+    await this.encCache.set(`llm:${input.provider}`, input.apiKey);
 
     // Remove legacy env key if present
     const legacyEnvKey = LEGACY_LLM_ENV_MAP[input.provider];
@@ -165,7 +160,7 @@ export class CredentialService {
 
     await this.configService.patchPath(fieldDef.configPath, input.value || null);
     if (input.value) {
-      await this.encCacheSet(`channel:${input.channelType}:${input.tokenField}`, input.value);
+      await this.encCache.set(`channel:${input.channelType}:${input.tokenField}`, input.value);
     }
   }
 
@@ -175,10 +170,10 @@ export class CredentialService {
       [ENV_PROXY_TOKEN]: input.proxyToken || null,
     });
     if (input.proxyUrl) {
-      await this.encCacheSet("proxy:url", input.proxyUrl);
+      await this.encCache.set("proxy:url", input.proxyUrl);
     }
     if (input.proxyToken) {
-      await this.encCacheSet("proxy:token", input.proxyToken);
+      await this.encCache.set("proxy:token", input.proxyToken);
     }
   }
 
@@ -187,7 +182,7 @@ export class CredentialService {
     if (!def) throw new Error(`Unknown tool: ${input.toolId}`);
     await this.configService.patchPath(def.configPath, input.value || null);
     if (input.value) {
-      await this.encCacheSet(`tool:${input.toolId}`, input.value);
+      await this.encCache.set(`tool:${input.toolId}`, input.value);
     }
   }
 
@@ -217,90 +212,4 @@ export class CredentialService {
     return valid ? { valid: true } : { valid: false, error: `Invalid key prefix for ${provider}` };
   }
 
-  // --- Legacy migration ---
-
-  private async migrateLegacyKeys(): Promise<void> {
-    const config = await this.configService.getConfig();
-    if (!config?.env) return;
-
-    // LLM keys: env → auth-profiles
-    const llmMigrations: Array<{ envKey: string; provider: string }> = [
-      { envKey: ENV_ANTHROPIC_API_KEY, provider: "anthropic" },
-      { envKey: ENV_OPENAI_API_KEY, provider: "openai" },
-    ];
-
-    for (const { envKey, provider } of llmMigrations) {
-      const envValue = config.env[envKey];
-      if (!envValue) continue;
-
-      const profileId = profileIdForProvider(provider);
-      const existing = await this.authProfiles.getProfile(profileId);
-      if (existing && credentialHasValue(existing)) continue;
-
-      await this.authProfiles.setProfile(profileId, {
-        type: "api_key",
-        provider,
-        key: envValue,
-      });
-      await this.configService.patchEnv({ [envKey]: null });
-      configLog.info(
-        "[credential.migrate]",
-        `provider=${provider} envKey=${envKey} → auth-profiles`,
-      );
-    }
-
-    // Channel tokens: env → config paths
-    for (const { envKey, configPath } of LEGACY_CHANNEL_ENV_MAP) {
-      const envValue = config.env[envKey];
-      if (!envValue) continue;
-
-      const existing = getNestedValue(config, configPath);
-      if (existing) continue;
-
-      await this.configService.patchPath(configPath, envValue);
-      await this.configService.patchEnv({ [envKey]: null });
-      configLog.info("[credential.migrate]", `envKey=${envKey} → ${configPath}`);
-    }
-  }
-
-  // --- Encrypted cache helpers ---
-
-  private async loadEncCache(): Promise<void> {
-    if (!safeStorage.isEncryptionAvailable()) return;
-    if (!existsSync(this.encCachePath)) return;
-    try {
-      const raw = await readFile(this.encCachePath);
-      const parsed: unknown = JSON.parse(raw.toString("utf-8"));
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-          if (typeof value === "string") {
-            this.encCache[key] = Buffer.from(value, "base64");
-          }
-        }
-      }
-    } catch {
-      configLog.debug("[credential.enc-cache.load.skipped]");
-    }
-  }
-
-  private async encCacheSet(key: string, plaintext: string): Promise<void> {
-    if (!safeStorage.isEncryptionAvailable()) return;
-    this.encCache[key] = safeStorage.encryptString(plaintext);
-    await this.saveEncCache();
-  }
-
-  private async saveEncCache(): Promise<void> {
-    const dir = dirname(this.encCachePath);
-    if (!existsSync(dir)) {
-      await mkdir(dir, { recursive: true });
-    }
-    const serialized: Record<string, string> = {};
-    for (const [key, buf] of Object.entries(this.encCache)) {
-      serialized[key] = buf.toString("base64");
-    }
-    await writeFile(this.encCachePath, JSON.stringify(serialized, null, 2), {
-      encoding: "utf-8",
-      mode: 0o600,
-    });
-  }
 }

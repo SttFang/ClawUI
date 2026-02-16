@@ -26,9 +26,9 @@ function extractPlainText(message: UIMessage): string {
   return "";
 }
 
-/** True when the assistant message is a Gateway compaction notice. */
+/** True when the message is a Gateway compaction notice (system or assistant). */
 export function isCompactionMessage(message: UIMessage): boolean {
-  if (message.role !== "assistant") return false;
+  if (message.role === "user") return false;
   return COMPACTION_RE.test(extractPlainText(message));
 }
 
@@ -138,14 +138,15 @@ export function OpenClawChatPanel(props: {
                   <UserMessageItem key={key} message={message} sessionKey={effectiveSessionKey} />
                 );
               }
+
+              if (isCompactionMessage(message)) {
+                return <CompactionCheckpoint key={key} text={extractPlainText(message)} />;
+              }
+
               if (message.role === "system") {
                 return (
                   <SystemMessageItem key={key} message={message} sessionKey={effectiveSessionKey} />
                 );
-              }
-
-              if (isCompactionMessage(message)) {
-                return <CompactionCheckpoint key={key} text={extractPlainText(message)} />;
               }
 
               return (

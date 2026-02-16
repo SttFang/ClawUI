@@ -9,6 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@clawui/types": "workspace:*",
     "ai": "^6.0.77"
   }
 }

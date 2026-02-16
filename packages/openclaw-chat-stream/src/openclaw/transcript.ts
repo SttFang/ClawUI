@@ -1,4 +1,14 @@
 import type { UIMessage } from 'ai'
+import {
+  isSyntheticToolCallId,
+  isInputState,
+  isOutputState,
+  normalizeToolCallId,
+  resolveToolCallId,
+  toolStatePriority,
+} from '@clawui/types/tool-call'
+
+export { normalizeToolCallId }
 
 type ContentBlock = Record<string, unknown> & { type?: unknown }
 const EXEC_NO_OUTPUT_TEXT = 'No output - tool completed successfully.'
@@ -8,17 +18,6 @@ function pickNonEmptyString(...values: unknown[]): string | null {
     if (typeof v === 'string' && v.trim()) return v.trim()
   }
   return null
-}
-
-export function normalizeToolCallId(value: string): string {
-  const normalized = value.trim()
-  if (!normalized) return normalized
-  const separatorIndex = normalized.indexOf('|')
-  if (separatorIndex <= 0) return normalized
-  const primary = normalized.slice(0, separatorIndex).trim()
-  if (!primary) return normalized
-  if (primary.startsWith('call_')) return primary
-  return normalized
 }
 
 function contentHashHint(content: unknown): string {
@@ -129,19 +128,20 @@ function extractToolResultOutput(block: ContentBlock): unknown {
 }
 
 function resolveMessageToolCallId(record: Record<string, unknown>, msgId: string): string {
-  const resolved =
-    pickNonEmptyString(
-      record.toolCallId,
-      record.tool_call_id,
-      record.toolUseId,
-      record.tool_use_id,
-      record.runId,
-      record.run_id,
-      record.clientRunId,
-      record.client_run_id,
-      record.id
-    ) ?? `${msgId}:tool`
-  return normalizeToolCallId(resolved)
+  // resolveToolCallId covers toolCallId/tool_call_id/toolUseId/tool_use_id/toolId/id.
+  // For transcript context, also try runId/run_id/clientRunId/client_run_id as fallbacks.
+  const fromCanonical = resolveToolCallId(record)
+  if (fromCanonical) return fromCanonical
+
+  const extraFallback = pickNonEmptyString(
+    record.runId,
+    record.run_id,
+    record.clientRunId,
+    record.client_run_id,
+  )
+  if (extraFallback) return normalizeToolCallId(extraFallback)
+
+  return normalizeToolCallId(`${msgId}:tool`)
 }
 
 function resolveMessageToolName(record: Record<string, unknown>): string {
@@ -300,22 +300,6 @@ function normalizeToolInputForCompare(input: unknown): string {
   }
 }
 
-function toolStatePriority(state: unknown): number {
-  if (state === 'output-error') return 4
-  if (state === 'output-available') return 3
-  if (state === 'input-streaming') return 2
-  if (state === 'input-available') return 1
-  return 0
-}
-
-function isSyntheticToolCallId(value: string): boolean {
-  const normalized = value.trim()
-  if (!normalized) return true
-  if (normalized.endsWith(':tool') || normalized.includes(':tool-')) return true
-  if (normalized.startsWith('assistant:') || normalized.startsWith('system:')) return true
-  return false
-}
-
 function mergeToolParts(
   target: UIMessage,
   targetPart: Extract<UIMessage['parts'][number], { type: 'dynamic-tool' }>,
@@ -348,14 +332,6 @@ function getSingleDynamicToolPart(msg: UIMessage): DynamicToolPart | null {
   if (msg.role !== 'assistant' || msg.parts.length !== 1) return null
   const part = msg.parts[0]
   return part.type === 'dynamic-tool' ? part : null
-}
-
-function isInputState(state: unknown): boolean {
-  return state === 'input-available' || state === 'input-streaming'
-}
-
-function isOutputState(state: unknown): boolean {
-  return state === 'output-available' || state === 'output-error'
 }
 
 function bindToolCallLifecycles(messages: UIMessage[]): UIMessage[] {

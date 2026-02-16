@@ -197,6 +197,9 @@ importers:
 
   packages/openclaw-chat-stream:
     dependencies:
+      '@clawui/types':
+        specifier: workspace:*
+        version: link:../types
       ai:
         specifier: ^6.0.77
         version: 6.0.77(zod@4.3.6)

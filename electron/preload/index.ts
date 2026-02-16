@@ -9,6 +9,7 @@ import type {
   SubscriptionConfig,
 } from "@clawui/types";
 import { contextBridge, ipcRenderer } from "electron";
+import { createEventListener, createVoidListener } from "./helpers";
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -20,21 +21,10 @@ contextBridge.exposeInMainWorld("electron", {
     installService: () => ipcRenderer.invoke("gateway:install-service"),
     restartService: () => ipcRenderer.invoke("gateway:restart-service"),
     uninstallService: () => ipcRenderer.invoke("gateway:uninstall-service"),
-    onStatusChange: (callback: (status: GatewayStatus) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, status: GatewayStatus) =>
-        callback(status);
-      ipcRenderer.on("gateway:status-changed", listener);
-      return () => {
-        ipcRenderer.removeListener("gateway:status-changed", listener);
-      };
-    },
-    onEvent: (callback: (event: GatewayEventFrame) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, evt: GatewayEventFrame) => callback(evt);
-      ipcRenderer.on("gateway:event", listener);
-      return () => {
-        ipcRenderer.removeListener("gateway:event", listener);
-      };
-    },
+    onStatusChange: (cb: (status: GatewayStatus) => void) =>
+      createEventListener<[GatewayStatus]>("gateway:status-changed", cb),
+    onEvent: (cb: (event: GatewayEventFrame) => void) =>
+      createEventListener<[GatewayEventFrame]>("gateway:event", cb),
   },
   config: {
     getSnapshot: () => ipcRenderer.invoke("config:snapshot"),
@@ -54,12 +44,6 @@ contextBridge.exposeInMainWorld("electron", {
     patch: (partial: unknown) => ipcRenderer.invoke("state:patch", partial),
     getPath: () => ipcRenderer.invoke("state:path"),
   },
-  subscription: {
-    login: (credentials: { email: string; password: string }) =>
-      ipcRenderer.invoke("subscription:login", credentials),
-    logout: () => ipcRenderer.invoke("subscription:logout"),
-    getStatus: () => ipcRenderer.invoke("subscription:status"),
-  },
   app: {
     getVersion: () => ipcRenderer.invoke("app:version"),
     checkForUpdates: () => ipcRenderer.invoke("app:check-updates"),
@@ -78,14 +62,8 @@ contextBridge.exposeInMainWorld("electron", {
     validateApiKey: (provider: "anthropic" | "openai", apiKey: string) =>
       ipcRenderer.invoke("onboarding:validate-api-key", provider, apiKey),
     readConfig: () => ipcRenderer.invoke("onboarding:read-config"),
-    onInstallProgress: (callback: (progress: InstallProgress) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, progress: InstallProgress) =>
-        callback(progress);
-      ipcRenderer.on("onboarding:install-progress", listener);
-      return () => {
-        ipcRenderer.removeListener("onboarding:install-progress", listener);
-      };
-    },
+    onInstallProgress: (cb: (progress: InstallProgress) => void) =>
+      createEventListener<[InstallProgress]>("onboarding:install-progress", cb),
   },
   chat: {
     connect: (url?: string) => ipcRenderer.invoke("chat:connect", url),
@@ -94,32 +72,14 @@ contextBridge.exposeInMainWorld("electron", {
     request: (method: string, params?: Record<string, unknown>) =>
       ipcRenderer.invoke("chat:request", method, params),
     isConnected: () => ipcRenderer.invoke("chat:isConnected"),
-    onStream: (callback: (event: ChatStreamEvent) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, data: ChatStreamEvent) => callback(data);
-      ipcRenderer.on("chat:stream", listener);
-      return () => ipcRenderer.removeListener("chat:stream", listener);
-    },
-    onConnected: (callback: () => void) => {
-      const listener = () => callback();
-      ipcRenderer.on("chat:connected", listener);
-      return () => ipcRenderer.removeListener("chat:connected", listener);
-    },
-    onDisconnected: (callback: () => void) => {
-      const listener = () => callback();
-      ipcRenderer.on("chat:disconnected", listener);
-      return () => ipcRenderer.removeListener("chat:disconnected", listener);
-    },
-    onError: (callback: (error: string) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, error: string) => callback(error);
-      ipcRenderer.on("chat:error", listener);
-      return () => ipcRenderer.removeListener("chat:error", listener);
-    },
-    onNormalizedEvent: (callback: (event: ChatNormalizedRunEvent) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, evt: ChatNormalizedRunEvent) =>
-        callback(evt);
-      ipcRenderer.on("chat:normalized-event", listener);
-      return () => ipcRenderer.removeListener("chat:normalized-event", listener);
-    },
+    onStream: (cb: (event: ChatStreamEvent) => void) =>
+      createEventListener<[ChatStreamEvent]>("chat:stream", cb),
+    onConnected: (cb: () => void) => createVoidListener("chat:connected", cb),
+    onDisconnected: (cb: () => void) => createVoidListener("chat:disconnected", cb),
+    onError: (cb: (error: string) => void) =>
+      createEventListener<[string]>("chat:error", cb),
+    onNormalizedEvent: (cb: (event: ChatNormalizedRunEvent) => void) =>
+      createEventListener<[ChatNormalizedRunEvent]>("chat:normalized-event", cb),
   },
   usage: {
     sessions: (params?: Record<string, unknown>) => ipcRenderer.invoke("usage:sessions", params),
@@ -193,12 +153,8 @@ contextBridge.exposeInMainWorld("electron", {
       start: () => ipcRenderer.invoke("rescue:gateway-start"),
       stop: () => ipcRenderer.invoke("rescue:gateway-stop"),
       getStatus: () => ipcRenderer.invoke("rescue:gateway-status"),
-      onStatusChange: (callback: (status: GatewayStatus) => void) => {
-        const listener = (_event: Electron.IpcRendererEvent, status: GatewayStatus) =>
-          callback(status);
-        ipcRenderer.on("rescue:gateway-status-changed", listener);
-        return () => ipcRenderer.removeListener("rescue:gateway-status-changed", listener);
-      },
+      onStatusChange: (cb: (status: GatewayStatus) => void) =>
+        createEventListener<[GatewayStatus]>("rescue:gateway-status-changed", cb),
     },
     chat: {
       connect: (url?: string) => ipcRenderer.invoke("rescue:connect", url),
@@ -207,27 +163,12 @@ contextBridge.exposeInMainWorld("electron", {
       request: (method: string, params?: Record<string, unknown>) =>
         ipcRenderer.invoke("rescue:request", method, params),
       isConnected: () => ipcRenderer.invoke("rescue:isConnected"),
-      onStream: (callback: (event: ChatStreamEvent) => void) => {
-        const listener = (_event: Electron.IpcRendererEvent, data: ChatStreamEvent) =>
-          callback(data);
-        ipcRenderer.on("rescue:stream", listener);
-        return () => ipcRenderer.removeListener("rescue:stream", listener);
-      },
-      onConnected: (callback: () => void) => {
-        const listener = () => callback();
-        ipcRenderer.on("rescue:connected", listener);
-        return () => ipcRenderer.removeListener("rescue:connected", listener);
-      },
-      onDisconnected: (callback: () => void) => {
-        const listener = () => callback();
-        ipcRenderer.on("rescue:disconnected", listener);
-        return () => ipcRenderer.removeListener("rescue:disconnected", listener);
-      },
-      onError: (callback: (error: string) => void) => {
-        const listener = (_event: Electron.IpcRendererEvent, error: string) => callback(error);
-        ipcRenderer.on("rescue:error", listener);
-        return () => ipcRenderer.removeListener("rescue:error", listener);
-      },
+      onStream: (cb: (event: ChatStreamEvent) => void) =>
+        createEventListener<[ChatStreamEvent]>("rescue:stream", cb),
+      onConnected: (cb: () => void) => createVoidListener("rescue:connected", cb),
+      onDisconnected: (cb: () => void) => createVoidListener("rescue:disconnected", cb),
+      onError: (cb: (error: string) => void) =>
+        createEventListener<[string]>("rescue:error", cb),
     },
   },
 });

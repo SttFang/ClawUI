@@ -1,9 +1,10 @@
-import { IpcMain, BrowserWindow } from "electron";
+import type { IpcMain } from "electron";
 import type { ConfigService } from "../services/config";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { GatewayService } from "../services/gateway";
 import { resolveCommandPath } from "../utils/login-shell";
 import { safeExecFile } from "../utils/safe-exec";
+import { broadcastToWindows } from "./forward";
 
 export function registerGatewayHandlers(
   ipcMain: IpcMain,
@@ -12,11 +13,7 @@ export function registerGatewayHandlers(
 ): void {
   // Forward gateway status changes to all windows
   gateway.on("status-changed", (status) => {
-    BrowserWindow.getAllWindows().forEach((window) => {
-      if (!window.isDestroyed()) {
-        window.webContents.send("gateway:status-changed", status);
-      }
-    });
+    broadcastToWindows("gateway:status-changed", status);
   });
 
   const refreshGatewayConfig = async () => {

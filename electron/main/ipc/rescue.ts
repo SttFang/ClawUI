@@ -1,9 +1,10 @@
-import { BrowserWindow, ipcMain } from "electron";
-import type { ChatRequest, ChatStreamEvent, GatewayEventFrame } from "../services/chat-websocket";
+import { ipcMain } from "electron";
+import type { ChatRequest } from "../services/chat-websocket";
 import type { ChatWebSocketService } from "../services/chat-websocket";
 import type { ConfigService } from "../services/config";
 import type { GatewayService } from "../services/gateway";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
+import { broadcastToWindows, forwardToAll } from "./forward";
 
 export function registerRescueHandlers(
   rescueGateway: GatewayService,
@@ -25,9 +26,7 @@ export function registerRescueHandlers(
   });
 
   rescueGateway.on("status-changed", (status) => {
-    BrowserWindow.getAllWindows().forEach((w) => {
-      if (!w.isDestroyed()) w.webContents.send("rescue:gateway-status-changed", status);
-    });
+    broadcastToWindows("rescue:gateway-status-changed", status);
   });
 
   // ── Chat / WebSocket control ─────────────────────────────────────
@@ -58,19 +57,13 @@ export function registerRescueHandlers(
     return rescueChatWs.isConnected();
   });
 
-  // ── Event forwarding ─────────────────────────────────────────────
+  // ── Event forwarding — broadcast to all windows ────────────────
 
-  const forward = (channel: string, ...args: unknown[]) => {
-    BrowserWindow.getAllWindows().forEach((w) => {
-      if (!w.isDestroyed()) w.webContents.send(channel, ...args);
-    });
-  };
-
-  rescueChatWs.on("stream", (event: ChatStreamEvent) => forward("rescue:stream", event));
-  rescueChatWs.on("gateway-event", (event: GatewayEventFrame) =>
-    forward("rescue:gateway-event", event),
-  );
-  rescueChatWs.on("connected", () => forward("rescue:connected"));
-  rescueChatWs.on("disconnected", () => forward("rescue:disconnected"));
-  rescueChatWs.on("error", (error: string) => forward("rescue:error", error));
+  forwardToAll(rescueChatWs, {
+    stream: "rescue:stream",
+    "gateway-event": "rescue:gateway-event",
+    connected: "rescue:connected",
+    disconnected: "rescue:disconnected",
+    error: "rescue:error",
+  });
 }

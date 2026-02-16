@@ -17,6 +17,7 @@ import { registerSkillsHandlers } from "./ipc/skills";
 import { registerStateHandlers } from "./ipc/state";
 import { registerUsageHandlers } from "./ipc/usage";
 import { registerWorkspaceHandlers } from "./ipc/workspace";
+import { forwardToWindow } from "./ipc/forward";
 import { initLogger, mainLog } from "./lib/logger";
 import { ChatWebSocketService } from "./services/chat-websocket";
 import { ClawUIStateService } from "./services/clawui-state";
@@ -67,13 +68,23 @@ app.whenReady().then(async () => {
   const scriptSrc = is.dev
     ? "'self' 'unsafe-inline' 'wasm-unsafe-eval'"
     : "'self' 'wasm-unsafe-eval'";
+  const csp = [
+    `default-src 'self'`,
+    `script-src ${scriptSrc}`,
+    `style-src 'self' 'unsafe-inline'`,
+    `connect-src 'self' ws://localhost:* ws://127.0.0.1:*`,
+    `img-src 'self' data:`,
+    `font-src 'self' data:`,
+    `frame-src blob: 'self'`,
+    `object-src 'none'`,
+    `base-uri 'self'`,
+    `form-action 'self'`,
+  ].join("; ");
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
-        "Content-Security-Policy": [
-          `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* ws://127.0.0.1:*; img-src 'self' data:; font-src 'self' data:; frame-src blob: 'self'`,
-        ],
+        "Content-Security-Policy": [csp],
       },
     });
   });
@@ -114,24 +125,27 @@ app.whenReady().then(async () => {
   registerChatHandlers(mainWindow, configService, chatWebSocket);
   registerUsageHandlers(configService, chatWebSocket);
 
-  // Initialize services
+  // Critical initialization — app cannot function without these
   try {
     await clawUIStateService.initialize();
     await profilesService.initialize();
     await credentialService.initialize();
     configurator.setCredentialService(credentialService);
-    // Auto-start gateway if configured
-    const config = await configService.getConfig();
-    if (config) {
-      gatewayService.setConfig(config);
-    }
-    // Rescue gateway shares the main config's env (API keys etc.) but uses its own port/tools.
-    const rescueConfig = await profilesService.getConfigService("configAgent").getConfig();
-    if (rescueConfig) {
-      rescueGateway.setConfig(rescueConfig);
-    }
   } catch (error) {
-    mainLog.error("Failed to initialize services:", error);
+    mainLog.error("[init.critical.failed]", error);
+    const { dialog: d } = await import("electron");
+    d.showErrorBox("Initialization Failed", String(error));
+    app.exit(1);
+  }
+
+  // Non-critical initialization — warn and degrade gracefully
+  try {
+    const config = await configService.getConfig();
+    if (config) gatewayService.setConfig(config);
+    const rescueConfig = await profilesService.getConfigService("configAgent").getConfig();
+    if (rescueConfig) rescueGateway.setConfig(rescueConfig);
+  } catch (error) {
+    mainLog.warn("[init.gateway-config.degraded]", error);
   }
 
   // Set up updater
@@ -141,16 +155,25 @@ app.whenReady().then(async () => {
     if (clawuiState.app?.autoCheckUpdates !== false) {
       updaterService.checkForUpdates();
     }
-  } catch {
-    updaterService.checkForUpdates();
+  } catch (error) {
+    mainLog.warn("[init.updater.skipped]", error);
   }
 
-  app.on("activate", function () {
+  app.on("activate", () => {
     // On macOS re-create window when dock icon is clicked and no other windows are open
     if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow({
+      const win = createMainWindow({
         isDev: is.dev,
         rendererUrl: process.env["ELECTRON_RENDERER_URL"],
+      });
+      updaterService.setWindow(win);
+      forwardToWindow(chatWebSocket, win, {
+        stream: "chat:stream",
+        "gateway-event": "gateway:event",
+        "normalized-event": "chat:normalized-event",
+        connected: "chat:connected",
+        disconnected: "chat:disconnected",
+        error: "chat:error",
       });
     }
   });

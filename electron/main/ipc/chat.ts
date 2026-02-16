@@ -1,37 +1,32 @@
-import type { ChatNormalizedRunEvent } from "@clawui/types";
-import { ipcMain, BrowserWindow } from "electron";
+import type { BrowserWindow } from "electron";
+import { ipcMain } from "electron";
 import type {
   ChatWebSocketService,
   ChatRequest,
-  ChatStreamEvent,
-  GatewayEventFrame,
 } from "../services/chat-websocket";
-import { ConfigService } from "../services/config";
+import type { ConfigService } from "../services/config";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
+import { forwardToWindow } from "./forward";
 
 export function registerChatHandlers(
   mainWindow: BrowserWindow,
   configService: ConfigService,
   chatWebSocket: ChatWebSocketService,
 ): void {
-  // Connect to WebSocket
   ipcMain.handle("chat:connect", async (_, url?: string) => {
     await ensureGatewayConnected(configService, chatWebSocket, url);
     return true;
   });
 
-  // Disconnect from WebSocket
   ipcMain.handle("chat:disconnect", async () => {
     chatWebSocket.disconnect();
     return true;
   });
 
-  // Send message
   ipcMain.handle("chat:send", async (_, request: ChatRequest) => {
     return chatWebSocket.sendMessage(request);
   });
 
-  // Generic ACP request (e.g. sessions.list / sessions.preview).
   ipcMain.handle(
     "chat:request",
     async (_, method: string, params?: Record<string, unknown>): Promise<unknown> => {
@@ -40,46 +35,17 @@ export function registerChatHandlers(
     },
   );
 
-  // Check connection status
   ipcMain.handle("chat:isConnected", () => {
     return chatWebSocket.isConnected();
   });
 
-  // Forward stream events to renderer
-  chatWebSocket.on("stream", (event: ChatStreamEvent) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("chat:stream", event);
-    }
-  });
-
-  // Forward raw Gateway events to renderer (used by richer streaming transports / UI).
-  chatWebSocket.on("gateway-event", (event: GatewayEventFrame) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("gateway:event", event);
-    }
-  });
-
-  chatWebSocket.on("normalized-event", (event: ChatNormalizedRunEvent) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("chat:normalized-event", event);
-    }
-  });
-
-  chatWebSocket.on("connected", () => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("chat:connected");
-    }
-  });
-
-  chatWebSocket.on("disconnected", () => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("chat:disconnected");
-    }
-  });
-
-  chatWebSocket.on("error", (error: string) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("chat:error", error);
-    }
+  // Forward all events to main window
+  forwardToWindow(chatWebSocket, mainWindow, {
+    stream: "chat:stream",
+    "gateway-event": "gateway:event",
+    "normalized-event": "chat:normalized-event",
+    connected: "chat:connected",
+    disconnected: "chat:disconnected",
+    error: "chat:error",
   });
 }

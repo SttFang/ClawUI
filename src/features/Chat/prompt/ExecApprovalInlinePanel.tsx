@@ -58,13 +58,6 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
         <code className="min-w-0 truncate rounded bg-muted px-1.5 py-0.5 text-xs">{cmdPreview}</code>
       </div>
 
-      {/* Security warning */}
-      {current.request.security && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-900 dark:text-amber-200">
-          {current.request.security}
-        </div>
-      )}
-
       {/* Decision buttons */}
       <div className="space-y-1">
         {DECISIONS.map((decision, i) => (

@@ -136,7 +136,10 @@
 | Skill | 用途 |
 |-------|------|
 | `/commit` | 创建规范的 git commit |
-| `/review-pr` | 审查 Pull Request |
+| `/commit-push-pr` | 一键 commit → push → 创建 PR |
+| `/clean-gone` | 清理远程已删除的本地 stale 分支 |
+| `/review-pr` | 审查 PR（多 agent 置信度评分） |
+| `code-simplifier` | 自动简化/精炼近期修改的代码（保留功能） |
 | `ui-ux-pro-max` | UI/UX 设计最佳实践 |
 | `tailwind-design-system` | Tailwind CSS v4 设计系统与组件库规范 |
 | `vercel-composition-patterns` | React 组合模式与组件 API 设计（可维护性优先） |
@@ -152,21 +155,58 @@
 
 ### 何时使用哪个 Skill（对标 OpenClaw 的“按场景选工具”）
 
-- 在需要设计提交拆分、commit message 规范、提交策略时：使用 `/commit`；实际提交仍使用 `scripts/committer`。
-- 在用户提供 PR 链接并要求审查时：使用 `/review-pr`（只读 review，不切分支）。
+#### Git 工作流
+
+- `/commit`：需要设计 commit message、拆分提交时使用；自动读取 git status/diff/log，生成单次 commit。注意：本项目实际提交仍优先使用 `scripts/committer`。
+- `/commit-push-pr`：功能分支开发完成后一键提交：自动在 main 上创建分支 → commit → push → `gh pr create`。适合快速提 PR 的场景。
+- `/clean-gone`：定期清理本地 stale 分支。自动识别 `[gone]` 标记的分支，移除关联 worktree 后删除分支。
+
+#### Code Review
+
+- `/review-pr`：用户提供 PR 链接时使用。工作流程：
+  1. 预检（是否 draft/closed/已审过/过于简单）
+  2. 收集相关 CLAUDE.md 规范
+  3. 5 个并行 agent 分别检查：CLAUDE.md 合规、明显 bug、git 历史上下文、历史 PR 评论、代码注释合规
+  4. 每个 issue 独立置信度评分（0-100），仅保留 ≥80 分的问题
+  5. 通过 `gh pr comment` 发布结果
+  - 不做构建/类型检查/lint（CI 负责），不切分支，只读 review。
+
+#### 代码简化
+
+- `code-simplifier`：代码写完/改完后使用，自动简化近期修改的代码。规则：
+  - 只改写法不改功能，保留所有原始行为
+  - 遵循 CLAUDE.md 编码规范（ES modules、命名、类型标注等）
+  - 减少不必要的复杂度/嵌套/冗余抽象
+  - 禁用嵌套三元，优选 switch/if-else
+  - 不过度简化：可读性 > 行数少
+  - 默认只作用于近期修改的代码，除非明确指定更广范围
+
+#### UI/设计
+
 - 在做 UI/UX 设计、布局、信息层级、动效与可用性优化时：使用 `ui-ux-pro-max`。
 - 在做 Tailwind v4 的设计系统、design tokens、组件库规范、主题与可访问性落地时：使用 `tailwind-design-system`。
+
+#### React 工程
+
 - 在需要重构组件 API（compound components / render props / context 组合）、减少 boolean props 泛滥时：使用 `vercel-composition-patterns`。
 - 在做 React 性能优化（渲染、memoization、数据流、bundle/交互延迟）与工程最佳实践时：使用 `vercel-react-best-practices`。
 - 在做 React Native/Expo 的性能优化、列表/动画/原生模块最佳实践时：使用 `vercel-react-native-skills`。
+
+#### 数据库
+
 - 在写/改 Postgres（表结构、索引、慢查询、SQL 优化、RLS）并希望对齐 Supabase 经验时：使用 `supabase-postgres-best-practices`。
+
+#### 浏览器自动化
+
 - 在需要端到端 UI 自动化（页面操作、断言、截图、数据提取）时：优先使用 `playwright-skill`；`playwright` 仅作为 fallback。
-- 在需要更偏“网站操作/流程自动化”的浏览器能力（登录、点击、表单、截图）时：使用 `agent-browser`。
+- 在需要更偏"网站操作/流程自动化"的浏览器能力（登录、点击、表单、截图）时：使用 `agent-browser`。
+- 执行 Playwright 测试或运行 Playwright 测试脚本（例如 `scripts/e2e/playwright/*.mjs`）时，统一调用 `playwright-skill`。
+
+#### 其他
+
 - 在做 Better Auth 相关的鉴权/会话/安全策略设计与落地时：使用 `better-auth-best-practices`。
 - 在需要把 Web 页面/组件输出成可交付物（静态产物、截图、报告）并流程化时：使用 `web-artifacts-builder`。
 - 在新增/重构/审查 `src/store/**`（尤其 action 分层、slice 拆分、store action 测试）时：使用 `store-best-practice`。
-
-- 执行 Playwright 测试或运行 Playwright 测试脚本（例如 `scripts/e2e/playwright/*.mjs`）时，统一调用 `playwright-skill`。
 
 安装新 skill：
 ```bash

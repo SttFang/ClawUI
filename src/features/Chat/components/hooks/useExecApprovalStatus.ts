@@ -4,7 +4,7 @@ import { getCommandFromInput, makeExecApprovalKey } from "@/lib/exec";
 import { useExecApprovalsStore } from "@/store/exec";
 
 export type ExecApprovalAugmentation = {
-  status: "pending_approval" | "running";
+  status: "pending_approval" | "running" | "denied";
   approvalId?: string;
 } | null;
 
@@ -41,6 +41,11 @@ export function useExecApprovalStatus(
     (e) => e.request.sessionKey === sessionKey && (e.request.command ?? "").trim() === command,
   );
   if (pending) return { status: "pending_approval", approvalId: pending.id };
+
+  // Denied: show brief feedback before gateway sends terminal state
+  if (lastResolved?.decision === "deny" && Date.now() - lastResolved.atMs < 30_000) {
+    return { status: "denied" };
+  }
 
   return null;
 }

@@ -321,6 +321,27 @@ describe("ToolsStore", () => {
       expect(state.config.execSecurity).toBe("deny");
     });
 
+    it("should switch host from sandbox to gateway when ask mode", async () => {
+      expect(useToolsStore.getState().config.execHost).toBe("sandbox");
+      await useToolsStore.getState().setAccessMode("ask");
+      expect(useToolsStore.getState().config.execHost).toBe("gateway");
+    });
+
+    it("should switch host from sandbox to gateway when deny mode", async () => {
+      expect(useToolsStore.getState().config.execHost).toBe("sandbox");
+      await useToolsStore.getState().setAccessMode("deny");
+      expect(useToolsStore.getState().config.execHost).toBe("gateway");
+    });
+
+    it("should keep non-sandbox host unchanged when switching modes", async () => {
+      useToolsStore.setState({
+        ...initialState,
+        config: { ...initialState.config, execHost: "gateway" },
+      });
+      await useToolsStore.getState().setAccessMode("ask");
+      expect(useToolsStore.getState().config.execHost).toBe("gateway");
+    });
+
     it("should add exec to deny list when deny mode (sandbox bypass fix)", async () => {
       await useToolsStore.getState().setAccessMode("deny");
       expect(useToolsStore.getState().config.denyList).toContain("exec");

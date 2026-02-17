@@ -147,6 +147,14 @@ export function createToolsActions(
               : config.execHost === "sandbox"
                 ? "deny"
                 : "allowlist";
+        // Sandbox host bypasses exec approval checks entirely.
+        // Switch to gateway so approvals are enforced; restore sandbox on auto.
+        const nextHost: ExecHostMode =
+          mode === "ask" || mode === "deny"
+            ? config.execHost === "sandbox"
+              ? "gateway"
+              : config.execHost
+            : config.execHost;
         // Sandbox bypasses exec security checks entirely, so when deny mode
         // is active we must also block exec at the tool-policy level.
         const nextDenyList =
@@ -160,6 +168,7 @@ export function createToolsActions(
             config: {
               ...config,
               accessMode: mode,
+              execHost: nextHost,
               execAsk: nextAsk,
               execSecurity: nextSecurity,
               denyList: nextDenyList,

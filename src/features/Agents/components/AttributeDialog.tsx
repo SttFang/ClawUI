@@ -1,8 +1,9 @@
 import { Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@clawui/ui";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { WorkspaceFileEntry } from "@/lib/ipc";
 import { ipc } from "@/lib/ipc";
-import { useChannelsStore, selectChannels } from "@/store/channels";
+import { cn } from "@/lib/utils";
 import { useToolsStore, selectToolsConfig } from "@/store/tools";
 import type { AttributeType } from "./AgentHero";
 
@@ -14,7 +15,6 @@ interface AttributeDialogProps {
 const titleKeys: Record<AttributeType, string> = {
   soul: "agents.agentDesktop.hero.soul.title",
   personality: "agents.agentDesktop.hero.personality.title",
-  channels: "agents.agentDesktop.hero.channels.title",
   memory: "agents.agentDesktop.hero.memory.title",
   goals: "agents.agentDesktop.hero.goals.title",
   sandbox: "agents.agentDesktop.hero.sandbox.title",
@@ -31,17 +31,10 @@ export function AttributeDialog({ type, onClose }: AttributeDialogProps) {
         </DialogHeader>
         <div className="p-6 pt-4">
           {type === "soul" && <SoulContent />}
-          {type === "channels" && <ChannelsContent />}
+          {type === "personality" && <PersonalityContent />}
+          {type === "memory" && <MemoryContent />}
+          {type === "goals" && <GoalsContent />}
           {type === "sandbox" && <SandboxContent />}
-          {type === "personality" && (
-            <PlaceholderContent label={t("agents.agentDesktop.hero.personality.title")} />
-          )}
-          {type === "memory" && (
-            <PlaceholderContent label={t("agents.agentDesktop.hero.memory.title")} />
-          )}
-          {type === "goals" && (
-            <PlaceholderContent label={t("agents.agentDesktop.hero.goals.title")} />
-          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
@@ -53,69 +46,126 @@ export function AttributeDialog({ type, onClose }: AttributeDialogProps) {
   );
 }
 
-// --- Soul: read SOUL.md ---
-function SoulContent() {
+// --- Shared: read a workspace file and display as <pre> ---
+function useWorkspaceFile(relativePath: string) {
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const result = await ipc.workspace.readFile("SOUL.md");
-      setContent(
-        typeof result === "string" ? result : ((result as { content?: string }).content ?? ""),
-      );
+      const result = await ipc.workspace.readFile(relativePath);
+      setContent(result.content ?? "");
     } catch (e) {
       setError(String(e));
     }
-  }, []);
+  }, [relativePath]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  return { content, error };
+}
+
+function WorkspaceFileView({ relativePath, emptyKey }: { relativePath: string; emptyKey: string }) {
+  const { t } = useTranslation("common");
+  const { content, error } = useWorkspaceFile(relativePath);
+
   if (error) return <div className="text-sm text-destructive">{error}</div>;
   if (content === null) return <div className="text-sm text-muted-foreground">Loading...</div>;
+  if (!content) {
+    return <div className="text-sm text-muted-foreground">{t(emptyKey)}</div>;
+  }
 
   return (
     <pre className="whitespace-pre-wrap text-sm font-mono bg-muted rounded-md p-3 max-h-80 overflow-auto">
-      {content || "(empty)"}
+      {content}
     </pre>
   );
 }
 
-// --- Channels ---
-function ChannelsContent() {
+// --- Soul: read SOUL.md ---
+function SoulContent() {
+  return (
+    <WorkspaceFileView relativePath="SOUL.md" emptyKey="agents.agentDesktop.hero.soul.summary" />
+  );
+}
+
+// --- Personality: read IDENTITY.md ---
+function PersonalityContent() {
+  return (
+    <WorkspaceFileView
+      relativePath="IDENTITY.md"
+      emptyKey="agents.agentDesktop.hero.personality.empty"
+    />
+  );
+}
+
+// --- Goals: read TODO.agent.md ---
+function GoalsContent() {
+  return (
+    <WorkspaceFileView
+      relativePath="TODO.agent.md"
+      emptyKey="agents.agentDesktop.hero.goals.empty"
+    />
+  );
+}
+
+// --- Memory: list memory/ directory, click to view file ---
+function MemoryContent() {
   const { t } = useTranslation("common");
-  const channels = useChannelsStore(selectChannels);
-  const configuredChannels = channels.filter((c) => c.isConfigured);
+  const [files, setFiles] = useState<WorkspaceFileEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+
+  useEffect(() => {
+    ipc.workspace
+      .list("memory")
+      .then((result) => {
+        const mdFiles = result.files
+          .filter((f) => !f.isDirectory && f.name.endsWith(".md"))
+          .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+        setFiles(mdFiles);
+      })
+      .catch((e) => setError(String(e)));
+  }, []);
+
+  if (error) return <div className="text-sm text-destructive">{error}</div>;
+  if (files === null) return <div className="text-sm text-muted-foreground">Loading...</div>;
+  if (files.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground">
+        {t("agents.agentDesktop.hero.memory.empty")}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
-      <div className="text-sm text-muted-foreground">
-        {t("agents.inputs.channelsStatus", {
-          configured: configuredChannels.length,
-          enabled: channels.filter((c) => c.isEnabled).length,
-        })}
-      </div>
-      <div className="grid gap-2">
-        {configuredChannels.map((c) => (
-          <div key={c.type} className="flex items-center justify-between text-sm">
-            <div className="truncate">
-              {c.name}
-              <span className="ml-2 text-xs text-muted-foreground">{c.type}</span>
-            </div>
-            <div className={c.isEnabled ? "text-green-600" : "text-muted-foreground"}>
-              {c.isEnabled ? t("agents.values.enabled") : t("agents.values.disabled")}
-            </div>
-          </div>
+      <div className="grid gap-1.5 max-h-40 overflow-auto">
+        {files.map((f) => (
+          <button
+            key={f.name}
+            type="button"
+            className={cn(
+              "flex items-center justify-between text-sm px-2.5 py-1.5 rounded-md text-left transition-colors",
+              selectedFile === f.name ? "bg-accent text-accent-foreground" : "hover:bg-muted",
+            )}
+            onClick={() => setSelectedFile(f.name)}
+          >
+            <span className="truncate">{f.name}</span>
+            <span className="text-xs text-muted-foreground shrink-0 ml-2">
+              {new Date(f.updatedAtMs).toLocaleDateString()}
+            </span>
+          </button>
         ))}
-        {configuredChannels.length === 0 && (
-          <div className="text-sm text-muted-foreground">{t("agents.inputs.noChannels")}</div>
-        )}
       </div>
-      <Button variant="outline" size="sm" asChild>
-        <a href="#/settings?tab=messaging">{t("agents.actions.manageChannels")}</a>
-      </Button>
+      {selectedFile && (
+        <WorkspaceFileView
+          relativePath={`memory/${selectedFile}`}
+          emptyKey="agents.agentDesktop.hero.memory.empty"
+        />
+      )}
     </div>
   );
 }
@@ -146,15 +196,6 @@ function SandboxContent() {
       <Button variant="outline" size="sm" asChild>
         <a href="#/settings?tab=capabilities&section=tools">{t("agents.actions.manageTools")}</a>
       </Button>
-    </div>
-  );
-}
-
-// --- Placeholder for not-yet-implemented attribute dialogs ---
-function PlaceholderContent({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-      {label} — coming soon
     </div>
   );
 }

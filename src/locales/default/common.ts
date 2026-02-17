@@ -237,9 +237,9 @@ const common = {
       switcher: { create: "新建智能体" },
       hero: {
         soul: { title: "灵魂", summary: "SOUL.md" },
-        personality: { title: "性格", summary: "人格特征" },
-        memory: { title: "记忆", summary: "{{count}} 条长期记忆" },
-        goals: { title: "目标", summary: "任务导向" },
+        personality: { title: "性格", summary: "人格特征", empty: "IDENTITY.md 尚未创建" },
+        memory: { title: "记忆", summary: "{{count}} 条长期记忆", empty: "暂无长期记忆" },
+        goals: { title: "目标", summary: "任务导向", empty: "TODO.agent.md 尚未创建" },
         channels: { title: "渠道", summary: "{{count}} 个渠道" },
         sandbox: { title: "沙盒", summary: "{{status}}" },
       },
@@ -248,6 +248,7 @@ const common = {
         skills: "Skills",
         nodes: "设备",
         cron: "定时任务",
+        channels: "渠道",
       },
       nodes: {
         paired: "已配对设备",

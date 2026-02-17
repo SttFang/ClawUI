@@ -1,13 +1,15 @@
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from "@clawui/ui";
 import { Download } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ipc } from "@/lib/ipc";
 import { AgentCapabilities } from "./components/AgentCapabilities";
 import { AgentExtensions } from "./components/AgentExtensions";
 import { AgentHero, type AttributeType } from "./components/AgentHero";
 import { AgentSkills } from "./components/AgentSkills";
 import { AgentSwitcher } from "./components/AgentSwitcher";
 import { AttributeDialog } from "./components/AttributeDialog";
+import { ChannelsPanel } from "./components/ChannelsPanel";
 import { CronDialog } from "./components/CronDialog";
 import { CronPanel } from "./components/CronPanel";
 import { CronRunsDialog } from "./components/CronRunsDialog";
@@ -21,6 +23,16 @@ export function AgentsFeature() {
   const { configError, cronDialogOpen, setCronDialogOpen, handleOpenCronDialog } = data;
 
   const [editingAttribute, setEditingAttribute] = useState<AttributeType | null>(null);
+  const [memoryCount, setMemoryCount] = useState(0);
+
+  useEffect(() => {
+    ipc.workspace
+      .list("memory")
+      .then((result) => {
+        setMemoryCount(result.files.filter((f) => !f.isDirectory && f.name.endsWith(".md")).length);
+      })
+      .catch(() => setMemoryCount(0));
+  }, []);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -43,7 +55,7 @@ export function AgentsFeature() {
           )}
 
           {/* Hero: pixel avatar + attribute cards */}
-          <AgentHero onOpenAttribute={setEditingAttribute} />
+          <AgentHero onOpenAttribute={setEditingAttribute} memoryCount={memoryCount} />
 
           {/* Bottom Tabs */}
           <Tabs defaultValue="capabilities">
@@ -53,6 +65,9 @@ export function AgentsFeature() {
               </TabsTrigger>
               <TabsTrigger value="skills" className="px-5 py-2.5 text-sm">
                 {t("agents.agentDesktop.tabs.skills")}
+              </TabsTrigger>
+              <TabsTrigger value="channels" className="px-5 py-2.5 text-sm">
+                {t("agents.agentDesktop.tabs.channels")}
               </TabsTrigger>
               <TabsTrigger value="nodes" className="px-5 py-2.5 text-sm">
                 {t("agents.agentDesktop.tabs.nodes")}
@@ -69,6 +84,10 @@ export function AgentsFeature() {
 
             <TabsContent value="skills" className="mt-4">
               <AgentSkills />
+            </TabsContent>
+
+            <TabsContent value="channels" className="mt-4">
+              <ChannelsPanel />
             </TabsContent>
 
             <TabsContent value="nodes" className="mt-4">

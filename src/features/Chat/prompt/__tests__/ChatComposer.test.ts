@@ -97,9 +97,9 @@ describe("ChatComposer", () => {
     const onSubmit = vi.fn((_payload: { text: string; images: unknown[] }) => {});
     renderComposer(onSubmit, true);
 
-    // textarea is not rendered when approval is pending
+    // textarea and footer are not rendered when approval is pending
     expect(capturedTextareaKeyDown).toBeNull();
-    expect(lastSubmitDisabled).toBe(true);
+    expect(lastSubmitDisabled).toBeNull();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 

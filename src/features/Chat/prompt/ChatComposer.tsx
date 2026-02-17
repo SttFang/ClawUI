@@ -128,41 +128,43 @@ export function ChatComposer(props: {
           />
         )}
 
-        <PromptInputFooter className="flex-nowrap items-center gap-1.5 border-t-0">
-          <PromptInputTools className="min-w-0 flex-1 flex-nowrap items-center gap-1.5">
-            <PromptInputAction
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={openFilePicker}
-              disabled={composerDisabled}
-              aria-label={t("attachFile")}
-              title={t("attachFile")}
-              className="h-7 w-7 text-muted-foreground"
-            >
-              <Paperclip className="h-3.5 w-3.5" />
-            </PromptInputAction>
+        {hasPendingApproval ? null : (
+          <PromptInputFooter className="flex-nowrap items-center gap-1.5 border-t-0">
+            <PromptInputTools className="min-w-0 flex-1 flex-nowrap items-center gap-1.5">
+              <PromptInputAction
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={openFilePicker}
+                disabled={composerDisabled}
+                aria-label={t("attachFile")}
+                title={t("attachFile")}
+                className="h-7 w-7 text-muted-foreground"
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+              </PromptInputAction>
 
-            {showSessionControls ? (
-              <SessionControlStrip
-                sessionKey={sessionKey}
-                disabled={sessionControlsDisabled || hasPendingApproval}
-                className="mt-0"
-              />
-            ) : null}
-          </PromptInputTools>
+              {showSessionControls ? (
+                <SessionControlStrip
+                  sessionKey={sessionKey}
+                  disabled={sessionControlsDisabled || hasPendingApproval}
+                  className="mt-0"
+                />
+              ) : null}
+            </PromptInputTools>
 
-          <PromptInputActions className="ml-auto">
-            <PromptInputSubmit
-              disabled={!canSubmit}
-              variant="default"
-              size="icon"
-              className="h-8 w-8 rounded-full bg-foreground text-background hover:bg-foreground/90"
-            >
-              <ArrowUp className="h-4 w-4" />
-            </PromptInputSubmit>
-          </PromptInputActions>
-        </PromptInputFooter>
+            <PromptInputActions className="ml-auto">
+              <PromptInputSubmit
+                disabled={!canSubmit}
+                variant="default"
+                size="icon"
+                className="h-8 w-8 rounded-full bg-foreground text-background hover:bg-foreground/90"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </PromptInputSubmit>
+            </PromptInputActions>
+          </PromptInputFooter>
+        )}
       </PromptInput>
     </div>
   );

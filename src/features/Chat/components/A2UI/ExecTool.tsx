@@ -10,13 +10,14 @@ import { extractPrimaryExecCommand } from "./execDisplay";
 import { isExecPreliminary, isOutputStillRunning } from "./execTrace/types";
 import { formatJson, getCwdFromInput } from "./toolHelpers";
 
-type ExecDisplayStatus = "pending" | "pending_approval" | "running" | "completed" | "error";
+type ExecDisplayStatus = "pending" | "pending_approval" | "running" | "completed" | "denied" | "error";
 
 const STATUS_I18N_KEY: Record<ExecDisplayStatus, string> = {
   running: "a2ui.exec.running",
   completed: "a2ui.exec.ran",
   error: "a2ui.exec.failed",
   pending_approval: "a2ui.exec.awaitingApproval",
+  denied: "a2ui.exec.denied",
   pending: "a2ui.exec.pending",
 };
 
@@ -25,6 +26,7 @@ const STATUS_DOT_CLASS: Record<ExecDisplayStatus, string> = {
   error: "bg-destructive",
   running: "animate-pulse bg-blue-500",
   pending: "animate-pulse bg-blue-500",
+  denied: "bg-destructive",
   pending_approval: "animate-pulse bg-amber-500",
 };
 
@@ -39,6 +41,7 @@ function deriveDisplayStatus(
   }
   if (part.state === "input-streaming") return "running";
   if (approval?.status === "running") return "running";
+  if (approval?.status === "denied") return "denied";
   if (approval?.status === "pending_approval") return "pending_approval";
   return "pending";
 }

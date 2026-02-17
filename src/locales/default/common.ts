@@ -1023,6 +1023,7 @@ const common = {
       ran: "Ran {{command}}",
       failed: "Failed {{command}}",
       awaitingApproval: "{{command}}（等待批准）",
+      denied: "{{command}}（已拒绝）",
       pending: "{{command}}",
       inProgress: "执行中",
       completed: "已执行",

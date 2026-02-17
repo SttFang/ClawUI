@@ -154,6 +154,7 @@ export class ChatTransport extends EventEmitter {
             "[acp.request.failed]",
             `method=${method}`,
             response.error?.message,
+            `code=${response.error?.code ?? "unknown"}`,
             `durationMs=${Date.now() - t0}`,
           );
           reject(new Error(response.error?.message || `${method} failed`));

@@ -173,6 +173,7 @@ export class ConfigOrchestrator {
   ): Promise<ConfigSetDraftResponseV2> {
     try {
       await ensureGatewayConnected(this.options.configService, this.chatWebSocket);
+      configLog.debug("[config.orchestrator.set]", `len=${input.raw.length}`);
       await this.chatWebSocket.request("config.patch", {
         raw: input.raw,
         baseHash: input.baseHash,

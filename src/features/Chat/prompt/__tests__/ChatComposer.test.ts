@@ -97,20 +97,9 @@ describe("ChatComposer", () => {
     const onSubmit = vi.fn((_payload: { text: string; images: unknown[] }) => {});
     renderComposer(onSubmit, true);
 
+    // textarea is not rendered when approval is pending
+    expect(capturedTextareaKeyDown).toBeNull();
     expect(lastSubmitDisabled).toBe(true);
-
-    const event = {
-      key: "Enter",
-      nativeEvent: {
-        isComposing: false,
-        keyCode: 13,
-      },
-      preventDefault: vi.fn(),
-    } as unknown as ReactKeyboardEvent<HTMLTextAreaElement>;
-    capturedTextareaKeyDown?.(event);
-    await Promise.resolve();
-
-    expect(event.preventDefault).toHaveBeenCalled();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -138,19 +127,8 @@ describe("ChatComposer", () => {
     const onSubmit = vi.fn((_payload: { text: string; images: unknown[] }) => {});
     renderComposer(onSubmit, true);
 
-    const event = {
-      key: "Enter",
-      shiftKey: true,
-      nativeEvent: {
-        isComposing: false,
-        keyCode: 13,
-      },
-      preventDefault: vi.fn(),
-    } as unknown as ReactKeyboardEvent<HTMLTextAreaElement>;
-    capturedTextareaKeyDown?.(event);
-    await Promise.resolve();
-
-    expect(event.preventDefault).not.toHaveBeenCalled();
+    // textarea is not rendered when approval is pending
+    expect(capturedTextareaKeyDown).toBeNull();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 

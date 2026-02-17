@@ -965,6 +965,10 @@ const common = {
       allowAlwaysHint: "Don't ask again for commands starting with `{{prefix}}`",
       submit: "Submit",
     },
+    confirmed: {
+      allowed: "Allowed, running…",
+      denied: "Denied",
+    },
   },
   errorBoundary: {
     unexpectedError: "Something went wrong",

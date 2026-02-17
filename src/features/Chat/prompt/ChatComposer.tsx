@@ -9,9 +9,14 @@ import {
   PromptInputSubmit,
 } from "@clawui/ui";
 import { ArrowUp, Paperclip } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import {
+  getPendingApprovalsForSession,
+  useExecApprovalsStore,
+  type ExecApprovalDecision,
+} from "@/store/exec";
 import { SessionControlStrip } from "../components/SessionControlStrip";
 import { ExecApprovalInlinePanel, useHasPendingExecApproval } from "./ExecApprovalInlinePanel";
 import { useImageAttachments } from "./useImageAttachments";
@@ -32,6 +37,7 @@ export function ChatComposer(props: {
   className?: string;
 }) {
   const { t } = useTranslation("chat");
+  const { t: tc } = useTranslation("common");
   const {
     sessionKey,
     value,
@@ -47,6 +53,42 @@ export function ChatComposer(props: {
   const composingRef = useRef(false);
   const hasPendingApproval = useHasPendingExecApproval(sessionKey);
   const composerDisabled = disabled || hasPendingApproval;
+
+  // --- Approval confirmation transition ---
+  const pendingCommand = useExecApprovalsStore((s) => {
+    const pending = getPendingApprovalsForSession(s.queue, sessionKey.trim());
+    const cmd = pending[0]?.request.command;
+    if (!cmd) return null;
+    const first = cmd.trimStart().split("\n")[0];
+    return first.length > 50 ? `${first.slice(0, 50)}…` : first;
+  });
+  const lastPendingCmdRef = useRef<string | null>(null);
+  if (pendingCommand) lastPendingCmdRef.current = pendingCommand;
+
+  const lastResolved = useExecApprovalsStore((s) => s.lastResolvedBySession[sessionKey.trim()]);
+
+  const [confirmedDecision, setConfirmedDecision] = useState<ExecApprovalDecision | null>(null);
+
+  const prevHasPending = useRef(hasPendingApproval);
+  useEffect(() => {
+    if (prevHasPending.current && !hasPendingApproval && lastResolved) {
+      setConfirmedDecision(lastResolved.decision);
+    }
+    prevHasPending.current = hasPendingApproval;
+  }, [hasPendingApproval, lastResolved]);
+
+  useEffect(() => {
+    if (!confirmedDecision) return;
+    if (!disabled) {
+      setConfirmedDecision(null);
+      return;
+    }
+    const timer = setTimeout(() => setConfirmedDecision(null), 10_000);
+    return () => clearTimeout(timer);
+  }, [disabled, confirmedDecision]);
+
+  const showConfirmation = confirmedDecision !== null;
+  const isAllowed = confirmedDecision === "allow-once" || confirmedDecision === "allow-always";
 
   const {
     attachments,
@@ -101,6 +143,21 @@ export function ChatComposer(props: {
 
         {hasPendingApproval ? (
           <ExecApprovalInlinePanel sessionKey={sessionKey} />
+        ) : showConfirmation ? (
+          <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
+            <span
+              className={cn(
+                "inline-block size-2 shrink-0 rounded-full",
+                isAllowed ? "animate-pulse bg-blue-500" : "bg-destructive",
+              )}
+            />
+            <span>
+              {tc(isAllowed ? "execApproval.confirmed.allowed" : "execApproval.confirmed.denied")}
+            </span>
+            <code className="min-w-0 truncate rounded bg-muted px-1.5 py-0.5 text-xs">
+              {lastPendingCmdRef.current}
+            </code>
+          </div>
         ) : (
           <div className="space-y-2 px-4 pt-3">
             <Attachments
@@ -111,7 +168,7 @@ export function ChatComposer(props: {
           </div>
         )}
 
-        {hasPendingApproval ? null : (
+        {hasPendingApproval || showConfirmation ? null : (
           <PromptInputTextarea
             ref={inputRef}
             value={value}
@@ -128,7 +185,7 @@ export function ChatComposer(props: {
           />
         )}
 
-        {hasPendingApproval ? null : (
+        {hasPendingApproval || showConfirmation ? null : (
           <PromptInputFooter className="flex-nowrap items-center gap-1.5 border-t-0">
             <PromptInputTools className="min-w-0 flex-1 flex-nowrap items-center gap-1.5">
               <PromptInputAction

@@ -1004,6 +1004,10 @@ const common = {
       allowAlwaysHint: "以后不再询问以 `{{prefix}}` 开头的命令",
       submit: "提交",
     },
+    confirmed: {
+      allowed: "已允许，执行中…",
+      denied: "已拒绝",
+    },
   },
   errorBoundary: {
     unexpectedError: "出错了",

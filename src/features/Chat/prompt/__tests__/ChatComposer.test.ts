@@ -15,6 +15,12 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+vi.mock("@/store/exec", () => ({
+  useExecApprovalsStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({ queue: [], lastResolvedBySession: {} }),
+  getPendingApprovalsForSession: () => [],
+}));
+
 vi.mock("@/features/Chat/prompt/ExecApprovalInlinePanel", () => ({
   ExecApprovalInlinePanel: () => null,
   useHasPendingExecApproval: () => useHasPendingExecApprovalMock(),

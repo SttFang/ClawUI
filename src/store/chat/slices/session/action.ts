@@ -34,7 +34,10 @@ export const sessionSlice: StateCreator<
       });
 
       const sessions = parseSessionsListPayload(payload);
-      if (sessions.length === 0) return;
+      if (sessions.length === 0) {
+        set({ sessionsInitialized: true }, false, "refreshSessions/empty");
+        return;
+      }
 
       const prevById = new Map(get().sessions.map((s) => [s.id, s]));
       const merged = sessions.map((remote, idx) => {
@@ -58,12 +61,14 @@ export const sessionSlice: StateCreator<
         (state) => ({
           sessions: merged,
           currentSessionId: state.currentSessionId ?? merged[0]?.id ?? null,
+          sessionsInitialized: true,
         }),
         false,
         "refreshSessions",
       );
     } catch (error) {
       chatLog.warn("Failed to refresh sessions from gateway:", error);
+      set({ sessionsInitialized: true }, false, "refreshSessions/error");
     }
   },
 

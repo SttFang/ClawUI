@@ -15,6 +15,7 @@ export const selectLoadingMessageIds = (state: ChatStore) => state.loadingMessag
 export const selectIsLoading = (state: ChatStore) => state.loadingMessageIds.length > 0;
 export const selectInput = (state: ChatStore) => state.input;
 export const selectWsConnected = (state: ChatStore) => state.wsConnected;
+export const selectSessionsInitialized = (state: ChatStore) => state.sessionsInitialized;
 
 export const chatSelectors = {
   selectCurrentSession,
@@ -24,4 +25,5 @@ export const chatSelectors = {
   selectIsLoading,
   selectInput,
   selectWsConnected,
+  selectSessionsInitialized,
 };

@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { StickToBottom } from "use-stick-to-bottom";
 import { cn } from "@/lib/utils";
 import { useOpenClawHistorySync } from "@/services/chat/useOpenClawHistorySync";
+import { useChatStore, selectSessionsInitialized } from "@/store/chat";
 import { selectIsCompacting, useCompactionStore } from "@/store/compaction";
 import { type ComposerImageAttachment, ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
@@ -72,6 +73,7 @@ export function OpenClawChatPanel(props: {
   const { sessionKey, wsConnected, isGatewayRunning, onStartConversation } = props;
   const { t } = useTranslation("chat");
   const { t: tCommon } = useTranslation("common");
+  const sessionsInitialized = useChatStore(selectSessionsInitialized);
   const normalizedSessionKey = sessionKey ?? "";
   const hasSession = normalizedSessionKey.trim().length > 0;
   const effectiveSessionKey = hasSession ? normalizedSessionKey : "__draft__";
@@ -192,7 +194,7 @@ export function OpenClawChatPanel(props: {
           sessionKey={hasSession ? normalizedSessionKey : ""}
           value={input}
           onChange={setInput}
-          disabled={isBusy || !isGatewayRunning || !wsConnected}
+          disabled={isBusy || !isGatewayRunning || !wsConnected || !sessionsInitialized}
           showSessionControls={hasSession}
           sessionControlsDisabled={!hasSession || !isGatewayRunning || !wsConnected}
           onSubmit={async (payload) => {

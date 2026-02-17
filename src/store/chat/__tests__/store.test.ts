@@ -8,6 +8,7 @@ vi.mock("@/lib/ipc", () => ({
       connect: vi.fn(),
       disconnect: vi.fn(),
       send: vi.fn(),
+      request: vi.fn(),
       isConnected: vi.fn(),
       onStream: vi.fn(() => () => {}),
       onConnected: vi.fn(() => () => {}),
@@ -33,6 +34,7 @@ const initialState = {
   loadingMessageIds: [] as string[],
   input: "",
   wsConnected: false,
+  sessionsInitialized: false,
 };
 
 describe("ChatStore", () => {
@@ -566,6 +568,47 @@ describe("ChatStore", () => {
       useChatStore.setState({ wsConnected: true });
 
       expect(selectWsConnected(useChatStore.getState())).toBe(true);
+    });
+
+    it("selectSessionsInitialized should return initialization state", async () => {
+      const { selectSessionsInitialized } = await import("../index");
+
+      expect(selectSessionsInitialized(useChatStore.getState())).toBe(false);
+
+      useChatStore.setState({ sessionsInitialized: true });
+      expect(selectSessionsInitialized(useChatStore.getState())).toBe(true);
+    });
+  });
+
+  describe("sessionsInitialized", () => {
+    it("should be false initially", () => {
+      expect(useChatStore.getState().sessionsInitialized).toBe(false);
+    });
+
+    it("should be true after successful refreshSessions", async () => {
+      const { ipc } = await import("@/lib/ipc");
+      (ipc.chat.request as Mock).mockResolvedValue({
+        sessions: [{ key: "agent:main:main", derivedTitle: "Main" }],
+      });
+
+      await useChatStore.getState().refreshSessions();
+      expect(useChatStore.getState().sessionsInitialized).toBe(true);
+    });
+
+    it("should be true when refreshSessions returns empty sessions", async () => {
+      const { ipc } = await import("@/lib/ipc");
+      (ipc.chat.request as Mock).mockResolvedValue({ sessions: [] });
+
+      await useChatStore.getState().refreshSessions();
+      expect(useChatStore.getState().sessionsInitialized).toBe(true);
+    });
+
+    it("should be true after refreshSessions fails", async () => {
+      const { ipc } = await import("@/lib/ipc");
+      (ipc.chat.request as Mock).mockRejectedValue(new Error("Network error"));
+
+      await useChatStore.getState().refreshSessions();
+      expect(useChatStore.getState().sessionsInitialized).toBe(true);
     });
   });
 });

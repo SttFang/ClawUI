@@ -10,6 +10,7 @@ export {
   selectIsLoading,
   selectInput,
   selectWsConnected,
+  selectSessionsInitialized,
   chatSelectors,
 } from "./selectors";
 export { initChatStreamListener } from "./slices/transport/listener";

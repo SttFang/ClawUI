@@ -1005,7 +1005,7 @@ const common = {
       submit: "提交",
     },
     confirmed: {
-      allowed: "已允许，执行中…",
+      allowed: "已允许，执行中… {{command}}",
       denied: "已拒绝",
     },
   },

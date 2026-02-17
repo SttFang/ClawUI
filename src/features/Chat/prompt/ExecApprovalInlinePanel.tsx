@@ -55,7 +55,9 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
       {/* Title + inline command */}
       <div className="flex items-baseline gap-1.5 text-sm">
         <span className="shrink-0 font-medium">{t("execApproval.needsApproval")}</span>
-        <code className="min-w-0 truncate rounded bg-muted px-1.5 py-0.5 text-xs">{cmdPreview}</code>
+        <code className="min-w-0 truncate rounded bg-muted px-1.5 py-0.5 text-xs">
+          {cmdPreview}
+        </code>
       </div>
 
       {/* Decision buttons */}

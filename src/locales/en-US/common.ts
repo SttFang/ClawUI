@@ -966,7 +966,7 @@ const common = {
       submit: "Submit",
     },
     confirmed: {
-      allowed: "Allowed, running…",
+      allowed: "Allowed, running… {{command}}",
       denied: "Denied",
     },
   },

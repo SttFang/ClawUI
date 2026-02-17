@@ -10,13 +10,21 @@ import { extractPrimaryExecCommand } from "./execDisplay";
 import { isExecPreliminary, isOutputStillRunning } from "./execTrace/types";
 import { formatJson, getCwdFromInput } from "./toolHelpers";
 
-type ExecDisplayStatus = "pending" | "pending_approval" | "running" | "completed" | "denied" | "error";
+type ExecDisplayStatus =
+  | "pending"
+  | "pending_approval"
+  | "allowed"
+  | "running"
+  | "completed"
+  | "denied"
+  | "error";
 
 const STATUS_I18N_KEY: Record<ExecDisplayStatus, string> = {
   running: "a2ui.exec.running",
   completed: "a2ui.exec.ran",
   error: "a2ui.exec.failed",
   pending_approval: "a2ui.exec.awaitingApproval",
+  allowed: "execApproval.confirmed.allowed",
   denied: "a2ui.exec.denied",
   pending: "a2ui.exec.pending",
 };
@@ -27,6 +35,7 @@ const STATUS_DOT_CLASS: Record<ExecDisplayStatus, string> = {
   running: "animate-pulse bg-blue-500",
   pending: "animate-pulse bg-blue-500",
   denied: "bg-destructive",
+  allowed: "animate-pulse bg-blue-500",
   pending_approval: "animate-pulse bg-amber-500",
 };
 
@@ -40,7 +49,7 @@ function deriveDisplayStatus(
     return "completed";
   }
   if (part.state === "input-streaming") return "running";
-  if (approval?.status === "running") return "running";
+  if (approval?.status === "running") return "allowed";
   if (approval?.status === "denied") return "denied";
   if (approval?.status === "pending_approval") return "pending_approval";
   return "pending";
@@ -65,7 +74,7 @@ export function ExecTool(props: { part: DynamicToolUIPart; sessionKey: string })
 
   const label = t(STATUS_I18N_KEY[status], { command: primaryCmd });
 
-  const isActive = status === "running" || status === "pending_approval";
+  const isActive = status === "running" || status === "pending_approval" || status === "allowed";
   const [open, setOpen] = useState(isActive);
   const prevActive = useRef(isActive);
   useEffect(() => {
@@ -90,11 +99,12 @@ export function ExecTool(props: { part: DynamicToolUIPart; sessionKey: string })
           {command}
         </pre>
         {cwd && <TaskItem className="text-xs text-muted-foreground">in {cwd}</TaskItem>}
-        {(status === "completed" || status === "running") && part.output != null && (
-          <pre className="max-h-64 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs break-words whitespace-pre-wrap">
-            {formatJson(part.output)}
-          </pre>
-        )}
+        {(status === "completed" || status === "running" || status === "allowed") &&
+          part.output != null && (
+            <pre className="max-h-64 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs break-words whitespace-pre-wrap">
+              {formatJson(part.output)}
+            </pre>
+          )}
         {status === "error" && (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
             {part.errorText}

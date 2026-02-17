@@ -43,6 +43,11 @@ export function deriveExecHostMode(tools: JsonObject | null): ExecHostMode {
   return asExecHost(exec?.host) ?? "sandbox";
 }
 
+/** Sandbox host bypasses approval checks; normalize to gateway when sandbox is off. */
+export function normalizeExecHost(host: ExecHostMode, sandboxEnabled: boolean): ExecHostMode {
+  return host === "sandbox" && !sandboxEnabled ? "gateway" : host;
+}
+
 export function deriveExecAskMode(tools: JsonObject | null): ExecAskMode {
   const exec = asRecord(tools?.exec);
   return asExecAsk(exec?.ask) ?? "on-miss";

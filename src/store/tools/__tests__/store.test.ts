@@ -321,16 +321,30 @@ describe("ToolsStore", () => {
       expect(state.config.execSecurity).toBe("deny");
     });
 
-    it("should switch host from sandbox to gateway when ask mode", async () => {
+    it("should switch host from sandbox to gateway when sandbox off (auto mode)", async () => {
       expect(useToolsStore.getState().config.execHost).toBe("sandbox");
+      expect(useToolsStore.getState().config.sandboxEnabled).toBe(true);
+      // sandbox off → host normalizes to gateway in any mode
+      useToolsStore.setState({
+        ...initialState,
+        config: { ...initialState.config, sandboxEnabled: false },
+      });
+      await useToolsStore.getState().setAccessMode("auto");
+      expect(useToolsStore.getState().config.execHost).toBe("gateway");
+    });
+
+    it("should switch host from sandbox to gateway when sandbox off (ask mode)", async () => {
+      useToolsStore.setState({
+        ...initialState,
+        config: { ...initialState.config, sandboxEnabled: false },
+      });
       await useToolsStore.getState().setAccessMode("ask");
       expect(useToolsStore.getState().config.execHost).toBe("gateway");
     });
 
-    it("should switch host from sandbox to gateway when deny mode", async () => {
+    it("should keep sandbox host when sandbox enabled", async () => {
+      await useToolsStore.getState().setAccessMode("ask");
       expect(useToolsStore.getState().config.execHost).toBe("sandbox");
-      await useToolsStore.getState().setAccessMode("deny");
-      expect(useToolsStore.getState().config.execHost).toBe("gateway");
     });
 
     it("should keep non-sandbox host unchanged when switching modes", async () => {
@@ -515,6 +529,12 @@ describe("ToolsStore", () => {
     it("should disable sandbox", async () => {
       await useToolsStore.getState().toggleSandbox(false);
       expect(useToolsStore.getState().config.sandboxEnabled).toBe(false);
+    });
+
+    it("should switch host from sandbox to gateway when disabling sandbox", async () => {
+      expect(useToolsStore.getState().config.execHost).toBe("sandbox");
+      await useToolsStore.getState().toggleSandbox(false);
+      expect(useToolsStore.getState().config.execHost).toBe("gateway");
     });
 
     it("should persist config", async () => {

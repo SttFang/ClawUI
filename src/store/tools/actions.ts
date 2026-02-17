@@ -19,6 +19,7 @@ import {
   deriveExecSecurityMode,
   deriveSandboxEnabled,
   deriveToolAccessMode,
+  normalizeExecHost,
   toStringArray,
 } from "./helpers";
 
@@ -94,7 +95,8 @@ export function createToolsActions(
         }
 
         let execAsk = deriveExecAskMode(toolsRaw);
-        const execHost = deriveExecHostMode(toolsRaw);
+        const sandboxEnabled = deriveSandboxEnabled(root);
+        const execHost = normalizeExecHost(deriveExecHostMode(toolsRaw), sandboxEnabled);
         let execSecurity = deriveExecSecurityMode(toolsRaw, execHost);
 
         // exec-approvals.json is the source of truth for runtime behaviour;
@@ -117,7 +119,7 @@ export function createToolsActions(
           }),
           allowList: toStringArray(toolsRaw.allow),
           denyList: toStringArray(toolsRaw.deny),
-          sandboxEnabled: deriveSandboxEnabled(root),
+          sandboxEnabled,
           execHost,
           execAsk,
           execSecurity,
@@ -139,24 +141,15 @@ export function createToolsActions(
         const config = get().config;
         const nextAsk: ExecAskMode =
           mode === "ask" ? "always" : mode === "deny" ? "off" : "on-miss";
+        const nextHost = normalizeExecHost(config.execHost, config.sandboxEnabled);
         const nextSecurity: ExecSecurityMode =
           mode === "deny"
             ? "deny"
             : mode === "ask"
               ? "allowlist"
-              : config.execHost === "sandbox"
+              : nextHost === "sandbox"
                 ? "deny"
                 : "allowlist";
-        // Sandbox host bypasses exec approval checks entirely.
-        // Switch to gateway so approvals are enforced; restore sandbox on auto.
-        const nextHost: ExecHostMode =
-          mode === "ask" || mode === "deny"
-            ? config.execHost === "sandbox"
-              ? "gateway"
-              : config.execHost
-            : config.execHost;
-        // Sandbox bypasses exec security checks entirely, so when deny mode
-        // is active we must also block exec at the tool-policy level.
         const nextDenyList =
           mode === "deny"
             ? config.denyList.includes("exec")
@@ -283,7 +276,13 @@ export function createToolsActions(
 
     toggleSandbox: async (enabled: boolean) => {
       await withPersist(set, get, "Failed to toggle sandbox:", async () => {
-        set({ config: { ...get().config, sandboxEnabled: enabled } }, false, "tools/toggleSandbox");
+        const config = get().config;
+        const nextHost = normalizeExecHost(config.execHost, enabled);
+        set(
+          { config: { ...config, sandboxEnabled: enabled, execHost: nextHost } },
+          false,
+          "tools/toggleSandbox",
+        );
       });
     },
 

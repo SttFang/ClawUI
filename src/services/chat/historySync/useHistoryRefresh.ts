@@ -128,7 +128,8 @@ export function useHistoryRefresh(params: {
         }
 
         if (changed) {
-          if (isStreamingRef.current) {
+          const isApprovalRecovery = reason.includes("approval");
+          if (isStreamingRef.current && !isApprovalRecovery) {
             chatLog.info(
               "[chat.history.refresh.skipped]",
               `session=${normalizedSessionKey}`,

@@ -949,7 +949,7 @@ const common = {
   execApproval: {
     title: "exec",
     titleWithHost: "exec @ {{host}}",
-    needsApproval: "Approval required: {{title}}",
+    needsApproval: "Approval required",
     pendingInChat: "There is a pending command approval. Continue after it is resolved.",
     description: "OpenClaw asks for approval for each command (id: {{id}}).",
     fields: {

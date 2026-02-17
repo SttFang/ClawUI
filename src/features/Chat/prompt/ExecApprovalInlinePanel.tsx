@@ -54,11 +54,7 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
     <div className={cn("space-y-2 px-4 py-3", className)}>
       {/* Title */}
       <div className="text-sm font-medium">
-        {t("execApproval.needsApproval", {
-          title: current.request.host
-            ? t("execApproval.titleWithHost", { host: current.request.host })
-            : t("execApproval.title"),
-        })}
+        {t("execApproval.needsApproval")}
       </div>
 
       {/* Security warning */}

@@ -988,7 +988,7 @@ const common = {
   execApproval: {
     title: "exec",
     titleWithHost: "exec @ {{host}}",
-    needsApproval: "需要批准：{{title}}",
+    needsApproval: "需要批准",
     pendingInChat: "当前有待处理的命令批准，等待处理后可继续发送新消息。",
     description: "OpenClaw 会对每条命令单独发起批准请求（id: {{id}}）。",
     fields: {

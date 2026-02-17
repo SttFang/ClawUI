@@ -15,7 +15,6 @@ export const CHAT_LAYOUT_SIZES = {
     defaultSize: "25%",
     minSize: "240px",
     maxSize: "50%",
-    collapsedSize: 0,
   },
 } as const;
 
@@ -52,8 +51,6 @@ export function ChatShell(props: { sidebar: ReactNode; main: ReactNode; panel?: 
             defaultSize={CHAT_LAYOUT_SIZES.filePanel.defaultSize}
             minSize={CHAT_LAYOUT_SIZES.filePanel.minSize}
             maxSize={CHAT_LAYOUT_SIZES.filePanel.maxSize}
-            collapsible
-            collapsedSize={CHAT_LAYOUT_SIZES.filePanel.collapsedSize}
           >
             {panel}
           </ResizablePanel>

@@ -37,7 +37,7 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
   const busyById = useExecApprovalsStore((s) => s.busyById);
   const resolve = useExecApprovalsStore((s) => s.resolve);
   const busy = current ? busyById[current.id] === true : false;
-  const prefix = current ? commandPrefix(current.request.command) : "";
+  const cmdPreview = current ? commandPrefix(current.request.command) : "";
 
   const onDecision = async (decision: ExecApprovalDecision) => {
     if (!current || busy) return;
@@ -52,9 +52,10 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
 
   return (
     <div className={cn("space-y-2 px-4 py-3", className)}>
-      {/* Title */}
-      <div className="text-sm font-medium">
-        {t("execApproval.needsApproval")}
+      {/* Title + inline command */}
+      <div className="flex items-baseline gap-1.5 text-sm">
+        <span className="shrink-0 font-medium">{t("execApproval.needsApproval")}</span>
+        <code className="min-w-0 truncate rounded bg-muted px-1.5 py-0.5 text-xs">{cmdPreview}</code>
       </div>
 
       {/* Security warning */}
@@ -63,11 +64,6 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
           {current.request.security}
         </div>
       )}
-
-      {/* Command code block */}
-      <pre className="max-h-28 overflow-auto rounded-md bg-muted px-2 py-1.5 text-xs leading-tight">
-        {current.request.command}
-      </pre>
 
       {/* Decision buttons */}
       <div className="space-y-1">
@@ -84,16 +80,9 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
             )}
           >
             <span className="shrink-0 font-medium">{i + 1}.</span>
-            <div className="min-w-0">
-              <div>
-                {t(
-                  `execApproval.actions.${decision === "allow-once" ? "allowOnce" : decision === "allow-always" ? "allowAlways" : "deny"}`,
-                )}
-              </div>
-              {decision === "allow-always" && (
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  {t("execApproval.actions.allowAlwaysHint", { prefix })}
-                </div>
+            <div>
+              {t(
+                `execApproval.actions.${decision === "allow-once" ? "allowOnce" : decision === "allow-always" ? "allowAlways" : "deny"}`,
               )}
             </div>
           </button>

@@ -7,12 +7,19 @@ const mockDraft = vi.hoisted(() => ({
 
 const mockToolsLog = vi.hoisted(() => ({
   error: vi.fn<(message: string, error: unknown) => void>(() => {}),
+  warn: vi.fn<(message: string, error: unknown) => void>(() => {}),
 }));
 
 vi.mock("@/lib/ipc", () => ({
   ipc: {
     config: {
       getSnapshot: vi.fn(),
+    },
+    chat: {
+      request: vi.fn(async () => ({
+        hash: "test-hash",
+        file: { version: 1, defaults: { ask: "on-miss", security: "allowlist" } },
+      })),
     },
   },
 }));
@@ -28,6 +35,7 @@ vi.mock("@/store/configDraft", () => ({
 vi.mock("@/lib/logger", () => ({
   toolsLog: {
     error: mockToolsLog.error,
+    warn: mockToolsLog.warn,
   },
 }));
 
@@ -147,6 +155,10 @@ describe("ToolsStore", () => {
             },
           },
         },
+      });
+      (ipc.chat.request as Mock).mockResolvedValue({
+        hash: "h1",
+        file: { version: 1, defaults: { ask: "always", security: "allowlist" } },
       });
 
       await useToolsStore.getState().loadTools();

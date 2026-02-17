@@ -22,6 +22,35 @@ import {
   toStringArray,
 } from "./helpers";
 
+type ExecApprovalsSnapshot = {
+  hash?: string;
+  file: {
+    version: 1;
+    defaults?: { security?: string; ask?: string; askFallback?: string; autoAllowSkills?: boolean };
+    agents?: Record<string, unknown>;
+    socket?: { path?: string; token?: string };
+  };
+};
+
+/**
+ * Sync `defaults.ask` and `defaults.security` in exec-approvals.json
+ * so the Gateway's runtime approval behaviour matches the UI setting.
+ */
+async function syncExecApprovals(ask: ExecAskMode, security: ExecSecurityMode): Promise<void> {
+  try {
+    const snapshot = (await ipc.chat.request("exec.approvals.get", {})) as ExecApprovalsSnapshot;
+    const file = snapshot.file;
+    const defaults = file.defaults ?? {};
+    if (defaults.ask === ask && defaults.security === security) return;
+    await ipc.chat.request("exec.approvals.set", {
+      baseHash: snapshot.hash,
+      file: { ...file, defaults: { ...defaults, ask, security } },
+    });
+  } catch (error) {
+    toolsLog.warn("[tools.syncExecApprovals] failed to sync exec-approvals", error);
+  }
+}
+
 type SetToolsState = (
   partial: Partial<ToolsStore> | ((state: ToolsStore) => Partial<ToolsStore> | ToolsStore),
   replace?: false,
@@ -64,9 +93,22 @@ export function createToolsActions(
           return;
         }
 
+        let execAsk = deriveExecAskMode(toolsRaw);
         const execHost = deriveExecHostMode(toolsRaw);
-        const execAsk = deriveExecAskMode(toolsRaw);
-        const execSecurity = deriveExecSecurityMode(toolsRaw, execHost);
+        let execSecurity = deriveExecSecurityMode(toolsRaw, execHost);
+
+        // exec-approvals.json is the source of truth for runtime behaviour;
+        // prefer its values over openclaw.json so the UI reflects reality.
+        try {
+          const ea = (await ipc.chat.request("exec.approvals.get", {})) as ExecApprovalsSnapshot;
+          const d = ea.file.defaults;
+          if (d?.ask === "off" || d?.ask === "on-miss" || d?.ask === "always") execAsk = d.ask;
+          if (d?.security === "deny" || d?.security === "allowlist" || d?.security === "full")
+            execSecurity = d.security;
+        } catch {
+          // Gateway may be disconnected during startup — fall back to config values.
+        }
+
         const config = {
           accessMode: deriveToolAccessMode({
             tools: toolsRaw,
@@ -126,6 +168,7 @@ export function createToolsActions(
           false,
           "tools/setAccessMode",
         );
+        await syncExecApprovals(nextAsk, nextSecurity);
       });
     },
 
@@ -146,6 +189,7 @@ export function createToolsActions(
               ? "deny"
               : "auto";
         set({ config: { ...config, execAsk: ask, accessMode } }, false, "tools/setExecAsk");
+        await syncExecApprovals(ask, config.execSecurity);
       });
     },
 
@@ -163,6 +207,7 @@ export function createToolsActions(
           false,
           "tools/setExecSecurity",
         );
+        await syncExecApprovals(config.execAsk, security);
       });
     },
 

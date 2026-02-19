@@ -9,6 +9,8 @@ export const MAIN_SESSION_KEY = "main";
 const MAIN_SESSION_KEY_NORMALIZED = "agent:main:main";
 export const isMainSessionKey = (id: string): boolean =>
   id === MAIN_SESSION_KEY || id === MAIN_SESSION_KEY_NORMALIZED;
+/** Subagent sessions (e.g. "agent:main:subagent:xxx") should not appear in the sidebar. */
+export const isSubagentSessionKey = (id: string): boolean => id.includes(":subagent:");
 export const generateUiSessionKey = () => `${DEFAULT_UI_SESSION_PREFIX}:${generateChatRunId()}`;
 
 let chatRunIdCounter = 0;
@@ -43,6 +45,7 @@ export function parseSessionsListPayload(
     if (!item || typeof item !== "object") continue;
     const key = (item as { key?: unknown }).key;
     if (typeof key !== "string" || !key.trim()) continue;
+    if (isSubagentSessionKey(key)) continue;
 
     const derivedTitle = (item as { derivedTitle?: unknown }).derivedTitle;
     const updatedAt = (item as { updatedAt?: unknown }).updatedAt;

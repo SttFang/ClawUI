@@ -15,13 +15,7 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 import { parseSpawnResult } from "../listener";
-import {
-  selectNodeList,
-  selectActiveCount,
-  selectAllDone,
-  selectSelectedNode,
-  selectHistory,
-} from "../selectors";
+import { selectNodeList, selectActiveCount, selectAllDone, selectHistory } from "../selectors";
 import { useSubagentsStore } from "../store";
 
 function resetStore() {

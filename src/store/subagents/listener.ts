@@ -81,6 +81,20 @@ export function initSubagentsListener() {
   ipc.chat.onNormalizedEvent((event: ChatNormalizedRunEvent) => {
     if (event.kind !== "run.tool_finished") return;
 
+    const meta = isRecord(event.metadata) ? event.metadata : null;
+    const toolName = meta && typeof meta.name === "string" ? meta.name : "";
+
+    // Debug: log all tool_finished events with sessions_spawn
+    if (toolName === "sessions_spawn") {
+      chatLog.debug(
+        "[subagent.detect]",
+        `toolName=${toolName}`,
+        `metaKeys=${meta ? Object.keys(meta).join(",") : "null"}`,
+        `result=${JSON.stringify(meta?.result ?? null)}`,
+        `args=${JSON.stringify(meta?.args ?? null)}`,
+      );
+    }
+
     const node = parseSpawnResult(event);
     if (!node) return;
 

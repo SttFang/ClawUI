@@ -40,7 +40,7 @@ export const sessionSlice: StateCreator<
       }
 
       const prevById = new Map(get().sessions.map((s) => [s.id, s]));
-      const merged = sessions.map((remote, idx) => {
+      const merged: Session[] = sessions.map((remote, idx) => {
         const prev = prevById.get(remote.id);
         if (prev) {
           return {
@@ -56,6 +56,17 @@ export const sessionSlice: StateCreator<
           messages: [],
         } satisfies Session;
       });
+
+      // Preserve the currently-selected session even if the gateway
+      // no longer lists it (e.g. after reconnection or compaction).
+      const currentId = get().currentSessionId;
+      if (currentId) {
+        const stillPresent = merged.some((s) => s.id === currentId);
+        if (!stillPresent) {
+          const local = prevById.get(currentId);
+          if (local) merged.push(local);
+        }
+      }
 
       set(
         (state) => ({

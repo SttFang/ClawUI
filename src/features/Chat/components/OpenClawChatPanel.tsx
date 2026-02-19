@@ -33,6 +33,15 @@ export function isCompactionMessage(message: UIMessage): boolean {
   return COMPACTION_RE.test(extractPlainText(message));
 }
 
+/** True when the message is a Gateway-injected subagent announce (role=user). */
+const SUBAGENT_ANNOUNCE_RE =
+  /^(\[System Message\].*)?A (subagent task|cron job) ".+" just (completed|timed out|failed|finished)/;
+
+export function isSubagentAnnounceMessage(message: UIMessage): boolean {
+  if (message.role !== "user") return false;
+  return SUBAGENT_ANNOUNCE_RE.test(extractPlainText(message));
+}
+
 function CompactionCheckpoint(props: { text: string }) {
   return (
     <div className="flex items-center gap-1.5 overflow-hidden text-muted-foreground">
@@ -136,6 +145,8 @@ export function OpenClawChatPanel(props: {
             chat.messages.map((message, index) => {
               const key = `${message.id}:${index}`;
               if (message.role === "user") {
+                // Hide Gateway-injected subagent announce messages
+                if (isSubagentAnnounceMessage(message)) return null;
                 return (
                   <UserMessageItem key={key} message={message} sessionKey={effectiveSessionKey} />
                 );

@@ -1,14 +1,19 @@
 import { ScrollArea } from "@clawui/ui";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useShallow } from "zustand/react/shallow";
-import { useSubagentsStore, selectNodeList, selectSelectedRunId } from "@/store/subagents";
+import { useSubagentsStore, selectNodes, selectSelectedRunId } from "@/store/subagents";
 import { SubagentNodeItem } from "./SubagentNodeItem";
 
 export function SubagentTree() {
   const { t } = useTranslation("common");
-  const nodes = useSubagentsStore(useShallow(selectNodeList));
+  const nodesMap = useSubagentsStore(selectNodes);
   const selectedRunId = useSubagentsStore(selectSelectedRunId);
   const select = useSubagentsStore((s) => s.select);
+
+  const nodes = useMemo(
+    () => Object.values(nodesMap).sort((a, b) => a.createdAt - b.createdAt),
+    [nodesMap],
+  );
 
   if (nodes.length === 0) {
     return <div className="px-3 py-4 text-xs text-muted-foreground">{t("subagent.empty")}</div>;

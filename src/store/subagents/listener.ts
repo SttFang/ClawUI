@@ -13,6 +13,11 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v != null && typeof v === "object" && !Array.isArray(v);
 }
 
+function pickString(obj: Record<string, unknown>, key: string): string {
+  const v = obj[key];
+  return typeof v === "string" ? v.trim() : "";
+}
+
 function parseSpawnResult(event: ChatNormalizedRunEvent): SubagentNode | null {
   const meta = isRecord(event.metadata) ? event.metadata : null;
   if (!meta) return null;
@@ -22,18 +27,20 @@ function parseSpawnResult(event: ChatNormalizedRunEvent): SubagentNode | null {
   const args = isRecord(meta.args) ? meta.args : null;
   if (!result) return null;
 
-  const childSessionKey = typeof result.sessionKey === "string" ? result.sessionKey.trim() : "";
-  const runId = typeof result.runId === "string" ? result.runId.trim() : "";
-  if (!childSessionKey || !runId) return null;
+  const sessionKey = pickString(result, "sessionKey");
+  const runId = pickString(result, "runId");
+  if (!sessionKey || !runId) return null;
 
   const prompt = args && typeof args.prompt === "string" ? args.prompt.trim() : "";
   const model = args && typeof args.model === "string" ? args.model.trim() : undefined;
+  const label = args && typeof args.label === "string" ? args.label.trim() : undefined;
 
   return {
     runId,
-    sessionKey: childSessionKey,
+    sessionKey,
     parentSessionKey: event.sessionKey,
-    task: prompt || "subagent",
+    task: prompt || label || "subagent",
+    label,
     model,
     status: "running",
     createdAt: event.timestampMs || Date.now(),

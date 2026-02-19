@@ -370,4 +370,48 @@ describe("findSpawnResultInHistory", () => {
     expect(found!.childSessionKey).toBe("child:s2");
     expect(found!.runId).toBe("run-999");
   });
+
+  it("finds OpenClaw transcript format (role: toolResult, details)", () => {
+    const messages = [
+      {
+        role: "toolResult",
+        toolCallId: "call_abc|fc_0123456789abcdef",
+        toolName: "sessions_spawn",
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              status: "accepted",
+              childSessionKey: "agent:main:subagent:uuid1",
+              runId: "run-oc-1",
+            }),
+          },
+        ],
+        details: {
+          status: "accepted",
+          childSessionKey: "agent:main:subagent:uuid1",
+          runId: "run-oc-1",
+        },
+        isError: false,
+      },
+    ];
+    const found = findSpawnResultInHistory(messages, "call_abc|fc_0123456789abcdef");
+    expect(found).not.toBeNull();
+    expect(found!.childSessionKey).toBe("agent:main:subagent:uuid1");
+    expect(found!.runId).toBe("run-oc-1");
+  });
+
+  it("matches OpenClaw toolResult by base ID", () => {
+    const messages = [
+      {
+        role: "toolResult",
+        toolCallId: "call_xyz|fc_aaa",
+        content: [{ type: "text", text: JSON.stringify({ childSessionKey: "c:2", runId: "r2" }) }],
+      },
+    ];
+    // Event toolCallId might differ in fc_ suffix
+    const found = findSpawnResultInHistory(messages, "call_xyz|fc_bbb");
+    expect(found).not.toBeNull();
+    expect(found!.childSessionKey).toBe("c:2");
+  });
 });

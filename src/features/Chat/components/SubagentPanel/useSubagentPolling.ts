@@ -23,7 +23,7 @@ export function useSubagentPolling() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (!node) return;
+    if (!node || !node.sessionKey) return;
 
     const fetchHistory = () => {
       ipc.chat

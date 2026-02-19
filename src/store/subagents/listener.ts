@@ -80,37 +80,44 @@ function parseSpawnResult(event: ChatNormalizedRunEvent): SubagentNode | null {
 }
 
 /**
- * Search chat.history messages for a tool_result matching the given toolCallId.
- * The toolCallId may have a `|fc_xxx` suffix (OpenClaw composite ID) that the
- * transcript's `tool_use_id` does not include, so we match both the full ID
- * and the base part before the pipe.
- * Returns { childSessionKey, runId } or null.
+ * Search chat.history messages for a tool result matching the given toolCallId.
+ *
+ * OpenClaw transcripts use `role: "toolResult"` with `toolCallId` (full composite ID)
+ * and a `details` object containing the parsed result. The `content` array also has
+ * the JSON-stringified result.
  */
 function findSpawnResultInHistory(
   messages: unknown[],
   toolCallId: string,
 ): { childSessionKey: string; runId: string } | null {
   const baseId = toolCallId.includes("|") ? toolCallId.split("|")[0] : toolCallId;
+
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
     if (!isRecord(msg)) continue;
-    const content = Array.isArray(msg.content) ? msg.content : null;
-    if (!content) continue;
-    for (const block of content) {
-      if (!isRecord(block)) continue;
-      if (block.type !== "tool_result") continue;
-      // Match by tool_use_id — try both full and base ID
-      const blockId = typeof block.tool_use_id === "string" ? block.tool_use_id : "";
-      if (blockId !== toolCallId && blockId !== baseId) continue;
-      const result = unwrapToolResult(block);
-      if (!result) {
-        // tool_result.content is the nested content array
-        const innerContent = Array.isArray(block.content) ? block.content : null;
-        if (!innerContent) continue;
-        for (const inner of innerContent) {
-          if (!isRecord(inner) || inner.type !== "text" || typeof inner.text !== "string") continue;
+
+    // --- Format A: OpenClaw transcript (role: "toolResult", toolCallId) ---
+    if (
+      (msg.role === "toolResult" || msg.role === "tool_result") &&
+      typeof msg.toolCallId === "string"
+    ) {
+      const msgTcId = msg.toolCallId as string;
+      const msgBase = msgTcId.includes("|") ? msgTcId.split("|")[0] : msgTcId;
+      if (msgTcId !== toolCallId && msgBase !== baseId) continue;
+
+      // Try details first (pre-parsed)
+      if (isRecord(msg.details)) {
+        const sk = pickString(msg.details, "childSessionKey");
+        const rid = pickString(msg.details, "runId");
+        if (sk && rid) return { childSessionKey: sk, runId: rid };
+      }
+      // Fall back to content array
+      const content = Array.isArray(msg.content) ? msg.content : null;
+      if (content) {
+        for (const item of content) {
+          if (!isRecord(item) || item.type !== "text" || typeof item.text !== "string") continue;
           try {
-            const parsed = JSON.parse(inner.text);
+            const parsed = JSON.parse(item.text);
             if (!isRecord(parsed)) continue;
             const sk = pickString(parsed, "childSessionKey");
             const rid = pickString(parsed, "runId");
@@ -119,11 +126,31 @@ function findSpawnResultInHistory(
             /* not JSON */
           }
         }
-        continue;
       }
-      const sk = pickString(result, "childSessionKey");
-      const rid = pickString(result, "runId");
-      if (sk && rid) return { childSessionKey: sk, runId: rid };
+      continue;
+    }
+
+    // --- Format B: Anthropic API (role: "user", tool_result content blocks) ---
+    const content = Array.isArray(msg.content) ? msg.content : null;
+    if (!content) continue;
+    for (const block of content) {
+      if (!isRecord(block) || block.type !== "tool_result") continue;
+      const blockId = typeof block.tool_use_id === "string" ? block.tool_use_id : "";
+      if (blockId !== toolCallId && blockId !== baseId) continue;
+      const innerContent = Array.isArray(block.content) ? block.content : null;
+      if (!innerContent) continue;
+      for (const inner of innerContent) {
+        if (!isRecord(inner) || inner.type !== "text" || typeof inner.text !== "string") continue;
+        try {
+          const parsed = JSON.parse(inner.text);
+          if (!isRecord(parsed)) continue;
+          const sk = pickString(parsed, "childSessionKey");
+          const rid = pickString(parsed, "runId");
+          if (sk && rid) return { childSessionKey: sk, runId: rid };
+        } catch {
+          /* not JSON */
+        }
+      }
     }
   }
   return null;

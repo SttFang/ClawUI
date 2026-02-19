@@ -1,11 +1,16 @@
-import type { SubagentNode, SubagentsStore } from "./types";
+import type { SubagentHistoryMessage, SubagentNode, SubagentsStore } from "./types";
 
 export const selectNodes = (state: SubagentsStore) => state.nodes;
 export const selectPanelOpen = (state: SubagentsStore) => state.panelOpen;
 export const selectSelectedRunId = (state: SubagentsStore) => state.selectedRunId;
 
+const EMPTY_NODE_LIST: SubagentNode[] = [];
+const EMPTY_HISTORY: SubagentHistoryMessage[] = [];
+
 export function selectNodeList(state: SubagentsStore): SubagentNode[] {
-  return Object.values(state.nodes).sort((a, b) => a.createdAt - b.createdAt);
+  const values = Object.values(state.nodes);
+  if (values.length === 0) return EMPTY_NODE_LIST;
+  return values.sort((a, b) => a.createdAt - b.createdAt);
 }
 
 export function selectActiveCount(state: SubagentsStore): number {
@@ -27,6 +32,6 @@ export function selectSelectedNode(state: SubagentsStore): SubagentNode | null {
 }
 
 export function selectHistory(state: SubagentsStore, runId: string | null) {
-  if (!runId) return [];
-  return state.historyByRunId[runId] ?? [];
+  if (!runId) return EMPTY_HISTORY;
+  return state.historyByRunId[runId] ?? EMPTY_HISTORY;
 }

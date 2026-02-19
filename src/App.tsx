@@ -7,6 +7,7 @@ import { initExecApprovalsListener, initExecLifecycleListener } from "@/store/ex
 import { initGatewayIpcListener } from "@/store/gateway";
 import { initGatewayActivityListener } from "@/store/gatewayActivity";
 import { initRunMapListener } from "@/store/runMap";
+import { initSubagentsListener } from "@/store/subagents";
 import { initTheme } from "@/store/ui";
 
 // Initialize IPC listeners and theme once
@@ -17,6 +18,7 @@ initChatRunsListener();
 initExecApprovalsListener();
 initExecLifecycleListener();
 initRunMapListener();
+initSubagentsListener();
 initTheme();
 
 function App() {

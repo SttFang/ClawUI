@@ -10,15 +10,24 @@ export type { WorkspaceFileEntry, OpenTab, FileContentKind, PythonRunResult };
 
 const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp"]);
 const HTML_EXTS = new Set([".html", ".htm"]);
+const OFFICE_EXTS = new Set([".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"]);
 
 export function classifyFile(name: string): FileContentKind {
   const ext = extOf(name);
   if (IMAGE_EXTS.has(ext)) return "image";
   if (HTML_EXTS.has(ext)) return "html";
+  if (OFFICE_EXTS.has(ext)) return "office";
   return "text";
 }
 
 const MIME_MAP: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
@@ -161,7 +170,7 @@ export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
 
         try {
           let content: string;
-          if (kind === "image") {
+          if (kind === "image" || kind === "office") {
             const res = await ipc.workspace.readFileBase64(relativePath);
             content = `data:${guessMimeType(name)};base64,${res.base64}`;
           } else {

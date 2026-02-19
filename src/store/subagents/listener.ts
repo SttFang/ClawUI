@@ -190,21 +190,39 @@ function startWaiting(node: SubagentNode) {
     });
 }
 
-/** Fetch parent session history and resolve spawn data. Retries once after a short delay. */
+/** Fetch parent session history and resolve spawn data. Retries with increasing delay. */
 async function resolveSpawnFromHistory(
   parentSessionKey: string,
   toolCallId: string,
-  retries = 1,
+  retries = 2,
 ): Promise<{ childSessionKey: string; runId: string } | null> {
+  const baseId = toolCallId.includes("|") ? toolCallId.split("|")[0] : toolCallId;
   for (let attempt = 0; attempt <= retries; attempt++) {
-    if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 1000 + attempt * 1000));
     try {
       const res = await ipc.chat.request("chat.history", {
         sessionKey: parentSessionKey,
-        limit: 20,
+        limit: 30,
       });
       if (!isRecord(res) || !Array.isArray(res.messages)) continue;
-      const found = findSpawnResultInHistory(res.messages, toolCallId);
+      const msgs = res.messages as unknown[];
+
+      // Debug: log last few message roles to understand transcript format
+      const tail = msgs.slice(-6).map((m) => {
+        if (!isRecord(m as unknown)) return "?";
+        const r = (m as Record<string, unknown>).role;
+        const tcId = (m as Record<string, unknown>).toolCallId;
+        return `${r}${tcId ? `(${String(tcId).slice(0, 20)}…)` : ""}`;
+      });
+      chatLog.debug(
+        "[subagent.history.scan]",
+        `attempt=${attempt}`,
+        `total=${msgs.length}`,
+        `tail=[${tail.join(", ")}]`,
+        `looking=${baseId}`,
+      );
+
+      const found = findSpawnResultInHistory(msgs, toolCallId);
       if (found) return found;
     } catch (err) {
       chatLog.warn(

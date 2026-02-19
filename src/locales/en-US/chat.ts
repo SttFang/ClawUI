@@ -58,6 +58,26 @@ const chat = {
     confirmDelete:
       "Delete this session? (Will only remove the session entry; transcript is kept by default.)",
   },
+  workspaceFiles: {
+    title: "Workspace Files",
+    empty: "No files",
+    missing: "Not created",
+    close: "Close",
+    closeAll: "Close all",
+    loadError: "Load failed",
+    officeLoading: "Parsing document...",
+    officeUnsupported: "This format does not support inline preview yet",
+    officeUnsupportedHint: "Download the file and open it with a local office app.",
+    download: "Download file",
+    slide: "Slide",
+    noSlideText: "No visible text could be parsed from this slide.",
+    runPython: "Run",
+    running: "Running...",
+    stdout: "Stdout",
+    stderr: "Stderr",
+    exitCode: "Exit code",
+    noOutput: "No output",
+  },
 } as const;
 
 export default chat;

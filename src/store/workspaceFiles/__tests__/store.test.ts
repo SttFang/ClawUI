@@ -42,6 +42,12 @@ describe("classifyFile", () => {
     expect(classifyFile("index.htm")).toBe("html");
   });
 
+  it("classifies office files", () => {
+    expect(classifyFile("report.docx")).toBe("office");
+    expect(classifyFile("slides.pptx")).toBe("office");
+    expect(classifyFile("paper.pdf")).toBe("office");
+  });
+
   it("classifies text files", () => {
     expect(classifyFile("main.py")).toBe("text");
     expect(classifyFile("readme.md")).toBe("text");
@@ -55,6 +61,16 @@ describe("guessMimeType", () => {
     expect(guessMimeType("a.png")).toBe("image/png");
     expect(guessMimeType("b.jpg")).toBe("image/jpeg");
     expect(guessMimeType("c.svg")).toBe("image/svg+xml");
+  });
+
+  it("returns correct MIME types for office files", () => {
+    expect(guessMimeType("a.docx")).toBe(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    expect(guessMimeType("b.pptx")).toBe(
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    );
+    expect(guessMimeType("c.pdf")).toBe("application/pdf");
   });
 
   it("returns fallback for unknown extensions", () => {
@@ -104,6 +120,22 @@ describe("openFile", () => {
     const { openTabs } = useWorkspaceFilesStore.getState();
     expect(openTabs[0].kind).toBe("image");
     expect(openTabs[0].content).toBe("data:image/png;base64,abc123");
+  });
+
+  it("opens an office file with base64 content", async () => {
+    mockIpc.readFileBase64.mockResolvedValue({
+      path: "/ws/slides.pptx",
+      base64: "xyz999",
+    });
+
+    await useWorkspaceFilesStore.getState().openFile("slides.pptx");
+
+    const { openTabs } = useWorkspaceFilesStore.getState();
+    expect(openTabs[0].kind).toBe("office");
+    expect(openTabs[0].content).toBe(
+      "data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,xyz999",
+    );
+    expect(mockIpc.readFile).not.toHaveBeenCalled();
   });
 
   it("switches to existing tab instead of opening duplicate", async () => {

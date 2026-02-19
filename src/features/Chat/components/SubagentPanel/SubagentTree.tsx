@@ -1,11 +1,12 @@
 import { ScrollArea } from "@clawui/ui";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { useSubagentsStore, selectNodeList, selectSelectedRunId } from "@/store/subagents";
 import { SubagentNodeItem } from "./SubagentNodeItem";
 
 export function SubagentTree() {
   const { t } = useTranslation("common");
-  const nodes = useSubagentsStore(selectNodeList);
+  const nodes = useSubagentsStore(useShallow(selectNodeList));
   const selectedRunId = useSubagentsStore(selectSelectedRunId);
   const select = useSubagentsStore((s) => s.select);
 

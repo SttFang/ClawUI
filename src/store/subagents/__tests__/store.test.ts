@@ -346,4 +346,28 @@ describe("findSpawnResultInHistory", () => {
   it("returns null for empty messages", () => {
     expect(findSpawnResultInHistory([], "call_abc")).toBeNull();
   });
+
+  it("matches by base ID when toolCallId has |fc_ suffix", () => {
+    const messages = [
+      {
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "call_abc",
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ childSessionKey: "child:s2", runId: "run-999" }),
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const found = findSpawnResultInHistory(messages, "call_abc|fc_0123456789abcdef");
+    expect(found).not.toBeNull();
+    expect(found!.childSessionKey).toBe("child:s2");
+    expect(found!.runId).toBe("run-999");
+  });
 });

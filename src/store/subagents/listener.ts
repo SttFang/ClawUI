@@ -81,12 +81,16 @@ function parseSpawnResult(event: ChatNormalizedRunEvent): SubagentNode | null {
 
 /**
  * Search chat.history messages for a tool_result matching the given toolCallId.
+ * The toolCallId may have a `|fc_xxx` suffix (OpenClaw composite ID) that the
+ * transcript's `tool_use_id` does not include, so we match both the full ID
+ * and the base part before the pipe.
  * Returns { childSessionKey, runId } or null.
  */
 function findSpawnResultInHistory(
   messages: unknown[],
   toolCallId: string,
 ): { childSessionKey: string; runId: string } | null {
+  const baseId = toolCallId.includes("|") ? toolCallId.split("|")[0] : toolCallId;
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
     if (!isRecord(msg)) continue;
@@ -95,8 +99,9 @@ function findSpawnResultInHistory(
     for (const block of content) {
       if (!isRecord(block)) continue;
       if (block.type !== "tool_result") continue;
-      // Match by tool_use_id (Anthropic format)
-      if (block.tool_use_id !== toolCallId) continue;
+      // Match by tool_use_id — try both full and base ID
+      const blockId = typeof block.tool_use_id === "string" ? block.tool_use_id : "";
+      if (blockId !== toolCallId && blockId !== baseId) continue;
       const result = unwrapToolResult(block);
       if (!result) {
         // tool_result.content is the nested content array

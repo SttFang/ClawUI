@@ -18,20 +18,47 @@ function pickString(obj: Record<string, unknown>, key: string): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
+/**
+ * Unwrap a tool result that may be wrapped in `{ content: [{ type: "text", text: JSON }] }`
+ * format (produced by OpenClaw's `jsonResult()` helper).
+ */
+function unwrapToolResult(raw: unknown): Record<string, unknown> | null {
+  if (!isRecord(raw)) return null;
+  // Already a plain object with status field (direct result)
+  if (typeof raw.status === "string") return raw;
+  // Wrapped in content array
+  const content = Array.isArray(raw.content) ? raw.content : null;
+  if (!content) return null;
+  for (const item of content) {
+    if (isRecord(item) && item.type === "text" && typeof item.text === "string") {
+      try {
+        const parsed = JSON.parse(item.text);
+        if (isRecord(parsed)) return parsed;
+      } catch {
+        /* not JSON */
+      }
+    }
+  }
+  return null;
+}
+
 function parseSpawnResult(event: ChatNormalizedRunEvent): SubagentNode | null {
   const meta = isRecord(event.metadata) ? event.metadata : null;
   if (!meta) return null;
   if (typeof meta.name !== "string" || meta.name !== "sessions_spawn") return null;
 
-  const result = isRecord(meta.result) ? meta.result : null;
-  const args = isRecord(meta.args) ? meta.args : null;
+  const result = unwrapToolResult(meta.result);
   if (!result) return null;
 
-  const sessionKey = pickString(result, "sessionKey");
+  // OpenClaw returns `childSessionKey` (not `sessionKey`)
+  const sessionKey = pickString(result, "childSessionKey");
   const runId = pickString(result, "runId");
   if (!sessionKey || !runId) return null;
 
-  const prompt = args && typeof args.prompt === "string" ? args.prompt.trim() : "";
+  // Args are available in run.tool_started but not in run.tool_finished;
+  // fall back to empty values when absent.
+  const args = isRecord(meta.args) ? meta.args : null;
+  const task = args && typeof args.task === "string" ? args.task.trim() : "";
   const model = args && typeof args.model === "string" ? args.model.trim() : undefined;
   const label = args && typeof args.label === "string" ? args.label.trim() : undefined;
 
@@ -39,7 +66,7 @@ function parseSpawnResult(event: ChatNormalizedRunEvent): SubagentNode | null {
     runId,
     sessionKey,
     parentSessionKey: event.sessionKey,
-    task: prompt || label || "subagent",
+    task: task || label || "subagent",
     label,
     model,
     status: "running",
@@ -81,34 +108,55 @@ function startWaiting(node: SubagentNode) {
     });
 }
 
+/** Cache args from tool_started so they're available when tool_finished fires. */
+const pendingSpawnArgs = new Map<string, Record<string, unknown>>();
+
 export function initSubagentsListener() {
   if (listenerInitialized || typeof window === "undefined") return;
   listenerInitialized = true;
 
   ipc.chat.onNormalizedEvent((event: ChatNormalizedRunEvent) => {
-    if (event.kind !== "run.tool_finished") return;
-
     const meta = isRecord(event.metadata) ? event.metadata : null;
     const toolName = meta && typeof meta.name === "string" ? meta.name : "";
 
-    // Debug: log all tool_finished events with sessions_spawn
-    if (toolName === "sessions_spawn") {
-      chatLog.debug(
-        "[subagent.detect]",
-        `toolName=${toolName}`,
-        `metaKeys=${meta ? Object.keys(meta).join(",") : "null"}`,
-        `result=${JSON.stringify(meta?.result ?? null)}`,
-        `args=${JSON.stringify(meta?.args ?? null)}`,
-      );
+    // Cache args from tool_started for later use in tool_finished
+    if (event.kind === "run.tool_started" && toolName === "sessions_spawn") {
+      const toolCallId = typeof meta?.toolCallId === "string" ? meta.toolCallId : "";
+      const args = isRecord(meta?.args) ? (meta.args as Record<string, unknown>) : null;
+      if (toolCallId && args) {
+        pendingSpawnArgs.set(toolCallId, args);
+      }
+      return;
+    }
+
+    if (event.kind !== "run.tool_finished") return;
+    if (toolName !== "sessions_spawn") return;
+
+    // Merge cached args into metadata for parseSpawnResult
+    const toolCallId = meta && typeof meta.toolCallId === "string" ? meta.toolCallId : "";
+    if (toolCallId && pendingSpawnArgs.has(toolCallId)) {
+      const cachedArgs = pendingSpawnArgs.get(toolCallId)!;
+      pendingSpawnArgs.delete(toolCallId);
+      if (meta && !isRecord(meta.args)) {
+        meta.args = cachedArgs;
+      }
     }
 
     const node = parseSpawnResult(event);
-    if (!node) return;
+    if (!node) {
+      chatLog.warn(
+        "[subagent.detect.failed]",
+        `toolCallId=${toolCallId}`,
+        `result=${JSON.stringify(meta?.result ?? null).slice(0, 200)}`,
+      );
+      return;
+    }
 
     chatLog.info(
       "[subagent.spawned]",
       `runId=${node.runId}`,
       `session=${node.sessionKey}`,
+      `task=${node.task}`,
       `parent=${node.parentSessionKey}`,
     );
 

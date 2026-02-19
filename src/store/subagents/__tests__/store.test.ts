@@ -173,7 +173,7 @@ describe("subagents selectors", () => {
 });
 
 describe("parseSpawnResult", () => {
-  it("parses valid sessions_spawn tool_finished event", () => {
+  it("parses wrapped jsonResult format (real gateway format)", () => {
     const event: ChatNormalizedRunEvent = {
       kind: "run.tool_finished",
       traceId: "t1",
@@ -182,8 +182,20 @@ describe("parseSpawnResult", () => {
       clientRunId: "cr1",
       metadata: {
         name: "sessions_spawn",
-        args: { prompt: "do research", model: "gpt-4" },
-        result: { sessionKey: "child:s1", runId: "run-123" },
+        args: { task: "do research", model: "gpt-4" },
+        result: {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                status: "accepted",
+                childSessionKey: "child:s1",
+                runId: "run-123",
+                note: "Subagent spawned",
+              }),
+            },
+          ],
+        },
       },
     };
 
@@ -195,6 +207,25 @@ describe("parseSpawnResult", () => {
     expect(node!.task).toBe("do research");
     expect(node!.model).toBe("gpt-4");
     expect(node!.status).toBe("running");
+  });
+
+  it("parses direct object result (status field present)", () => {
+    const event: ChatNormalizedRunEvent = {
+      kind: "run.tool_finished",
+      traceId: "t1",
+      timestampMs: 5000,
+      sessionKey: "parent:s1",
+      clientRunId: "cr1",
+      metadata: {
+        name: "sessions_spawn",
+        result: { status: "accepted", childSessionKey: "child:s1", runId: "run-456" },
+      },
+    };
+
+    const node = parseSpawnResult(event);
+    expect(node).not.toBeNull();
+    expect(node!.runId).toBe("run-456");
+    expect(node!.sessionKey).toBe("child:s1");
   });
 
   it("returns null for non-spawn tool", () => {
@@ -209,7 +240,7 @@ describe("parseSpawnResult", () => {
     expect(parseSpawnResult(event)).toBeNull();
   });
 
-  it("returns null when result lacks sessionKey", () => {
+  it("returns null when result lacks childSessionKey", () => {
     const event: ChatNormalizedRunEvent = {
       kind: "run.tool_finished",
       traceId: "t1",
@@ -218,9 +249,37 @@ describe("parseSpawnResult", () => {
       clientRunId: "cr1",
       metadata: {
         name: "sessions_spawn",
-        result: { runId: "r1" },
+        result: {
+          content: [{ type: "text", text: JSON.stringify({ runId: "r1" }) }],
+        },
       },
     };
     expect(parseSpawnResult(event)).toBeNull();
+  });
+
+  it("falls back to label when task is absent", () => {
+    const event: ChatNormalizedRunEvent = {
+      kind: "run.tool_finished",
+      traceId: "t1",
+      timestampMs: 5000,
+      sessionKey: "parent:s1",
+      clientRunId: "cr1",
+      metadata: {
+        name: "sessions_spawn",
+        args: { label: "game-check" },
+        result: {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ status: "accepted", childSessionKey: "c:1", runId: "r1" }),
+            },
+          ],
+        },
+      },
+    };
+    const node = parseSpawnResult(event);
+    expect(node).not.toBeNull();
+    expect(node!.task).toBe("game-check");
+    expect(node!.label).toBe("game-check");
   });
 });

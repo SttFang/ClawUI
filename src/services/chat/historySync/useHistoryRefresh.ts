@@ -101,10 +101,12 @@ export function useHistoryRefresh(params: {
         let changed = sig !== lastHistorySigRef.current;
         if (changed) {
           const previousMessages = lastAppliedMessagesRef.current;
+          // Only session-init should bypass the drop guard — it loads
+          // a session for the first time so a "drop" is expected.
+          // All other reasons (including force=true event-driven refreshes)
+          // must still be guarded against transient history drops.
           const shouldGuardDrop =
-            !force &&
-            reason !== "session-init" &&
-            isLikelyTransientHistoryDrop(previousMessages, uiMessages);
+            reason !== "session-init" && isLikelyTransientHistoryDrop(previousMessages, uiMessages);
           if (shouldGuardDrop) {
             changed = false;
             chatLog.warn(

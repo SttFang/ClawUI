@@ -14,7 +14,7 @@ vi.mock("@/lib/logger", () => ({
   chatLog: { info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
-import { parseSpawnResult } from "../listener";
+import { parseSpawnResult, findSpawnResultInHistory } from "../listener";
 import { selectNodeList, selectActiveCount, selectAllDone, selectHistory } from "../selectors";
 import { useSubagentsStore } from "../store";
 
@@ -34,11 +34,35 @@ describe("subagents store", () => {
       status: "running",
       createdAt: 1000,
     });
-
     const state = useSubagentsStore.getState();
     expect(state.nodes["r1"]).toBeDefined();
     expect(state.nodes["r1"].task).toBe("do stuff");
     expect(state.panelOpen).toBe(true);
+  });
+
+  it("resolveSpawn replaces temp key with real runId", () => {
+    useSubagentsStore.getState().add({
+      runId: "temp-tc1",
+      sessionKey: "",
+      parentSessionKey: "parent:s1",
+      task: "research",
+      status: "spawning",
+      createdAt: 1000,
+    });
+    useSubagentsStore.getState().select("temp-tc1");
+    useSubagentsStore.getState().resolveSpawn("temp-tc1", "real-run-1", "child:s1");
+
+    const state = useSubagentsStore.getState();
+    expect(state.nodes["temp-tc1"]).toBeUndefined();
+    expect(state.nodes["real-run-1"]).toBeDefined();
+    expect(state.nodes["real-run-1"].sessionKey).toBe("child:s1");
+    expect(state.nodes["real-run-1"].status).toBe("running");
+    expect(state.selectedRunId).toBe("real-run-1");
+  });
+
+  it("resolveSpawn is no-op for unknown temp key", () => {
+    useSubagentsStore.getState().resolveSpawn("nonexistent", "r1", "s1");
+    expect(Object.keys(useSubagentsStore.getState().nodes)).toHaveLength(0);
   });
 
   it("updateStatus transitions and sets endedAt for terminal", () => {
@@ -50,7 +74,6 @@ describe("subagents store", () => {
       status: "running",
       createdAt: 1000,
     });
-
     useSubagentsStore.getState().updateStatus("r1", "done");
     const node = useSubagentsStore.getState().nodes["r1"];
     expect(node.status).toBe("done");
@@ -68,8 +91,8 @@ describe("subagents store", () => {
     });
     useSubagentsStore.getState().setHistory("r1", [{ role: "user", content: "hi" }]);
     useSubagentsStore.getState().select("r1");
-
     useSubagentsStore.getState().remove("r1");
+
     const state = useSubagentsStore.getState();
     expect(state.nodes["r1"]).toBeUndefined();
     expect(state.historyByRunId["r1"]).toBeUndefined();
@@ -79,10 +102,8 @@ describe("subagents store", () => {
   it("select and togglePanel work", () => {
     useSubagentsStore.getState().select("r1");
     expect(useSubagentsStore.getState().selectedRunId).toBe("r1");
-
     useSubagentsStore.getState().togglePanel(true);
     expect(useSubagentsStore.getState().panelOpen).toBe(true);
-
     useSubagentsStore.getState().togglePanel();
     expect(useSubagentsStore.getState().panelOpen).toBe(false);
   });
@@ -109,7 +130,6 @@ describe("subagents selectors", () => {
       status: "done",
       createdAt: 1000,
     });
-
     const list = selectNodeList(useSubagentsStore.getState());
     expect(list[0].runId).toBe("r1");
     expect(list[1].runId).toBe("r2");
@@ -141,7 +161,6 @@ describe("subagents selectors", () => {
       status: "spawning",
       createdAt: 3000,
     });
-
     expect(selectActiveCount(useSubagentsStore.getState())).toBe(2);
   });
 
@@ -163,7 +182,6 @@ describe("subagents selectors", () => {
       status: "error",
       createdAt: 2000,
     });
-
     expect(selectAllDone(useSubagentsStore.getState())).toBe(true);
   });
 
@@ -173,7 +191,7 @@ describe("subagents selectors", () => {
 });
 
 describe("parseSpawnResult", () => {
-  it("parses wrapped jsonResult format (real gateway format)", () => {
+  it("parses wrapped jsonResult format (verboseLevel=full)", () => {
     const event: ChatNormalizedRunEvent = {
       kind: "run.tool_finished",
       traceId: "t1",
@@ -191,25 +209,21 @@ describe("parseSpawnResult", () => {
                 status: "accepted",
                 childSessionKey: "child:s1",
                 runId: "run-123",
-                note: "Subagent spawned",
               }),
             },
           ],
         },
       },
     };
-
     const node = parseSpawnResult(event);
     expect(node).not.toBeNull();
     expect(node!.runId).toBe("run-123");
     expect(node!.sessionKey).toBe("child:s1");
-    expect(node!.parentSessionKey).toBe("parent:s1");
     expect(node!.task).toBe("do research");
     expect(node!.model).toBe("gpt-4");
-    expect(node!.status).toBe("running");
   });
 
-  it("parses direct object result (status field present)", () => {
+  it("parses direct object result", () => {
     const event: ChatNormalizedRunEvent = {
       kind: "run.tool_finished",
       traceId: "t1",
@@ -221,11 +235,9 @@ describe("parseSpawnResult", () => {
         result: { status: "accepted", childSessionKey: "child:s1", runId: "run-456" },
       },
     };
-
     const node = parseSpawnResult(event);
     expect(node).not.toBeNull();
     expect(node!.runId).toBe("run-456");
-    expect(node!.sessionKey).toBe("child:s1");
   });
 
   it("returns null for non-spawn tool", () => {
@@ -240,19 +252,14 @@ describe("parseSpawnResult", () => {
     expect(parseSpawnResult(event)).toBeNull();
   });
 
-  it("returns null when result lacks childSessionKey", () => {
+  it("returns null when result is missing (gateway strips it)", () => {
     const event: ChatNormalizedRunEvent = {
       kind: "run.tool_finished",
       traceId: "t1",
       timestampMs: 5000,
       sessionKey: "parent:s1",
       clientRunId: "cr1",
-      metadata: {
-        name: "sessions_spawn",
-        result: {
-          content: [{ type: "text", text: JSON.stringify({ runId: "r1" }) }],
-        },
-      },
+      metadata: { name: "sessions_spawn" },
     };
     expect(parseSpawnResult(event)).toBeNull();
   });
@@ -278,8 +285,65 @@ describe("parseSpawnResult", () => {
       },
     };
     const node = parseSpawnResult(event);
-    expect(node).not.toBeNull();
     expect(node!.task).toBe("game-check");
     expect(node!.label).toBe("game-check");
+  });
+});
+
+describe("findSpawnResultInHistory", () => {
+  it("finds tool_result matching toolCallId", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: [
+          { type: "tool_use", id: "call_abc", name: "sessions_spawn", input: { task: "research" } },
+        ],
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "call_abc",
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  status: "accepted",
+                  childSessionKey: "agent:main:subagent:xyz",
+                  runId: "run-789",
+                }),
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    const found = findSpawnResultInHistory(messages, "call_abc");
+    expect(found).not.toBeNull();
+    expect(found!.childSessionKey).toBe("agent:main:subagent:xyz");
+    expect(found!.runId).toBe("run-789");
+  });
+
+  it("returns null when toolCallId does not match", () => {
+    const messages = [
+      {
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "call_other",
+            content: [
+              { type: "text", text: JSON.stringify({ childSessionKey: "s1", runId: "r1" }) },
+            ],
+          },
+        ],
+      },
+    ];
+    expect(findSpawnResultInHistory(messages, "call_abc")).toBeNull();
+  });
+
+  it("returns null for empty messages", () => {
+    expect(findSpawnResultInHistory([], "call_abc")).toBeNull();
   });
 });

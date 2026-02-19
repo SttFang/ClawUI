@@ -22,6 +22,25 @@ export function createSubagentsActions(set: Set, _get: Get): SubagentsActions {
       );
     },
 
+    resolveSpawn: (tempKey: string, realRunId: string, sessionKey: string) => {
+      set(
+        (state) => {
+          const existing = state.nodes[tempKey];
+          if (!existing) return state;
+          const { [tempKey]: _, ...rest } = state.nodes;
+          return {
+            nodes: {
+              ...rest,
+              [realRunId]: { ...existing, runId: realRunId, sessionKey, status: "running" },
+            },
+            selectedRunId: state.selectedRunId === tempKey ? realRunId : state.selectedRunId,
+          };
+        },
+        false,
+        "subagents/resolveSpawn",
+      );
+    },
+
     updateStatus: (runId: string, status: SubagentStatus, error?: string) => {
       set(
         (state) => {

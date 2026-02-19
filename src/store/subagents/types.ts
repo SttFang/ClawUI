@@ -28,6 +28,8 @@ export interface SubagentsState {
 
 export interface SubagentsActions {
   add: (node: SubagentNode) => void;
+  /** Replace a temporary node key with the real runId + sessionKey after history fetch. */
+  resolveSpawn: (tempKey: string, realRunId: string, sessionKey: string) => void;
   updateStatus: (runId: string, status: SubagentStatus, error?: string) => void;
   select: (runId: string | null) => void;
   togglePanel: (open?: boolean) => void;

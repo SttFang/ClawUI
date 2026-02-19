@@ -73,9 +73,10 @@ export function createSubagentsActions(set: Set, _get: Get): SubagentsActions {
 
     setHistory: (runId, messages) => {
       set(
-        (state) => ({
-          historyByRunId: { ...state.historyByRunId, [runId]: messages },
-        }),
+        (state) => {
+          if (hasSameHistory(state.historyByRunId[runId], messages)) return state;
+          return { historyByRunId: { ...state.historyByRunId, [runId]: messages } };
+        },
         false,
         "subagents/setHistory",
       );
@@ -105,4 +106,24 @@ export function createSubagentsActions(set: Set, _get: Get): SubagentsActions {
 
 function isTerminal(status: SubagentStatus): boolean {
   return status === "done" || status === "error" || status === "timeout";
+}
+
+function hasSameHistory(
+  prev: SubagentsStore["historyByRunId"][string] | undefined,
+  next: SubagentsStore["historyByRunId"][string],
+): boolean {
+  if (prev === next) return true;
+  if (!prev || prev.length !== next.length) return false;
+
+  for (let i = 0; i < prev.length; i++) {
+    if (
+      prev[i].role !== next[i].role ||
+      prev[i].content !== next[i].content ||
+      prev[i].timestampMs !== next[i].timestampMs
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }

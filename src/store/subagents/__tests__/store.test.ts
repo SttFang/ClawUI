@@ -107,6 +107,28 @@ describe("subagents store", () => {
     useSubagentsStore.getState().togglePanel();
     expect(useSubagentsStore.getState().panelOpen).toBe(false);
   });
+
+  it("setHistory is idempotent when payload is unchanged", () => {
+    let updateCount = 0;
+    const unsub = useSubagentsStore.subscribe(() => {
+      updateCount += 1;
+    });
+
+    useSubagentsStore
+      .getState()
+      .setHistory("r1", [{ role: "assistant", content: "ok", timestampMs: 1 }]);
+    const firstRef = useSubagentsStore.getState().historyByRunId.r1;
+
+    useSubagentsStore
+      .getState()
+      .setHistory("r1", [{ role: "assistant", content: "ok", timestampMs: 1 }]);
+    const secondRef = useSubagentsStore.getState().historyByRunId.r1;
+
+    expect(updateCount).toBe(1);
+    expect(secondRef).toBe(firstRef);
+
+    unsub();
+  });
 });
 
 describe("subagents selectors", () => {

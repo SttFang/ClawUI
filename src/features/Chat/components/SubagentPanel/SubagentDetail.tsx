@@ -1,12 +1,19 @@
 import { ScrollArea, cn } from "@clawui/ui";
 import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 import { useSubagentsStore, selectSelectedNode, selectHistory } from "@/store/subagents";
 
 export function SubagentDetail() {
   const { t } = useTranslation("common");
-  const node = useSubagentsStore(selectSelectedNode);
-  const runId = node?.runId ?? null;
-  const messages = useSubagentsStore((s) => selectHistory(s, runId));
+  const { node, messages } = useSubagentsStore(
+    useShallow((state) => {
+      const selectedNode = selectSelectedNode(state);
+      return {
+        node: selectedNode,
+        messages: selectHistory(state, selectedNode?.runId ?? null),
+      };
+    }),
+  );
 
   if (!node) {
     return (

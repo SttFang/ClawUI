@@ -25,6 +25,8 @@
       "@clawui/types/*": ["packages/types/src/*"],
       "@clawui/config-core": ["packages/config-core/src/index.ts"],
       "@clawui/config-core/*": ["packages/config-core/src/*"],
+      "@clawui/constants": ["packages/constants/src/index.ts"],
+      "@clawui/constants/*": ["packages/constants/src/*"],
       "@clawui/ui": ["packages/ui/src/index.ts"],
       "@clawui/ui/*": ["packages/ui/src/*"],
       "@clawui/openclaw-chat-stream": ["packages/openclaw-chat-stream/src/index.ts"],

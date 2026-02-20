@@ -2,7 +2,7 @@
  * ClawUI 要求的最低 OpenClaw 版本。
  * Installer 和 RuntimeDetector 共享此常量。
  */
-export const MIN_OPENCLAW_VERSION = "2026.2.9";
+export { MIN_OPENCLAW_VERSION } from "@clawui/constants/gateway";
 
 /**
  * 解析 OpenClaw 版本字符串为可比较的数字元组。

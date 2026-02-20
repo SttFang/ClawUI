@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import { TRACKED_GATEWAY_EVENTS } from "@clawui/constants/events";
 import type { GatewayEventFrame } from "@/lib/ipc";
 import { ipc } from "@/lib/ipc";
 
@@ -35,15 +36,6 @@ const initialState: GatewayActivityState = {
   tickIntervalMs: 30_000,
   tickCount: 0,
 };
-
-const TRACKED_EVENTS = new Set([
-  "heartbeat",
-  "health",
-  "shutdown",
-  "exec.approval.requested",
-  "exec.approval.resolved",
-  "cron",
-]);
 
 function buildLabel(event: string, payload: unknown): string {
   const p = payload as Record<string, unknown> | undefined;
@@ -149,7 +141,7 @@ export function initGatewayActivityListener(): void {
       return;
     }
 
-    if (TRACKED_EVENTS.has(frame.event)) {
+    if (TRACKED_GATEWAY_EVENTS.has(frame.event)) {
       useGatewayActivityStore.getState().pushEntry(frame);
     }
   });

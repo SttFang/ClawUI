@@ -1,33 +1,13 @@
 import type { IpcMain } from "electron";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { ALLOWED_CONFIG_PATHS, type AllowedConfigPath } from "@clawui/constants/security";
 import { resolveOpenClawPath } from "../utils/openclaw-cli";
 
 const execFileAsync = promisify(execFile);
 
-type AllowedPath =
-  | "tools.elevated.enabled"
-  | "tools.elevated.allowFrom.webchat"
-  | "tools.elevated.allowFrom.discord"
-  | "tools.allow"
-  | "tools.deny"
-  | "agents.defaults.sandbox.mode"
-  | "agents.defaults.sandbox.workspaceAccess"
-  | "agents.defaults.sandbox.docker.binds";
-
-const ALLOWED_PATHS = new Set<AllowedPath>([
-  "tools.elevated.enabled",
-  "tools.elevated.allowFrom.webchat",
-  "tools.elevated.allowFrom.discord",
-  "tools.allow",
-  "tools.deny",
-  "agents.defaults.sandbox.mode",
-  "agents.defaults.sandbox.workspaceAccess",
-  "agents.defaults.sandbox.docker.binds",
-]);
-
-function assertAllowedPath(path: string): asserts path is AllowedPath {
-  if (!ALLOWED_PATHS.has(path as AllowedPath)) {
+function assertAllowedPath(path: string): asserts path is AllowedConfigPath {
+  if (!ALLOWED_CONFIG_PATHS.has(path as AllowedConfigPath)) {
     throw new Error(`Config path not allowed: ${path}`);
   }
 }

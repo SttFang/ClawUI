@@ -16,6 +16,7 @@ export function classifySessionKey(sessionKey: string): { source: SessionSource;
   if (head === "clawui" && head2 === "meta") return { source: "unknown", hidden: true };
   if (head === "meta") return { source: "unknown", hidden: true };
   if (head === "subagent") return { source: "unknown", hidden: true };
+  if (head === "rescue") return { source: "unknown", hidden: true };
 
   if (head === "main" || head === "ui") return { source: "ui", hidden: false };
   if (head === "cron") return { source: "cron", hidden: false };

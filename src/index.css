@@ -214,11 +214,14 @@
   }
 
   /* docx-preview: flow layout for side panel */
+  .docx-flow-content section.docx-viewer {
+    padding: 8px !important;
+  }
+
   .docx-flow-content article {
     max-width: 100%;
     overflow-wrap: break-word;
     word-break: break-word;
-    padding: 8px !important;
   }
 
   .docx-flow-content table {

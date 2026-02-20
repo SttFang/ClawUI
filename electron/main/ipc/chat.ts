@@ -42,6 +42,7 @@ export function registerChatHandlers(
     "gateway-event": "gateway:event",
     "normalized-event": "chat:normalized-event",
     connected: "chat:connected",
+    reconnected: "chat:reconnected",
     disconnected: "chat:disconnected",
     error: "chat:error",
   });

@@ -40,6 +40,7 @@ export class ChatWebSocketService extends EventEmitter {
     super();
 
     this.transport.on("connected", () => this.emit("connected"));
+    this.transport.on("reconnected", () => this.emit("reconnected"));
     this.transport.on("disconnected", () => this.emit("disconnected"));
     this.transport.on("error", (error: string) => this.emit("error", error));
     this.transport.on("event", (event: GatewayEventFrame) => this.handleEvent(event));

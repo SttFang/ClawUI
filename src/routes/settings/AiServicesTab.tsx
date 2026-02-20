@@ -14,7 +14,7 @@ import {
   Label,
   Select,
 } from "@clawui/ui";
-import { AlertCircle, ChevronDown, Key, Loader2 } from "lucide-react";
+import { AlertCircle, ChevronDown, Loader2 } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ModelConfig } from "@/features/Settings/components/ModelConfig";
@@ -88,7 +88,7 @@ export function AiServicesTab() {
   const secretsSaveSuccess = useSecretsStore(selectSecretsSaveSuccess);
   const saveSecrets = useSecretsStore((s) => s.save);
 
-  // --- Model config (advanced) ---
+  // --- Model config ---
   const config = useModelConfig();
   const form = useAuthOrderForm(config);
 
@@ -99,6 +99,7 @@ export function AiServicesTab() {
     [setApiKey],
   );
 
+  // Merge real providers + fallback list (full coverage)
   const providerInfos = useMemo(() => {
     const merged: ProviderAuthInfo[] = [];
     const seen = new Set<string>();
@@ -132,8 +133,7 @@ export function AiServicesTab() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Provider Cards */}
+    <div className="space-y-4">
       {settingsError && (
         <Card>
           <CardContent className="pt-4">
@@ -145,54 +145,64 @@ export function AiServicesTab() {
         </Card>
       )}
 
-      {modelsStatus ? (
-        <ModelConfig defaultModel={modelsStatus.defaultModel} fallbacks={modelsStatus.fallbacks} />
-      ) : (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Key className="w-5 h-5" />
-              <CardTitle>{t("settings.page.api.fallback.title")}</CardTitle>
-            </div>
-            <CardDescription>{t("settings.page.api.fallback.description")}</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            {t("settings.page.api.fallback.statusUnavailable")}
-          </CardContent>
-        </Card>
+      {/* Model Config: default + fallbacks */}
+      {modelsStatus && (
+        <ModelConfig
+          defaultModel={modelsStatus.defaultModel}
+          fallbacks={modelsStatus.fallbacks}
+          catalog={config.catalog}
+          isLoading={config.isLoading}
+          onSetDefault={(model) => void config.setDefaultModel(model)}
+          onAddFallback={(model) => void config.addFallback(model)}
+          onRemoveFallback={(model) => void config.removeFallback(model)}
+        />
       )}
 
-      <div className="rounded-lg border divide-y">
-        {providerInfos.map((provider) => (
-          <ProviderCard
-            key={provider.provider}
-            provider={provider.provider}
-            authInfo={provider}
-            oauthStatus={
-              modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined
-            }
-            apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
-            onApiKeyChange={handleApiKeyChange(provider.provider)}
-            onApiKeySave={() => void saveApiKeys(provider.provider)}
-            isSaving={isSaving}
-            saveSuccess={saveSuccess}
-            canSaveApiKey={canSaveApiKeyForProvider({
-              providerId: provider.provider,
-              modelsStatus,
-            })}
-          />
-        ))}
-      </div>
+      {/* Provider auth list (default open) */}
+      <Collapsible defaultOpen>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between rounded-lg border px-4 py-2.5 text-left hover:bg-muted/50 transition-colors"
+          >
+            <span className="text-sm font-medium">{t("settings.modelConfig.title")}</span>
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="rounded-b-lg border border-t-0 divide-y">
+            {providerInfos.map((provider) => (
+              <ProviderCard
+                key={provider.provider}
+                provider={provider.provider}
+                authInfo={provider}
+                oauthStatus={
+                  modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined
+                }
+                apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
+                onApiKeyChange={handleApiKeyChange(provider.provider)}
+                onApiKeySave={() => void saveApiKeys(provider.provider)}
+                isSaving={isSaving}
+                saveSuccess={saveSuccess}
+                canSaveApiKey={canSaveApiKeyForProvider({
+                  providerId: provider.provider,
+                  modelsStatus,
+                })}
+              />
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Tool API Keys */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle>{t("settings.page.tokens.toolSection")}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-2">
             {TOOL_DEFS.map((tool) => (
-              <div key={tool.toolId} className="space-y-1.5">
+              <div key={tool.toolId} className="space-y-1">
                 <Label htmlFor={tool.toolId}>{tool.label}</Label>
                 <Input
                   id={tool.toolId}
@@ -217,7 +227,7 @@ export function AiServicesTab() {
         </CardContent>
       </Card>
 
-      {/* Advanced: model config, auth order, probe, oauth */}
+      {/* Advanced: auth order, probe, oauth */}
       <Collapsible>
         <CollapsibleTrigger asChild>
           <Button variant="ghost" className="flex items-center gap-2">
@@ -243,19 +253,12 @@ function AdvancedModelConfig({
 }) {
   const { t } = useTranslation("common");
   const {
-    catalog,
-    fallbacks,
     selectedProvider,
     error,
     success,
     isLoading,
     lastProbeAt,
-    defaultModel,
     clearMessages,
-    setDefaultModel,
-    addFallback,
-    removeFallback,
-    clearFallbacks,
     loadStatus,
     setSelectedProvider,
     saveAuthOrder,
@@ -265,8 +268,6 @@ function AdvancedModelConfig({
   } = config;
 
   const {
-    fallbackInput,
-    setFallbackInput,
     authOrderInput,
     setAuthOrderInput,
     authMethodInput,
@@ -287,101 +288,6 @@ function AdvancedModelConfig({
           {success}
         </div>
       ) : null}
-
-      {/* Default Model */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.page.models.defaultModel.title")}</CardTitle>
-          <CardDescription>{t("settings.page.models.defaultModel.description")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-2">
-            <Label>{t("settings.page.models.defaultModel.label")}</Label>
-            <Select
-              value={defaultModel}
-              onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                clearMessages();
-                void setDefaultModel(event.target.value);
-              }}
-              disabled={isLoading}
-            >
-              {catalog.map((model) => (
-                <option key={model.key} value={model.key}>
-                  {model.key}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {t("settings.page.models.defaultModel.current", { model: defaultModel || "-" })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Fallback Models */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.page.models.fallbacks.title")}</CardTitle>
-          <CardDescription>{t("settings.page.models.fallbacks.description")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Input
-              value={fallbackInput}
-              onChange={(event) => setFallbackInput(event.target.value)}
-              placeholder={t("settings.page.models.fallbacks.placeholder")}
-              disabled={isLoading}
-            />
-            <Button
-              onClick={() => {
-                clearMessages();
-                void addFallback(fallbackInput);
-                setFallbackInput("");
-              }}
-              disabled={isLoading || !fallbackInput.trim()}
-            >
-              {t("settings.page.models.fallbacks.add")}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                clearMessages();
-                void clearFallbacks();
-              }}
-              disabled={isLoading || fallbacks.length === 0}
-            >
-              {t("settings.page.models.fallbacks.clear")}
-            </Button>
-          </div>
-          <div className="space-y-2">
-            {fallbacks.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                {t("settings.page.models.fallbacks.empty")}
-              </div>
-            ) : (
-              fallbacks.map((model) => (
-                <div
-                  key={model}
-                  className="flex items-center justify-between rounded-md border px-3 py-2"
-                >
-                  <span className="text-sm">{model}</span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      clearMessages();
-                      void removeFallback(model);
-                    }}
-                    disabled={isLoading}
-                  >
-                    {t("settings.page.models.fallbacks.remove")}
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Auth Order */}
       <Card>

@@ -30,11 +30,18 @@ export function parseJson<T>(output: string, context: string): T {
   }
   try {
     return JSON.parse(raw) as T;
-  } catch (error) {
-    throw new Error(
-      `${context}: invalid JSON output (${error instanceof Error ? error.message : String(error)})`,
-      { cause: error },
-    );
+  } catch {
+    // CLI may prefix JSON with diagnostic output (e.g. doctor warnings).
+    // Try to extract the last JSON object or array from the output.
+    const match = raw.match(/(\{[\s\S]*\}|\[[\s\S]*\])\s*$/);
+    if (match) {
+      try {
+        return JSON.parse(match[1]) as T;
+      } catch {
+        // fall through
+      }
+    }
+    throw new Error(`${context}: invalid JSON output`);
   }
 }
 

@@ -608,6 +608,7 @@ const common = {
       },
       api: {
         loading: "加载模型状态中...",
+        providersTitle: "Provider 认证",
         fallback: {
           title: "API Key",
           description: "配置 AI 提供商的 API Key。密钥将本地加密存储。",
@@ -773,6 +774,7 @@ const common = {
       title: "模型配置",
       defaultModel: "默认模型",
       fallbacks: "回退模型",
+      fallbackPlaceholder: "输入模型 ID，如 anthropic/claude-4-sonnet",
       fallbackHint: "当默认模型不可用时使用",
     },
   },
@@ -948,6 +950,15 @@ const common = {
       description: "系统未检测到 OpenClaw。点击下方按钮自动安装。",
       actions: {
         oneClickInstall: "一键安装",
+      },
+    },
+    upgrade: {
+      title: "需要升级 OpenClaw",
+      description: "当前安装的 OpenClaw 版本过低，需要升级才能继续使用。",
+      currentVersion: "当前版本：{{version}}",
+      requiredVersion: "最低要求：2026.2.9",
+      actions: {
+        upgrade: "一键升级",
       },
     },
     requirements: {

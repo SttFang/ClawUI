@@ -565,6 +565,7 @@ const common = {
       },
       api: {
         loading: "Loading models status...",
+        providersTitle: "Provider authentication",
         fallback: {
           title: "API keys",
           description:
@@ -733,6 +734,7 @@ const common = {
       title: "Model configuration",
       defaultModel: "Default model",
       fallbacks: "Fallbacks",
+      fallbackPlaceholder: "Model ID, e.g. anthropic/claude-4-sonnet",
       fallbackHint: "Used when the default model is unavailable",
     },
   },
@@ -909,6 +911,16 @@ const common = {
         "OpenClaw is not installed on your system. Click below to install it automatically.",
       actions: {
         oneClickInstall: "One-click install",
+      },
+    },
+    upgrade: {
+      title: "Upgrade OpenClaw Required",
+      description:
+        "Your installed OpenClaw version is too old. An upgrade is required to continue.",
+      currentVersion: "Current version: {{version}}",
+      requiredVersion: "Minimum required: 2026.2.9",
+      actions: {
+        upgrade: "One-click upgrade",
       },
     },
     requirements: {

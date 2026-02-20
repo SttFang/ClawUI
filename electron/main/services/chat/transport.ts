@@ -53,6 +53,7 @@ export class ChatTransport extends EventEmitter {
   private shouldReconnect = true;
   private pendingRequests = new Map<string, PendingRequest>();
   private connected = false;
+  private wasConnected = false;
   private readonly instanceId = randomUUID();
   private clientVersion = "0.1.0";
 
@@ -189,6 +190,7 @@ export class ChatTransport extends EventEmitter {
       socket.on("close", (code, reason) => {
         chatLog.info("[ws.closed]", `code=${code}`, `reason=${String(reason)}`);
         this.connected = false;
+        this.wasConnected = true;
         this.lastTick = null;
         if (this.tickTimer) {
           clearInterval(this.tickTimer);
@@ -264,7 +266,11 @@ export class ChatTransport extends EventEmitter {
           this.backoffMs = 1000;
           this.startTickWatch();
           this.connected = true;
-          this.emit("connected");
+          if (this.wasConnected) {
+            this.emit("reconnected");
+          } else {
+            this.emit("connected");
+          }
           chatLog.info("[ws.connected]", `durationMs=${Date.now() - t0}`);
           callbacks?.resolve();
         } else {

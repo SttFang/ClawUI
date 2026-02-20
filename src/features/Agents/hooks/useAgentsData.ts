@@ -12,6 +12,7 @@ export function useAgentsData() {
   const cronStatus = useAgentsStore(agentsSelectors.selectCronStatus);
   const cronJobs = useAgentsStore(agentsSelectors.selectCronJobs);
   const loadConfig = useAgentsStore((s) => s.loadConfig);
+  const loadSkills = useAgentsStore((s) => s.loadSkills);
   const loadCronStatus = useAgentsStore((s) => s.loadCronStatus);
   const loadCronJobs = useAgentsStore((s) => s.loadCronJobs);
   const clearCronError = useAgentsStore((s) => s.clearCronError);
@@ -29,12 +30,13 @@ export function useAgentsData() {
 
   useEffect(() => {
     void loadConfig();
+    void loadSkills();
     void loadCronStatus();
     void loadChannels();
     void loadTools();
     void loadPlugins();
     void loadMcpServers();
-  }, [loadConfig, loadCronStatus, loadChannels, loadTools, loadPlugins, loadMcpServers]);
+  }, [loadConfig, loadSkills, loadCronStatus, loadChannels, loadTools, loadPlugins, loadMcpServers]);
 
   const handleOpenCronDialog = useCallback(async () => {
     setCronDialogOpen(true);

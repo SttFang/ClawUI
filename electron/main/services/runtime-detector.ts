@@ -5,9 +5,16 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { detectorLog } from "../lib/logger";
 import { execInLoginShell, resolveCommandPath } from "../utils/login-shell";
+import { safeExecFile } from "../utils/safe-exec";
+import { compareOpenClawVersions, MIN_OPENCLAW_VERSION } from "../utils/version";
 import { ConfigService, ConfigRepository } from "./config";
 
 const execAsync = promisify(exec);
+
+export interface OpenClawInstall {
+  path: string;
+  version: string;
+}
 
 export interface RuntimeStatus {
   nodeInstalled: boolean;
@@ -16,6 +23,10 @@ export interface RuntimeStatus {
   openclawInstalled: boolean;
   openclawVersion: string | null;
   openclawPath: string | null;
+  openclawCompatible: boolean;
+  openclawNeedsUpgrade: boolean;
+  openclawInstalls: OpenClawInstall[];
+  openclawConflict: boolean;
   configExists: boolean;
   configValid: boolean;
   configSchemaVersion: string | null;
@@ -46,6 +57,8 @@ export class RuntimeDetectorService {
       "[detect.complete]",
       `node=${result.nodeVersion ?? "n/a"}`,
       `openclaw=${result.openclawVersion ?? "n/a"}`,
+      `installs=${result.openclawInstalls.length}`,
+      `conflict=${result.openclawConflict}`,
       `config=${result.configExists ? (result.configValid ? "valid" : "invalid") : "missing"}`,
       `durationMs=${Date.now() - t0}`,
     );
@@ -117,37 +130,114 @@ export class RuntimeDetectorService {
     }
   }
 
+  /**
+   * Scan all openclaw installations in PATH via `which -a` (macOS/Linux)
+   * or `where` (Windows), then pick the best (newest) one.
+   */
   private async detectOpenClaw(): Promise<{
     openclawInstalled: boolean;
     openclawVersion: string | null;
     openclawPath: string | null;
+    openclawCompatible: boolean;
+    openclawNeedsUpgrade: boolean;
+    openclawInstalls: OpenClawInstall[];
+    openclawConflict: boolean;
   }> {
-    // For ClawUI's product goal, we treat "installed" as: available in the user's shell PATH.
-    // (The embedded runtime install does not satisfy `openclaw` in Terminal.)
-    try {
-      const openclawPath = await resolveCommandPath("openclaw");
-      if (openclawPath && existsSync(openclawPath)) {
-        const { stdout: versionOutput } = await execInLoginShell("openclaw --version", {
-          timeoutMs: 5_000,
-        });
-        const version = versionOutput.trim() || "unknown";
-        detectorLog.info("[detect.openclaw]", `version=${version}`, `path=${openclawPath}`);
-        return {
-          openclawInstalled: true,
-          openclawVersion: version,
-          openclawPath,
-        };
-      }
-    } catch (error) {
-      detectorLog.warn("[detect.openclaw]", "detection failed:", error);
-    }
-
-    detectorLog.info("[detect.openclaw]", "not installed");
-    return {
+    const notInstalled = {
       openclawInstalled: false,
       openclawVersion: null,
       openclawPath: null,
+      openclawCompatible: false,
+      openclawNeedsUpgrade: false,
+      openclawInstalls: [],
+      openclawConflict: false,
     };
+
+    try {
+      const allPaths = await this.findAllOpenClawPaths();
+      if (allPaths.length === 0) {
+        detectorLog.info("[detect.openclaw]", "not installed");
+        return notInstalled;
+      }
+
+      // Get version for each path
+      const installs: OpenClawInstall[] = [];
+      for (const p of allPaths) {
+        try {
+          const { stdout } = await safeExecFile(p, ["--version"], { timeoutMs: 5_000 });
+          const version = stdout.trim();
+          if (version) {
+            installs.push({ path: p, version });
+          }
+        } catch {
+          detectorLog.warn("[detect.openclaw.versionFailed]", `path=${p}`);
+        }
+      }
+
+      if (installs.length === 0) {
+        detectorLog.info("[detect.openclaw]", "binaries found but none returned a version");
+        return notInstalled;
+      }
+
+      // Detect conflict: multiple installs with different versions
+      const versions = new Set(installs.map((i) => i.version));
+      const conflict = versions.size > 1;
+
+      // Pick the best: newest version
+      const best = installs.reduce((a, b) =>
+        compareOpenClawVersions(a.version, b.version) >= 0 ? a : b,
+      );
+
+      const compatible = compareOpenClawVersions(best.version, MIN_OPENCLAW_VERSION) >= 0;
+
+      if (conflict) {
+        detectorLog.warn(
+          "[detect.openclaw.conflict]",
+          `found ${installs.length} installs with ${versions.size} distinct versions`,
+          ...installs.map((i) => `${i.path}=${i.version}`),
+          `chosen=${best.path} (${best.version})`,
+        );
+      } else {
+        detectorLog.info(
+          "[detect.openclaw]",
+          `version=${best.version}`,
+          `path=${best.path}`,
+          `installs=${installs.length}`,
+        );
+      }
+
+      return {
+        openclawInstalled: true,
+        openclawVersion: best.version,
+        openclawPath: best.path,
+        openclawCompatible: compatible,
+        openclawNeedsUpgrade: !compatible,
+        openclawInstalls: installs,
+        openclawConflict: conflict,
+      };
+    } catch (error) {
+      detectorLog.warn("[detect.openclaw]", "detection failed:", error);
+      return notInstalled;
+    }
+  }
+
+  /**
+   * Find all openclaw binaries in PATH.
+   * Uses `which -a` on macOS/Linux, `where` on Windows.
+   */
+  private async findAllOpenClawPaths(): Promise<string[]> {
+    try {
+      const cmd = process.platform === "win32" ? "where openclaw" : "which -a openclaw";
+      const { stdout } = await execInLoginShell(cmd, { timeoutMs: 5_000 });
+      return stdout
+        .trim()
+        .split(/\r?\n/)
+        .filter((line) => line && existsSync(line));
+    } catch {
+      // Fallback: try resolveCommandPath for at least the first one
+      const single = await resolveCommandPath("openclaw");
+      return single && existsSync(single) ? [single] : [];
+    }
   }
 
   private async detectConfig(): Promise<{

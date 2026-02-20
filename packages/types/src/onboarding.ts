@@ -3,6 +3,14 @@
 // ============================================
 
 /**
+ * A single OpenClaw installation found on the system.
+ */
+export interface OpenClawInstall {
+  path: string;
+  version: string;
+}
+
+/**
  * Runtime detection result
  */
 export interface RuntimeStatus {
@@ -14,9 +22,9 @@ export interface RuntimeStatus {
   nodePath: string | null;
   /** Whether OpenClaw is installed */
   openclawInstalled: boolean;
-  /** OpenClaw version string */
+  /** OpenClaw version string (best/chosen version) */
   openclawVersion: string | null;
-  /** Path to OpenClaw installation */
+  /** Path to OpenClaw binary (best/chosen) */
   openclawPath: string | null;
   /** Whether config file exists */
   configExists: boolean;
@@ -26,6 +34,14 @@ export interface RuntimeStatus {
   configSchemaVersion?: string | null;
   /** Path to config file (~/.openclaw/openclaw.json) */
   configPath: string;
+  /** 已安装版本是否满足 ClawUI 最低要求 */
+  openclawCompatible: boolean;
+  /** 已安装但需要升级 */
+  openclawNeedsUpgrade: boolean;
+  /** 检测到的所有 OpenClaw 安装 */
+  openclawInstalls: OpenClawInstall[];
+  /** 是否存在多版本冲突（多个安装且版本不一致） */
+  openclawConflict: boolean;
 }
 
 /**
@@ -64,6 +80,7 @@ export interface InstallProgress {
 export type OnboardingStep =
   | "checking" // Initial check
   | "install" // Show install button
+  | "upgrade" // Installed but version too low
   | "installing" // Installation in progress
   | "complete" // Installation done, redirecting
   | "error"; // Installation failed

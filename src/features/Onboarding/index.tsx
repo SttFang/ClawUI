@@ -1,6 +1,13 @@
 import { Button, Progress } from "@clawui/ui";
 import { OpenClaw } from "@lobehub/icons";
-import { Loader2, Download, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  Loader2,
+  Download,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  ArrowUpCircle,
+} from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -124,6 +131,38 @@ export function Onboarding() {
                 <Button onClick={handleInstall} className="w-full" size="lg">
                   <Download className="mr-2 h-4 w-4" />
                   {t("onboarding.install.actions.oneClickInstall")}
+                </Button>
+              </div>
+            )}
+
+            {step === "upgrade" && (
+              <div className="space-y-6">
+                <div className="p-6 rounded-lg bg-card border space-y-4">
+                  <ArrowUpCircle className="h-12 w-12 mx-auto text-amber-500" />
+                  <div className="space-y-2">
+                    <h2 className="text-xl font-semibold">{t("onboarding.upgrade.title")}</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {t("onboarding.upgrade.description")}
+                    </p>
+                  </div>
+                  {runtimeStatus && (
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p>
+                        {t("onboarding.upgrade.currentVersion", {
+                          version: runtimeStatus.openclawVersion,
+                        })}
+                      </p>
+                      <p>
+                        {t("onboarding.upgrade.requiredVersion", {
+                          version: runtimeStatus.openclawVersion,
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <Button onClick={handleInstall} className="w-full" size="lg">
+                  <ArrowUpCircle className="mr-2 h-4 w-4" />
+                  {t("onboarding.upgrade.actions.upgrade")}
                 </Button>
               </div>
             )}

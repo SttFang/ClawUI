@@ -281,6 +281,8 @@ function getBrowserFallbackRuntimeStatus(): RuntimeStatus {
     openclawPath: null,
     openclawCompatible: true,
     openclawNeedsUpgrade: false,
+    openclawInstalls: [],
+    openclawConflict: false,
     configExists: true,
     configValid: true,
     configSchemaVersion: null,

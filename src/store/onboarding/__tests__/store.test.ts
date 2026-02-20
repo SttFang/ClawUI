@@ -13,6 +13,25 @@ vi.mock("@/lib/ipc", () => ({
   },
 }));
 
+function mockStatus(overrides: Partial<RuntimeStatus> = {}): RuntimeStatus {
+  return {
+    nodeInstalled: true,
+    nodeVersion: "22.0.0",
+    nodePath: "/usr/local/bin/node",
+    openclawInstalled: true,
+    openclawVersion: "2026.2.9",
+    openclawPath: "/usr/local/bin/openclaw",
+    openclawCompatible: true,
+    openclawNeedsUpgrade: false,
+    openclawInstalls: [],
+    openclawConflict: false,
+    configExists: true,
+    configValid: true,
+    configPath: "~/.openclaw/openclaw.json",
+    ...overrides,
+  };
+}
+
 const initialState = {
   step: "checking" as const,
   runtimeStatus: null,
@@ -23,7 +42,6 @@ const initialState = {
 
 describe("OnboardingStore", () => {
   beforeEach(() => {
-    // Reset store state before each test
     useOnboardingStore.setState(initialState);
     vi.clearAllMocks();
   });
@@ -38,7 +56,7 @@ describe("OnboardingStore", () => {
     it("should allow setting any valid step", () => {
       const { setStep } = useOnboardingStore.getState();
 
-      const steps = ["checking", "install", "installing", "complete", "error"] as const;
+      const steps = ["checking", "install", "upgrade", "installing", "complete", "error"] as const;
 
       for (const step of steps) {
         setStep(step);
@@ -50,18 +68,7 @@ describe("OnboardingStore", () => {
   describe("setRuntimeStatus", () => {
     it("should update runtime status", () => {
       const { setRuntimeStatus } = useOnboardingStore.getState();
-      const status: RuntimeStatus = {
-        nodeInstalled: true,
-        nodeVersion: "22.0.0",
-        nodePath: "/usr/local/bin/node",
-        openclawInstalled: true,
-        openclawVersion: "1.0.0",
-        openclawPath: "/usr/local/bin/openclaw",
-        configExists: true,
-        configValid: true,
-        configPath: "~/.openclaw/openclaw.json",
-      };
-
+      const status = mockStatus();
       setRuntimeStatus(status);
       expect(useOnboardingStore.getState().runtimeStatus).toEqual(status);
     });
@@ -106,19 +113,9 @@ describe("OnboardingStore", () => {
   });
 
   describe("detectRuntime", () => {
-    it("should set step to complete when OpenClaw is installed", async () => {
+    it("should set step to complete when OpenClaw is installed and compatible", async () => {
       const { ipc } = await import("@/lib/ipc");
-      (ipc.onboarding.detect as Mock).mockResolvedValue({
-        nodeInstalled: true,
-        nodeVersion: "22.0.0",
-        nodePath: "/usr/local/bin/node",
-        openclawInstalled: true,
-        openclawVersion: "1.0.0",
-        openclawPath: "/usr/local/bin/openclaw",
-        configExists: true,
-        configValid: true,
-        configPath: "~/.openclaw/openclaw.json",
-      });
+      (ipc.onboarding.detect as Mock).mockResolvedValue(mockStatus());
 
       const { detectRuntime } = useOnboardingStore.getState();
       await detectRuntime();
@@ -128,19 +125,38 @@ describe("OnboardingStore", () => {
       expect(state.isLoading).toBe(false);
     });
 
+    it("should set step to upgrade when installed but version too old", async () => {
+      const { ipc } = await import("@/lib/ipc");
+      (ipc.onboarding.detect as Mock).mockResolvedValue(
+        mockStatus({
+          openclawVersion: "2025.1.1",
+          openclawCompatible: false,
+          openclawNeedsUpgrade: true,
+        }),
+      );
+
+      const { detectRuntime } = useOnboardingStore.getState();
+      await detectRuntime();
+
+      expect(useOnboardingStore.getState().step).toBe("upgrade");
+    });
+
     it("should set step to install when node not installed", async () => {
       const { ipc } = await import("@/lib/ipc");
-      (ipc.onboarding.detect as Mock).mockResolvedValue({
-        nodeInstalled: false,
-        nodeVersion: null,
-        nodePath: null,
-        openclawInstalled: false,
-        openclawVersion: null,
-        openclawPath: null,
-        configExists: false,
-        configValid: false,
-        configPath: "~/.openclaw/openclaw.json",
-      });
+      (ipc.onboarding.detect as Mock).mockResolvedValue(
+        mockStatus({
+          nodeInstalled: false,
+          nodeVersion: null,
+          nodePath: null,
+          openclawInstalled: false,
+          openclawVersion: null,
+          openclawPath: null,
+          openclawCompatible: false,
+          openclawNeedsUpgrade: false,
+          configExists: false,
+          configValid: false,
+        }),
+      );
 
       const { detectRuntime } = useOnboardingStore.getState();
       await detectRuntime();
@@ -150,17 +166,17 @@ describe("OnboardingStore", () => {
 
     it("should set step to install when openclaw not installed", async () => {
       const { ipc } = await import("@/lib/ipc");
-      (ipc.onboarding.detect as Mock).mockResolvedValue({
-        nodeInstalled: true,
-        nodeVersion: "22.0.0",
-        nodePath: "/usr/local/bin/node",
-        openclawInstalled: false,
-        openclawVersion: null,
-        openclawPath: null,
-        configExists: false,
-        configValid: false,
-        configPath: "~/.openclaw/openclaw.json",
-      });
+      (ipc.onboarding.detect as Mock).mockResolvedValue(
+        mockStatus({
+          openclawInstalled: false,
+          openclawVersion: null,
+          openclawPath: null,
+          openclawCompatible: false,
+          openclawNeedsUpgrade: false,
+          configExists: false,
+          configValid: false,
+        }),
+      );
 
       const { detectRuntime } = useOnboardingStore.getState();
       await detectRuntime();
@@ -170,22 +186,12 @@ describe("OnboardingStore", () => {
 
     it("should set step to complete when installed (config check happens in ChatPage)", async () => {
       const { ipc } = await import("@/lib/ipc");
-      (ipc.onboarding.detect as Mock).mockResolvedValue({
-        nodeInstalled: true,
-        nodeVersion: "22.0.0",
-        nodePath: "/usr/local/bin/node",
-        openclawInstalled: true,
-        openclawVersion: "1.0.0",
-        openclawPath: "/usr/local/bin/openclaw",
-        configExists: true,
-        configValid: false, // Config not valid, but still complete
-        configPath: "~/.openclaw/openclaw.json",
-      });
+      (ipc.onboarding.detect as Mock).mockResolvedValue(mockStatus({ configValid: false }));
 
       const { detectRuntime } = useOnboardingStore.getState();
       await detectRuntime();
 
-      // Simplified flow: if installed, go to complete regardless of config
+      // Simplified flow: if installed + compatible, go to complete regardless of config
       expect(useOnboardingStore.getState().step).toBe("complete");
     });
 
@@ -211,7 +217,7 @@ describe("OnboardingStore", () => {
 
       const state = useOnboardingStore.getState();
       expect(state.step).toBe("error");
-      expect(state.error).toBe("Failed to detect runtime");
+      expect(state.error).toBe("onboarding.errors.runtimeDetectFailed");
     });
 
     it("should set step to checking and loading to true at start", async () => {
@@ -223,17 +229,7 @@ describe("OnboardingStore", () => {
           step: useOnboardingStore.getState().step,
           isLoading: useOnboardingStore.getState().isLoading,
         };
-        return Promise.resolve({
-          nodeInstalled: true,
-          nodeVersion: "22.0.0",
-          nodePath: "/usr/local/bin/node",
-          openclawInstalled: true,
-          openclawVersion: "1.0.0",
-          openclawPath: "/usr/local/bin/openclaw",
-          configExists: true,
-          configValid: true,
-          configPath: "~/.openclaw/openclaw.json",
-        });
+        return Promise.resolve(mockStatus());
       });
 
       const { detectRuntime } = useOnboardingStore.getState();
@@ -252,7 +248,6 @@ describe("OnboardingStore", () => {
       const { startInstall } = useOnboardingStore.getState();
       const installPromise = startInstall();
 
-      // Check immediate state change
       expect(useOnboardingStore.getState().step).toBe("installing");
       expect(useOnboardingStore.getState().isLoading).toBe(true);
 
@@ -267,7 +262,6 @@ describe("OnboardingStore", () => {
         return () => {};
       });
       (ipc.onboarding.install as Mock).mockImplementation(() => {
-        // Simulate progress update after install starts
         if (progressCallback) {
           progressCallback({
             stage: "complete",
@@ -331,20 +325,9 @@ describe("OnboardingStore", () => {
 
   describe("reset", () => {
     it("should reset store to initial state", () => {
-      // Set some non-initial values
       useOnboardingStore.setState({
         step: "complete",
-        runtimeStatus: {
-          nodeInstalled: true,
-          nodeVersion: "22.0.0",
-          nodePath: "/usr/local/bin/node",
-          openclawInstalled: true,
-          openclawVersion: "1.0.0",
-          openclawPath: "/usr/local/bin/openclaw",
-          configExists: true,
-          configValid: true,
-          configPath: "~/.openclaw/openclaw.json",
-        },
+        runtimeStatus: mockStatus(),
         isLoading: true,
         error: "Some error",
       });
@@ -370,17 +353,7 @@ describe("OnboardingStore", () => {
 
     it("selectRuntimeStatus should return runtime status", async () => {
       const { selectRuntimeStatus } = await import("../index");
-      const status: RuntimeStatus = {
-        nodeInstalled: true,
-        nodeVersion: "22.0.0",
-        nodePath: "/usr/local/bin/node",
-        openclawInstalled: true,
-        openclawVersion: "1.0.0",
-        openclawPath: "/usr/local/bin/openclaw",
-        configExists: true,
-        configValid: true,
-        configPath: "~/.openclaw/openclaw.json",
-      };
+      const status = mockStatus();
       useOnboardingStore.setState({ runtimeStatus: status });
       expect(selectRuntimeStatus(useOnboardingStore.getState())).toEqual(status);
     });

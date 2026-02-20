@@ -51,14 +51,16 @@ export function useAppBootstrapOnce(): StartupState {
           return;
         }
 
+        const needsOnboarding = !status.openclawInstalled || status.openclawNeedsUpgrade;
+
         setState({
           isChecking: false,
-          openclawInstalled: status.openclawInstalled,
+          openclawInstalled: !needsOnboarding,
           configValid: status.configValid,
           runtimeStatus: status,
         });
 
-        if (status.openclawInstalled) {
+        if (!needsOnboarding) {
           startupLog.info("OpenClaw installed, starting Gateway");
           const gatewayStore = useGatewayStore.getState();
           const shouldAutoStart = clawuiState?.openclaw?.autoStart?.main !== false;

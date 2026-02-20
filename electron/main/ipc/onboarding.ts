@@ -4,9 +4,21 @@ import { installer, InstallProgress } from "../services/installer";
 import { runtimeDetector, RuntimeStatus } from "../services/runtime-detector";
 
 export function registerOnboardingHandlers(): void {
-  // Detect runtime environment
+  // Detect runtime environment, then silently clean up version conflicts
   ipcMain.handle("onboarding:detect", async (): Promise<RuntimeStatus> => {
-    return runtimeDetector.detect();
+    const status = await runtimeDetector.detect();
+
+    // If multiple installs exist and we have a compatible best version,
+    // silently remove the stale ones so Gateway always uses the right binary.
+    if (status.openclawConflict && status.openclawCompatible && status.openclawPath) {
+      const stale = status.openclawInstalls.filter((i) => i.path !== status.openclawPath);
+      if (stale.length > 0) {
+        // Fire-and-forget: don't block startup
+        installer.removeStaleInstalls(stale).catch(() => {});
+      }
+    }
+
+    return status;
   });
 
   // Install runtime (Node.js + OpenClaw)

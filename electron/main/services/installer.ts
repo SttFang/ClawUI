@@ -1,6 +1,9 @@
+import path from "node:path";
+import type { OpenClawInstall } from "./runtime-detector";
 import { installerLog } from "../lib/logger";
-import { resolveCommandPath } from "../utils/login-shell";
+import { execInLoginShell, resolveCommandPath } from "../utils/login-shell";
 import { safeExecFile } from "../utils/safe-exec";
+import { compareOpenClawVersions, MIN_OPENCLAW_VERSION } from "../utils/version";
 
 export interface InstallProgress {
   stage: "checking-requirements" | "installing-openclaw" | "verifying" | "complete" | "error";
@@ -11,16 +14,16 @@ export interface InstallProgress {
 
 export type ProgressCallback = (progress: InstallProgress) => void;
 
-// Pin OpenClaw to a known-good version to avoid runtime/protocol drift.
+// Install latest — minimum version gate is handled by pre-check.
 // Can be overridden via env `CLAWUI_OPENCLAW_SPEC`.
-const DEFAULT_OPENCLAW_SPEC = "openclaw@2026.2.9";
+const DEFAULT_OPENCLAW_SPEC = "openclaw@latest";
 
 export class InstallerService {
   async install(onProgress: ProgressCallback): Promise<void> {
     const t0 = Date.now();
     try {
       installerLog.info("[install.start]");
-      // Step 1: Check Node.js + npm
+
       onProgress({
         stage: "checking-requirements",
         progress: 0,
@@ -28,27 +31,55 @@ export class InstallerService {
       });
       await this.verifyNodeAndNpm();
 
-      // Step 3: Install OpenClaw
+      // Scan all openclaw installations
+      const installs = await this.scanAllInstalls();
+      const best = this.pickBest(installs);
+
+      if (best && compareOpenClawVersions(best.version, MIN_OPENCLAW_VERSION) >= 0) {
+        // Already have a compatible version — clean up stale duplicates if any
+        const stale = installs.filter((i) => i.path !== best.path);
+        if (stale.length > 0) {
+          installerLog.info(
+            "[install.cleanup]",
+            `keeping=${best.path} (${best.version})`,
+            `removing=${stale.map((s) => `${s.path}(${s.version})`).join(", ")}`,
+          );
+          await this.removeStaleInstalls(stale);
+        }
+
+        installerLog.info(
+          "[install.skip]",
+          `version=${best.version}`,
+          `path=${best.path}`,
+          `minRequired=${MIN_OPENCLAW_VERSION}`,
+        );
+        onProgress({ stage: "complete", progress: 100, message: "OpenClaw already installed" });
+        return;
+      }
+
+      // Need install or upgrade
+      const action = best ? "Upgrading" : "Installing";
       onProgress({
         stage: "installing-openclaw",
         progress: 40,
-        message: `Installing OpenClaw globally (${DEFAULT_OPENCLAW_SPEC})...`,
+        message: `${action} OpenClaw...`,
       });
-      await this.installOpenClawGlobal(onProgress);
 
-      // Step 4: Verify installation
-      onProgress({
-        stage: "verifying",
-        progress: 90,
-        message: "Verifying installation...",
-      });
+      // If we have any existing install, upgrade at the best one's prefix.
+      // Then clean up stale duplicates.
+      const targetPrefix = best ? path.dirname(path.dirname(best.path)) : null;
+      await this.installOpenClawGlobal(onProgress, targetPrefix);
+
+      // Clean up other installs after upgrading
+      if (installs.length > 1 && best) {
+        const stale = installs.filter((i) => i.path !== best.path);
+        await this.removeStaleInstalls(stale);
+      }
+
+      onProgress({ stage: "verifying", progress: 90, message: "Verifying installation..." });
       await this.verify();
 
-      onProgress({
-        stage: "complete",
-        progress: 100,
-        message: "Installation complete!",
-      });
+      onProgress({ stage: "complete", progress: 100, message: "Installation complete!" });
       installerLog.info("[install.complete]", `durationMs=${Date.now() - t0}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -63,10 +94,72 @@ export class InstallerService {
     }
   }
 
+  /**
+   * Scan all openclaw binaries in PATH.
+   */
+  private async scanAllInstalls(): Promise<OpenClawInstall[]> {
+    const installs: OpenClawInstall[] = [];
+    try {
+      const cmd = process.platform === "win32" ? "where openclaw" : "which -a openclaw";
+      const { stdout } = await execInLoginShell(cmd, { timeoutMs: 5_000 });
+      const paths = stdout.trim().split(/\r?\n/).filter(Boolean);
+
+      for (const p of paths) {
+        try {
+          const { stdout: ver } = await safeExecFile(p, ["--version"], { timeoutMs: 5_000 });
+          const version = ver.trim();
+          if (version) installs.push({ path: p, version });
+        } catch {
+          // skip broken binaries
+        }
+      }
+    } catch {
+      // which -a failed, try single
+      const single = await resolveCommandPath("openclaw");
+      if (single) {
+        try {
+          const { stdout } = await safeExecFile(single, ["--version"], { timeoutMs: 5_000 });
+          const version = stdout.trim();
+          if (version) installs.push({ path: single, version });
+        } catch {
+          // skip
+        }
+      }
+    }
+    return installs;
+  }
+
+  /** Pick the newest install. */
+  private pickBest(installs: OpenClawInstall[]): OpenClawInstall | null {
+    if (installs.length === 0) return null;
+    return installs.reduce((a, b) => (compareOpenClawVersions(a.version, b.version) >= 0 ? a : b));
+  }
+
+  /**
+   * Remove stale openclaw installs by uninstalling from their npm prefix.
+   * Best-effort — failures are logged but don't block.
+   */
+  async removeStaleInstalls(stale: OpenClawInstall[]): Promise<void> {
+    const npmPath = await resolveCommandPath("npm");
+    if (!npmPath) return;
+
+    for (const install of stale) {
+      const prefix = path.dirname(path.dirname(install.path));
+      try {
+        installerLog.info("[install.cleanup.remove]", `path=${install.path}`, `prefix=${prefix}`);
+        await safeExecFile(npmPath, ["uninstall", "-g", "openclaw", "--prefix", prefix], {
+          timeoutMs: 60_000,
+        });
+        installerLog.info("[install.cleanup.ok]", `prefix=${prefix}`);
+      } catch (error) {
+        installerLog.warn("[install.cleanup.failed]", `prefix=${prefix}`, String(error));
+      }
+    }
+  }
+
   private async verifyNodeAndNpm(): Promise<void> {
     const t0 = Date.now();
     installerLog.info("[install.check.node]");
-    // Require Node.js >= 22
     const nodePath = await resolveCommandPath("node");
     if (!nodePath) throw new Error("node not found in PATH");
     const { stdout: nodeVersionOutput } = await safeExecFile(nodePath, ["--version"], {
@@ -78,7 +171,6 @@ export class InstallerService {
       throw new Error(`Node.js v22+ required (found ${nodeVersion || "unknown"})`);
     }
 
-    // Require npm
     const npmPath = await resolveCommandPath("npm");
     if (!npmPath) throw new Error("npm not found in PATH");
     await safeExecFile(npmPath, ["--version"], { timeoutMs: 10_000 });
@@ -89,18 +181,36 @@ export class InstallerService {
     );
   }
 
-  private async installOpenClawGlobal(onProgress: ProgressCallback): Promise<void> {
+  /**
+   * Install or upgrade OpenClaw globally.
+   *
+   * Environment unification:
+   * - existingNpmPrefix set → upgrade at that prefix (respect user's environment)
+   * - null → fresh install via default npm (ClawUI controls canonical path)
+   */
+  private async installOpenClawGlobal(
+    onProgress: ProgressCallback,
+    existingNpmPrefix: string | null,
+  ): Promise<void> {
     const spec = process.env.CLAWUI_OPENCLAW_SPEC || DEFAULT_OPENCLAW_SPEC;
     if (!/^[a-zA-Z0-9@._/-]+$/.test(spec)) {
       throw new Error(`Invalid package spec: ${spec}`);
     }
     const t0 = Date.now();
-    installerLog.info("[install.npm]", `spec=${spec}`);
+
     const npmPath = await resolveCommandPath("npm");
     if (!npmPath) throw new Error("npm not found in PATH");
-    await safeExecFile(npmPath, ["--no-fund", "--no-audit", "install", "-g", spec], {
-      timeoutMs: 10 * 60_000,
-    });
+
+    const args = ["--no-fund", "--no-audit", "install", "-g", spec];
+
+    if (existingNpmPrefix) {
+      args.push("--prefix", existingNpmPrefix);
+      installerLog.info("[install.npm]", `spec=${spec}`, `prefix=${existingNpmPrefix}`);
+    } else {
+      installerLog.info("[install.npm]", `spec=${spec}`, "prefix=default");
+    }
+
+    await safeExecFile(npmPath, args, { timeoutMs: 10 * 60_000 });
 
     installerLog.info("[install.npm.ok]", `spec=${spec}`, `durationMs=${Date.now() - t0}`);
     onProgress({

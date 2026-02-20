@@ -62,6 +62,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
 
           if (!status.nodeInstalled || !status.openclawInstalled) {
             set({ step: "install" }, false, "detectRuntime/needsInstall");
+          } else if (status.openclawNeedsUpgrade) {
+            set({ step: "upgrade" }, false, "detectRuntime/needsUpgrade");
           } else {
             set({ step: "complete" }, false, "detectRuntime/complete");
           }

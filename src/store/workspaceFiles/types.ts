@@ -1,7 +1,7 @@
 export type { WorkspaceFileEntry } from "@/lib/ipc";
 export type { PythonRunResult } from "@/lib/ipc";
 
-export type FileContentKind = "text" | "image" | "html" | "office";
+export type FileContentKind = "text" | "image" | "html" | "office" | "video";
 
 export type OpenTab = {
   relativePath: string;

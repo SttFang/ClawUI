@@ -9,12 +9,14 @@ export type { WorkspaceFileEntry, OpenTab, FileContentKind, PythonRunResult };
 // --- File classification utilities ---
 
 const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp"]);
+const VIDEO_EXTS = new Set([".mp4", ".webm", ".mov", ".ogg", ".ogv"]);
 const HTML_EXTS = new Set([".html", ".htm"]);
 const OFFICE_EXTS = new Set([".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"]);
 
 export function classifyFile(name: string): FileContentKind {
   const ext = extOf(name);
   if (IMAGE_EXTS.has(ext)) return "image";
+  if (VIDEO_EXTS.has(ext)) return "video";
   if (HTML_EXTS.has(ext)) return "html";
   if (OFFICE_EXTS.has(ext)) return "office";
   return "text";
@@ -36,6 +38,11 @@ const MIME_MAP: Record<string, string> = {
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
   ".bmp": "image/bmp",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+  ".ogg": "video/ogg",
+  ".ogv": "video/ogg",
 };
 
 export function guessMimeType(name: string): string {
@@ -170,7 +177,7 @@ export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
 
         try {
           let content: string;
-          if (kind === "image" || kind === "office") {
+          if (kind === "image" || kind === "office" || kind === "video") {
             const res = await ipc.workspace.readFileBase64(relativePath);
             content = `data:${guessMimeType(name)};base64,${res.base64}`;
           } else {

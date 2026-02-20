@@ -48,6 +48,13 @@ describe("classifyFile", () => {
     expect(classifyFile("paper.pdf")).toBe("office");
   });
 
+  it("classifies video files", () => {
+    expect(classifyFile("clip.mp4")).toBe("video");
+    expect(classifyFile("demo.webm")).toBe("video");
+    expect(classifyFile("screen.mov")).toBe("video");
+    expect(classifyFile("audio.ogg")).toBe("video");
+  });
+
   it("classifies text files", () => {
     expect(classifyFile("main.py")).toBe("text");
     expect(classifyFile("readme.md")).toBe("text");
@@ -71,6 +78,13 @@ describe("guessMimeType", () => {
       "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     );
     expect(guessMimeType("c.pdf")).toBe("application/pdf");
+  });
+
+  it("returns correct MIME types for video files", () => {
+    expect(guessMimeType("a.mp4")).toBe("video/mp4");
+    expect(guessMimeType("b.webm")).toBe("video/webm");
+    expect(guessMimeType("c.mov")).toBe("video/quicktime");
+    expect(guessMimeType("d.ogg")).toBe("video/ogg");
   });
 
   it("returns fallback for unknown extensions", () => {

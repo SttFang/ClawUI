@@ -33,12 +33,11 @@ export function initChatStreamListener() {
   });
 
   ipc.chat.onDisconnected(() => {
-    const state = useChatStore.getState();
-    state.setWsConnected(false);
-    for (const id of state.loadingMessageIds) {
-      state.setMessageStreaming(id, false);
-      state.removeLoadingMessage(id);
-    }
+    useChatStore.getState().setWsConnected(false);
+  });
+
+  ipc.chat.onReconnected(() => {
+    useChatStore.getState().setWsConnected(true);
   });
 
   ipc.chat.onError((error: string) => {

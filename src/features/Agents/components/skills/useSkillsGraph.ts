@@ -18,7 +18,7 @@ const ROW_GAP = 48;
 
 /**
  * Parallel layout — two groups per row:
- *   [Pub] → skills    skills ← [Pub]
+ *   skills ← [Pub]    [Pub] → skills
  */
 function parallelLayout(groups: LayoutGroup[]): void {
   const colW = NODE_W * 2 + GAP_X;
@@ -31,18 +31,18 @@ function parallelLayout(groups: LayoutGroup[]): void {
     const rightH = right ? right.skillNodes.length * (NODE_H + GAP_Y) - GAP_Y : 0;
     const rowH = Math.max(leftH, rightH, NODE_H);
 
-    // left: publisher → skills
-    left.pubNode.position = { x: 0, y: cursorY + rowH / 2 - NODE_H / 2 };
+    // left: skills ← [Publisher]
+    left.pubNode.position = { x: NODE_W + GAP_X, y: cursorY + rowH / 2 - NODE_H / 2 };
     left.skillNodes.forEach((n, j) => {
-      n.position = { x: NODE_W + GAP_X, y: cursorY + j * (NODE_H + GAP_Y) };
+      n.position = { x: 0, y: cursorY + j * (NODE_H + GAP_Y) };
     });
 
-    // right: skills ← publisher
+    // right: [Publisher] → skills
     if (right) {
       const rx = colW + COL_GAP;
-      right.pubNode.position = { x: rx + NODE_W + GAP_X, y: cursorY + rowH / 2 - NODE_H / 2 };
+      right.pubNode.position = { x: rx, y: cursorY + rowH / 2 - NODE_H / 2 };
       right.skillNodes.forEach((n, j) => {
-        n.position = { x: rx, y: cursorY + j * (NODE_H + GAP_Y) };
+        n.position = { x: rx + NODE_W + GAP_X, y: cursorY + j * (NODE_H + GAP_Y) };
       });
     }
 

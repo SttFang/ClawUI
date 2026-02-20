@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ACP_PROTOCOL_VERSION } from "@clawui/constants/protocol";
 import { chatLog } from "../../lib/logger";
 import { buildDeviceAuthPayload, loadDeviceAuthToken, storeDeviceAuthToken } from "./device-auth";
 import {
@@ -67,8 +68,8 @@ export function buildConnectFrame(params: ConnectFrameParams): ConnectFrameResul
       id: connectId,
       method: "connect",
       params: {
-        minProtocol: 1,
-        maxProtocol: 3,
+        minProtocol: ACP_PROTOCOL_VERSION,
+        maxProtocol: ACP_PROTOCOL_VERSION,
         client: {
           id: "openclaw-macos",
           displayName: "ClawUI",

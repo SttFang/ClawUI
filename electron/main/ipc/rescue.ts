@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import { ALLOWED_RESCUE_METHODS } from "@clawui/constants/ipc-methods";
 import type { ChatRequest } from "../services/chat-websocket";
 import type { ChatWebSocketService } from "../services/chat-websocket";
 import type { ConfigService } from "../services/config";
@@ -48,6 +49,9 @@ export function registerRescueHandlers(
   ipcMain.handle(
     "rescue:request",
     async (_, method: string, params?: Record<string, unknown>): Promise<unknown> => {
+      if (!ALLOWED_RESCUE_METHODS.has(method)) {
+        throw new Error(`Disallowed ACP method: ${method}`);
+      }
       await ensureGatewayConnected(configService, rescueChatWs);
       return rescueChatWs.request(method, params);
     },
@@ -63,6 +67,7 @@ export function registerRescueHandlers(
     stream: "rescue:stream",
     "gateway-event": "rescue:gateway-event",
     connected: "rescue:connected",
+    reconnected: "rescue:reconnected",
     disconnected: "rescue:disconnected",
     error: "rescue:error",
   });

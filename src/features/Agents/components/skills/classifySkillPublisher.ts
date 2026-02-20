@@ -1,10 +1,10 @@
 export type Publisher = "vercel" | "supabase" | "community" | "other";
 
 export const PUBLISHER_META: Record<Publisher, { color: string; labelKey: string }> = {
-  vercel: { color: "#0070f3", labelKey: "agents.skills.publishers.vercel" },
-  supabase: { color: "#3ecf8e", labelKey: "agents.skills.publishers.supabase" },
-  community: { color: "#a855f7", labelKey: "agents.skills.publishers.community" },
-  other: { color: "#6b7280", labelKey: "agents.skills.publishers.other" },
+  vercel: { color: "#ef4444", labelKey: "agents.skills.publishers.vercel" },
+  supabase: { color: "#f87171", labelKey: "agents.skills.publishers.supabase" },
+  community: { color: "#dc2626", labelKey: "agents.skills.publishers.community" },
+  other: { color: "#991b1b", labelKey: "agents.skills.publishers.other" },
 };
 
 const VERCEL_PREFIXES = ["vercel-", "web-design-"];

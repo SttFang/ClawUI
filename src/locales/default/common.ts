@@ -211,9 +211,11 @@ const common = {
       more: "还有 {{count}} 个…",
       note: "提示：skills 来源目录为 OpenClaw profile 同目录下的 skills/。",
       publishers: {
+        bundled: "内置",
         vercel: "Vercel",
         supabase: "Supabase",
         community: "社区",
+        workspace: "工作区",
         other: "其他",
       },
     },

@@ -15,7 +15,7 @@ const NODE_H = 48;
 function layoutGraph(nodes: AnyNode[], edges: Edge[]) {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "TB", ranksep: 80, nodesep: 40 });
+  g.setGraph({ rankdir: "LR", ranksep: 60, nodesep: 24 });
   for (const n of nodes) g.setNode(n.id, { width: NODE_W, height: NODE_H });
   for (const e of edges) g.setEdge(e.source, e.target);
   dagre.layout(g);
@@ -34,10 +34,9 @@ export function useSkillsGraph(skills: SkillEntry[]) {
 
     if (skills.length === 0) return { nodes, edges };
 
-    const groups = groupSkillsByPublisher(skills.map((s) => s.name));
-    const descMap = new Map(skills.map((s) => [s.name, s.description]));
+    const groups = groupSkillsByPublisher(skills);
 
-    for (const [pub, list] of Object.entries(groups) as [Publisher, string[]][]) {
+    for (const [pub, list] of Object.entries(groups) as [Publisher, SkillEntry[]][]) {
       const meta = PUBLISHER_META[pub];
       const pubId = `pub-${pub}`;
       nodes.push({
@@ -47,17 +46,17 @@ export function useSkillsGraph(skills: SkillEntry[]) {
         data: { label: t(meta.labelKey), count: list.length, color: meta.color },
       });
 
-      for (const skill of list) {
-        const skillId = `${pubId}-skill-${skill}`;
+      for (const entry of list) {
+        const skillId = `${pubId}-skill-${entry.name}`;
         nodes.push({
           id: skillId,
           type: "skill",
           position: { x: 0, y: 0 },
           data: {
-            label: skill,
+            label: entry.name,
             color: meta.color,
             publisher: t(meta.labelKey),
-            description: descMap.get(skill) ?? "",
+            description: entry.description,
           },
         });
         edges.push({

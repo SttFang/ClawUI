@@ -193,9 +193,11 @@ const common = {
       more: "{{count}} more…",
       note: "Note: skills are loaded from the OpenClaw profile directory's skills/ folder.",
       publishers: {
+        bundled: "Built-in",
         vercel: "Vercel",
         supabase: "Supabase",
         community: "Community",
+        workspace: "Workspace",
         other: "Other",
       },
     },

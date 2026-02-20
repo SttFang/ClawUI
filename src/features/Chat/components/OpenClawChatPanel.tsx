@@ -3,7 +3,7 @@ import { useChat } from "@ai-sdk/react";
 import { createOpenClawChatTransport } from "@clawui/openclaw-chat-stream";
 import { Button } from "@clawui/ui";
 import { BookmarkIcon, MessageSquare } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StickToBottom } from "use-stick-to-bottom";
 import { cn } from "@/lib/utils";
@@ -77,7 +77,7 @@ export function OpenClawChatPanel(props: {
   sessionKey: string | null;
   wsConnected: boolean;
   isGatewayRunning: boolean;
-  onStartConversation: (content: string) => Promise<void>;
+  onStartConversation: () => Promise<string>;
 }) {
   const { sessionKey, wsConnected, isGatewayRunning, onStartConversation } = props;
   const { t } = useTranslation("chat");
@@ -95,9 +95,19 @@ export function OpenClawChatPanel(props: {
 
   const chat = useChat({ id: effectiveSessionKey, transport });
   const [input, setInput] = useState("");
+  const pendingMessageRef = useRef<string | null>(null);
 
   const isStreaming = chat.status === "streaming";
   const isCompacting = useCompactionStore(selectIsCompacting(effectiveSessionKey));
+
+  // Flush pending message once session becomes active
+  useEffect(() => {
+    if (hasSession && pendingMessageRef.current) {
+      const text = pendingMessageRef.current;
+      pendingMessageRef.current = null;
+      void chat.sendMessage({ text });
+    }
+  }, [hasSession, chat]);
 
   useOpenClawHistorySync({
     sessionKey: normalizedSessionKey,
@@ -213,7 +223,8 @@ export function OpenClawChatPanel(props: {
             if (!content || isBusy) return;
             setInput("");
             if (!hasSession) {
-              await onStartConversation(content);
+              pendingMessageRef.current = content;
+              await onStartConversation();
               return;
             }
             await chat.sendMessage({ text: content });

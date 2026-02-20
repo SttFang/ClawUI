@@ -28,9 +28,16 @@ export function useHistoryRefresh(params: {
   setMessagesRef: React.RefObject<(messages: UIMessage[]) => void>;
   isRecoveryActive: () => boolean;
   isStreamingRef: React.RefObject<boolean>;
+  isCompacting?: () => boolean;
 }) {
-  const { normalizedSessionKey, hasSession, setMessagesRef, isRecoveryActive, isStreamingRef } =
-    params;
+  const {
+    normalizedSessionKey,
+    hasSession,
+    setMessagesRef,
+    isRecoveryActive,
+    isStreamingRef,
+    isCompacting,
+  } = params;
 
   const historyInFlightRef = useRef(false);
   const lastHistorySuccessAtRef = useRef(0);
@@ -106,7 +113,9 @@ export function useHistoryRefresh(params: {
           // All other reasons (including force=true event-driven refreshes)
           // must still be guarded against transient history drops.
           const shouldGuardDrop =
-            reason !== "session-init" && isLikelyTransientHistoryDrop(previousMessages, uiMessages);
+            reason !== "session-init" &&
+            !isCompacting?.() &&
+            isLikelyTransientHistoryDrop(previousMessages, uiMessages);
           if (shouldGuardDrop) {
             changed = false;
             chatLog.warn(

@@ -10,6 +10,7 @@ import {
   extractToolResultOutput,
   isLikelyToolReceiptText,
   isToolCallBlock,
+  readInternalProvenanceKind,
   isToolResultBlock,
   maybeAddExecFallbackOutput,
   normalizeMessageRole,
@@ -48,7 +49,8 @@ export function openclawTranscriptToUIMessages(rawMessages: unknown): UIMessage[
 
       if (role === 'user') {
         const text = extractTextFromBlocks(contentBlocks, record.content)
-        if (isLikelyToolReceiptText(text)) return null
+        const hasProvenance = readInternalProvenanceKind(record) !== ''
+        if (hasProvenance && isLikelyToolReceiptText(text)) return null
       }
 
       const parts: UIMessage['parts'] = []

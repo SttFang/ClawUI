@@ -47,7 +47,7 @@ export type ChatFeatureUIActions = {
   onDismissBanner: () => void;
   onOneClickConfig: () => void;
   onManualConfig: () => void;
-  onStartConversation: (content: string) => Promise<void>;
+  onStartConversation: () => Promise<string>;
 };
 
 export type MessagePartsProps = { message: UIMessage; streaming: boolean };

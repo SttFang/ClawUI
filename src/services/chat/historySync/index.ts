@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { clearTracesForSession } from "@/features/Chat/components/A2UI/execTrace";
 import { ipc, type ChatNormalizedRunEvent, type GatewayEventFrame } from "@/lib/ipc";
 import { historyLog } from "@/lib/logger";
+import { selectIsCompacting, useCompactionStore } from "@/store/compaction";
 import { useExecApprovalsStore } from "@/store/exec";
 import { resetHeartbeatBackoff, shouldRefreshHistoryOnHeartbeat } from "../historyRefreshPolicy";
 import {
@@ -69,12 +70,18 @@ export function useOpenClawHistorySync(params: {
     return recoveryUntilMsRef.current > Date.now();
   }, []);
 
+  const isCompacting = useCallback(
+    () => selectIsCompacting(normalizedSessionKey)(useCompactionStore.getState()),
+    [normalizedSessionKey],
+  );
+
   const { refreshHistory, resetRefreshState, clearPendingTimer } = useHistoryRefresh({
     normalizedSessionKey,
     hasSession,
     setMessagesRef,
     isRecoveryActive,
     isStreamingRef,
+    isCompacting,
   });
 
   // Build scheduler (once per session key)

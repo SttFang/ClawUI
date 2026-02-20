@@ -380,6 +380,7 @@ describe('openclawTranscriptToUIMessages', () => {
         id: 'u-receipt',
         role: 'user',
         content: [{ type: 'text', text: 'System: Exec finished (code 0)' }],
+        inputProvenance: { kind: 'tool_receipt' },
       },
       {
         id: 'tr1',
@@ -692,6 +693,40 @@ describe('openclawTranscriptToUIMessages', () => {
       expect(part.input).toEqual({})
       expect(part.output).toBe('done')
     }
+  })
+
+  it('should NOT filter user message starting with "System:" when no inputProvenance', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'u-system-prefix',
+        role: 'user',
+        content: [{ type: 'text', text: 'System: 请帮我检查一下系统状态' }],
+      },
+    ])
+
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.role).toBe('user')
+    expect(ui[0]?.parts[0]?.type === 'text' ? ui[0].parts[0].text : '').toContain('System:')
+  })
+
+  it('should still filter tool receipt text when inputProvenance is present', () => {
+    const ui = openclawTranscriptToUIMessages([
+      {
+        id: 'u-receipt-provenance',
+        role: 'user',
+        content: [{ type: 'text', text: 'System: Exec finished (code 0)' }],
+        inputProvenance: { kind: 'tool_receipt' },
+      },
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'OK' }],
+      },
+    ])
+
+    // The user receipt message should be filtered, only assistant remains
+    expect(ui).toHaveLength(1)
+    expect(ui[0]?.id).toBe('a1')
   })
 
   // --- bindToolCallLifecycles: non-adjacent / interleaved / synthetic fallback ---

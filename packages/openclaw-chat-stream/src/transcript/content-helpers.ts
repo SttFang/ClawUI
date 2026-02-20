@@ -253,7 +253,7 @@ export function shouldKeepTextAlongsideToolParts(text: string, toolOutputs: unkn
   return true
 }
 
-function readInternalProvenanceKind(record: Record<string, unknown>): string {
+export function readInternalProvenanceKind(record: Record<string, unknown>): string {
   const candidates = [
     record.inputProvenance,
     record.provenance,

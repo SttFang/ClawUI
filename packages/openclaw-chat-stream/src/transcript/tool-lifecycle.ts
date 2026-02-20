@@ -153,7 +153,10 @@ export function bindToolCallLifecycles(messages: UIMessage[]): UIMessage[] {
 export function filterEmptyUserMessages(messages: UIMessage[]): UIMessage[] {
   return messages.filter(m => {
     if (m.role !== 'user') return true
-    return m.parts.some(p => p.type === 'text' && p.text.trim())
+    return m.parts.some(p => {
+      if (p.type === 'text') return p.text.trim() !== ''
+      return true // non-text parts (dynamic-tool, image, etc.) count as content
+    })
   })
 }
 

@@ -4,9 +4,10 @@ import { MessageParts } from "./MessageParts";
 export function UserMessageItem(props: { message: UIMessage; sessionKey: string }) {
   const { message, sessionKey } = props;
 
-  const hasVisibleContent = message.parts.some(
-    (part) => part.type === "text" && typeof part.text === "string" && part.text.trim() !== "",
-  );
+  const hasVisibleContent = message.parts.some((part) => {
+    if (part.type === "text") return typeof part.text === "string" && part.text.trim() !== "";
+    return true; // non-text parts (dynamic-tool, image, etc.) are visible
+  });
   if (!hasVisibleContent) return null;
 
   return (

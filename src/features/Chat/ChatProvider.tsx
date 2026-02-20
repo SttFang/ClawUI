@@ -81,13 +81,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return key;
   }, [refreshSessions, selectSession]);
 
-  const startConversation = useCallback(
-    async (content: string) => {
-      const key = await createGatewayUiSession();
-      await ipc.chat.send({ sessionId: key, message: content });
-    },
-    [createGatewayUiSession],
-  );
+  const startConversation = useCallback(async () => {
+    return await createGatewayUiSession();
+  }, [createGatewayUiSession]);
 
   const onCreateSession = useCallback(() => {
     void createGatewayUiSession().catch(() => {});

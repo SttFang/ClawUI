@@ -1,4 +1,5 @@
 import type { IpcMain } from "electron";
+import { shell } from "electron";
 import { execFile } from "node:child_process";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -85,5 +86,12 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
         },
       );
     });
+  });
+
+  ipcMain.handle("workspace:open-in-system", async (_, relativePath: string) => {
+    const config = await configService.getConfig();
+    const base = resolveWorkspaceDir(config);
+    const filePath = safePath(base, relativePath);
+    return shell.openPath(filePath);
   });
 }

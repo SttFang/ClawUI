@@ -1,9 +1,10 @@
 import { Button, ScrollArea } from "@clawui/ui";
-import { Play, X } from "lucide-react";
+import { ExternalLink, Play, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import type { OpenTab } from "@/store/workspaceFiles";
+import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
 import { useWorkspaceFilesStore, guessLanguage } from "@/store/workspaceFiles";
 import { MessageText } from "../components/MessageText";
@@ -27,36 +28,49 @@ function TabBar() {
   const closeTab = useWorkspaceFilesStore((s) => s.closeTab);
 
   return (
-    <div className="flex items-center gap-0 overflow-x-auto border-b">
-      {openTabs.map((tab) => (
-        <div
-          key={tab.relativePath}
-          className={cn(
-            "group flex shrink-0 items-center gap-1 border-r px-3 py-1.5 text-xs cursor-pointer select-none",
-            activeTabPath === tab.relativePath
-              ? "bg-background text-foreground"
-              : "bg-muted/50 text-muted-foreground hover:bg-muted",
-          )}
-          onClick={() => setActiveTab(tab.relativePath)}
-          onKeyDown={(e) => e.key === "Enter" && setActiveTab(tab.relativePath)}
-          role="tab"
-          tabIndex={0}
-          aria-selected={activeTabPath === tab.relativePath}
-        >
-          <span className="max-w-32 truncate">{tab.name}</span>
-          <button
-            type="button"
-            className="rounded p-0.5 opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/20"
-            onClick={(e) => {
-              e.stopPropagation();
-              closeTab(tab.relativePath);
-            }}
-            aria-label={t("workspaceFiles.close")}
+    <div className="flex items-center border-b">
+      <div className="flex flex-1 items-center gap-0 overflow-x-auto">
+        {openTabs.map((tab) => (
+          <div
+            key={tab.relativePath}
+            className={cn(
+              "group flex shrink-0 items-center gap-1 border-r px-3 py-1.5 text-xs cursor-pointer select-none",
+              activeTabPath === tab.relativePath
+                ? "bg-background text-foreground"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted",
+            )}
+            onClick={() => setActiveTab(tab.relativePath)}
+            onKeyDown={(e) => e.key === "Enter" && setActiveTab(tab.relativePath)}
+            role="tab"
+            tabIndex={0}
+            aria-selected={activeTabPath === tab.relativePath}
           >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      ))}
+            <span className="max-w-32 truncate">{tab.name}</span>
+            <button
+              type="button"
+              className="rounded p-0.5 opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                closeTab(tab.relativePath);
+              }}
+              aria-label={t("workspaceFiles.close")}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+      </div>
+      {activeTabPath && (
+        <button
+          type="button"
+          className="shrink-0 px-2 py-1.5 text-muted-foreground hover:text-foreground"
+          onClick={() => void ipc.workspace.openInSystem(activeTabPath)}
+          aria-label={t("workspaceFiles.openInSystem")}
+          title={t("workspaceFiles.openInSystem")}
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }

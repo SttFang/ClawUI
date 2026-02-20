@@ -79,6 +79,7 @@ const chat = {
     noOutput: "No output",
     sheet: "Sheet",
     sheetEmpty: "This sheet is empty.",
+    openInSystem: "Open with system app",
   },
 } as const;
 

@@ -216,6 +216,7 @@ export interface ElectronAPI {
     readFile: (relativePath: string) => Promise<WorkspaceReadFileResult>;
     readFileBase64: (relativePath: string) => Promise<WorkspaceReadFileBase64Result>;
     runPython: (relativePath: string) => Promise<PythonRunResult>;
+    openInSystem: (relativePath: string) => Promise<string>;
   };
   rescue?: {
     gateway: {
@@ -278,6 +279,8 @@ function getBrowserFallbackRuntimeStatus(): RuntimeStatus {
     openclawInstalled: true,
     openclawVersion: null,
     openclawPath: null,
+    openclawCompatible: true,
+    openclawNeedsUpgrade: false,
     configExists: true,
     configValid: true,
     configSchemaVersion: null,
@@ -717,6 +720,11 @@ export const ipc = {
       const api = getElectronAPI();
       if (!api?.workspace) throw new Error("Workspace API not available — restart the app");
       return api.workspace.runPython(relativePath);
+    },
+    async openInSystem(relativePath: string): Promise<string> {
+      const api = getElectronAPI();
+      if (!api?.workspace) throw new Error("Workspace API not available — restart the app");
+      return api.workspace.openInSystem(relativePath);
     },
   },
   rescue: {

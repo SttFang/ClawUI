@@ -397,12 +397,24 @@ function OfficeXlsxContent({ tab }: { tab: OpenTab }) {
         </div>
       )}
 
-      <ScrollArea className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 overflow-auto">
         {current && current.rows.length > 0 ? (
-          <table className="w-full border-collapse text-xs">
+          <table className="border-collapse text-xs">
+            <thead>
+              <tr className="bg-muted/50 font-medium sticky top-0">
+                {(current.rows[0] ?? []).map((cell, ci) => (
+                  <th
+                    key={ci}
+                    className="border-b border-r px-2 py-1.5 text-left font-medium whitespace-nowrap"
+                  >
+                    {cell}
+                  </th>
+                ))}
+              </tr>
+            </thead>
             <tbody>
-              {current.rows.map((row, ri) => (
-                <tr key={ri} className={ri === 0 ? "bg-muted/50 font-medium" : "border-t"}>
+              {current.rows.slice(1).map((row, ri) => (
+                <tr key={ri} className="border-t">
                   {row.map((cell, ci) => (
                     <td key={ci} className="border-r px-2 py-1 whitespace-nowrap">
                       {cell}
@@ -415,7 +427,7 @@ function OfficeXlsxContent({ tab }: { tab: OpenTab }) {
         ) : (
           <p className="p-4 text-sm text-muted-foreground">{t("workspaceFiles.sheetEmpty")}</p>
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }

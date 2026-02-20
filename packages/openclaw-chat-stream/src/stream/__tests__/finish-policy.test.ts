@@ -150,4 +150,48 @@ describe('FinishPolicy', () => {
     expect(cb.unsubscribeCalled).toBe(true)
     expect(cb.externalTimersCancelled).toBe(true)
   })
+
+  describe('disconnect/reconnect', () => {
+    it('onDisconnected starts timeout, onReconnected cancels and finishes', () => {
+      const cb = makeCallbacks()
+      const policy = createFinishPolicy(cb)
+      policy.setClientRunId('run-1')
+      policy.onDisconnected(15_000)
+      expect(policy.isClosed).toBe(false)
+      // Reconnect before timeout
+      policy.onReconnected()
+      expect(policy.isFinished).toBe(true)
+      expect(policy.isClosed).toBe(true)
+      expect(cb.chunks).not.toContainEqual(expect.objectContaining({ type: 'error' }))
+      expect(cb.chunks).toContainEqual({ type: 'finish' })
+    })
+
+    it('onDisconnected times out to error after deadline', () => {
+      const cb = makeCallbacks()
+      const policy = createFinishPolicy(cb)
+      policy.setClientRunId('run-1')
+      policy.onDisconnected(15_000)
+      vi.advanceTimersByTime(15_000)
+      expect(policy.isClosed).toBe(true)
+      expect(cb.chunks).toContainEqual({ type: 'error', errorText: 'Gateway disconnected' })
+    })
+
+    it('onDisconnected is no-op when already closed', () => {
+      const cb = makeCallbacks()
+      const policy = createFinishPolicy(cb)
+      policy.onChatFinal()
+      policy.onDisconnected(15_000)
+      vi.advanceTimersByTime(15_000)
+      // Only one close
+      expect(cb.chunks.filter(c => (c as { type: string }).type === 'finish')).toHaveLength(1)
+    })
+
+    it('onReconnected is no-op when not disconnected', () => {
+      const cb = makeCallbacks()
+      const policy = createFinishPolicy(cb)
+      policy.onReconnected()
+      expect(policy.isFinished).toBe(false)
+      expect(policy.isClosed).toBe(false)
+    })
+  })
 })

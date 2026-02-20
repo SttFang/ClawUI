@@ -26,6 +26,8 @@ export interface FinishPolicy {
   onInitError(errorText: string): void
   addPendingTool(toolCallId: string): void
   removePendingTool(toolCallId: string): void
+  onDisconnected(timeoutMs: number): void
+  onReconnected(): void
   readonly isFinished: boolean
   readonly isClosed: boolean
   readonly hasPendingTools: boolean
@@ -39,6 +41,7 @@ export function createFinishPolicy(callbacks: FinishPolicyCallbacks): FinishPoli
   let closed = false
   let clientRunId: string | null = null
   let lifecycleFinishTimer: ReturnType<typeof setTimeout> | null = null
+  let disconnectTimer: ReturnType<typeof setTimeout> | null = null
   let lastChatEventAt = 0
   let lifecycleEndAt = 0
   const pendingToolCalls = new Set<string>()
@@ -47,6 +50,10 @@ export function createFinishPolicy(callbacks: FinishPolicyCallbacks): FinishPoli
     if (lifecycleFinishTimer) {
       clearTimeout(lifecycleFinishTimer)
       lifecycleFinishTimer = null
+    }
+    if (disconnectTimer) {
+      clearTimeout(disconnectTimer)
+      disconnectTimer = null
     }
     callbacks.cancelExternalTimers()
   }
@@ -164,6 +171,21 @@ export function createFinishPolicy(callbacks: FinishPolicyCallbacks): FinishPoli
     },
     onInitError(errorText: string) {
       failOnce(errorText)
+    },
+
+    onDisconnected(timeoutMs: number) {
+      if (closed) return
+      disconnectTimer = setTimeout(() => {
+        disconnectTimer = null
+        failOnce('Gateway disconnected')
+      }, timeoutMs)
+    },
+
+    onReconnected() {
+      if (!disconnectTimer) return
+      clearTimeout(disconnectTimer)
+      disconnectTimer = null
+      finishOnce()
     },
 
     addPendingTool(toolCallId: string) {

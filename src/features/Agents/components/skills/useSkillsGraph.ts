@@ -78,7 +78,7 @@ export function useSkillsGraph(profiles: ProfileInput[]) {
             id: skillId,
             type: "skill",
             position: { x: 0, y: 0 },
-            data: { label: skill, color: meta.color },
+            data: { label: skill, color: meta.color, publisher: t(meta.labelKey) },
           });
           edges.push({
             id: `e-${pubId}-${skillId}`,

@@ -54,6 +54,7 @@ export function createOpenClawChatStream(params: {
       const buffered: GatewayEventFrame[] = []
       let unsubscribe: (() => void) | null = null
       let unsubDisconnect: (() => void) | null = null
+      let unsubReconnect: (() => void) | null = null
 
       const approval = createApprovalRecovery(() => streamStartedAt)
       const enqueue = (chunk: UIMessageChunk) => controller.enqueue(chunk)
@@ -67,7 +68,7 @@ export function createOpenClawChatStream(params: {
           asm.dispose()
           binding.dispose()
         },
-        unsubscribe: () => { unsubscribe?.(); unsubDisconnect?.() },
+        unsubscribe: () => { unsubscribe?.(); unsubDisconnect?.(); unsubReconnect?.() },
         enqueue,
         closeController: () => controller.close(),
       })
@@ -348,7 +349,15 @@ export function createOpenClawChatStream(params: {
         unsubDisconnect = adapter.onDisconnected(() => {
           if (finish.isClosed) return
           log.warn('[stream.disconnected]', { sessionKey })
-          finish.onChatError('Gateway disconnected')
+          finish.onDisconnected(15_000)
+        })
+      }
+
+      if (adapter.onReconnected) {
+        unsubReconnect = adapter.onReconnected(() => {
+          if (finish.isClosed) return
+          log.info('[stream.reconnected]', { sessionKey })
+          finish.onReconnected()
         })
       }
 

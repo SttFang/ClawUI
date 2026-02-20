@@ -219,11 +219,9 @@ export class ChatTransport extends EventEmitter {
     this.connectSent = false;
     if (this.connectTimer) {
       clearTimeout(this.connectTimer);
-    }
-    this.connectTimer = setTimeout(() => {
       this.connectTimer = null;
-      this.sendConnectFrame();
-    }, 750);
+    }
+    this.sendConnectFrame();
   }
 
   private sendConnectFrame(): void {
@@ -368,7 +366,8 @@ export class ChatTransport extends EventEmitter {
   private attemptReconnect(): void {
     if (!this.shouldReconnect || this.connectPromise || this.isConnected()) return;
     const delay = this.backoffMs;
-    this.backoffMs = Math.min(this.backoffMs * 2, 30_000);
+    const jitter = 1 + (Math.random() - 0.5) * 0.4; // ±20%
+    this.backoffMs = Math.min(this.backoffMs * 2 * jitter, 30_000);
     chatLog.info("[ws.reconnect]", `delay=${delay}ms`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;

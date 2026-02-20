@@ -210,6 +210,12 @@ const common = {
       none: "无",
       more: "还有 {{count}} 个…",
       note: "提示：skills 来源目录为 OpenClaw profile 同目录下的 skills/。",
+      publishers: {
+        vercel: "Vercel",
+        supabase: "Supabase",
+        community: "社区",
+        other: "其他",
+      },
     },
     cron: {
       openPanel: "打开 Cron 面板",

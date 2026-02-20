@@ -192,6 +192,12 @@ const common = {
       none: "None",
       more: "{{count}} more…",
       note: "Note: skills are loaded from the OpenClaw profile directory's skills/ folder.",
+      publishers: {
+        vercel: "Vercel",
+        supabase: "Supabase",
+        community: "Community",
+        other: "Other",
+      },
     },
     cron: {
       openPanel: "Open Cron panel",

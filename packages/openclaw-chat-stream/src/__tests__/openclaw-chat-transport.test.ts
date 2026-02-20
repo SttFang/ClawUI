@@ -697,6 +697,8 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
+    expect((await readNext(reader)).type).toBe('text-end')
+
     const toolStart = await readNext(reader)
     expect(toolStart).toMatchObject({
       type: 'tool-input-available',
@@ -776,7 +778,6 @@ describe('createOpenClawChatTransport', () => {
     // Without chat.final, lifecycle=end triggers a delayed fallback finish (longer than the old 1.5s cutoff).
     await vi.advanceTimersByTimeAsync(21_500)
 
-    expect((await readNext(reader)).type).toBe('text-end')
     expect((await readNext(reader)).type).toBe('finish-step')
     expect((await readNext(reader)).type).toBe('finish')
 
@@ -832,6 +833,8 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
+    expect((await readNext(reader)).type).toBe('text-end')
+
     expect(await readNext(reader)).toMatchObject({
       type: 'tool-input-available',
       toolCallId: 'tc-use-1',
@@ -876,6 +879,7 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
+    expect((await readNext(reader)).type).toBe('text-start')
     expect((await readNext(reader)).type).toBe('text-delta')
     expect((await readNext(reader)).type).toBe('text-end')
     expect((await readNext(reader)).type).toBe('finish-step')
@@ -934,6 +938,7 @@ describe('createOpenClawChatTransport', () => {
         },
       },
     })
+    expect((await readNext(reader)).type).toBe('text-end')
     expect((await readNext(reader)).type).toBe('tool-input-available')
 
     handler?.({
@@ -1045,6 +1050,7 @@ describe('createOpenClawChatTransport', () => {
         },
       },
     })
+    expect((await readNext(reader)).type).toBe('text-end')
     expect((await readNext(reader)).type).toBe('tool-input-available')
 
     handler?.({
@@ -1079,10 +1085,8 @@ describe('createOpenClawChatTransport', () => {
 
     await vi.advanceTimersByTimeAsync(21_500)
 
-    expect((await readNext(reader)).type).toBe('text-end')
     expect((await readNext(reader)).type).toBe('finish-step')
     expect((await readNext(reader)).type).toBe('finish')
-    expect((await reader.read()).done).toBe(true)
 
     vi.useRealTimers()
   })
@@ -1134,6 +1138,7 @@ describe('createOpenClawChatTransport', () => {
         },
       },
     })
+    expect((await readNext(reader)).type).toBe('text-end')
     expect((await readNext(reader)).type).toBe('tool-input-available')
 
     handler?.({
@@ -1172,6 +1177,7 @@ describe('createOpenClawChatTransport', () => {
       },
     })
 
+    expect((await readNext(reader)).type).toBe('text-start')
     expect((await readNext(reader)).type).toBe('text-delta')
     expect((await readNext(reader)).type).toBe('text-end')
     expect((await readNext(reader)).type).toBe('finish-step')

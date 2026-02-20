@@ -163,7 +163,7 @@ function OfficeDocxContent({ tab }: { tab: OpenTab }) {
   return (
     <ScrollArea className="h-full">
       <div className="p-4">
-        <div ref={containerRef} className="mx-auto max-w-[960px]" />
+        <div ref={containerRef} />
       </div>
     </ScrollArea>
   );

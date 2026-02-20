@@ -7,40 +7,46 @@ import type { SkillNodeData } from "./nodes/SkillNode";
 import { groupSkillsByPublisher, PUBLISHER_META, type Publisher } from "./classifySkillPublisher";
 
 type AnyNode = Node<PublisherNodeData, "publisher"> | Node<SkillNodeData, "skill">;
+type LayoutGroup = { pubNode: AnyNode; skillNodes: AnyNode[] };
 
 const NODE_W = 160;
 const NODE_H = 36;
-const GAP_X = 80;
+const GAP_X = 60;
 const GAP_Y = 8;
-const GROUP_GAP_Y = 48;
+const COL_GAP = 60;
+const ROW_GAP = 48;
 
 /**
- * Zigzag layout: odd groups publisher-left → skills-right,
- * even groups skills-left ← publisher-right.
+ * Parallel layout — two groups per row:
+ *   [Pub] → skills    skills ← [Pub]
  */
-function zigzagLayout(groups: { pubNode: AnyNode; skillNodes: AnyNode[] }[]): void {
+function parallelLayout(groups: LayoutGroup[]): void {
+  const colW = NODE_W * 2 + GAP_X;
   let cursorY = 0;
-  const totalW = NODE_W * 2 + GAP_X;
 
-  for (let i = 0; i < groups.length; i++) {
-    const { pubNode, skillNodes } = groups[i];
-    const groupH = skillNodes.length * (NODE_H + GAP_Y) - GAP_Y;
-    const pubY = cursorY + Math.max(0, groupH / 2 - NODE_H / 2);
-    const leftToRight = i % 2 === 0;
+  for (let i = 0; i < groups.length; i += 2) {
+    const left = groups[i];
+    const right = groups[i + 1];
+    const leftH = left.skillNodes.length * (NODE_H + GAP_Y) - GAP_Y;
+    const rightH = right ? right.skillNodes.length * (NODE_H + GAP_Y) - GAP_Y : 0;
+    const rowH = Math.max(leftH, rightH, NODE_H);
 
-    if (leftToRight) {
-      pubNode.position = { x: 0, y: pubY };
-      skillNodes.forEach((n, j) => {
-        n.position = { x: NODE_W + GAP_X, y: cursorY + j * (NODE_H + GAP_Y) };
-      });
-    } else {
-      pubNode.position = { x: totalW - NODE_W, y: pubY };
-      skillNodes.forEach((n, j) => {
-        n.position = { x: 0, y: cursorY + j * (NODE_H + GAP_Y) };
+    // left: publisher → skills
+    left.pubNode.position = { x: 0, y: cursorY + rowH / 2 - NODE_H / 2 };
+    left.skillNodes.forEach((n, j) => {
+      n.position = { x: NODE_W + GAP_X, y: cursorY + j * (NODE_H + GAP_Y) };
+    });
+
+    // right: skills ← publisher
+    if (right) {
+      const rx = colW + COL_GAP;
+      right.pubNode.position = { x: rx + NODE_W + GAP_X, y: cursorY + rowH / 2 - NODE_H / 2 };
+      right.skillNodes.forEach((n, j) => {
+        n.position = { x: rx, y: cursorY + j * (NODE_H + GAP_Y) };
       });
     }
 
-    cursorY += Math.max(groupH, NODE_H) + GROUP_GAP_Y;
+    cursorY += rowH + ROW_GAP;
   }
 }
 
@@ -54,7 +60,7 @@ export function useSkillsGraph(skills: SkillEntry[]) {
     if (skills.length === 0) return { nodes, edges };
 
     const grouped = groupSkillsByPublisher(skills);
-    const layoutGroups: { pubNode: AnyNode; skillNodes: AnyNode[] }[] = [];
+    const layoutGroups: LayoutGroup[] = [];
 
     for (const [pub, list] of Object.entries(grouped) as [Publisher, SkillEntry[]][]) {
       const meta = PUBLISHER_META[pub];
@@ -94,7 +100,7 @@ export function useSkillsGraph(skills: SkillEntry[]) {
       layoutGroups.push({ pubNode, skillNodes });
     }
 
-    zigzagLayout(layoutGroups);
+    parallelLayout(layoutGroups);
     return { nodes, edges };
   }, [skills, t]);
 }

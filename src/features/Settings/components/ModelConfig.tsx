@@ -1,8 +1,7 @@
 import type { ModelCatalogEntry } from "@clawui/types/models";
-import type { ChangeEvent } from "react";
-import { Button, Input, Select } from "@clawui/ui";
+import { Button, Input } from "@clawui/ui";
 import { Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface ModelConfigProps {
@@ -25,11 +24,31 @@ export function ModelConfig({
   onRemoveFallback,
 }: ModelConfigProps) {
   const { t } = useTranslation("common");
+  const [defaultInput, setDefaultInput] = useState(defaultModel);
   const [fallbackInput, setFallbackInput] = useState("");
+  const defaultListId = useId();
+  const fallbackListId = useId();
+
+  const usedModels = useMemo(
+    () => new Set([defaultModel, ...fallbacks]),
+    [defaultModel, fallbacks],
+  );
+
+  const availableFallbacks = useMemo(
+    () => catalog.filter((m) => !usedModels.has(m.key)),
+    [catalog, usedModels],
+  );
+
+  const handleSetDefault = () => {
+    const value = defaultInput.trim();
+    if (value && value !== defaultModel) {
+      onSetDefault(value);
+    }
+  };
 
   const handleAddFallback = () => {
     const value = fallbackInput.trim();
-    if (!value) return;
+    if (!value || usedModels.has(value)) return;
     onAddFallback(value);
     setFallbackInput("");
   };
@@ -41,18 +60,21 @@ export function ModelConfig({
         <span className="text-sm text-muted-foreground shrink-0 w-20">
           {t("settings.modelConfig.defaultModel")}
         </span>
-        <Select
-          value={defaultModel}
-          onChange={(e: ChangeEvent<HTMLSelectElement>) => onSetDefault(e.target.value)}
-          disabled={isLoading || catalog.length === 0}
-          className="flex-1"
-        >
+        <Input
+          list={defaultListId}
+          value={defaultInput}
+          onChange={(e) => setDefaultInput(e.target.value)}
+          onBlur={handleSetDefault}
+          onKeyDown={(e) => e.key === "Enter" && handleSetDefault()}
+          placeholder={t("settings.modelConfig.fallbackPlaceholder")}
+          disabled={isLoading}
+          className="flex-1 font-mono text-sm"
+        />
+        <datalist id={defaultListId}>
           {catalog.map((model) => (
-            <option key={model.key} value={model.key}>
-              {model.key}
-            </option>
+            <option key={model.key} value={model.key} />
           ))}
-        </Select>
+        </datalist>
       </div>
 
       {/* Fallback models */}
@@ -61,24 +83,29 @@ export function ModelConfig({
           <span className="text-sm text-muted-foreground shrink-0 w-20">
             {t("settings.modelConfig.fallbacks")}
           </span>
-          <div className="flex items-center gap-2 flex-1">
-            <Input
-              value={fallbackInput}
-              onChange={(e) => setFallbackInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddFallback()}
-              placeholder={t("settings.modelConfig.fallbackPlaceholder")}
-              disabled={isLoading}
-              className="flex-1"
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleAddFallback}
-              disabled={isLoading || !fallbackInput.trim()}
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          <Input
+            list={fallbackListId}
+            value={fallbackInput}
+            onChange={(e) => setFallbackInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAddFallback()}
+            placeholder={t("settings.modelConfig.fallbackPlaceholder")}
+            disabled={isLoading}
+            className="flex-1 font-mono text-sm"
+          />
+          <datalist id={fallbackListId}>
+            {availableFallbacks.map((model) => (
+              <option key={model.key} value={model.key} />
+            ))}
+          </datalist>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleAddFallback}
+            disabled={isLoading || !fallbackInput.trim()}
+            className="shrink-0"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
         {fallbacks.length > 0 && (
           <div className="ml-[calc(5rem+0.75rem)] space-y-1">

@@ -75,6 +75,8 @@ const chat = {
     stderr: "错误输出",
     exitCode: "退出码",
     noOutput: "无输出",
+    sheet: "工作表",
+    sheetEmpty: "该工作表为空。",
   },
 } as const;
 

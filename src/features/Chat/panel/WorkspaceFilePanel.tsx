@@ -264,6 +264,114 @@ function OfficePptxContent({ tab }: { tab: OpenTab }) {
   );
 }
 
+function OfficeXlsxContent({ tab }: { tab: OpenTab }) {
+  const { t } = useTranslation("chat");
+  const [sheets, setSheets] = useState<{ name: string; rows: string[][] }[] | null>(null);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!tab.content) return;
+
+    let cancelled = false;
+    setSheets(null);
+    setActiveSheet(0);
+    setError(null);
+
+    void (async () => {
+      try {
+        const { dataUrlToUint8Array } = await import("./officePreview");
+        const ExcelJS = await import("exceljs");
+        const bytes = dataUrlToUint8Array(tab.content!);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(bytes.buffer as ArrayBuffer);
+
+        if (cancelled) return;
+
+        const parsed: { name: string; rows: string[][] }[] = [];
+        workbook.eachSheet((worksheet) => {
+          const rows: string[][] = [];
+          worksheet.eachRow((row) => {
+            const cells: string[] = [];
+            row.eachCell({ includeEmpty: true }, (cell) => {
+              cells.push(cell.text ?? "");
+            });
+            rows.push(cells);
+          });
+          parsed.push({ name: worksheet.name, rows });
+        });
+        setSheets(parsed);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tab.content]);
+
+  if (error) {
+    return (
+      <p className="p-4 text-sm text-destructive">
+        {t("workspaceFiles.loadError")}: {error}
+      </p>
+    );
+  }
+
+  if (sheets == null) {
+    return <p className="p-4 text-sm text-muted-foreground">{t("workspaceFiles.officeLoading")}</p>;
+  }
+
+  const current = sheets[activeSheet];
+
+  return (
+    <div className="flex h-full flex-col">
+      {sheets.length > 1 && (
+        <div className="flex gap-0 overflow-x-auto border-b">
+          {sheets.map((s, i) => (
+            <button
+              key={s.name}
+              type="button"
+              className={cn(
+                "shrink-0 px-3 py-1.5 text-xs cursor-pointer select-none border-r",
+                i === activeSheet
+                  ? "bg-background text-foreground font-medium"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted",
+              )}
+              onClick={() => setActiveSheet(i)}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <ScrollArea className="min-h-0 flex-1">
+        {current && current.rows.length > 0 ? (
+          <table className="w-full border-collapse text-xs">
+            <tbody>
+              {current.rows.map((row, ri) => (
+                <tr key={ri} className={ri === 0 ? "bg-muted/50 font-medium" : "border-t"}>
+                  {row.map((cell, ci) => (
+                    <td key={ci} className="border-r px-2 py-1 whitespace-nowrap">
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="p-4 text-sm text-muted-foreground">{t("workspaceFiles.sheetEmpty")}</p>
+        )}
+      </ScrollArea>
+    </div>
+  );
+}
+
 function OfficeContent({ tab }: { tab: OpenTab }) {
   if (!tab.content) return null;
 
@@ -276,6 +384,9 @@ function OfficeContent({ tab }: { tab: OpenTab }) {
   }
   if (kind === "pptx") {
     return <OfficePptxContent tab={tab} />;
+  }
+  if (kind === "xlsx") {
+    return <OfficeXlsxContent tab={tab} />;
   }
   return <OfficeUnsupportedContent tab={tab} />;
 }

@@ -77,6 +77,8 @@ const chat = {
     stderr: "Stderr",
     exitCode: "Exit code",
     noOutput: "No output",
+    sheet: "Sheet",
+    sheetEmpty: "This sheet is empty.",
   },
 } as const;
 

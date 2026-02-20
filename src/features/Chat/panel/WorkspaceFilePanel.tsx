@@ -18,6 +18,17 @@ function isPython(name: string): boolean {
   return /\.py$/i.test(name);
 }
 
+function isCsv(name: string): boolean {
+  return /\.(csv|tsv)$/i.test(name);
+}
+
+function parseCsvRows(text: string, separator: string): string[][] {
+  return text
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line) => line.split(separator));
+}
+
 // --- Tab Bar ---
 
 function TabBar() {
@@ -80,6 +91,12 @@ function TabBar() {
 function TextContent({ tab }: { tab: OpenTab }) {
   if (tab.content == null) return null;
 
+  if (isCsv(tab.name)) {
+    const sep = /\.tsv$/i.test(tab.name) ? "\t" : ",";
+    const rows = parseCsvRows(tab.content, sep);
+    return <CsvTable rows={rows} />;
+  }
+
   if (isMarkdownLike(tab.name)) {
     return <MessageText text={tab.content} isAnimating={false} />;
   }
@@ -91,6 +108,39 @@ function TextContent({ tab }: { tab: OpenTab }) {
   }
 
   return <pre className="whitespace-pre-wrap break-words text-sm font-mono">{tab.content}</pre>;
+}
+
+function CsvTable({ rows }: { rows: string[][] }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr className="bg-muted/50">
+            {rows[0].map((cell, i) => (
+              <th
+                key={i}
+                className="border-b border-r px-2 py-1.5 text-left font-medium whitespace-nowrap"
+              >
+                {cell}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.slice(1).map((row, ri) => (
+            <tr key={ri} className="border-t hover:bg-muted/30">
+              {row.map((cell, ci) => (
+                <td key={ci} className="border-r px-2 py-1 whitespace-nowrap">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function ImageContent({ tab }: { tab: OpenTab }) {

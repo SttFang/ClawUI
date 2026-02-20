@@ -74,6 +74,7 @@ app.whenReady().then(async () => {
     `style-src 'self' 'unsafe-inline'`,
     `connect-src 'self' ws://localhost:* ws://127.0.0.1:*`,
     `img-src 'self' data:`,
+    `media-src 'self' data: blob:`,
     `font-src 'self' data:`,
     `frame-src blob: 'self'`,
     `object-src 'none'`,

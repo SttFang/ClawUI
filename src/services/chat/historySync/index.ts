@@ -1,10 +1,12 @@
 import type { UIMessage } from "ai";
 import { useCallback, useEffect, useRef } from "react";
+import type { SubagentStatus } from "@/store/subagents";
 import { clearTracesForSession } from "@/features/Chat/components/A2UI/execTrace";
 import { ipc, type ChatNormalizedRunEvent, type GatewayEventFrame } from "@/lib/ipc";
 import { historyLog } from "@/lib/logger";
 import { selectIsCompacting, useCompactionStore } from "@/store/compaction";
 import { useExecApprovalsStore } from "@/store/exec";
+import { useSubagentsStore } from "@/store/subagents";
 import { resetHeartbeatBackoff, shouldRefreshHistoryOnHeartbeat } from "../historyRefreshPolicy";
 import {
   isExecToolFinished,
@@ -157,6 +159,41 @@ export function useOpenClawHistorySync(params: {
     }
     prevIsStreamingRef.current = isStreaming;
   }, [isStreaming]);
+
+  // Auto-refresh when a child subagent reaches terminal state
+  useEffect(() => {
+    if (!hasSession || !normalizedSessionKey) return;
+    const isTerminal = (s: SubagentStatus) => s === "done" || s === "error" || s === "timeout";
+    let prevStatuses: Record<string, SubagentStatus> = {};
+    for (const [id, node] of Object.entries(useSubagentsStore.getState().nodes)) {
+      if (node.parentSessionKey === normalizedSessionKey) prevStatuses[id] = node.status;
+    }
+    const unsub = useSubagentsStore.subscribe((state) => {
+      const scheduler = schedulerRef.current;
+      if (!scheduler) return;
+      let triggered = false;
+      for (const [id, node] of Object.entries(state.nodes)) {
+        if (node.parentSessionKey !== normalizedSessionKey) continue;
+        if (isTerminal(node.status) && !isTerminal(prevStatuses[id])) triggered = true;
+        prevStatuses[id] = node.status;
+      }
+      for (const id of Object.keys(prevStatuses)) {
+        if (!state.nodes[id]) delete prevStatuses[id];
+      }
+      if (triggered) {
+        scheduler.emit({
+          priority: "critical",
+          force: true,
+          reason: "subagent-completed",
+          allowRetry: true,
+        });
+      }
+    });
+    return () => {
+      unsub();
+      prevStatuses = {};
+    };
+  }, [hasSession, normalizedSessionKey]);
 
   // Initial session load
   useEffect(() => {

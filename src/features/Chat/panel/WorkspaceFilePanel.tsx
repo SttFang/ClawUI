@@ -132,17 +132,54 @@ function OfficeUnsupportedContent({ tab }: { tab: OpenTab }) {
   );
 }
 
+function useDocxScale(
+  wrapperRef: React.RefObject<HTMLDivElement | null>,
+  containerRef: React.RefObject<HTMLDivElement | null>,
+) {
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    const container = containerRef.current;
+    if (!wrapper || !container) return;
+
+    function recalc() {
+      // Find the first rendered page section
+      const page = container!.querySelector("section.docx-viewer") as HTMLElement | null;
+      if (!page) return;
+      const pageW = page.offsetWidth;
+      if (pageW <= 0) return;
+      // Available width = wrapper width minus padding (2 * 16px)
+      const available = wrapper!.clientWidth - 32;
+      setScale(available >= pageW ? 1 : available / pageW);
+    }
+
+    const ro = new ResizeObserver(recalc);
+    ro.observe(wrapper);
+    // Also run once after a short delay for initial render
+    const timer = setTimeout(recalc, 100);
+    return () => {
+      ro.disconnect();
+      clearTimeout(timer);
+    };
+  }, [wrapperRef, containerRef]);
+
+  return scale;
+}
+
 function OfficeDocxContent({ tab }: { tab: OpenTab }) {
   const { t } = useTranslation("chat");
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const scale = useDocxScale(wrapperRef, containerRef);
 
   useEffect(() => {
     if (!tab.content || !containerRef.current) return;
 
     let cancelled = false;
     const host = containerRef.current;
-    host.innerHTML = "";
+    host.textContent = "";
     setError(null);
 
     void (async () => {
@@ -167,7 +204,7 @@ function OfficeDocxContent({ tab }: { tab: OpenTab }) {
 
     return () => {
       cancelled = true;
-      host.innerHTML = "";
+      host.textContent = "";
     };
   }, [tab.content]);
 
@@ -181,8 +218,18 @@ function OfficeDocxContent({ tab }: { tab: OpenTab }) {
 
   return (
     <ScrollArea className="h-full">
-      <div className="p-4">
-        <div ref={containerRef} />
+      <div ref={wrapperRef} className="p-4">
+        <div
+          ref={containerRef}
+          style={
+            scale < 1
+              ? {
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top center",
+                }
+              : undefined
+          }
+        />
       </div>
     </ScrollArea>
   );

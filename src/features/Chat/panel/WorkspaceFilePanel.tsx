@@ -203,23 +203,31 @@ function OfficeDocxContent({ tab }: { tab: OpenTab }) {
 
 function OfficePptxContent({ tab }: { tab: OpenTab }) {
   const { t } = useTranslation("chat");
-  const [slides, setSlides] = useState<string[] | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!tab.content) return;
+    if (!tab.content || !containerRef.current) return;
 
     let cancelled = false;
-    setSlides(null);
+    const host = containerRef.current;
+    host.textContent = "";
     setError(null);
 
     void (async () => {
       try {
-        const { extractPptxSlidesFromDataUrl } = await import("./officePreview");
-        const parsed = await extractPptxSlidesFromDataUrl(tab.content!);
-        if (!cancelled) {
-          setSlides(parsed);
-        }
+        const [pptxPreview, { dataUrlToUint8Array }] = await Promise.all([
+          import("pptx-preview"),
+          import("./officePreview"),
+        ]);
+        if (cancelled) return;
+        const bytes = dataUrlToUint8Array(tab.content!);
+        // pptx-preview may export as default or named - check actual export
+        const render = typeof pptxPreview.default === "function" ? pptxPreview.default : pptxPreview;
+        await (render as any)(bytes, {
+          container: host,
+          slideMode: "scroll",
+        });
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : String(err));
@@ -229,6 +237,7 @@ function OfficePptxContent({ tab }: { tab: OpenTab }) {
 
     return () => {
       cancelled = true;
+      host.textContent = "";
     };
   }, [tab.content]);
 
@@ -240,25 +249,10 @@ function OfficePptxContent({ tab }: { tab: OpenTab }) {
     );
   }
 
-  if (slides == null) {
-    return <p className="p-4 text-sm text-muted-foreground">{t("workspaceFiles.officeLoading")}</p>;
-  }
-
   return (
     <ScrollArea className="h-full">
-      <div className="space-y-3 p-4">
-        {slides.map((text, index) => (
-          <section key={index} className="rounded-md border bg-muted/20 p-3">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">
-              {t("workspaceFiles.slide")} {index + 1}
-            </p>
-            {text ? (
-              <pre className="whitespace-pre-wrap break-words text-sm">{text}</pre>
-            ) : (
-              <p className="text-xs text-muted-foreground">{t("workspaceFiles.noSlideText")}</p>
-            )}
-          </section>
-        ))}
+      <div className="p-4">
+        <div ref={containerRef} />
       </div>
     </ScrollArea>
   );

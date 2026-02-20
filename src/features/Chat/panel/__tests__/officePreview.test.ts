@@ -3,7 +3,6 @@ import {
   classifyOfficePreview,
   dataUrlToBlob,
   dataUrlToUint8Array,
-  extractPptxSlideTextFromXml,
 } from "../officePreview";
 
 describe("officePreview helpers", () => {
@@ -25,29 +24,5 @@ describe("officePreview helpers", () => {
     expect(Array.from(bytes)).toEqual([72, 101, 108, 108, 111]);
     expect(blob.size).toBe(5);
     expect(blob.type).toBe("text/plain");
-  });
-
-  it("extracts text lines from pptx slide xml", () => {
-    const xml = `
-      <p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
-             xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
-        <p:cSld>
-          <p:spTree>
-            <p:sp>
-              <p:txBody>
-                <a:p>
-                  <a:r><a:t>Title</a:t></a:r>
-                </a:p>
-                <a:p>
-                  <a:r><a:t>Point A</a:t></a:r>
-                </a:p>
-              </p:txBody>
-            </p:sp>
-          </p:spTree>
-        </p:cSld>
-      </p:sld>
-    `;
-
-    expect(extractPptxSlideTextFromXml(xml)).toBe("Title\nPoint A");
   });
 });

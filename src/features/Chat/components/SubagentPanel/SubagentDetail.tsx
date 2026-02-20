@@ -2,6 +2,7 @@ import { ScrollArea, cn } from "@clawui/ui";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { useSubagentsStore, selectSelectedNode, selectHistory } from "@/store/subagents";
+import { SubagentMessageParts } from "./SubagentMessageParts";
 
 export function SubagentDetail() {
   const { t } = useTranslation("common");
@@ -51,13 +52,19 @@ export function SubagentDetail() {
                     ? "bg-muted/60"
                     : msg.role === "user"
                       ? "bg-primary/5"
-                      : "bg-yellow-500/10",
+                      : msg.role === "toolResult"
+                        ? "bg-orange-500/5"
+                        : "bg-yellow-500/10",
                 )}
               >
                 <span className="mb-0.5 block text-[10px] font-medium uppercase text-muted-foreground">
                   {msg.role}
                 </span>
-                <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+                {msg.parts.length > 0 ? (
+                  <SubagentMessageParts parts={msg.parts} />
+                ) : (
+                  <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+                )}
               </div>
             ))
           )}

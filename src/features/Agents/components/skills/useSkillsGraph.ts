@@ -9,41 +9,47 @@ import { groupSkillsByPublisher, PUBLISHER_META, type Publisher } from "./classi
 type AnyNode = Node<PublisherNodeData, "publisher"> | Node<SkillNodeData, "skill">;
 type LayoutGroup = { pubNode: AnyNode; skillNodes: AnyNode[] };
 
-const NODE_W = 160;
-const NODE_H = 36;
-const GAP_X = 60;
-const GAP_Y = 8;
-const COL_GAP = 60;
-const ROW_GAP = 48;
+const NODE_W = 150;
+const NODE_H = 34;
+const GAP_X = 40;
+const GAP_Y = 6;
+const PAIR_GAP = 36;
+const ROW_GAP = 40;
 
 /**
- * Parallel layout — two groups per row:
- *   skills ← [Pub]    [Pub] → skills
+ * 4-column parallel layout per row:
+ *   skills←[Pub] [Pub]→skills | skills←[Pub] [Pub]→skills
  */
 function parallelLayout(groups: LayoutGroup[]): void {
-  const colW = NODE_W * 2 + GAP_X;
+  const pairW = (NODE_W + GAP_X) * 2;
   let cursorY = 0;
 
-  for (let i = 0; i < groups.length; i += 2) {
-    const left = groups[i];
-    const right = groups[i + 1];
-    const leftH = left.skillNodes.length * (NODE_H + GAP_Y) - GAP_Y;
-    const rightH = right ? right.skillNodes.length * (NODE_H + GAP_Y) - GAP_Y : 0;
-    const rowH = Math.max(leftH, rightH, NODE_H);
+  for (let i = 0; i < groups.length; i += 4) {
+    const row = groups.slice(i, i + 4);
+    const heights = row.map((g) =>
+      Math.max(g.skillNodes.length * (NODE_H + GAP_Y) - GAP_Y, NODE_H),
+    );
+    const rowH = Math.max(...heights);
 
-    // left: skills ← [Publisher]
-    left.pubNode.position = { x: NODE_W + GAP_X, y: cursorY + rowH / 2 - NODE_H / 2 };
-    left.skillNodes.forEach((n, j) => {
-      n.position = { x: 0, y: cursorY + j * (NODE_H + GAP_Y) };
-    });
+    for (let p = 0; p < row.length; p += 2) {
+      const pairX = (p / 2) * (pairW + PAIR_GAP);
+      const a = row[p];
+      const b = row[p + 1];
 
-    // right: [Publisher] → skills
-    if (right) {
-      const rx = colW + COL_GAP;
-      right.pubNode.position = { x: rx, y: cursorY + rowH / 2 - NODE_H / 2 };
-      right.skillNodes.forEach((n, j) => {
-        n.position = { x: rx + NODE_W + GAP_X, y: cursorY + j * (NODE_H + GAP_Y) };
+      // left of pair: skills ← [Pub]
+      a.pubNode.position = { x: pairX + NODE_W + GAP_X, y: cursorY + rowH / 2 - NODE_H / 2 };
+      a.skillNodes.forEach((n, j) => {
+        n.position = { x: pairX, y: cursorY + j * (NODE_H + GAP_Y) };
       });
+
+      // right of pair: [Pub] → skills
+      if (b) {
+        const bx = pairX + (NODE_W + GAP_X) + NODE_W + GAP_X;
+        b.pubNode.position = { x: bx - NODE_W - GAP_X, y: cursorY + rowH / 2 - NODE_H / 2 };
+        b.skillNodes.forEach((n, j) => {
+          n.position = { x: bx, y: cursorY + j * (NODE_H + GAP_Y) };
+        });
+      }
     }
 
     cursorY += rowH + ROW_GAP;

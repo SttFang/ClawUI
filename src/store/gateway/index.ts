@@ -45,10 +45,10 @@ export const useGatewayStore = create<GatewayStore>()(
       stop: async () => {
         try {
           await ipc.gateway.stop();
-          set({ status: "stopped" }, false, "stop/success");
+          set({ status: "stopped", error: null }, false, "stop/success");
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to stop gateway";
-          set({ error: message }, false, "stop/error");
+          set({ status: "error", error: message }, false, "stop/error");
         }
       },
 

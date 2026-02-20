@@ -107,17 +107,19 @@ export const useRescueStore = create<RescueStore>()(
         set(
           (s) => {
             const msgs = [...s.messages];
+            // Gateway 用 runId 标识一轮对话；assistant 消息用独立 id 避免与 user 消息 key 冲突。
+            const assistantId = `${event.messageId}:a`;
             const lastIdx = msgs.findIndex(
-              (m) => m.role === "assistant" && m.id === event.messageId,
+              (m) => m.role === "assistant" && m.id === assistantId,
             );
 
             if (event.type === "delta") {
               if (lastIdx >= 0) {
-                const prev = msgs[lastIdx];
-                msgs[lastIdx] = { ...prev, content: prev.content + (event.content ?? "") };
+                // Gateway delta 携带的是累积全文，直接替换而非拼接。
+                msgs[lastIdx] = { ...msgs[lastIdx], content: event.content ?? "" };
               } else {
                 msgs.push({
-                  id: event.messageId,
+                  id: assistantId,
                   role: "assistant",
                   content: event.content ?? "",
                   timestamp: Date.now(),
@@ -126,12 +128,21 @@ export const useRescueStore = create<RescueStore>()(
               }
             } else if (event.type === "end" && lastIdx >= 0) {
               msgs[lastIdx] = { ...msgs[lastIdx], isStreaming: false };
-            } else if (event.type === "error" && lastIdx >= 0) {
-              msgs[lastIdx] = {
-                ...msgs[lastIdx],
-                isStreaming: false,
-                content: msgs[lastIdx].content + `\n[error: ${event.error ?? "unknown"}]`,
-              };
+            } else if (event.type === "error") {
+              if (lastIdx >= 0) {
+                msgs[lastIdx] = {
+                  ...msgs[lastIdx],
+                  isStreaming: false,
+                  content: msgs[lastIdx].content + `\n[error: ${event.error ?? "unknown"}]`,
+                };
+              } else {
+                msgs.push({
+                  id: assistantId,
+                  role: "assistant",
+                  content: `[error: ${event.error ?? "unknown"}]`,
+                  timestamp: Date.now(),
+                });
+              }
             }
 
             return { messages: msgs };

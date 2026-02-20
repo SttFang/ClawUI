@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  classifyOfficePreview,
-  dataUrlToBlob,
-  dataUrlToUint8Array,
-} from "../officePreview";
+import { classifyOfficePreview, dataUrlToBlob, dataUrlToUint8Array } from "../officePreview";
 
 describe("officePreview helpers", () => {
   it("classifies office preview kind by extension", () => {

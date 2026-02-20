@@ -41,4 +41,3 @@ export function dataUrlToBlob(dataUrl: string): Blob {
   const copied = Uint8Array.from(bytes);
   return new Blob([copied.buffer], { type: mime });
 }
-

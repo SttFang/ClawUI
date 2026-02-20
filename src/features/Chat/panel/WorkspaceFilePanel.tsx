@@ -2,8 +2,8 @@ import { Button, ScrollArea } from "@clawui/ui";
 import { Play, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { OpenTab } from "@/store/workspaceFiles";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import type { OpenTab } from "@/store/workspaceFiles";
 import { cn } from "@/lib/utils";
 import { useWorkspaceFilesStore, guessLanguage } from "@/store/workspaceFiles";
 import { MessageText } from "../components/MessageText";
@@ -83,21 +83,12 @@ function ImageContent({ tab }: { tab: OpenTab }) {
   if (!tab.content) return null;
   return (
     <div className="flex h-full items-center justify-center overflow-hidden">
-      <TransformWrapper
-        initialScale={1}
-        minScale={0.1}
-        maxScale={10}
-        centerOnInit
-      >
+      <TransformWrapper initialScale={1} minScale={0.1} maxScale={10} centerOnInit>
         <TransformComponent
           wrapperClass="!w-full !h-full"
           contentClass="!w-full !h-full !flex !items-center !justify-center"
         >
-          <img
-            src={tab.content}
-            alt={tab.name}
-            className="max-h-full max-w-full object-contain"
-          />
+          <img src={tab.content} alt={tab.name} className="max-h-full max-w-full object-contain" />
         </TransformComponent>
       </TransformWrapper>
     </div>
@@ -108,11 +99,7 @@ function VideoContent({ tab }: { tab: OpenTab }) {
   if (!tab.content) return null;
   return (
     <div className="flex h-full items-center justify-center bg-black p-4">
-      <video
-        controls
-        className="max-h-full max-w-full"
-        src={tab.content}
-      >
+      <video controls className="max-h-full max-w-full" src={tab.content}>
         <track kind="captions" />
       </video>
     </div>
@@ -223,7 +210,8 @@ function OfficePptxContent({ tab }: { tab: OpenTab }) {
         if (cancelled) return;
         const bytes = dataUrlToUint8Array(tab.content!);
         // pptx-preview may export as default or named - check actual export
-        const render = typeof pptxPreview.default === "function" ? pptxPreview.default : pptxPreview;
+        const render =
+          typeof pptxPreview.default === "function" ? pptxPreview.default : pptxPreview;
         await (render as any)(bytes, {
           container: host,
           slideMode: "scroll",

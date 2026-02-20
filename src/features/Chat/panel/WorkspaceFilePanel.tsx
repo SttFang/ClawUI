@@ -3,6 +3,7 @@ import { Play, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { OpenTab } from "@/store/workspaceFiles";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { cn } from "@/lib/utils";
 import { useWorkspaceFilesStore, guessLanguage } from "@/store/workspaceFiles";
 import { MessageText } from "../components/MessageText";
@@ -81,8 +82,39 @@ function TextContent({ tab }: { tab: OpenTab }) {
 function ImageContent({ tab }: { tab: OpenTab }) {
   if (!tab.content) return null;
   return (
-    <div className="flex items-center justify-center p-4">
-      <img src={tab.content} alt={tab.name} className="max-h-full max-w-full object-contain" />
+    <div className="flex h-full items-center justify-center overflow-hidden">
+      <TransformWrapper
+        initialScale={1}
+        minScale={0.1}
+        maxScale={10}
+        centerOnInit
+      >
+        <TransformComponent
+          wrapperClass="!w-full !h-full"
+          contentClass="!w-full !h-full !flex !items-center !justify-center"
+        >
+          <img
+            src={tab.content}
+            alt={tab.name}
+            className="max-h-full max-w-full object-contain"
+          />
+        </TransformComponent>
+      </TransformWrapper>
+    </div>
+  );
+}
+
+function VideoContent({ tab }: { tab: OpenTab }) {
+  if (!tab.content) return null;
+  return (
+    <div className="flex h-full items-center justify-center bg-black p-4">
+      <video
+        controls
+        className="max-h-full max-w-full"
+        src={tab.content}
+      >
+        <track kind="captions" />
+      </video>
     </div>
   );
 }
@@ -329,6 +361,8 @@ export function WorkspaceFilePanel() {
           activeTab.content != null &&
           (activeTab.kind === "image" ? (
             <ImageContent tab={activeTab} />
+          ) : activeTab.kind === "video" ? (
+            <VideoContent tab={activeTab} />
           ) : activeTab.kind === "html" ? (
             <HtmlContent tab={activeTab} />
           ) : activeTab.kind === "office" ? (

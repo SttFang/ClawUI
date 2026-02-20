@@ -7,10 +7,8 @@ import { usePluginsStore, selectInstalledPlugins } from "@/store/plugins";
 export function AgentExtensions() {
   const { t } = useTranslation("common");
   const installedPlugins = usePluginsStore(selectInstalledPlugins);
-  const skillsMain = useAgentsStore(agentsSelectors.selectSkillsMain);
-  const skillsConfigAgent = useAgentsStore(agentsSelectors.selectSkillsConfigAgent);
-  const totalSkills = new Set([...(skillsMain?.skills ?? []), ...(skillsConfigAgent?.skills ?? [])])
-    .size;
+  const skillEntries = useAgentsStore(agentsSelectors.selectSkillEntries);
+  const totalSkills = skillEntries.length;
 
   return (
     <Card>

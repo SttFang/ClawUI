@@ -69,15 +69,14 @@ export type {
 // Alias for backward compatibility
 export type OnboardingSubscriptionConfig = SubscriptionConfig;
 
-export type OpenClawProfileId = "main" | "configAgent";
-
-export type SkillsProfileList = {
-  dir: string;
-  skills: string[];
+export type SkillEntry = {
+  name: string;
+  description: string;
+  source: string;
 };
 
 export type SkillsListResult = {
-  profiles: Record<OpenClawProfileId, SkillsProfileList>;
+  skills: SkillEntry[];
 };
 
 export type ModelsAuthLoginOptions = {

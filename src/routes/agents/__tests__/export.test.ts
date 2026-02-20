@@ -5,10 +5,11 @@ import { buildAgentsExportPayload } from "../export";
 describe("buildAgentsExportPayload", () => {
   test("includes operations and attachments", () => {
     const skills = {
-      profiles: {
-        main: { dir: "/Users/me/.openclaw/skills", skills: ["a", "b"] },
-        configAgent: { dir: "/Users/me/.openclaw-config/skills", skills: ["c"] },
-      },
+      skills: [
+        { name: "a", description: "desc-a", source: "openclaw" },
+        { name: "b", description: "desc-b", source: "agents" },
+        { name: "c", description: "desc-c", source: "claude" },
+      ],
     } satisfies SkillsListResult;
 
     const cfg = {
@@ -44,7 +45,7 @@ describe("buildAgentsExportPayload", () => {
 
     expect(payload.schemaVersion).toBe(1);
     expect(payload.exportedAt).toBe("2026-02-10T00:00:00.000Z");
-    expect(payload.skills?.profiles.main.skills).toEqual(["a", "b"]);
+    expect(payload.skills?.skills).toHaveLength(3);
     expect(payload.cron.status).toEqual({ enabled: true, jobs: 1 });
     expect(payload.operations.some((op) => op.kind === "rpc" && op.method === "cron.list")).toBe(
       true,

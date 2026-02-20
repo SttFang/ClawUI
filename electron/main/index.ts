@@ -106,7 +106,7 @@ app.whenReady().then(async () => {
   });
   registerSecretsHandlers(ipcMain, profilesService, credentialService);
   registerSecurityHandlers(ipcMain);
-  registerSkillsHandlers(ipcMain, profilesService);
+  registerSkillsHandlers(ipcMain);
   registerCredentialHandlers(ipcMain, credentialService, oauthService);
   registerWorkspaceHandlers(ipcMain, configService);
   registerRescueHandlers(

@@ -1,6 +1,11 @@
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 
-export type SkillNodeData = { label: string; color: string; publisher: string };
+export type SkillNodeData = {
+  label: string;
+  color: string;
+  publisher: string;
+  description: string;
+};
 type SkillNodeType = Node<SkillNodeData, "skill">;
 
 export function SkillNode({ data }: NodeProps<SkillNodeType>) {

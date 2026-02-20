@@ -1,5 +1,7 @@
-import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
+import type { SkillEntry } from "@/lib/ipc";
 import type { AgentsStoreState } from "./initialState";
+
+const EMPTY_SKILLS: SkillEntry[] = [];
 
 // --- crud selectors ---
 const selectAgents = (s: AgentsStoreState) => s.agents;
@@ -12,12 +14,7 @@ const selectConfig = (s: AgentsStoreState) => s.config;
 const selectConfigError = (s: AgentsStoreState) => s.configError;
 const selectSkills = (s: AgentsStoreState) => s.skills;
 const selectSkillsError = (s: AgentsStoreState) => s.skillsError;
-const selectSkillsMain = createWeakCachedSelector(
-  (s: AgentsStoreState) => s.skills?.profiles?.main ?? null,
-);
-const selectSkillsConfigAgent = createWeakCachedSelector(
-  (s: AgentsStoreState) => s.skills?.profiles?.configAgent ?? null,
-);
+const selectSkillEntries = (s: AgentsStoreState) => s.skills?.skills ?? EMPTY_SKILLS;
 
 // --- cron selectors ---
 const selectCronStatus = (s: AgentsStoreState) => s.cronStatus;
@@ -40,8 +37,7 @@ export const agentsSelectors = {
   selectConfigError,
   selectSkills,
   selectSkillsError,
-  selectSkillsMain,
-  selectSkillsConfigAgent,
+  selectSkillEntries,
   selectCronStatus,
   selectCronJobs,
   selectCronError,

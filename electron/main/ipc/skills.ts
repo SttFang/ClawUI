@@ -1,16 +1,28 @@
 import { IpcMain } from "electron";
 import { readdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import type { OpenClawProfileId, OpenClawProfilesService } from "../services/openclaw-profiles";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { mainLog } from "../lib/logger";
+import { resolveOpenClawPath, runOpenClawJson } from "../utils/openclaw-cli";
 
-type SkillsProfileList = {
-  dir: string;
-  skills: string[];
+export type SkillEntry = {
+  name: string;
+  description: string;
+  source: string;
 };
 
 export type SkillsListResult = {
-  profiles: Record<OpenClawProfileId, SkillsProfileList>;
+  skills: SkillEntry[];
 };
+
+type CLISkillEntry = {
+  name: string;
+  description?: string;
+  source?: string;
+  eligible?: boolean;
+};
+
+type CLIReport = { skills: CLISkillEntry[] };
 
 function stripExtension(name: string): string {
   const idx = name.lastIndexOf(".");
@@ -18,43 +30,67 @@ function stripExtension(name: string): string {
   return name.slice(0, idx);
 }
 
-async function listSkillsUnder(dir: string): Promise<string[]> {
+async function listSkillsUnder(dir: string, source: string): Promise<SkillEntry[]> {
   try {
     const entries = await readdir(dir, { withFileTypes: true });
-    const names = entries
+    return entries
       .filter((e) => !e.name.startsWith("."))
-      .map((e) => (e.isFile() ? stripExtension(e.name) : e.name))
-      .filter((n) => n.trim().length > 0);
-    names.sort((a, b) => a.localeCompare(b));
-    return names;
+      .map((e) => ({
+        name: e.isFile() ? stripExtension(e.name) : e.name,
+        description: "",
+        source,
+      }))
+      .filter((s) => s.name.trim().length > 0);
   } catch {
     return [];
   }
 }
 
-function resolveSkillsDir(profiles: OpenClawProfilesService, profileId: OpenClawProfileId): string {
-  const cfgPath = profiles.getConfigPath(profileId);
-  return join(dirname(cfgPath), "skills");
+async function fallbackScan(): Promise<SkillEntry[]> {
+  const home = homedir();
+  const dirs: [string, string][] = [
+    [join(home, ".openclaw", "skills"), "openclaw"],
+    [join(home, ".agents", "skills"), "agents"],
+    [join(home, ".claude", "skills"), "claude"],
+  ];
+  const results = await Promise.all(dirs.map(([d, s]) => listSkillsUnder(d, s)));
+  const seen = new Set<string>();
+  const deduped: SkillEntry[] = [];
+  for (const list of results) {
+    for (const entry of list) {
+      if (!seen.has(entry.name)) {
+        seen.add(entry.name);
+        deduped.push(entry);
+      }
+    }
+  }
+  deduped.sort((a, b) => a.name.localeCompare(b.name));
+  return deduped;
 }
 
-export function registerSkillsHandlers(
-  ipcMain: IpcMain,
-  profilesService: OpenClawProfilesService,
-): void {
+export function registerSkillsHandlers(ipcMain: IpcMain): void {
   ipcMain.handle("skills:list", async (): Promise<SkillsListResult> => {
-    const mainDir = resolveSkillsDir(profilesService, "main");
-    const configAgentDir = resolveSkillsDir(profilesService, "configAgent");
-
-    const [main, configAgent] = await Promise.all([
-      listSkillsUnder(mainDir),
-      listSkillsUnder(configAgentDir),
-    ]);
-
-    return {
-      profiles: {
-        main: { dir: mainDir, skills: main },
-        configAgent: { dir: configAgentDir, skills: configAgent },
-      },
-    };
+    try {
+      const openclawPath = await resolveOpenClawPath();
+      const report = await runOpenClawJson<CLIReport>(
+        openclawPath,
+        ["skills", "list", "--json", "--eligible"],
+        "skills list",
+      );
+      const skills: SkillEntry[] = (report.skills ?? []).map((s) => ({
+        name: s.name,
+        description: s.description ?? "",
+        source: s.source ?? "",
+      }));
+      mainLog.info("[skills.list] loaded via CLI", { count: skills.length });
+      return { skills };
+    } catch (e) {
+      mainLog.warn("[skills.list] CLI failed, falling back to dir scan", {
+        error: e instanceof Error ? e.message : String(e),
+      });
+      const skills = await fallbackScan();
+      mainLog.info("[skills.list] loaded via fallback", { count: skills.length });
+      return { skills };
+    }
   });
 }

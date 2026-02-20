@@ -1,12 +1,17 @@
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAgentsStore, agentsSelectors } from "@/store/agents";
 import { SkillsNetworkGraph } from "./skills/SkillsNetworkGraph";
 
-export function AgentSkills() {
+export default function AgentSkills() {
   const { t } = useTranslation("common");
   const skillsError = useAgentsStore(agentsSelectors.selectSkillsError);
-  const skillsMain = useAgentsStore(agentsSelectors.selectSkillsMain);
-  const skillsConfigAgent = useAgentsStore(agentsSelectors.selectSkillsConfigAgent);
+  const skillEntries = useAgentsStore(agentsSelectors.selectSkillEntries);
+  const loadSkills = useAgentsStore((s) => s.loadSkills);
+
+  useEffect(() => {
+    void loadSkills();
+  }, [loadSkills]);
 
   return (
     <div className="h-[500px]">
@@ -15,7 +20,7 @@ export function AgentSkills() {
           {t("agents.skills.loadFailed")}: {skillsError}
         </div>
       )}
-      <SkillsNetworkGraph mainSkills={skillsMain} configAgentSkills={skillsConfigAgent} />
+      <SkillsNetworkGraph skills={skillEntries} />
     </div>
   );
 }

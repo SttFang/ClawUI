@@ -9,36 +9,37 @@ import {
   type NodeMouseHandler,
 } from "@xyflow/react";
 import { X } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import "./skills-graph.css";
-import type { SkillsProfileList } from "@/lib/ipc";
-import { ProfileNode } from "./nodes/ProfileNode";
+import type { SkillEntry } from "@/lib/ipc";
 import { PublisherNode } from "./nodes/PublisherNode";
 import { SkillNode, type SkillNodeData } from "./nodes/SkillNode";
-import { SKILL_DESCRIPTIONS } from "./skillDescriptions";
 import { useSkillsGraph } from "./useSkillsGraph";
 
 const nodeTypes: NodeTypes = {
-  profile: ProfileNode,
   publisher: PublisherNode,
   skill: SkillNode,
 };
 
 interface Props {
-  mainSkills: SkillsProfileList | null;
-  configAgentSkills: SkillsProfileList | null;
+  skills: SkillEntry[];
 }
 
-export function SkillsNetworkGraph({ mainSkills, configAgentSkills }: Props) {
-  const { nodes: initialNodes, edges: initialEdges } = useSkillsGraph([
-    { id: "main", label: "main", data: mainSkills },
-    { id: "configAgent", label: "configAgent", data: configAgentSkills },
-  ]);
+export function SkillsNetworkGraph({ skills }: Props) {
+  const { nodes: initialNodes, edges: initialEdges } = useSkillsGraph(skills);
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selected, setSelected] = useState<SkillNodeData | null>(null);
+
+  useEffect(() => {
+    setNodes(initialNodes);
+  }, [initialNodes, setNodes]);
+
+  useEffect(() => {
+    setEdges(initialEdges);
+  }, [initialEdges, setEdges]);
 
   const onNodeClick: NodeMouseHandler = useCallback((_evt, node) => {
     if (node.type === "skill") setSelected(node.data as SkillNodeData);
@@ -92,9 +93,9 @@ export function SkillsNetworkGraph({ mainSkills, configAgentSkills }: Props) {
               <span className="size-2 rounded-full" style={{ backgroundColor: selected.color }} />
               <span className="text-[10px] text-muted-foreground">{selected.publisher}</span>
             </div>
-            {SKILL_DESCRIPTIONS[selected.label] && (
+            {selected.description && (
               <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                {SKILL_DESCRIPTIONS[selected.label]}
+                {selected.description}
               </p>
             )}
           </div>

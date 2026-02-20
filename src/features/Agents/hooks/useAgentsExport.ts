@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { buildAgentsExportPayload } from "@/routes/agents/export";
+import { useAgentsStore, agentsSelectors } from "@/store/agents";
 import type { useAgentsData } from "./useAgentsData";
 
 function downloadJson(filename: string, data: unknown): void {
@@ -19,7 +20,6 @@ export function useAgentsExport(data: ReturnType<typeof useAgentsData>) {
   const {
     selectedAgent,
     config,
-    skills,
     cronStatus,
     cronJobs,
     channels,
@@ -29,6 +29,8 @@ export function useAgentsExport(data: ReturnType<typeof useAgentsData>) {
     configuredChannels,
     enabledChannels,
   } = data;
+
+  const skills = useAgentsStore(agentsSelectors.selectSkills);
 
   const exportPayload = useMemo(
     () =>

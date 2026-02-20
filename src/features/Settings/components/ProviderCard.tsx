@@ -96,11 +96,11 @@ export function ProviderCard({
   const status = getAuthStatus(authInfo, oauthStatus);
   const authDesc = useAuthDescription(authInfo, oauthStatus);
 
-  const isEnvAuth = authInfo.effective.kind === "env" || authInfo.effective.kind === "none";
-  const isTokenAuth = authInfo.effective.kind === "token";
   const isOAuthAuth = authInfo.effective.kind === "profiles";
   const hasOAuthProfiles = (authInfo.profiles?.oauth ?? 0) > 0;
-  const canEditApiKey = (isEnvAuth || isTokenAuth) && canSaveApiKey;
+  const isPortalProvider = provider.endsWith("-portal");
+  const supportsOAuth = hasOAuthProfiles || isOAuthAuth || isPortalProvider;
+  const canEditApiKey = !isOAuthAuth && canSaveApiKey;
 
   const handleRefresh = useCallback(async () => {
     const profileId = oauthStatus?.profiles?.[0]?.profileId;
@@ -114,7 +114,7 @@ export function ProviderCard({
     }
   }, [oauthStatus, onOAuthAction]);
 
-  const hasExpandableContent = canEditApiKey || isOAuthAuth || hasOAuthProfiles;
+  const hasExpandableContent = canEditApiKey || isOAuthAuth || supportsOAuth;
 
   return (
     <>
@@ -145,7 +145,7 @@ export function ProviderCard({
       {expanded && (
         <div className="px-4 pb-3 pt-1 space-y-2">
           {/* OAuth: login + refresh */}
-          {(isOAuthAuth || hasOAuthProfiles) && (
+          {(isOAuthAuth || supportsOAuth) && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setOauthDialogOpen(true)}>
                 <LogIn className="mr-1.5 h-3.5 w-3.5" />
@@ -196,7 +196,7 @@ export function ProviderCard({
             </span>
           )}
 
-          {(isEnvAuth || isTokenAuth) && !canSaveApiKey && (
+          {!isOAuthAuth && !canSaveApiKey && (
             <p className="text-xs text-muted-foreground">
               {t("settings.providerCard.unsupportedSaveHint")}
             </p>
@@ -204,7 +204,7 @@ export function ProviderCard({
         </div>
       )}
 
-      {(isOAuthAuth || hasOAuthProfiles) && (
+      {(isOAuthAuth || supportsOAuth) && (
         <OAuthLoginDialog
           provider={provider}
           providerLabel={label}

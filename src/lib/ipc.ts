@@ -153,6 +153,7 @@ export interface ElectronAPI {
     onStream: (callback: (event: ChatStreamEvent) => void) => () => void;
     onConnected: (callback: () => void) => () => void;
     onDisconnected: (callback: () => void) => () => void;
+    onReconnected: (callback: () => void) => () => void;
     onError: (callback: (error: string) => void) => () => void;
     onNormalizedEvent: (callback: (event: ChatNormalizedRunEvent) => void) => () => void;
   };
@@ -524,6 +525,10 @@ export const ipc = {
     onDisconnected(callback: () => void) {
       const api = getElectronAPI();
       return api?.chat.onDisconnected(callback) ?? (() => {});
+    },
+    onReconnected(callback: () => void) {
+      const api = getElectronAPI();
+      return api?.chat.onReconnected(callback) ?? (() => {});
     },
     onError(callback: (error: string) => void) {
       const api = getElectronAPI();

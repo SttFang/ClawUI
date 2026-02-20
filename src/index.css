@@ -218,6 +218,7 @@
     max-width: 100%;
     overflow-wrap: break-word;
     word-break: break-word;
+    padding: 8px !important;
   }
 
   .docx-flow-content table {

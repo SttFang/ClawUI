@@ -16,6 +16,7 @@ import type { SkillsProfileList } from "@/lib/ipc";
 import { ProfileNode } from "./nodes/ProfileNode";
 import { PublisherNode } from "./nodes/PublisherNode";
 import { SkillNode, type SkillNodeData } from "./nodes/SkillNode";
+import { SKILL_DESCRIPTIONS } from "./skillDescriptions";
 import { useSkillsGraph } from "./useSkillsGraph";
 
 const nodeTypes: NodeTypes = {
@@ -91,6 +92,11 @@ export function SkillsNetworkGraph({ mainSkills, configAgentSkills }: Props) {
               <span className="size-2 rounded-full" style={{ backgroundColor: selected.color }} />
               <span className="text-[10px] text-muted-foreground">{selected.publisher}</span>
             </div>
+            {SKILL_DESCRIPTIONS[selected.label] && (
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                {SKILL_DESCRIPTIONS[selected.label]}
+              </p>
+            )}
           </div>
         </Panel>
       )}

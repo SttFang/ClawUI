@@ -21,7 +21,7 @@ export function AgentSkills() {
             {t("agents.skills.loadFailed")}: {skillsError}
           </div>
         )}
-        <div className="h-[500px] rounded-lg border overflow-hidden">
+        <div className="h-[500px] overflow-hidden">
           <SkillsNetworkGraph mainSkills={skillsMain} configAgentSkills={skillsConfigAgent} />
         </div>
         <div className="text-xs text-muted-foreground">{t("agents.skills.note")}</div>

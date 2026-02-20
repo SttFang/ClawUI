@@ -183,7 +183,7 @@ function OfficeDocxContent({ tab }: { tab: OpenTab }) {
 
   return (
     <ScrollArea className="h-full">
-      <div className="docx-flow-content p-4">
+      <div className="docx-flow-content p-2">
         <div ref={containerRef} />
       </div>
     </ScrollArea>

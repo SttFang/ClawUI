@@ -183,6 +183,12 @@ export class GatewayService extends EventEmitter {
         await new Promise((r) => setTimeout(r, interval));
         waited += interval;
       }
+
+      // If polling exhausted without reaching a terminal state, mark as error.
+      if (this.getStatus() === "starting") {
+        gatewayLog.warn("[gateway.start.timeout]", `port=${this.port}`, `waited=${waited}ms`);
+        this.setStatus("error");
+      }
     } catch (error) {
       gatewayLog.error("[gateway.start.failed]", error, `durationMs=${Date.now() - t0}`);
       this.setStatus("error");

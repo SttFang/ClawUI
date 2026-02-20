@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { devtools, persist } from "zustand/middleware";
+import { devtools } from "zustand/middleware";
 import { subscriptionLog } from "@/lib/logger";
 import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
 
@@ -69,16 +69,17 @@ const initialState: SubscriptionState = {
   error: null,
 };
 
+// TODO: 接入真实 API — 当前所有 action 使用 mock 数据
 export const useSubscriptionStore = create<SubscriptionStore>()(
   devtools(
-    persist(
-      (set, get) => ({
-        ...initialState,
+    (set, get) => ({
+      ...initialState,
 
-        loadSubscription: async () => {
-          set({ isLoading: true, error: null }, false, "loadSubscription");
-          try {
-            await new Promise((resolve) => setTimeout(resolve, 500));
+      loadSubscription: async () => {
+        set({ isLoading: true, error: null }, false, "loadSubscription");
+        try {
+          // TODO: replace with real API call
+          await new Promise((resolve) => setTimeout(resolve, 500));
 
             const now = new Date();
             const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -169,13 +170,6 @@ export const useSubscriptionStore = create<SubscriptionStore>()(
           }
         },
       }),
-      {
-        name: "clawui-subscription",
-        partialize: (state) => ({
-          currentPlan: state.currentPlan,
-        }),
-      },
-    ),
     { name: "SubscriptionStore" },
   ),
 );

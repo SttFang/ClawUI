@@ -23,8 +23,8 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
-      <div className="fixed inset-0 bg-black/50" onClick={() => onOpenChange(false)} />
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
+      <div className="fixed inset-0 bg-black/50" aria-hidden="true" onClick={() => onOpenChange(false)} />
       {children}
     </div>
   );
@@ -63,6 +63,7 @@ export function SheetContent({
         <button
           onClick={onClose}
           className="absolute right-4 top-3 p-1 rounded-sm opacity-70 hover:opacity-100 transition-opacity z-10"
+          aria-label="Close sheet"
         >
           <X className="h-4 w-4" />
         </button>

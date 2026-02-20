@@ -131,154 +131,87 @@
 
 ## Skills Integration
 
-### 发行商网络
+已安装的 Skills：
 
-```
-                      ┌──────────┐
-            ┌────────>│  Vercel  │ react / composition / native / web-design
-            │         └──────────┘
-            │         ┌──────────┐
-            ├────────>│ Supabase │ postgres-best-practices
-            │         └──────────┘
-  ┌─────────┴───┐     ┌──────────┐
-  │   ClawUI    │────>│Community │ ui-ux / tailwind / playwright / auth / artifacts
-  │   38 skills │     └──────────┘
-  └─────────┬───┘     ┌──────────┐
-            ├────────>│  Custom  │ aws-api / chakra / content / lottie / zustand
-            │         └──────────┘
-            │         ┌──────────┐
-            └────────>│ Built-in │ superpowers / commit / review / feature-dev
-                      └──────────┘
-```
-
-#### Vercel — React 工程体系 `~/.agents/skills/`
-
-| Skill | 场景 |
+| Skill | 用途 |
 |-------|------|
-| `vercel-react-best-practices` | React/Next.js 性能优化（渲染、memoization、bundle） |
-| `vercel-composition-patterns` | 组件 API 重构（compound components / render props） |
-| `vercel-react-native-skills` | React Native/Expo 性能与原生模块 |
-| `web-design-guidelines` | Web 界面设计规范审查（accessibility / UX） |
+| `/commit` | 创建规范的 git commit |
+| `/commit-push-pr` | 一键 commit → push → 创建 PR |
+| `/clean-gone` | 清理远程已删除的本地 stale 分支 |
+| `/review-pr` | 审查 PR（多 agent 置信度评分） |
+| `code-simplifier` | 自动简化/精炼近期修改的代码（保留功能） |
+| `ui-ux-pro-max` | UI/UX 设计最佳实践 |
+| `tailwind-design-system` | Tailwind CSS v4 设计系统与组件库规范 |
+| `vercel-composition-patterns` | React 组合模式与组件 API 设计（可维护性优先） |
+| `vercel-react-best-practices` | React 性能与最佳实践（偏工程化与可观测性） |
+| `vercel-react-native-skills` | React Native/Expo 性能与工程最佳实践 |
+| `supabase-postgres-best-practices` | Postgres 性能与查询/建模最佳实践（Supabase 语境） |
+| `playwright` | 需要浏览器自动化（导航/填表/截图/录制/抓取）时使用 |
+| `playwright-skill` | Playwright 测试与脚本执行的默认 Skill（优先使用） |
+| `agent-browser` | 需要在真实网站完成交互式操作（登录/点击/截图）时使用 |
+| `better-auth-best-practices` | Better Auth 鉴权与安全最佳实践 |
+| `web-artifacts-builder` | 构建/产出可发布的 Web 产物（静态页/截图/包）流程化 |
+| `store-best-practice` | ClawUI Zustand store 施工规范（action/slice/test） |
 
-#### Supabase — 数据库工程 `~/.agents/skills/`
+### 何时使用哪个 Skill（对标 OpenClaw 的“按场景选工具”）
 
-| Skill | 场景 |
-|-------|------|
-| `supabase-postgres-best-practices` | Postgres 查询/建模/RLS/索引优化（v1.1） |
+#### Git 工作流
 
-#### Community — 社区生态 `~/.agents/skills/`
+- `/commit`：需要设计 commit message、拆分提交时使用；自动读取 git status/diff/log，生成单次 commit。注意：本项目实际提交仍优先使用 `scripts/committer`。
+- `/commit-push-pr`：功能分支开发完成后一键提交：自动在 main 上创建分支 → commit → push → `gh pr create`。适合快速提 PR 的场景。
+- `/clean-gone`：定期清理本地 stale 分支。自动识别 `[gone]` 标记的分支，移除关联 worktree 后删除分支。
 
-| Skill | 场景 |
-|-------|------|
-| `ui-ux-pro-max` | UI/UX 设计（50 styles / 97 palettes / 9 stacks） |
-| `tailwind-v4-shadcn` | Tailwind v4 + shadcn/ui 初始化与排错 |
-| `tailwind-design-system` | Tailwind v4 设计系统与 design tokens |
-| `playwright-skill` | Playwright 浏览器自动化（优先使用） |
-| `agent-browser` | 网站交互式操作（登录/点击/截图） |
-| `aws-cdk-development` | AWS CDK 基础设施即代码 |
-| `better-auth-best-practices` | Better Auth 鉴权与安全策略 |
-| `web-artifacts-builder` | Web 产物构建（静态页/截图/包） |
+#### Code Review
 
-#### Custom — 本地自建 `~/.claude/skills/`
+- `/review-pr`：用户提供 PR 链接时使用。工作流程：
+  1. 预检（是否 draft/closed/已审过/过于简单）
+  2. 收集相关 CLAUDE.md 规范
+  3. 5 个并行 agent 分别检查：CLAUDE.md 合规、明显 bug、git 历史上下文、历史 PR 评论、代码注释合规
+  4. 每个 issue 独立置信度评分（0-100），仅保留 ≥80 分的问题
+  5. 通过 `gh pr comment` 发布结果
+  - 不做构建/类型检查/lint（CI 负责），不切分支，只读 review。
 
-| Skill | 场景 |
-|-------|------|
-| `aws-api-design` | AWS 风格 API 设计规范（端点/错误码/鉴权） |
-| `chakra-ui-style` | Chakra UI styled-system 与 theme tokens |
-| `content-system` | 内容创作系统搭建（素材库/工作流/选题） |
-| `lottie-animation` | LottieFiles 动画集成（loading/micro-interaction） |
-| `zustand-state-management` | Zustand 状态管理（slice/actions/SWR） |
-| `store-best-practice` | ClawUI store 施工规范（action 分层/slice/test） |
+#### 代码简化
 
-#### Built-in — 系统内置 (system prompt)
+- `code-simplifier`：代码写完/改完后使用，自动简化近期修改的代码。规则：
+  - 只改写法不改功能，保留所有原始行为
+  - 遵循 CLAUDE.md 编码规范（ES modules、命名、类型标注等）
+  - 减少不必要的复杂度/嵌套/冗余抽象
+  - 禁用嵌套三元，优选 switch/if-else
+  - 不过度简化：可读性 > 行数少
+  - 默认只作用于近期修改的代码，除非明确指定更广范围
 
-| Skill | 场景 |
-|-------|------|
-| `/commit` | git commit（自动读 status/diff/log）。本项目优先 `scripts/committer` |
-| `/commit-push-pr` | 一键 commit → push → `gh pr create` |
-| `/clean-gone` | 清理 `[gone]` 标记的本地 stale 分支 |
-| `/review-pr` | PR 审查（5 并行 agent，置信度 ≥80 才报告） |
-| `code-simplifier` | 自动简化近期修改代码（只改写法不改功能） |
-| `frontend-design` | 高质量前端界面设计与实现 |
-| `feature-dev` | 引导式功能开发（codebase 理解 + 架构） |
-| `superpowers:*` | brainstorming / TDD / debugging / plans / git-worktrees / verification / code-review / dispatching（12 子技能） |
+#### UI/设计
 
-### 场景速查
+- 在做 UI/UX 设计、布局、信息层级、动效与可用性优化时：使用 `ui-ux-pro-max`。
+- 在做 Tailwind v4 的设计系统、design tokens、组件库规范、主题与可访问性落地时：使用 `tailwind-design-system`。
 
-| 场景 | 首选 Skill | 备选 |
-|------|-----------|------|
-| React 性能 | `vercel-react-best-practices` | `vercel-composition-patterns` |
-| UI/UX 设计 | `ui-ux-pro-max` | `tailwind-design-system` |
-| Tailwind 初始化 | `tailwind-v4-shadcn` | `tailwind-design-system` |
-| Postgres 优化 | `supabase-postgres-best-practices` | — |
-| 浏览器自动化 | `playwright-skill` | `agent-browser` |
-| Store 开发 | `store-best-practice` | `zustand-state-management` |
-| 鉴权 | `better-auth-best-practices` | — |
-| Git 提交 | `/commit` | `scripts/committer` |
-| PR 审查 | `/review-pr` | — |
-| 代码简化 | `code-simplifier` | — |
+#### React 工程
+
+- 在需要重构组件 API（compound components / render props / context 组合）、减少 boolean props 泛滥时：使用 `vercel-composition-patterns`。
+- 在做 React 性能优化（渲染、memoization、数据流、bundle/交互延迟）与工程最佳实践时：使用 `vercel-react-best-practices`。
+- 在做 React Native/Expo 的性能优化、列表/动画/原生模块最佳实践时：使用 `vercel-react-native-skills`。
+
+#### 数据库
+
+- 在写/改 Postgres（表结构、索引、慢查询、SQL 优化、RLS）并希望对齐 Supabase 经验时：使用 `supabase-postgres-best-practices`。
+
+#### 浏览器自动化
+
+- 在需要端到端 UI 自动化（页面操作、断言、截图、数据提取）时：优先使用 `playwright-skill`；`playwright` 仅作为 fallback。
+- 在需要更偏"网站操作/流程自动化"的浏览器能力（登录、点击、表单、截图）时：使用 `agent-browser`。
+- 执行 Playwright 测试或运行 Playwright 测试脚本（例如 `scripts/e2e/playwright/*.mjs`）时，统一调用 `playwright-skill`。
+
+#### 其他
+
+- 在做 Better Auth 相关的鉴权/会话/安全策略设计与落地时：使用 `better-auth-best-practices`。
+- 在需要把 Web 页面/组件输出成可交付物（静态产物、截图、报告）并流程化时：使用 `web-artifacts-builder`。
+- 在新增/重构/审查 `src/store/**`（尤其 action 分层、slice 拆分、store action 测试）时：使用 `store-best-practice`。
 
 安装新 skill：
 ```bash
 npx skills search <keyword>
 npx skills add <owner/repo@skill> -y -g
-```
-
-### Skills Tab 布局设计
-
-```
-┌─ Skills Tab ──────────────────────────────────────────────────────────────────┐
-│ [Capabilities] [Skills*] [Channels] [Nodes] [Cron]                           │
-├───────────────────────────────┬────────────────────────────────────────────────┤
-│                               │  Skills Summary              [Generate]       │
-│   Network Graph               │ ┌──────────────┬─────────┬────────────────┐   │
-│                               │ │ Name         │ Source  │ Description    │   │
-│  clawhub      ←               │ ├──────────────┼─────────┼────────────────┤   │
-│  coding-agent ← [Built-in]   │ │ clawhub      │ bundled │ Search skills  │   │
-│  discord      ←               │ │ coding-agent │ bundled │ Delegate code  │   │
-│  github       ←    [Vercel] → │ │ vercel-react │ agents  │ React perf     │   │
-│  ...               react    → │ │ playwright   │ agents  │ Browser auto   │   │
-│                    comp     → │ │ find-skills  │ wkspace │ Discover new   │   │
-│  playwright   ←    design   → │ │ ...          │         │                │   │
-│  tailwind     ← [Community]   │ └──────────────┴─────────┴────────────────┘   │
-│  ui-ux        ←               │                                                │
-│  ...               [Supabase] │  Quick Stats                                   │
-│                    → pg-best  │ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ │
-│  find-skills  ←               │ │  13  │ │   4  │ │   8  │ │   1  │ │   3  │ │
-│  gaokao-eng   ← [Workspace]  │ │Built │ │Vercel│ │Commu │ │Supa  │ │Work  │ │
-│  gaokao-sci   ←               │ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ │
-│                               │                                                │
-│                               │  Cache: ~/.openclaw/skills-summary.json        │
-├───────────────────────────────┴────────────────────────────────────────────────┤
-│ Data flow:                                                                     │
-│   1. [Generate] → openclaw skills list --json --eligible                       │
-│   2. Persist → ~/.openclaw/skills-summary.json                                 │
-│   3. Table reads cache; Graph reads store (live)                               │
-└────────────────────────────────────────────────────────────────────────────────┘
-```
-
-#### 关键文件
-
-| 文件 | 职责 |
-|------|------|
-| `electron/main/ipc/skills.ts` | IPC handler，CLI 主路径 + 目录扫描回退 |
-| `src/features/Agents/components/AgentSkills.tsx` | Skills tab 容器（lazy loaded） |
-| `src/features/Agents/components/skills/SkillsNetworkGraph.tsx` | 左侧网络图 |
-| `src/features/Agents/components/skills/useSkillsGraph.ts` | 图布局算法（2列并行） |
-| `src/features/Agents/components/skills/classifySkillPublisher.ts` | source→publisher 分类 |
-| `src/store/agents/slices/config/action.ts` | loadSkills action |
-| `src/lib/ipc.ts` | SkillEntry / SkillsListResult 类型 |
-
-#### 数据源
-
-```
-openclaw skills list --json --eligible
-  → { skills: [{ name, description, source, eligible }] }
-
-source 映射:
-  openclaw-bundled     → "内置"   (indigo)
-  agents-skills-personal → 按名称分类 Vercel/Supabase/Community/Other
-  openclaw-workspace   → "工作区" (purple)
 ```
 
 ## Agent Workflow

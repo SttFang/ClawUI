@@ -12,6 +12,9 @@ describe("officePreview helpers", () => {
     expect(classifyOfficePreview("report.docx")).toBe("docx");
     expect(classifyOfficePreview("deck.pptx")).toBe("pptx");
     expect(classifyOfficePreview("legacy.ppt")).toBe("unsupported");
+    expect(classifyOfficePreview("data.xlsx")).toBe("xlsx");
+    expect(classifyOfficePreview("budget.XLSX")).toBe("xlsx");
+    expect(classifyOfficePreview("legacy.xls")).toBe("unsupported");
   });
 
   it("converts data url to bytes and blob", () => {

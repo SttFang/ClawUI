@@ -1,6 +1,6 @@
 const DATA_URL_PATTERN = /^data:([^;,]+);base64,(.*)$/i;
 
-export type OfficePreviewKind = "pdf" | "docx" | "pptx" | "unsupported";
+export type OfficePreviewKind = "pdf" | "docx" | "pptx" | "xlsx" | "unsupported";
 
 export function extOfFile(name: string): string {
   const i = name.lastIndexOf(".");
@@ -12,6 +12,7 @@ export function classifyOfficePreview(name: string): OfficePreviewKind {
   if (ext === ".pdf") return "pdf";
   if (ext === ".docx") return "docx";
   if (ext === ".pptx") return "pptx";
+  if (ext === ".xlsx") return "xlsx";
   return "unsupported";
 }
 

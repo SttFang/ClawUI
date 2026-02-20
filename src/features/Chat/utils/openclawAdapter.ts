@@ -16,5 +16,6 @@ export function createRendererOpenClawAdapter(): OpenClawChatTransportAdapter {
       await ipc.chat.request("chat.abort", { sessionKey, runId });
     },
     onDisconnected: (handler) => ipc.chat.onDisconnected(handler),
+    onReconnected: (handler) => ipc.chat.onReconnected(handler),
   };
 }

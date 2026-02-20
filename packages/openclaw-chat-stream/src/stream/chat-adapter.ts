@@ -28,5 +28,8 @@ export type OpenClawChatTransportAdapter = {
 
   /** Subscribe to transport-level disconnect. Returns unsubscribe. */
   onDisconnected?: (handler: () => void) => () => void
+
+  /** Subscribe to transport-level reconnect. Returns unsubscribe. */
+  onReconnected?: (handler: () => void) => () => void
 }
 

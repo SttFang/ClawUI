@@ -25,5 +25,8 @@ export type OpenClawChatTransportAdapter = {
    * Abort a running WebChat run (`chat.abort`). Optional in v1, but recommended.
    */
   abortChat?: (params: { sessionKey: string; runId?: string }) => Promise<void>
+
+  /** Subscribe to transport-level disconnect. Returns unsubscribe. */
+  onDisconnected?: (handler: () => void) => () => void
 }
 

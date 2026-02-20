@@ -1,0 +1,19 @@
+/* 流动连线动画 */
+.react-flow__edge-path {
+  stroke-dasharray: 5;
+  animation: skills-flow 1s linear infinite;
+}
+@keyframes skills-flow {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* 节点发光效果 */
+.publisher-node {
+  box-shadow: 0 0 12px var(--glow-color);
+}
+.skill-node:hover {
+  box-shadow: 0 0 8px var(--glow-color);
+  transform: scale(1.05);
+}

@@ -89,7 +89,9 @@ describe("subagents store", () => {
       status: "running",
       createdAt: 1000,
     });
-    useSubagentsStore.getState().setHistory("r1", [{ role: "user", content: "hi" }]);
+    useSubagentsStore
+      .getState()
+      .setHistory("r1", [{ role: "user", content: "hi", parts: [{ type: "text", text: "hi" }] }]);
     useSubagentsStore.getState().select("r1");
     useSubagentsStore.getState().remove("r1");
 
@@ -116,12 +118,16 @@ describe("subagents store", () => {
 
     useSubagentsStore
       .getState()
-      .setHistory("r1", [{ role: "assistant", content: "ok", timestampMs: 1 }]);
+      .setHistory("r1", [
+        { role: "assistant", content: "ok", parts: [{ type: "text", text: "ok" }], timestampMs: 1 },
+      ]);
     const firstRef = useSubagentsStore.getState().historyByRunId.r1;
 
     useSubagentsStore
       .getState()
-      .setHistory("r1", [{ role: "assistant", content: "ok", timestampMs: 1 }]);
+      .setHistory("r1", [
+        { role: "assistant", content: "ok", parts: [{ type: "text", text: "ok" }], timestampMs: 1 },
+      ]);
     const secondRef = useSubagentsStore.getState().historyByRunId.r1;
 
     expect(updateCount).toBe(1);

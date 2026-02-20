@@ -1,5 +1,11 @@
 export type SubagentStatus = "spawning" | "running" | "done" | "error" | "timeout";
 
+export type SubagentMessagePart =
+  | { type: "text"; text: string }
+  | { type: "thinking"; thinking: string }
+  | { type: "tool_call"; toolCallId: string; toolName: string; args: Record<string, unknown> }
+  | { type: "tool_result"; toolCallId: string; content: string; isError?: boolean };
+
 export interface SubagentNode {
   runId: string;
   sessionKey: string;
@@ -14,8 +20,9 @@ export interface SubagentNode {
 }
 
 export interface SubagentHistoryMessage {
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant" | "system" | "toolResult";
   content: string;
+  parts: SubagentMessagePart[];
   timestampMs?: number;
 }
 

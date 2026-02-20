@@ -14,6 +14,7 @@ export type {
   SubagentNode,
   SubagentStatus,
   SubagentHistoryMessage,
+  SubagentMessagePart,
   SubagentsState,
   SubagentsActions,
   SubagentsStore,

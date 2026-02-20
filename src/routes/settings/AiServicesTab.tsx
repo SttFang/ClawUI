@@ -170,7 +170,7 @@ export function AiServicesTab() {
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="rounded-b-lg border border-t-0 divide-y">
+          <div className="rounded-b-lg border border-t-0">
             {providerInfos.map((provider) => (
               <ProviderCard
                 key={provider.provider}

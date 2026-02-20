@@ -224,7 +224,14 @@ export class GatewayService extends EventEmitter {
         return;
       }
 
+      const killTimer = setTimeout(() => {
+        if (this.process) {
+          this.process.kill("SIGKILL");
+        }
+      }, 5000);
+
       this.process.once("exit", () => {
+        clearTimeout(killTimer);
         this.setStatus("stopped");
         this.process = null;
         resolve();
@@ -232,13 +239,6 @@ export class GatewayService extends EventEmitter {
 
       // Try graceful shutdown first
       this.process.kill("SIGTERM");
-
-      // Force kill after timeout
-      setTimeout(() => {
-        if (this.process) {
-          this.process.kill("SIGKILL");
-        }
-      }, 5000);
     });
   }
 

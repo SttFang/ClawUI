@@ -41,7 +41,7 @@ export function AgentCapabilities() {
           </div>
         </div>
         <div className="text-sm">
-          <span className="text-muted-foreground">Policy entries: </span>
+          <span className="text-muted-foreground">{t("agents.tools.policyEntries")} </span>
           <span>
             allow {toolsConfig.allowList.length}, deny {toolsConfig.denyList.length}
           </span>

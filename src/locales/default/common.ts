@@ -195,6 +195,7 @@ const common = {
       sandbox: "沙盒",
       enabledTools: "启用的工具数",
       policyNote: "提示：这里展示的是全局工具策略；后续可扩展为 per-agent 的 effective 权限解释。",
+      policyEntries: "策略条目：",
     },
     extensions: {
       plugins: "插件",

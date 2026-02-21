@@ -177,6 +177,7 @@ const common = {
       enabledTools: "Enabled tools",
       policyNote:
         "Note: this is the global tool policy. We can extend this to per-agent effective explanations later.",
+      policyEntries: "Policy entries:",
     },
     extensions: {
       plugins: "Plugins",

@@ -89,10 +89,12 @@ export function SubagentTool(props: { part: DynamicToolUIPart; sessionKey: strin
   const statusLabel = t(`subagent.status.${status}`);
   const durationLabel = duration != null ? `${duration}s` : "";
 
-  const assistantMessages = useMemo(
-    () => messages.filter((m) => m.role === "assistant" || m.role === "toolResult"),
-    [messages],
-  );
+  const flatParts = useMemo(() => {
+    const parts = messages
+      .filter((m) => m.role === "assistant" || m.role === "toolResult")
+      .flatMap((m) => m.parts);
+    return parts.length > 0 ? parts : null;
+  }, [messages]);
 
   return (
     <Task open={open} onOpenChange={setOpen}>
@@ -111,20 +113,12 @@ export function SubagentTool(props: { part: DynamicToolUIPart; sessionKey: strin
             {node.model}
           </span>
         )}
-        {assistantMessages.length === 0 ? (
+        {flatParts == null ? (
           <p className="text-xs text-muted-foreground">
             {isActive ? t("subagent.loading") : t("subagent.noOutput")}
           </p>
         ) : (
-          assistantMessages.map((msg, i) => (
-            <div key={i} className="text-xs">
-              {msg.parts.length > 0 ? (
-                <SubagentMessageParts parts={msg.parts} />
-              ) : (
-                <span className="whitespace-pre-wrap break-words">{msg.content}</span>
-              )}
-            </div>
-          ))
+          <SubagentMessageParts parts={flatParts} />
         )}
         {node?.error && (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">

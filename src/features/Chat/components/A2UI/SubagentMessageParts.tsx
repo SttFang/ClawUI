@@ -3,32 +3,34 @@ import { ChevronRight } from "lucide-react";
 import type { SubagentMessagePart } from "@/store/subagents";
 import { MessageText } from "../MessageText";
 
-function ThinkingBlock({ thinking }: { thinking: string }) {
-  return (
-    <Collapsible>
-      <CollapsibleTrigger className="group flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground">
-        <ChevronRight className="size-3 transition-transform group-data-[state=open]:rotate-90" />
-        <span className="italic">thinking…</span>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="mt-1 pl-4 text-xs text-muted-foreground/80">
-        <span className="whitespace-pre-wrap break-words">{thinking}</span>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
 function argsSummary(args: Record<string, unknown>): string {
   const keys = Object.keys(args);
   if (keys.length === 0) return "";
   const preview = keys
-    .slice(0, 3)
+    .slice(0, 2)
     .map((k) => {
       const v = args[k];
-      if (typeof v === "string") return `${k}="${v.length > 40 ? v.slice(0, 40) + "…" : v}"`;
-      return `${k}=${JSON.stringify(v)}`;
+      if (typeof v === "string") return v.length > 30 ? `"${v.slice(0, 30)}…"` : `"${v}"`;
+      return String(v);
     })
-    .join(", ");
-  return keys.length > 3 ? `${preview}, …` : preview;
+    .join(" ");
+  return preview;
+}
+
+function ThinkingBlock({ thinking }: { thinking: string }) {
+  return (
+    <Collapsible>
+      <CollapsibleTrigger className="group flex w-full items-center gap-2 rounded-md bg-muted/20 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground">
+        <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]:rotate-90" />
+        <span>thinking</span>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-1 rounded-md border border-border/30 bg-muted/20 px-3 py-2">
+        <span className="whitespace-pre-wrap break-words text-[11px] leading-relaxed text-muted-foreground/70">
+          {thinking}
+        </span>
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 function ToolCallBlock({
@@ -40,38 +42,39 @@ function ToolCallBlock({
   args: Record<string, unknown>;
   result?: { content: string; isError?: boolean };
 }) {
+  const summary = argsSummary(args);
+
   return (
     <Collapsible>
-      <CollapsibleTrigger className="group flex items-center gap-1 text-[10px] font-mono text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
-        <ChevronRight className="size-3 transition-transform group-data-[state=open]:rotate-90" />
-        <span>
-          ▶ {toolName}({argsSummary(args)})
-        </span>
+      <CollapsibleTrigger className="group flex w-full items-center gap-2 rounded-md bg-muted/30 px-2 py-1 font-mono text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground">
+        <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]:rotate-90" />
+        <span className="font-semibold text-foreground">{toolName}</span>
+        {summary && <span className="min-w-0 flex-1 truncate">{summary}</span>}
         {result && (
           <span
             className={cn(
-              "ml-1",
-              result.isError ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400",
+              "shrink-0 text-[11px] font-bold",
+              result.isError ? "text-destructive" : "text-emerald-600 dark:text-emerald-400",
             )}
           >
             {result.isError ? "✗" : "✓"}
           </span>
         )}
       </CollapsibleTrigger>
-      <CollapsibleContent className="mt-1 space-y-1 pl-4">
-        <pre className="whitespace-pre-wrap break-words rounded bg-muted/50 p-2 text-[10px] text-muted-foreground">
+      <CollapsibleContent className="mt-1 overflow-hidden rounded-md border border-border/50">
+        <pre className="whitespace-pre-wrap break-words bg-muted/50 px-2 py-1.5 font-mono text-[10px] text-muted-foreground">
           {JSON.stringify(args, null, 2)}
         </pre>
         {result && (
           <pre
             className={cn(
-              "whitespace-pre-wrap break-words rounded p-2 text-[10px]",
+              "whitespace-pre-wrap break-words border-t border-border/30 px-2 py-1.5 font-mono text-[10px]",
               result.isError
-                ? "bg-red-500/10 text-red-700 dark:text-red-400"
-                : "bg-orange-500/5 text-muted-foreground",
+                ? "border-l-2 border-l-destructive/60 bg-destructive/10 text-destructive"
+                : "border-l-2 border-l-emerald-500/40 bg-emerald-500/5 text-muted-foreground",
             )}
           >
-            {result.content.length > 500 ? result.content.slice(0, 500) + "…" : result.content}
+            {result.content.length > 400 ? result.content.slice(0, 400) + "…" : result.content}
           </pre>
         )}
       </CollapsibleContent>
@@ -80,17 +83,17 @@ function ToolCallBlock({
 }
 
 function ToolResultBlock({ content, isError }: { content: string; isError?: boolean }) {
-  const preview = content.length > 120 ? content.slice(0, 120) + "…" : content;
-  const needsExpand = content.length > 120;
+  const needsExpand = content.length > 200;
+  const preview = needsExpand ? content.slice(0, 200) + "…" : content;
 
   if (!needsExpand) {
     return (
       <div
         className={cn(
-          "rounded px-2 py-1 text-[10px] font-mono whitespace-pre-wrap break-words",
+          "rounded-md border-l-2 px-2 py-1 font-mono text-xs whitespace-pre-wrap break-words",
           isError
-            ? "bg-red-500/10 text-red-700 dark:text-red-400"
-            : "bg-orange-500/5 text-muted-foreground",
+            ? "border-l-destructive/60 bg-destructive/10 text-destructive"
+            : "border-l-emerald-500/40 bg-emerald-500/5 text-muted-foreground",
         )}
       >
         {content}
@@ -102,22 +105,22 @@ function ToolResultBlock({ content, isError }: { content: string; isError?: bool
     <Collapsible>
       <CollapsibleTrigger
         className={cn(
-          "group flex items-center gap-1 text-[10px] font-mono",
+          "group flex w-full items-center gap-2 rounded-md px-2 py-1 font-mono text-xs transition-colors",
           isError
-            ? "text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-            : "text-muted-foreground hover:text-foreground",
+            ? "text-destructive hover:bg-destructive/10"
+            : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
         )}
       >
-        <ChevronRight className="size-3 transition-transform group-data-[state=open]:rotate-90" />
-        <span>{preview}</span>
+        <ChevronRight className="size-3 shrink-0 transition-transform group-data-[state=open]:rotate-90" />
+        <span className="min-w-0 flex-1 truncate">{preview}</span>
       </CollapsibleTrigger>
-      <CollapsibleContent className="mt-1 pl-4">
+      <CollapsibleContent className="mt-1">
         <pre
           className={cn(
-            "whitespace-pre-wrap break-words rounded p-2 text-[10px]",
+            "whitespace-pre-wrap break-words rounded-md border-l-2 px-2 py-1.5 font-mono text-[10px]",
             isError
-              ? "bg-red-500/10 text-red-700 dark:text-red-400"
-              : "bg-orange-500/5 text-muted-foreground",
+              ? "border-l-destructive/60 bg-destructive/10 text-destructive"
+              : "border-l-emerald-500/40 bg-emerald-500/5 text-muted-foreground",
           )}
         >
           {content}
@@ -127,8 +130,15 @@ function ToolResultBlock({ content, isError }: { content: string; isError?: bool
   );
 }
 
+/** Spacing between part types: tool→tool is tight, text↔tool gets more room. */
+function gapClass(prev: SubagentMessagePart["type"] | null, curr: SubagentMessagePart["type"]): string {
+  if (!prev) return "";
+  if (prev === "tool_call" && curr === "tool_call") return "mt-0.5";
+  if (prev === "text" || curr === "text") return "mt-2";
+  return "mt-1";
+}
+
 export function SubagentMessageParts({ parts }: { parts: SubagentMessagePart[] }) {
-  // Build a map of toolCallId → tool_result for pairing
   const resultMap = new Map<string, { content: string; isError?: boolean }>();
   for (const part of parts) {
     if (part.type === "tool_result" && part.toolCallId) {
@@ -136,31 +146,48 @@ export function SubagentMessageParts({ parts }: { parts: SubagentMessagePart[] }
     }
   }
 
+  let prevType: SubagentMessagePart["type"] | null = null;
+
   return (
-    <div className="space-y-1.5">
+    <div>
       {parts.map((part, i) => {
+        // Skip paired tool_results
+        if (part.type === "tool_result" && part.toolCallId && resultMap.has(part.toolCallId)) {
+          return null;
+        }
+
+        const gap = gapClass(prevType, part.type);
+        prevType = part.type;
+
         switch (part.type) {
           case "text":
             return (
-              <div key={i} className="text-xs">
+              <div key={i} className={cn("text-xs", gap)}>
                 <MessageText text={part.text} isAnimating={false} />
               </div>
             );
           case "thinking":
-            return <ThinkingBlock key={i} thinking={part.thinking} />;
+            return (
+              <div key={i} className={gap}>
+                <ThinkingBlock thinking={part.thinking} />
+              </div>
+            );
           case "tool_call":
             return (
-              <ToolCallBlock
-                key={i}
-                toolName={part.toolName}
-                args={part.args}
-                result={part.toolCallId ? resultMap.get(part.toolCallId) : undefined}
-              />
+              <div key={i} className={gap}>
+                <ToolCallBlock
+                  toolName={part.toolName}
+                  args={part.args}
+                  result={part.toolCallId ? resultMap.get(part.toolCallId) : undefined}
+                />
+              </div>
             );
           case "tool_result":
-            // Skip standalone render — already paired with tool_call above
-            if (part.toolCallId && resultMap.has(part.toolCallId)) return null;
-            return <ToolResultBlock key={i} content={part.content} isError={part.isError} />;
+            return (
+              <div key={i} className={gap}>
+                <ToolResultBlock content={part.content} isError={part.isError} />
+              </div>
+            );
         }
       })}
     </div>

@@ -20,7 +20,7 @@ const STATUS_DOT: Record<SubagentStatus, string> = {
 };
 
 function StatusDot({ status }: { status: SubagentStatus }) {
-  return <span className={cn("inline-block size-2 shrink-0 rounded-full", STATUS_DOT[status])} />;
+  return <span className={cn("inline-block size-1.5 shrink-0 rounded-full", STATUS_DOT[status])} />;
 }
 
 function extractTaskFromInput(input: unknown): string {
@@ -73,10 +73,8 @@ export function SubagentTool(props: { part: DynamicToolUIPart; sessionKey: strin
   const taskName = node?.task ?? extractTaskFromInput(part.input);
   const duration = useLiveDuration(node?.createdAt, node?.endedAt);
 
-  // Poll history when active
   useSubagentHistory(node?.runId ?? null, node?.sessionKey ?? null, status);
 
-  // Auto open/close
   const [open, setOpen] = useState(isActive);
   const prevActive = useRef(isActive);
   useEffect(() => {
@@ -86,7 +84,6 @@ export function SubagentTool(props: { part: DynamicToolUIPart; sessionKey: strin
     }
   }, [isActive]);
 
-  const statusLabel = t(`subagent.status.${status}`);
   const durationLabel = duration != null ? `${duration}s` : "";
 
   const flatParts = useMemo(() => {
@@ -98,21 +95,23 @@ export function SubagentTool(props: { part: DynamicToolUIPart; sessionKey: strin
 
   return (
     <Task open={open} onOpenChange={setOpen}>
-      <TaskTrigger title={`${statusLabel}: ${taskName}`}>
+      <TaskTrigger title={taskName}>
         <div className="flex w-full cursor-pointer items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
           <StatusDot status={status} />
-          <p className="min-w-0 flex-1 truncate text-sm">
-            {t("subagent.title")}: {taskName}
-          </p>
-          {durationLabel && <span className="shrink-0 text-xs tabular-nums">{durationLabel}</span>}
+          <p className="min-w-0 flex-1 truncate text-foreground/90">{taskName}</p>
+          {node?.model && (
+            <span className="shrink-0 rounded border border-border/50 bg-muted px-1 py-0.5 font-mono text-[9px] text-muted-foreground">
+              {node.model}
+            </span>
+          )}
+          {durationLabel && (
+            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground/70">
+              {durationLabel}
+            </span>
+          )}
         </div>
       </TaskTrigger>
       <TaskContent className="space-y-2">
-        {node?.model && (
-          <span className="inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-            {node.model}
-          </span>
-        )}
         {flatParts == null ? (
           <p className="text-xs text-muted-foreground">
             {isActive ? t("subagent.loading") : t("subagent.noOutput")}

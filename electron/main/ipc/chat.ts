@@ -1,6 +1,6 @@
 import type { BrowserWindow } from "electron";
-import { ipcMain } from "electron";
 import { ALLOWED_CHAT_METHODS } from "@clawui/constants";
+import { ipcMain } from "electron";
 import type { ChatWebSocketService, ChatRequest } from "../services/chat/chat-websocket";
 import type { ConfigService } from "../services/config";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
@@ -32,7 +32,9 @@ export function registerChatHandlers(
         throw new Error(`Disallowed ACP method: ${method}`);
       }
       await ensureGatewayConnected(configService, chatWebSocket);
-      return chatWebSocket.request(method, params);
+      // agent.wait blocks until the subagent finishes; use a longer transport timeout.
+      const timeoutMs = method === "agent.wait" ? 150_000 : undefined;
+      return chatWebSocket.request(method, params, timeoutMs);
     },
   );
 

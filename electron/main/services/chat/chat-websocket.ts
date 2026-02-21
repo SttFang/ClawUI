@@ -66,7 +66,11 @@ export class ChatWebSocketService extends EventEmitter {
     await this.transport.connect();
   }
 
-  async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
+  async request(
+    method: string,
+    params?: Record<string, unknown>,
+    timeoutMs?: number,
+  ): Promise<unknown> {
     const gatewayParams =
       method === "exec.approval.resolve" && params
         ? {
@@ -74,7 +78,7 @@ export class ChatWebSocketService extends EventEmitter {
             decision: params.decision,
           }
         : params;
-    const payload = await this.transport.request(method, gatewayParams);
+    const payload = await this.transport.request(method, gatewayParams, timeoutMs);
 
     if (method === "exec.approval.resolve" && params) {
       const approvalId = typeof params.id === "string" ? params.id : undefined;

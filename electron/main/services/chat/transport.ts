@@ -122,7 +122,11 @@ export class ChatTransport extends EventEmitter {
     this.cleanupSocket();
   }
 
-  async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
+  async request(
+    method: string,
+    params?: Record<string, unknown>,
+    timeoutMs = 30_000,
+  ): Promise<unknown> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.connected) {
       throw new Error("WebSocket not connected");
     }
@@ -141,7 +145,7 @@ export class ChatTransport extends EventEmitter {
         this.pendingRequests.delete(requestId);
         chatLog.warn("[acp.request.timeout]", `method=${method}`, `durationMs=${Date.now() - t0}`);
         reject(new Error("Request timeout"));
-      }, 30_000);
+      }, timeoutMs);
 
       this.pendingRequests.set(requestId, {
         resolve: (response) => {

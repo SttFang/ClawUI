@@ -26,26 +26,26 @@ export function PromptInput(props: PromptInputProps) {
   );
 }
 
-export type PromptInputTextareaProps = React.ComponentPropsWithoutRef<"textarea">;
+export type PromptInputTextareaProps = React.ComponentPropsWithoutRef<"textarea"> & {
+  ref?: React.Ref<HTMLTextAreaElement>;
+};
 
-export const PromptInputTextarea = React.forwardRef<HTMLTextAreaElement, PromptInputTextareaProps>(
-  function PromptInputTextarea({ className, ...rest }, ref) {
-    return (
-      <textarea
-        ref={ref}
-        className={cn(
-          "w-full resize-none bg-transparent px-4 py-3 text-sm outline-none",
-          "min-h-[44px] max-h-40",
-          // Make long tokens/URLs wrap instead of expanding the whole composer.
-          "whitespace-pre-wrap break-words [overflow-wrap:anywhere]",
-          className,
-        )}
-        rows={1}
-        {...rest}
-      />
-    );
-  },
-);
+export function PromptInputTextarea({ className, ref, ...rest }: PromptInputTextareaProps) {
+  return (
+    <textarea
+      ref={ref}
+      className={cn(
+        "w-full resize-none bg-transparent px-4 py-3 text-sm outline-none",
+        "min-h-[44px] max-h-40",
+        // Make long tokens/URLs wrap instead of expanding the whole composer.
+        "whitespace-pre-wrap break-words [overflow-wrap:anywhere]",
+        className,
+      )}
+      rows={1}
+      {...rest}
+    />
+  );
+}
 
 export function PromptInputFooter(props: React.ComponentPropsWithoutRef<"div">) {
   const { className, ...rest } = props;

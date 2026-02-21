@@ -10,10 +10,14 @@ export const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
-export const DropdownMenuContent = React.forwardRef<
-  React.ElementRef<typeof DropdownMenuPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
->(function DropdownMenuContent({ className, sideOffset = 6, ...props }, ref) {
+export function DropdownMenuContent({
+  className,
+  sideOffset = 6,
+  ref,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & {
+  ref?: React.Ref<React.ElementRef<typeof DropdownMenuPrimitive.Content>>;
+}) {
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
@@ -31,12 +35,17 @@ export const DropdownMenuContent = React.forwardRef<
       />
     </DropdownMenuPrimitive.Portal>
   );
-});
+}
 
-export const DropdownMenuItem = React.forwardRef<
-  React.ElementRef<typeof DropdownMenuPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & { inset?: boolean }
->(function DropdownMenuItem({ className, inset, ...props }, ref) {
+export function DropdownMenuItem({
+  className,
+  inset,
+  ref,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
+  inset?: boolean;
+  ref?: React.Ref<React.ElementRef<typeof DropdownMenuPrimitive.Item>>;
+}) {
   return (
     <DropdownMenuPrimitive.Item
       ref={ref}
@@ -50,12 +59,15 @@ export const DropdownMenuItem = React.forwardRef<
       {...props}
     />
   );
-});
+}
 
-export const DropdownMenuSeparator = React.forwardRef<
-  React.ElementRef<typeof DropdownMenuPrimitive.Separator>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>
->(function DropdownMenuSeparator({ className, ...props }, ref) {
+export function DropdownMenuSeparator({
+  className,
+  ref,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator> & {
+  ref?: React.Ref<React.ElementRef<typeof DropdownMenuPrimitive.Separator>>;
+}) {
   return (
     <DropdownMenuPrimitive.Separator
       ref={ref}
@@ -63,12 +75,17 @@ export const DropdownMenuSeparator = React.forwardRef<
       {...props}
     />
   );
-});
+}
 
-export const DropdownMenuLabel = React.forwardRef<
-  React.ElementRef<typeof DropdownMenuPrimitive.Label>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label> & { inset?: boolean }
->(function DropdownMenuLabel({ className, inset, ...props }, ref) {
+export function DropdownMenuLabel({
+  className,
+  inset,
+  ref,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label> & {
+  inset?: boolean;
+  ref?: React.Ref<React.ElementRef<typeof DropdownMenuPrimitive.Label>>;
+}) {
   return (
     <DropdownMenuPrimitive.Label
       ref={ref}
@@ -80,12 +97,16 @@ export const DropdownMenuLabel = React.forwardRef<
       {...props}
     />
   );
-});
+}
 
-export const DropdownMenuRadioItem = React.forwardRef<
-  React.ElementRef<typeof DropdownMenuPrimitive.RadioItem>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>
->(function DropdownMenuRadioItem({ className, children, ...props }, ref) {
+export function DropdownMenuRadioItem({
+  className,
+  children,
+  ref,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem> & {
+  ref?: React.Ref<React.ElementRef<typeof DropdownMenuPrimitive.RadioItem>>;
+}) {
   return (
     <DropdownMenuPrimitive.RadioItem
       ref={ref}
@@ -105,4 +126,4 @@ export const DropdownMenuRadioItem = React.forwardRef<
       {children}
     </DropdownMenuPrimitive.RadioItem>
   );
-});
+}

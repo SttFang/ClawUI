@@ -7,11 +7,13 @@ const labelVariants = cva(
 );
 
 export interface LabelProps
-  extends React.LabelHTMLAttributes<HTMLLabelElement>, VariantProps<typeof labelVariants> {}
+  extends React.LabelHTMLAttributes<HTMLLabelElement>,
+    VariantProps<typeof labelVariants> {
+  ref?: React.Ref<HTMLLabelElement>;
+}
 
-const Label = React.forwardRef<HTMLLabelElement, LabelProps>(({ className, ...props }, ref) => (
-  <label ref={ref} className={cn(labelVariants(), className)} {...props} />
-));
-Label.displayName = "Label";
+function Label({ className, ref, ...props }: LabelProps) {
+  return <label ref={ref} className={cn(labelVariants(), className)} {...props} />;
+}
 
 export { Label };

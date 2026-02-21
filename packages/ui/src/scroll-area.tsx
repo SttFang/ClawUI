@@ -3,39 +3,39 @@ import { cn } from "./utils";
 
 interface ScrollAreaProps extends React.HTMLAttributes<HTMLDivElement> {
   orientation?: "vertical" | "horizontal" | "both";
+  ref?: React.Ref<HTMLDivElement>;
 }
 
-const ScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(
-  ({ className, children, orientation = "vertical", ...props }, ref) => {
-    return (
-      <div
-        ref={ref}
-        className={cn(
-          "relative",
-          orientation === "vertical" && "overflow-y-auto overflow-x-hidden",
-          orientation === "horizontal" && "overflow-x-auto overflow-y-hidden",
-          orientation === "both" && "overflow-auto",
-          "scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </div>
-    );
-  },
-);
-ScrollArea.displayName = "ScrollArea";
+function ScrollArea({ className, children, orientation = "vertical", ref, ...props }: ScrollAreaProps) {
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        "relative",
+        orientation === "vertical" && "overflow-y-auto overflow-x-hidden",
+        orientation === "horizontal" && "overflow-x-auto overflow-y-hidden",
+        orientation === "both" && "overflow-auto",
+        "scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
 
-const ScrollBar = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & { orientation?: "vertical" | "horizontal" }
->(({ orientation: _orientation = "vertical", ...props }, _ref) => {
+function ScrollBar({
+  orientation: _orientation = "vertical",
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & {
+  orientation?: "vertical" | "horizontal";
+  ref?: React.Ref<HTMLDivElement>;
+}) {
   // ScrollBar is now handled by native CSS scrollbar styling
   // This component is kept for API compatibility but renders nothing
   void props;
   return null;
-});
-ScrollBar.displayName = "ScrollBar";
+}
 
 export { ScrollArea, ScrollBar };

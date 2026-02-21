@@ -5,10 +5,15 @@ import { cn } from "./utils";
 export const Popover = PopoverPrimitive.Root;
 export const PopoverTrigger = PopoverPrimitive.Trigger;
 
-export const PopoverContent = React.forwardRef<
-  React.ElementRef<typeof PopoverPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(function PopoverContent({ className, sideOffset = 6, align = "end", ...props }, ref) {
+export function PopoverContent({
+  className,
+  sideOffset = 6,
+  align = "end",
+  ref,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> & {
+  ref?: React.Ref<React.ElementRef<typeof PopoverPrimitive.Content>>;
+}) {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
@@ -27,4 +32,4 @@ export const PopoverContent = React.forwardRef<
       />
     </PopoverPrimitive.Portal>
   );
-});
+}

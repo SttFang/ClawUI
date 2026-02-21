@@ -253,6 +253,24 @@ describe("subagents selectors", () => {
     expect(found!.runId).toBe("real-run-1");
   });
 
+  it("selectNodeByToolCallId matches normalized toolCallId", () => {
+    // Listener normalizes: "call_abc|fc_xyz" → "call_abc"
+    // UI (DynamicToolUIPart) also has normalized "call_abc"
+    useSubagentsStore.getState().add({
+      runId: "temp-key",
+      toolCallId: "call_abc", // already normalized by listener
+      sessionKey: "",
+      parentSessionKey: "p",
+      task: "research",
+      status: "spawning",
+      createdAt: 1000,
+    });
+    // UI queries with normalized id
+    const found = selectNodeByToolCallId(useSubagentsStore.getState(), "call_abc");
+    expect(found).not.toBeNull();
+    expect(found!.task).toBe("research");
+  });
+
   it("selectHistory returns empty for unknown runId", () => {
     expect(selectHistory(useSubagentsStore.getState(), "unknown")).toEqual([]);
   });

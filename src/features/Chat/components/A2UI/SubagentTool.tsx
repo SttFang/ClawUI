@@ -3,11 +3,13 @@ import { Task, TaskContent, TaskTrigger, cn } from "@clawui/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
-import type { SubagentStatus } from "@/store/subagents";
+import type { SubagentHistoryMessage, SubagentStatus } from "@/store/subagents";
 import { toRecord } from "@/lib/exec";
 import { useSubagentsStore, selectNodeByToolCallId, selectHistory } from "@/store/subagents";
 import { SubagentMessageParts } from "./SubagentMessageParts";
 import { useSubagentHistory } from "./useSubagentHistory";
+
+const EMPTY_MESSAGES: SubagentHistoryMessage[] = [];
 
 const STATUS_DOT: Record<SubagentStatus, string> = {
   spawning: "animate-pulse bg-blue-500",
@@ -52,7 +54,7 @@ function useNodeForToolCallId(toolCallId: string) {
   return useSubagentsStore(
     useShallow((state) => {
       const node = selectNodeByToolCallId(state, toolCallId);
-      if (!node) return { node: null, messages: [] };
+      if (!node) return { node: null, messages: EMPTY_MESSAGES };
       return {
         node,
         messages: selectHistory(state, node.runId),

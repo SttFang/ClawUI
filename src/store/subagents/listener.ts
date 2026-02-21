@@ -1,4 +1,5 @@
 import type { ChatNormalizedRunEvent } from "@clawui/types";
+import { normalizeToolCallId } from "@clawui/types/tool-call";
 import { ipc } from "@/lib/ipc";
 import { chatLog } from "@/lib/logger";
 import type { SubagentNode } from "./types";
@@ -239,7 +240,7 @@ export function initSubagentsListener() {
       const { task, label, model } = parseSpawnArgs(meta!);
       const node: SubagentNode = {
         runId: toolCallId, // temporary key; replaced by resolveSpawn
-        toolCallId,
+        toolCallId: normalizeToolCallId(toolCallId),
         sessionKey: "",
         parentSessionKey: event.sessionKey,
         task,

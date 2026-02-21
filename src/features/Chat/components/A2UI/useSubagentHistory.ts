@@ -109,8 +109,17 @@ function parseContentParts(content: unknown): SubagentMessagePart[] {
           toolName: String(block.name ?? "unknown"),
           args: isRecord(block.input) ? (block.input as Record<string, unknown>) : {},
         };
-      default:
-        return { type: "text", text: JSON.stringify(block) };
+      case "toolCall":
+        return {
+          type: "tool_call",
+          toolCallId: String(block.id ?? ""),
+          toolName: String(block.name ?? "unknown"),
+          args: isRecord(block.arguments) ? (block.arguments as Record<string, unknown>) : {},
+        };
+      default: {
+        const fallbackText = JSON.stringify(block);
+        return tryParseToolCall(fallbackText) ?? { type: "text", text: fallbackText };
+      }
     }
   });
 }
@@ -147,6 +156,9 @@ function parseMessages(raw: unknown): SubagentHistoryMessage[] {
     };
   });
 }
+
+// Exported for testing
+export { parseContentParts as _parseContentParts, parseMessages as _parseMessages };
 
 export function useSubagentHistory(
   runId: string | null,

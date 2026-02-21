@@ -1,7 +1,7 @@
 import type { BrowserWindow } from "electron";
 import { ipcMain } from "electron";
 import { ALLOWED_CHAT_METHODS } from "@clawui/constants";
-import type { ChatWebSocketService, ChatRequest } from "../services/chat-websocket";
+import type { ChatWebSocketService, ChatRequest } from "../services/chat/chat-websocket";
 import type { ConfigService } from "../services/config";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
 import { forwardToWindow } from "./forward";

@@ -1,5 +1,5 @@
 import type { ChatNormalizedRunEvent } from "@clawui/types";
-import type { GatewayEventFrame } from "../chat-websocket";
+import type { GatewayEventFrame } from "./chat-websocket";
 import { chatLog } from "../../lib/logger";
 import { isRecord } from "../../utils/type-guards";
 import { extractTextFromMessage, normalizeToolMetadata } from "./event-parsers";

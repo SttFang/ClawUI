@@ -19,7 +19,7 @@ import { registerStateHandlers } from "./ipc/state";
 import { registerUsageHandlers } from "./ipc/usage";
 import { registerWorkspaceHandlers } from "./ipc/workspace";
 import { initLogger, mainLog } from "./lib/logger";
-import { ChatWebSocketService } from "./services/chat-websocket";
+import { ChatWebSocketService } from "./services/chat/chat-websocket";
 import { ClawUIStateService } from "./services/clawui-state";
 import { ConfigOrchestrator } from "./services/config";
 import { configurator } from "./services/configurator";

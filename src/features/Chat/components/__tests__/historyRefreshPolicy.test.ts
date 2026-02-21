@@ -5,7 +5,7 @@ import {
   recordHistoryRefreshResult,
   resetHeartbeatBackoff,
   shouldRefreshHistoryOnHeartbeat,
-} from "../historyRefreshPolicy";
+} from "@/services/chat/historyRefreshPolicy";
 
 describe("historyRefreshPolicy", () => {
   it("uses bounded approval recovery follow-ups", () => {

@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import type { ChatWebSocketService } from "../services/chat-websocket";
+import type { ChatWebSocketService } from "../services/chat/chat-websocket";
 import type { ConfigService } from "../services/config";
 import { ensureGatewayConnected } from "../utils/ensure-connected";
 

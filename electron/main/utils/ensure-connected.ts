@@ -1,4 +1,4 @@
-import type { ChatWebSocketService } from "../services/chat-websocket";
+import type { ChatWebSocketService } from "../services/chat/chat-websocket";
 import type { ConfigService } from "../services/config";
 import { loadOrCreateDeviceIdentity } from "../services/chat/device-identity";
 

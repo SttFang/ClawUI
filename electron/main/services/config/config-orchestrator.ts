@@ -9,7 +9,7 @@ import JSON5 from "json5";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import type { ChatWebSocketService } from "../chat-websocket";
+import type { ChatWebSocketService } from "../chat/chat-websocket";
 import type { ConfigService } from "./config-store";
 import { configLog } from "../../lib/logger";
 import { ensureGatewayConnected } from "../../utils/ensure-connected";

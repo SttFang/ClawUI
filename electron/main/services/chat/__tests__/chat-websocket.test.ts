@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ChatWebSocketService } from "../../chat-websocket";
+import { ChatWebSocketService } from "../chat-websocket";
 
 describe("ChatWebSocketService request", () => {
   it("sanitizes exec.approval.resolve params sent to gateway transport", async () => {

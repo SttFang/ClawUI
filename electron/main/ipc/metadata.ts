@@ -1,5 +1,5 @@
 import type { IpcMain } from "electron";
-import type { ChatWebSocketService } from "../services/chat-websocket";
+import type { ChatWebSocketService } from "../services/chat/chat-websocket";
 import type { ClawUIStateService, ClawUISessionMetadata } from "../services/clawui-state";
 import type { ConfigService } from "../services/config";
 import type { OpenClawProfilesService } from "../services/openclaw-profiles";

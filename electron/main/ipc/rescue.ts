@@ -1,7 +1,7 @@
 import { ipcMain } from "electron";
 import { ALLOWED_RESCUE_METHODS } from "@clawui/constants";
-import type { ChatRequest } from "../services/chat-websocket";
-import type { ChatWebSocketService } from "../services/chat-websocket";
+import type { ChatRequest } from "../services/chat/chat-websocket";
+import type { ChatWebSocketService } from "../services/chat/chat-websocket";
 import type { ConfigService } from "../services/config";
 import type { GatewayService } from "../services/gateway";
 import { ensureGatewayConnected } from "../utils/ensure-connected";

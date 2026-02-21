@@ -63,12 +63,19 @@ function useNodeForToolCallId(toolCallId: string) {
   );
 }
 
+/** Infer subagent status from DynamicToolUIPart.state when no live node exists. */
+function statusFromPartState(state: DynamicToolUIPart["state"]): SubagentStatus {
+  if (state === "output-available") return "done";
+  if (state === "output-error") return "error";
+  return "spawning";
+}
+
 export function SubagentTool(props: { part: DynamicToolUIPart; sessionKey: string }) {
   const { part } = props;
   const { t } = useTranslation("common");
   const { node, messages } = useNodeForToolCallId(part.toolCallId);
 
-  const status: SubagentStatus = node?.status ?? "spawning";
+  const status: SubagentStatus = node?.status ?? statusFromPartState(part.state);
   const isActive = status === "running" || status === "spawning";
   const taskName = node?.task ?? extractTaskFromInput(part.input);
   const duration = useLiveDuration(node?.createdAt, node?.endedAt);

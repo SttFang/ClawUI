@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAgentsStore, agentsSelectors } from "@/store/agents";
 import { useChannelsStore, selectChannels } from "@/store/channels";
 import { useMCPStore, selectServers as selectMcpServers } from "@/store/mcp";
@@ -28,6 +28,8 @@ export function useAgentsData() {
 
   const [cronDialogOpen, setCronDialogOpen] = useState(false);
 
+  // Zustand actions are referentially stable — empty deps is correct.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     void loadConfig();
     void loadSkills();
@@ -36,7 +38,7 @@ export function useAgentsData() {
     void loadTools();
     void loadPlugins();
     void loadMcpServers();
-  }, [loadConfig, loadSkills, loadCronStatus, loadChannels, loadTools, loadPlugins, loadMcpServers]);
+  }, []);
 
   const handleOpenCronDialog = useCallback(async () => {
     setCronDialogOpen(true);
@@ -44,8 +46,8 @@ export function useAgentsData() {
     await Promise.all([loadCronStatus(), loadCronJobs()]);
   }, [clearCronError, loadCronStatus, loadCronJobs]);
 
-  const configuredChannels = channels.filter((c) => c.isConfigured);
-  const enabledChannels = channels.filter((c) => c.isEnabled);
+  const configuredChannels = useMemo(() => channels.filter((c) => c.isConfigured), [channels]);
+  const enabledChannels = useMemo(() => channels.filter((c) => c.isEnabled), [channels]);
 
   return {
     configError,

@@ -71,13 +71,17 @@ const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(
   ({ className, value, ...props }, ref) => {
     const { value: selectedValue, onValueChange } = useTabsContext();
     const isSelected = selectedValue === value;
+    const triggerId = `tab-trigger-${value}`;
+    const panelId = `tab-panel-${value}`;
 
     return (
       <button
         ref={ref}
+        id={triggerId}
         role="tab"
         type="button"
         aria-selected={isSelected}
+        aria-controls={panelId}
         data-state={isSelected ? "active" : "inactive"}
         onClick={() => onValueChange(value)}
         className={cn(
@@ -100,13 +104,17 @@ const TabsContent = React.forwardRef<HTMLDivElement, TabsContentProps>(
   ({ className, value, ...props }, ref) => {
     const { value: selectedValue } = useTabsContext();
     const isSelected = selectedValue === value;
+    const triggerId = `tab-trigger-${value}`;
+    const panelId = `tab-panel-${value}`;
 
     if (!isSelected) return null;
 
     return (
       <div
         ref={ref}
+        id={panelId}
         role="tabpanel"
+        aria-labelledby={triggerId}
         data-state={isSelected ? "active" : "inactive"}
         className={cn(
           "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",

@@ -9,6 +9,8 @@ export const ALLOWED_CHAT_METHODS = new Set([
   // Chat
   "chat.history",
   "chat.abort",
+  // Agent
+  "agent.wait",
   // Models
   "models.list",
   // Exec approvals

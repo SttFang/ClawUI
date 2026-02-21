@@ -222,6 +222,8 @@ importers:
 
   packages/config-core: {}
 
+  packages/constants: {}
+
   packages/openclaw-chat-stream:
     dependencies:
       '@clawui/types':

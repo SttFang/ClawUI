@@ -30,9 +30,45 @@ function partsToPlainText(parts: SubagentMessagePart[]): string {
     .join("\n");
 }
 
+/** Extract readable text from a toolResult content field (may be string, array, or object). */
+function extractToolResultText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (isRecord(item) && item.type === "text" && typeof item.text === "string") return item.text;
+        return JSON.stringify(item);
+      })
+      .join("\n");
+  }
+  return content ? JSON.stringify(content) : "";
+}
+
+/**
+ * Try parsing a text string as a JSON-serialized tool call.
+ * OpenClaw streams tool calls as `{ type: "toolCall", id, name, arguments }` text blocks.
+ */
+function tryParseToolCall(text: string): SubagentMessagePart | null {
+  if (!text.startsWith("{")) return null;
+  try {
+    const obj = JSON.parse(text);
+    if (!isRecord(obj) || obj.type !== "toolCall") return null;
+    return {
+      type: "tool_call",
+      toolCallId: String(obj.id ?? ""),
+      toolName: String(obj.name ?? "unknown"),
+      args: isRecord(obj.arguments) ? (obj.arguments as Record<string, unknown>) : {},
+    };
+  } catch {
+    return null;
+  }
+}
+
 function parseContentParts(content: unknown): SubagentMessagePart[] {
   if (typeof content === "string") {
-    return content ? [{ type: "text", text: content }] : [];
+    if (!content) return [];
+    return [tryParseToolCall(content) ?? { type: "text", text: content }];
   }
   if (!Array.isArray(content)) {
     return content ? [{ type: "text", text: JSON.stringify(content) }] : [];
@@ -40,8 +76,10 @@ function parseContentParts(content: unknown): SubagentMessagePart[] {
   return content.map((block): SubagentMessagePart => {
     if (!isRecord(block)) return { type: "text", text: JSON.stringify(block) };
     switch (block.type) {
-      case "text":
-        return { type: "text", text: String(block.text ?? "") };
+      case "text": {
+        const text = String(block.text ?? "");
+        return tryParseToolCall(text) ?? { type: "text", text };
+      }
       case "thinking":
         return { type: "thinking", thinking: String(block.thinking ?? "") };
       case "tool_use":
@@ -68,8 +106,7 @@ function parseMessages(raw: unknown): SubagentHistoryMessage[] {
 
     let parts: SubagentMessagePart[];
     if (isToolResult) {
-      const resultContent =
-        typeof m.content === "string" ? m.content : JSON.stringify(m.content ?? "");
+      const resultContent = extractToolResultText(m.content);
       parts = [
         {
           type: "tool_result",

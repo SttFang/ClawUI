@@ -48,18 +48,38 @@ function extractToolResultText(content: unknown): string {
 /**
  * Try parsing a text string as a JSON-serialized tool call.
  * OpenClaw streams tool calls as `{ type: "toolCall", id, name, arguments }` text blocks.
+ * The `partialJson` field often contains unescaped JSON which breaks JSON.parse,
+ * so we strip it before parsing if needed.
  */
 function tryParseToolCall(text: string): SubagentMessagePart | null {
-  if (!text.startsWith("{")) return null;
+  if (!text.startsWith("{") || !text.includes('"toolCall"')) return null;
+
+  // Try direct parse first
+  let obj = tryJsonParse(text);
+
+  // If it fails, strip the problematic partialJson field and retry
+  if (!obj) {
+    const stripped = text.replace(/,"partialJson":"[\s\S]*$/, "}");
+    obj = tryJsonParse(stripped);
+  }
+
+  if (!obj || obj.type !== "toolCall") return null;
+
+  // Handle "[blocked]" suffix in tool call text
+  const name = String(obj.name ?? "unknown");
+
+  return {
+    type: "tool_call",
+    toolCallId: String(obj.id ?? ""),
+    toolName: name,
+    args: isRecord(obj.arguments) ? (obj.arguments as Record<string, unknown>) : {},
+  };
+}
+
+function tryJsonParse(text: string): Record<string, unknown> | null {
   try {
-    const obj = JSON.parse(text);
-    if (!isRecord(obj) || obj.type !== "toolCall") return null;
-    return {
-      type: "tool_call",
-      toolCallId: String(obj.id ?? ""),
-      toolName: String(obj.name ?? "unknown"),
-      args: isRecord(obj.arguments) ? (obj.arguments as Record<string, unknown>) : {},
-    };
+    const parsed = JSON.parse(text);
+    return isRecord(parsed) ? parsed : null;
   } catch {
     return null;
   }

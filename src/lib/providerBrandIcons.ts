@@ -72,7 +72,7 @@ const PROVIDER_ICONS: Record<string, BrandIcon> = {
   groq: createLobeBrandIcon(Groq),
   mistral: createLobeBrandIcon(Mistral),
   moonshot: createLobeBrandIcon(Moonshot),
-  "kimi-coding": createLobeBrandIcon(Kimi),
+  "kimi-coding": createLobeBrandIcon(Moonshot),
   kimi: createLobeBrandIcon(Kimi),
   minimax: createLobeBrandIcon(Minimax),
   qwen: createLobeBrandIcon(Qwen),
@@ -90,29 +90,37 @@ const PROVIDER_ICONS: Record<string, BrandIcon> = {
   deepseek: createLobeBrandIcon(DeepSeek),
 };
 
+const EXACT_ALIASES = new Map<string, string>([
+  ["openai codex", "openai-codex"],
+  ["openai-codex", "openai-codex"],
+  ["openai", "openai"],
+  ["anthropic", "anthropic"],
+  ["claude", "anthropic"],
+  ["openrouter", "openrouter"],
+  ["google-vertex", "google-vertex"],
+  ["vertex", "google-vertex"],
+  ["google-antigravity", "google-antigravity"],
+  ["google-gemini-cli", "google-gemini-cli"],
+  ["xai", "xai"],
+  ["grok", "grok"],
+  ["qwen-portal", "qwen-portal"],
+  ["amazon-bedrock", "amazon-bedrock"],
+  ["bedrock", "bedrock"],
+  ["github-copilot", "github-copilot"],
+  ["vercel-ai-gateway", "vercel-ai-gateway"],
+  ["ai-gateway", "vercel-ai-gateway"],
+  ["cloudflare-ai-gateway", "cloudflare-ai-gateway"],
+]);
+
 export function normalizeProviderKey(input: string): string {
   const raw = String(input ?? "")
     .trim()
     .toLowerCase();
   if (!raw) return "";
 
-  // Exact aliases.
-  if (raw === "openai codex") return "openai-codex";
-  if (raw === "openai-codex") return "openai-codex";
-  if (raw === "openai") return "openai";
-  if (raw === "anthropic" || raw === "claude") return "anthropic";
-  if (raw === "openrouter") return "openrouter";
-  if (raw === "google-vertex" || raw === "vertex") return "google-vertex";
-  if (raw === "google-antigravity") return "google-antigravity";
-  if (raw === "google-gemini-cli") return "google-gemini-cli";
-  if (raw === "xai") return "xai";
-  if (raw === "grok") return "grok";
-  if (raw === "qwen-portal") return "qwen-portal";
-  if (raw === "amazon-bedrock") return "amazon-bedrock";
-  if (raw === "bedrock") return "bedrock";
-  if (raw === "github-copilot") return "github-copilot";
-  if (raw === "vercel-ai-gateway" || raw === "ai-gateway") return "vercel-ai-gateway";
-  if (raw === "cloudflare-ai-gateway") return "cloudflare-ai-gateway";
+  // O(1) exact match.
+  const exact = EXACT_ALIASES.get(raw);
+  if (exact) return exact;
 
   // Heuristics for provider names coming from usage aggregation / model refs.
   if (raw.includes("anthropic") || raw.includes("claude")) return "anthropic";

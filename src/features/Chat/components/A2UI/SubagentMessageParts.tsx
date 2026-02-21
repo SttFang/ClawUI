@@ -1,5 +1,6 @@
-import { Collapsible, CollapsibleTrigger, CollapsibleContent, cn } from "@clawui/ui";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent, ScrollArea, cn } from "@clawui/ui";
 import { ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { SubagentMessagePart } from "@/store/subagents";
 import { MessageText } from "../MessageText";
 
@@ -130,12 +131,79 @@ function ToolResultBlock({ content, isError }: { content: string; isError?: bool
   );
 }
 
-/** Spacing between part types: tool→tool is tight, text↔tool gets more room. */
-function gapClass(prev: SubagentMessagePart["type"] | null, curr: SubagentMessagePart["type"]): string {
-  if (!prev) return "";
-  if (prev === "tool_call" && curr === "tool_call") return "mt-0.5";
-  if (prev === "text" || curr === "text") return "mt-2";
-  return "mt-1";
+type Segment =
+  | { kind: "text"; index: number; part: SubagentMessagePart & { type: "text" } }
+  | { kind: "thinking"; index: number; part: SubagentMessagePart & { type: "thinking" } }
+  | { kind: "tool_result"; index: number; part: SubagentMessagePart & { type: "tool_result" } }
+  | {
+      kind: "tool_group";
+      startIndex: number;
+      calls: (SubagentMessagePart & { type: "tool_call" })[];
+    };
+
+/** Collapse consecutive tool_call parts into groups; keep everything else as-is. */
+function segmentParts(parts: SubagentMessagePart[], pairedResultIds: Set<string>): Segment[] {
+  const segments: Segment[] = [];
+  let pendingCalls: (SubagentMessagePart & { type: "tool_call" })[] = [];
+  let groupStart = 0;
+
+  const flushCalls = () => {
+    if (pendingCalls.length > 0) {
+      segments.push({ kind: "tool_group", startIndex: groupStart, calls: pendingCalls });
+      pendingCalls = [];
+    }
+  };
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    // Skip paired tool_results (they render inline with their tool_call)
+    if (part.type === "tool_result" && part.toolCallId && pairedResultIds.has(part.toolCallId)) {
+      continue;
+    }
+    if (part.type === "tool_call") {
+      if (pendingCalls.length === 0) groupStart = i;
+      pendingCalls.push(part);
+      continue;
+    }
+    flushCalls();
+    if (part.type === "text") segments.push({ kind: "text", index: i, part });
+    else if (part.type === "thinking") segments.push({ kind: "thinking", index: i, part });
+    else if (part.type === "tool_result") segments.push({ kind: "tool_result", index: i, part });
+  }
+  flushCalls();
+  return segments;
+}
+
+/** Max height before the tool group becomes scrollable (px). */
+const TOOL_GROUP_MAX_H = 280;
+
+function ToolCallGroup({
+  calls,
+  resultMap,
+}: {
+  calls: (SubagentMessagePart & { type: "tool_call" })[];
+  resultMap: Map<string, { content: string; isError?: boolean }>;
+}) {
+  const { t } = useTranslation("common");
+  return (
+    <div className="rounded-md border border-border/40">
+      <div className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-muted-foreground">
+        <span>{t("subagent.toolCalls", { count: calls.length })}</span>
+      </div>
+      <ScrollArea className="px-1 pb-1" style={{ maxHeight: TOOL_GROUP_MAX_H }}>
+        <div className="space-y-0.5">
+          {calls.map((call, i) => (
+            <ToolCallBlock
+              key={call.toolCallId || i}
+              toolName={call.toolName}
+              args={call.args}
+              result={call.toolCallId ? resultMap.get(call.toolCallId) : undefined}
+            />
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
+  );
 }
 
 export function SubagentMessageParts({ parts }: { parts: SubagentMessagePart[] }) {
@@ -146,47 +214,31 @@ export function SubagentMessageParts({ parts }: { parts: SubagentMessagePart[] }
     }
   }
 
-  let prevType: SubagentMessagePart["type"] | null = null;
+  const segments = segmentParts(parts, new Set(resultMap.keys()));
 
   return (
-    <div>
-      {parts.map((part, i) => {
-        // Skip paired tool_results
-        if (part.type === "tool_result" && part.toolCallId && resultMap.has(part.toolCallId)) {
-          return null;
-        }
-
-        const gap = gapClass(prevType, part.type);
-        prevType = part.type;
-
-        switch (part.type) {
+    <div className="space-y-2">
+      {segments.map((seg) => {
+        switch (seg.kind) {
           case "text":
             return (
-              <div key={i} className={cn("text-xs", gap)}>
-                <MessageText text={part.text} isAnimating={false} />
+              <div key={seg.index} className="text-xs">
+                <MessageText text={seg.part.text} isAnimating={false} />
               </div>
             );
           case "thinking":
+            return <ThinkingBlock key={seg.index} thinking={seg.part.thinking} />;
+          case "tool_group":
             return (
-              <div key={i} className={gap}>
-                <ThinkingBlock thinking={part.thinking} />
-              </div>
-            );
-          case "tool_call":
-            return (
-              <div key={i} className={gap}>
-                <ToolCallBlock
-                  toolName={part.toolName}
-                  args={part.args}
-                  result={part.toolCallId ? resultMap.get(part.toolCallId) : undefined}
-                />
-              </div>
+              <ToolCallGroup key={`tg:${seg.startIndex}`} calls={seg.calls} resultMap={resultMap} />
             );
           case "tool_result":
             return (
-              <div key={i} className={gap}>
-                <ToolResultBlock content={part.content} isError={part.isError} />
-              </div>
+              <ToolResultBlock
+                key={seg.index}
+                content={seg.part.content}
+                isError={seg.part.isError}
+              />
             );
         }
       })}

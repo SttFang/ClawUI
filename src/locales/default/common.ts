@@ -1109,6 +1109,7 @@ const common = {
     loading: "加载中…",
     noOutput: "无输出",
     kill: "终止",
+    toolCalls: "{{count}} 次工具调用",
     status: {
       spawning: "启动中",
       running: "运行中",

@@ -3,13 +3,45 @@ import { Task, TaskContent, TaskTrigger, cn } from "@clawui/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
-import type { SubagentHistoryMessage, SubagentStatus } from "@/store/subagents";
+import type { SubagentHistoryMessage, SubagentNode, SubagentStatus } from "@/store/subagents";
 import { toRecord } from "@/lib/exec";
 import { useSubagentsStore, selectNodeByToolCallId, selectHistory } from "@/store/subagents";
 import { SubagentMessageParts } from "./SubagentMessageParts";
 import { useSubagentHistory } from "./useSubagentHistory";
 
 const EMPTY_MESSAGES: SubagentHistoryMessage[] = [];
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return v != null && typeof v === "object" && !Array.isArray(v);
+}
+
+/** Extract childSessionKey + runId from a sessions_spawn tool output. */
+function extractSpawnInfo(output: unknown): { childSessionKey: string; runId: string } | null {
+  const unwrap = (raw: unknown): Record<string, unknown> | null => {
+    if (!isRecord(raw)) return null;
+    if (typeof raw.status === "string") return raw;
+    // { content: [{ type: "text", text: JSON }] } wrapper
+    const content = Array.isArray(raw.content) ? raw.content : null;
+    if (!content) return null;
+    for (const item of content) {
+      if (isRecord(item) && item.type === "text" && typeof item.text === "string") {
+        try {
+          const parsed = JSON.parse(item.text);
+          if (isRecord(parsed)) return parsed;
+        } catch {
+          /* not JSON */
+        }
+      }
+    }
+    return null;
+  };
+
+  const result = unwrap(output);
+  if (!result) return null;
+  const sk = typeof result.childSessionKey === "string" ? result.childSessionKey.trim() : "";
+  const rid = typeof result.runId === "string" ? result.runId.trim() : "";
+  return sk && rid ? { childSessionKey: sk, runId: rid } : null;
+}
 
 const STATUS_DOT: Record<SubagentStatus, string> = {
   spawning: "animate-pulse bg-blue-500",
@@ -71,7 +103,7 @@ function statusFromPartState(state: DynamicToolUIPart["state"]): SubagentStatus 
 }
 
 export function SubagentTool(props: { part: DynamicToolUIPart; sessionKey: string }) {
-  const { part } = props;
+  const { part, sessionKey } = props;
   const { t } = useTranslation("common");
   const { node, messages } = useNodeForToolCallId(part.toolCallId);
 
@@ -79,6 +111,27 @@ export function SubagentTool(props: { part: DynamicToolUIPart; sessionKey: strin
   const isActive = status === "running" || status === "spawning";
   const taskName = node?.task ?? extractTaskFromInput(part.input);
   const duration = useLiveDuration(node?.createdAt, node?.endedAt);
+
+  // When no node exists (historical session), hydrate store from part.output
+  // so useSubagentHistory can fetch the child session's history.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (node || hydratedRef.current) return;
+    const info = extractSpawnInfo(part.output);
+    if (!info) return;
+    hydratedRef.current = true;
+    const hydrated: SubagentNode = {
+      runId: info.runId,
+      toolCallId: part.toolCallId,
+      sessionKey: info.childSessionKey,
+      parentSessionKey: sessionKey,
+      task: extractTaskFromInput(part.input),
+      status: statusFromPartState(part.state),
+      createdAt: Date.now(),
+      endedAt: status === "done" || status === "error" ? Date.now() : undefined,
+    };
+    useSubagentsStore.getState().add(hydrated);
+  }, [node, part.output, part.toolCallId, part.input, part.state, sessionKey, status]);
 
   useSubagentHistory(node?.runId ?? null, node?.sessionKey ?? null, status);
 

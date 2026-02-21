@@ -165,10 +165,19 @@ function startWaiting(node: SubagentNode) {
       .request("agent.wait", { runId: node.runId, timeoutMs: 120_000 })
       .then((res) => {
         const result = isRecord(res) ? res : null;
-        const ok = result?.ok === true;
-        const status = ok ? "done" : "error";
-        const error = !ok && typeof result?.error === "string" ? result.error : undefined;
-        useSubagentsStore.getState().updateStatus(node.runId, status, error);
+        const gwStatus = typeof result?.status === "string" ? result.status : "";
+        if (gwStatus === "ok") {
+          useSubagentsStore.getState().updateStatus(node.runId, "done");
+          return;
+        }
+        if (gwStatus === "timeout") {
+          // Gateway-level wait timeout — re-wait
+          chatLog.debug("[subagent.wait.renew]", `runId=${node.runId}`, "reason=gw-timeout");
+          wait();
+          return;
+        }
+        const error = typeof result?.error === "string" ? result.error : undefined;
+        useSubagentsStore.getState().updateStatus(node.runId, "error", error);
       })
       .catch((err) => {
         const msg = err instanceof Error ? err.message : String(err);

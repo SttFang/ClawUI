@@ -156,20 +156,33 @@ function findSpawnResultInHistory(
 }
 
 function startWaiting(node: SubagentNode) {
-  ipc.chat
-    .request("agent.wait", { runId: node.runId, timeoutMs: 120_000 })
-    .then((res) => {
-      const result = isRecord(res) ? res : null;
-      const ok = result?.ok === true;
-      const status = ok ? "done" : "error";
-      const error = !ok && typeof result?.error === "string" ? result.error : undefined;
-      useSubagentsStore.getState().updateStatus(node.runId, status, error);
-    })
-    .catch((err) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      const isTimeout = msg.toLowerCase().includes("timeout");
-      useSubagentsStore.getState().updateStatus(node.runId, isTimeout ? "timeout" : "error", msg);
-    });
+  const wait = () => {
+    // Only re-wait if the node is still running
+    const current = useSubagentsStore.getState().nodes[node.runId];
+    if (!current || (current.status !== "running" && current.status !== "spawning")) return;
+
+    ipc.chat
+      .request("agent.wait", { runId: node.runId, timeoutMs: 120_000 })
+      .then((res) => {
+        const result = isRecord(res) ? res : null;
+        const ok = result?.ok === true;
+        const status = ok ? "done" : "error";
+        const error = !ok && typeof result?.error === "string" ? result.error : undefined;
+        useSubagentsStore.getState().updateStatus(node.runId, status, error);
+      })
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isTimeout = msg.toLowerCase().includes("timeout");
+        if (isTimeout) {
+          // Gateway timeout — agent may still be running, re-wait
+          chatLog.debug("[subagent.wait.renew]", `runId=${node.runId}`);
+          wait();
+          return;
+        }
+        useSubagentsStore.getState().updateStatus(node.runId, "error", msg);
+      });
+  };
+  wait();
 }
 
 /** Fetch parent session history and resolve spawn data. Retries with increasing delay. */

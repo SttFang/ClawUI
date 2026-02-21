@@ -1,4 +1,4 @@
-import { Collapsible, CollapsibleTrigger, CollapsibleContent, ScrollArea, cn } from "@clawui/ui";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent, cn } from "@clawui/ui";
 import { ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { SubagentMessagePart } from "@/store/subagents";
@@ -174,9 +174,6 @@ function segmentParts(parts: SubagentMessagePart[], pairedResultIds: Set<string>
   return segments;
 }
 
-/** Max height before the tool group becomes scrollable (px). */
-const TOOL_GROUP_MAX_H = 280;
-
 function ToolCallGroup({
   calls,
   resultMap,
@@ -190,18 +187,16 @@ function ToolCallGroup({
       <div className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-muted-foreground">
         <span>{t("subagent.toolCalls", { count: calls.length })}</span>
       </div>
-      <ScrollArea className="px-1 pb-1" style={{ maxHeight: TOOL_GROUP_MAX_H }}>
-        <div className="space-y-0.5">
-          {calls.map((call, i) => (
-            <ToolCallBlock
-              key={call.toolCallId || i}
-              toolName={call.toolName}
-              args={call.args}
-              result={call.toolCallId ? resultMap.get(call.toolCallId) : undefined}
-            />
-          ))}
-        </div>
-      </ScrollArea>
+      <div className="space-y-0.5 px-1 pb-1">
+        {calls.map((call, i) => (
+          <ToolCallBlock
+            key={call.toolCallId || i}
+            toolName={call.toolName}
+            args={call.args}
+            result={call.toolCallId ? resultMap.get(call.toolCallId) : undefined}
+          />
+        ))}
+      </div>
     </div>
   );
 }

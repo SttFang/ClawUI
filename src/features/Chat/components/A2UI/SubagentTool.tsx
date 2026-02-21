@@ -1,5 +1,5 @@
 import type { DynamicToolUIPart } from "ai";
-import { Task, TaskContent, TaskTrigger, cn } from "@clawui/ui";
+import { Task, TaskContent, TaskTrigger, ScrollArea, cn } from "@clawui/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
@@ -171,19 +171,23 @@ export function SubagentTool(props: { part: DynamicToolUIPart; sessionKey: strin
           )}
         </div>
       </TaskTrigger>
-      <TaskContent className="space-y-2">
-        {flatParts == null ? (
-          <p className="text-xs text-muted-foreground">
-            {isActive ? t("subagent.loading") : t("subagent.noOutput")}
-          </p>
-        ) : (
-          <SubagentMessageParts parts={flatParts} />
-        )}
-        {node?.error && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-            {node.error}
+      <TaskContent>
+        <ScrollArea className="max-h-80">
+          <div className="space-y-2">
+            {flatParts == null ? (
+              <p className="text-xs text-muted-foreground">
+                {isActive ? t("subagent.loading") : t("subagent.noOutput")}
+              </p>
+            ) : (
+              <SubagentMessageParts parts={flatParts} />
+            )}
+            {node?.error && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+                {node.error}
+              </div>
+            )}
           </div>
-        )}
+        </ScrollArea>
       </TaskContent>
     </Task>
   );

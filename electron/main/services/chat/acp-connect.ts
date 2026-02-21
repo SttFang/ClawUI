@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { ACP_PROTOCOL_VERSION } from "@clawui/constants/protocol";
+import { ACP_PROTOCOL_VERSION } from "@clawui/constants";
 import { chatLog } from "../../lib/logger";
 import { buildDeviceAuthPayload, loadDeviceAuthToken, storeDeviceAuthToken } from "./device-auth";
 import {

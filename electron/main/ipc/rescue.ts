@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { ALLOWED_RESCUE_METHODS } from "@clawui/constants/ipc-methods";
+import { ALLOWED_RESCUE_METHODS } from "@clawui/constants";
 import type { ChatRequest } from "../services/chat-websocket";
 import type { ChatWebSocketService } from "../services/chat-websocket";
 import type { ConfigService } from "../services/config";

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { TRACKED_GATEWAY_EVENTS } from "@clawui/constants/events";
+import { TRACKED_GATEWAY_EVENTS } from "@clawui/constants";
 import type { GatewayEventFrame } from "@/lib/ipc";
 import { ipc } from "@/lib/ipc";
 

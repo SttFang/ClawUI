@@ -2,4 +2,4 @@ export {
   DEFAULT_GATEWAY_PORT,
   RESCUE_GATEWAY_PORT,
   CONFIG_AGENT_PROFILE_NAME,
-} from "@clawui/constants/gateway";
+} from "@clawui/constants";

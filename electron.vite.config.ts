@@ -15,6 +15,7 @@ export default defineConfig({
     resolve: {
       alias: {
         "@main": resolve("electron/main"),
+        "@clawui/constants": resolve("packages/constants/src/index.ts"),
       },
     },
   },
@@ -44,6 +45,7 @@ export default defineConfig({
     plugins: [react()],
     resolve: {
       alias: {
+        "@clawui/constants": resolve("packages/constants/src/index.ts"),
         "@clawui/config-core": resolve("packages/config-core/src/index.ts"),
         "@clawui/config-core/": resolve("packages/config-core/src/"),
         "@clawui/openclaw-chat-stream": resolve("packages/openclaw-chat-stream/src/index.ts"),

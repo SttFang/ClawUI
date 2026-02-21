@@ -6,9 +6,6 @@ import { useSubagentsStore } from "./store";
 
 let listenerInitialized = false;
 
-const AUTO_CLOSE_DELAY_MS = 5_000;
-let autoCloseTimer: ReturnType<typeof setTimeout> | null = null;
-
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v != null && typeof v === "object" && !Array.isArray(v);
 }
@@ -69,6 +66,7 @@ function parseSpawnResult(event: ChatNormalizedRunEvent): SubagentNode | null {
 
   return {
     runId,
+    toolCallId: "",
     sessionKey,
     parentSessionKey: event.sessionKey,
     task,
@@ -156,21 +154,6 @@ function findSpawnResultInHistory(
   return null;
 }
 
-function scheduleAutoClose() {
-  if (autoCloseTimer) clearTimeout(autoCloseTimer);
-  autoCloseTimer = setTimeout(() => {
-    const state = useSubagentsStore.getState();
-    const nodes = Object.values(state.nodes);
-    const allDone =
-      nodes.length > 0 &&
-      nodes.every((n) => n.status === "done" || n.status === "error" || n.status === "timeout");
-    if (allDone) {
-      useSubagentsStore.getState().togglePanel(false);
-    }
-    autoCloseTimer = null;
-  }, AUTO_CLOSE_DELAY_MS);
-}
-
 function startWaiting(node: SubagentNode) {
   ipc.chat
     .request("agent.wait", { runId: node.runId, timeoutMs: 120_000 })
@@ -180,13 +163,11 @@ function startWaiting(node: SubagentNode) {
       const status = ok ? "done" : "error";
       const error = !ok && typeof result?.error === "string" ? result.error : undefined;
       useSubagentsStore.getState().updateStatus(node.runId, status, error);
-      scheduleAutoClose();
     })
     .catch((err) => {
       const msg = err instanceof Error ? err.message : String(err);
       const isTimeout = msg.toLowerCase().includes("timeout");
       useSubagentsStore.getState().updateStatus(node.runId, isTimeout ? "timeout" : "error", msg);
-      scheduleAutoClose();
     });
 }
 
@@ -258,6 +239,7 @@ export function initSubagentsListener() {
       const { task, label, model } = parseSpawnArgs(meta!);
       const node: SubagentNode = {
         runId: toolCallId, // temporary key; replaced by resolveSpawn
+        toolCallId,
         sessionKey: "",
         parentSessionKey: event.sessionKey,
         task,
@@ -285,7 +267,6 @@ export function initSubagentsListener() {
     const isError = meta?.isError === true;
     if (isError) {
       useSubagentsStore.getState().updateStatus(toolCallId, "error", "spawn failed");
-      scheduleAutoClose();
       return;
     }
 
@@ -310,7 +291,6 @@ export function initSubagentsListener() {
       if (!found) {
         chatLog.warn("[subagent.resolve.failed]", `toolCallId=${toolCallId}`);
         useSubagentsStore.getState().updateStatus(toolCallId, "error", "could not resolve spawn");
-        scheduleAutoClose();
         return;
       }
 

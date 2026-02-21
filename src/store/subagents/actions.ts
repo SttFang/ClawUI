@@ -15,7 +15,6 @@ export function createSubagentsActions(set: Set, _get: Get): SubagentsActions {
       set(
         (state) => ({
           nodes: { ...state.nodes, [node.runId]: node },
-          panelOpen: true,
         }),
         false,
         "subagents/add",
@@ -31,9 +30,14 @@ export function createSubagentsActions(set: Set, _get: Get): SubagentsActions {
           return {
             nodes: {
               ...rest,
-              [realRunId]: { ...existing, runId: realRunId, sessionKey, status: "running" },
+              [realRunId]: {
+                ...existing,
+                runId: realRunId,
+                sessionKey,
+                status: "running",
+                toolCallId: existing.toolCallId || tempKey,
+              },
             },
-            selectedRunId: state.selectedRunId === tempKey ? realRunId : state.selectedRunId,
           };
         },
         false,
@@ -63,14 +67,6 @@ export function createSubagentsActions(set: Set, _get: Get): SubagentsActions {
       );
     },
 
-    select: (runId) => {
-      set({ selectedRunId: runId }, false, "subagents/select");
-    },
-
-    togglePanel: (open) => {
-      set((state) => ({ panelOpen: open ?? !state.panelOpen }), false, "subagents/togglePanel");
-    },
-
     setHistory: (runId, messages) => {
       set(
         (state) => {
@@ -90,7 +86,6 @@ export function createSubagentsActions(set: Set, _get: Get): SubagentsActions {
           return {
             nodes: rest,
             historyByRunId: histRest,
-            selectedRunId: state.selectedRunId === runId ? null : state.selectedRunId,
           };
         },
         false,

@@ -1106,8 +1106,6 @@ const common = {
   },
   subagent: {
     title: "子智能体",
-    empty: "暂无子智能体",
-    selectHint: "选择一个子智能体查看详情",
     loading: "加载中…",
     noOutput: "无输出",
     kill: "终止",

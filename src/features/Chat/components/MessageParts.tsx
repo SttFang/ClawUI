@@ -2,7 +2,7 @@ import type { DynamicToolUIPart, UIMessage } from "ai";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ExecTool, ExecGroup, ToolGroup } from "@/features/Chat/components/A2UI";
+import { ExecTool, ExecGroup, ToolGroup, SubagentTool } from "@/features/Chat/components/A2UI";
 import {
   deduplicateToolParts,
   normalizeMessageParts,
@@ -25,7 +25,7 @@ type RenderableItem =
       key: string;
       node: ReactElement;
       toolCallId: string;
-      meta?: { renderKind: "explore" | "exec"; part: DynamicToolUIPart };
+      meta?: { renderKind: "explore" | "exec" | "subagent"; part: DynamicToolUIPart };
     };
 
 type TextPartLike = {
@@ -247,6 +247,23 @@ export function MessageParts(props: {
       if (policy.kind === "hidden") continue;
 
       const toolCallId = part.toolCallId;
+
+      if (policy.kind === "subagent") {
+        nextItems[index] = {
+          kind: "tool",
+          key: `subagent:${toolCallId}:${index}`,
+          toolCallId,
+          meta: { renderKind: "subagent", part },
+          node: (
+            <SubagentTool
+              key={`subagent:${toolCallId}:${index}`}
+              part={part}
+              sessionKey={sessionKey}
+            />
+          ),
+        };
+        continue;
+      }
 
       if (policy.kind === "exec" && isExecToolName(part.toolName)) {
         nextItems[index] = {

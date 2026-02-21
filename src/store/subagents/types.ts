@@ -8,6 +8,7 @@ export type SubagentMessagePart =
 
 export interface SubagentNode {
   runId: string;
+  toolCallId: string;
   sessionKey: string;
   parentSessionKey: string;
   label?: string;
@@ -28,8 +29,6 @@ export interface SubagentHistoryMessage {
 
 export interface SubagentsState {
   nodes: Record<string, SubagentNode>;
-  selectedRunId: string | null;
-  panelOpen: boolean;
   historyByRunId: Record<string, SubagentHistoryMessage[]>;
 }
 
@@ -38,8 +37,6 @@ export interface SubagentsActions {
   /** Replace a temporary node key with the real runId + sessionKey after history fetch. */
   resolveSpawn: (tempKey: string, realRunId: string, sessionKey: string) => void;
   updateStatus: (runId: string, status: SubagentStatus, error?: string) => void;
-  select: (runId: string | null) => void;
-  togglePanel: (open?: boolean) => void;
   setHistory: (runId: string, messages: SubagentHistoryMessage[]) => void;
   remove: (runId: string) => void;
   reset: () => void;

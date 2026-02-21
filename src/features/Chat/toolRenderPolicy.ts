@@ -1,6 +1,6 @@
 import { isExecToolName } from "@/lib/exec";
 
-export type ToolRenderKind = "explore" | "exec" | "hidden";
+export type ToolRenderKind = "explore" | "exec" | "subagent" | "hidden";
 
 export type ToolRenderPolicy = {
   kind: ToolRenderKind;
@@ -40,6 +40,9 @@ export function classifyToolRender(toolName: string): ToolRenderPolicy {
 
   if (HIDDEN_TOOL_NAMES.has(normalized)) {
     return { kind: "hidden" };
+  }
+  if (normalized === "sessions_spawn") {
+    return { kind: "subagent" };
   }
   if (isExecToolName(toolName)) {
     return { kind: "exec" };

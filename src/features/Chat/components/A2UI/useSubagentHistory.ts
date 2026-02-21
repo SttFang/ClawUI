@@ -1,7 +1,11 @@
 import { useEffect, useRef } from "react";
-import type { SubagentHistoryMessage, SubagentMessagePart } from "@/store/subagents";
+import type {
+  SubagentHistoryMessage,
+  SubagentMessagePart,
+  SubagentStatus,
+} from "@/store/subagents";
 import { ipc } from "@/lib/ipc";
-import { useSubagentsStore, selectSelectedNode } from "@/store/subagents";
+import { useSubagentsStore } from "@/store/subagents";
 
 const POLL_INTERVAL_MS = 2_000;
 
@@ -87,31 +91,32 @@ function parseMessages(raw: unknown): SubagentHistoryMessage[] {
   });
 }
 
-export function useSubagentPolling() {
-  const node = useSubagentsStore(selectSelectedNode);
+export function useSubagentHistory(
+  runId: string | null,
+  sessionKey: string | null,
+  status: SubagentStatus | undefined,
+) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (!node || !node.sessionKey) return;
+    if (!runId || !sessionKey) return;
 
     const fetchHistory = () => {
       ipc.chat
-        .request("chat.history", { sessionKey: node.sessionKey, limit: 50 })
+        .request("chat.history", { sessionKey, limit: 50 })
         .then((res) => {
           const data = isRecord(res) ? res : null;
           const messages = parseMessages(data?.messages ?? data?.history ?? res);
-          useSubagentsStore.getState().setHistory(node.runId, messages);
+          useSubagentsStore.getState().setHistory(runId, messages);
         })
         .catch(() => {
           // silently ignore — node may have been cleaned up
         });
     };
 
-    // Fetch immediately
     fetchHistory();
 
-    // Poll only if still running
-    if (node.status === "running" || node.status === "spawning") {
+    if (status === "running" || status === "spawning") {
       timerRef.current = setInterval(fetchHistory, POLL_INTERVAL_MS);
     }
 
@@ -121,5 +126,5 @@ export function useSubagentPolling() {
         timerRef.current = null;
       }
     };
-  }, [node?.runId, node?.sessionKey, node?.status]);
+  }, [runId, sessionKey, status]);
 }

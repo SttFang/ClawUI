@@ -15,7 +15,13 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 import { parseSpawnResult, findSpawnResultInHistory } from "../listener";
-import { selectNodeList, selectActiveCount, selectAllDone, selectHistory } from "../selectors";
+import {
+  selectNodeList,
+  selectActiveCount,
+  selectAllDone,
+  selectHistory,
+  selectNodeByToolCallId,
+} from "../selectors";
 import { useSubagentsStore } from "../store";
 
 function resetStore() {
@@ -25,9 +31,10 @@ function resetStore() {
 describe("subagents store", () => {
   beforeEach(resetStore);
 
-  it("add inserts a node and opens panel", () => {
+  it("add inserts a node", () => {
     useSubagentsStore.getState().add({
       runId: "r1",
+      toolCallId: "tc1",
       sessionKey: "child:s1",
       parentSessionKey: "parent:s1",
       task: "do stuff",
@@ -37,19 +44,19 @@ describe("subagents store", () => {
     const state = useSubagentsStore.getState();
     expect(state.nodes["r1"]).toBeDefined();
     expect(state.nodes["r1"].task).toBe("do stuff");
-    expect(state.panelOpen).toBe(true);
+    expect(state.nodes["r1"].toolCallId).toBe("tc1");
   });
 
-  it("resolveSpawn replaces temp key with real runId", () => {
+  it("resolveSpawn replaces temp key and preserves toolCallId", () => {
     useSubagentsStore.getState().add({
       runId: "temp-tc1",
+      toolCallId: "tc1",
       sessionKey: "",
       parentSessionKey: "parent:s1",
       task: "research",
       status: "spawning",
       createdAt: 1000,
     });
-    useSubagentsStore.getState().select("temp-tc1");
     useSubagentsStore.getState().resolveSpawn("temp-tc1", "real-run-1", "child:s1");
 
     const state = useSubagentsStore.getState();
@@ -57,7 +64,7 @@ describe("subagents store", () => {
     expect(state.nodes["real-run-1"]).toBeDefined();
     expect(state.nodes["real-run-1"].sessionKey).toBe("child:s1");
     expect(state.nodes["real-run-1"].status).toBe("running");
-    expect(state.selectedRunId).toBe("real-run-1");
+    expect(state.nodes["real-run-1"].toolCallId).toBe("tc1");
   });
 
   it("resolveSpawn is no-op for unknown temp key", () => {
@@ -68,6 +75,7 @@ describe("subagents store", () => {
   it("updateStatus transitions and sets endedAt for terminal", () => {
     useSubagentsStore.getState().add({
       runId: "r1",
+      toolCallId: "tc1",
       sessionKey: "child:s1",
       parentSessionKey: "parent:s1",
       task: "task",
@@ -83,6 +91,7 @@ describe("subagents store", () => {
   it("remove cleans up node and history", () => {
     useSubagentsStore.getState().add({
       runId: "r1",
+      toolCallId: "tc1",
       sessionKey: "child:s1",
       parentSessionKey: "parent:s1",
       task: "task",
@@ -92,22 +101,11 @@ describe("subagents store", () => {
     useSubagentsStore
       .getState()
       .setHistory("r1", [{ role: "user", content: "hi", parts: [{ type: "text", text: "hi" }] }]);
-    useSubagentsStore.getState().select("r1");
     useSubagentsStore.getState().remove("r1");
 
     const state = useSubagentsStore.getState();
     expect(state.nodes["r1"]).toBeUndefined();
     expect(state.historyByRunId["r1"]).toBeUndefined();
-    expect(state.selectedRunId).toBeNull();
-  });
-
-  it("select and togglePanel work", () => {
-    useSubagentsStore.getState().select("r1");
-    expect(useSubagentsStore.getState().selectedRunId).toBe("r1");
-    useSubagentsStore.getState().togglePanel(true);
-    expect(useSubagentsStore.getState().panelOpen).toBe(true);
-    useSubagentsStore.getState().togglePanel();
-    expect(useSubagentsStore.getState().panelOpen).toBe(false);
   });
 
   it("setHistory is idempotent when payload is unchanged", () => {
@@ -144,6 +142,7 @@ describe("subagents selectors", () => {
     const { add } = useSubagentsStore.getState();
     add({
       runId: "r2",
+      toolCallId: "tc2",
       sessionKey: "s2",
       parentSessionKey: "p",
       task: "b",
@@ -152,6 +151,7 @@ describe("subagents selectors", () => {
     });
     add({
       runId: "r1",
+      toolCallId: "tc1",
       sessionKey: "s1",
       parentSessionKey: "p",
       task: "a",
@@ -167,6 +167,7 @@ describe("subagents selectors", () => {
     const { add } = useSubagentsStore.getState();
     add({
       runId: "r1",
+      toolCallId: "tc1",
       sessionKey: "s1",
       parentSessionKey: "p",
       task: "a",
@@ -175,6 +176,7 @@ describe("subagents selectors", () => {
     });
     add({
       runId: "r2",
+      toolCallId: "tc2",
       sessionKey: "s2",
       parentSessionKey: "p",
       task: "b",
@@ -183,6 +185,7 @@ describe("subagents selectors", () => {
     });
     add({
       runId: "r3",
+      toolCallId: "tc3",
       sessionKey: "s3",
       parentSessionKey: "p",
       task: "c",
@@ -196,6 +199,7 @@ describe("subagents selectors", () => {
     const { add } = useSubagentsStore.getState();
     add({
       runId: "r1",
+      toolCallId: "tc1",
       sessionKey: "s1",
       parentSessionKey: "p",
       task: "a",
@@ -204,6 +208,7 @@ describe("subagents selectors", () => {
     });
     add({
       runId: "r2",
+      toolCallId: "tc2",
       sessionKey: "s2",
       parentSessionKey: "p",
       task: "b",
@@ -211,6 +216,41 @@ describe("subagents selectors", () => {
       createdAt: 2000,
     });
     expect(selectAllDone(useSubagentsStore.getState())).toBe(true);
+  });
+
+  it("selectNodeByToolCallId finds node by toolCallId", () => {
+    useSubagentsStore.getState().add({
+      runId: "r1",
+      toolCallId: "tc-abc",
+      sessionKey: "s1",
+      parentSessionKey: "p",
+      task: "research",
+      status: "running",
+      createdAt: 1000,
+    });
+    const found = selectNodeByToolCallId(useSubagentsStore.getState(), "tc-abc");
+    expect(found).not.toBeNull();
+    expect(found!.runId).toBe("r1");
+  });
+
+  it("selectNodeByToolCallId returns null for unknown id", () => {
+    expect(selectNodeByToolCallId(useSubagentsStore.getState(), "unknown")).toBeNull();
+  });
+
+  it("selectNodeByToolCallId finds after resolveSpawn", () => {
+    useSubagentsStore.getState().add({
+      runId: "temp-tc1",
+      toolCallId: "tc1",
+      sessionKey: "",
+      parentSessionKey: "p",
+      task: "task",
+      status: "spawning",
+      createdAt: 1000,
+    });
+    useSubagentsStore.getState().resolveSpawn("temp-tc1", "real-run-1", "child:s1");
+    const found = selectNodeByToolCallId(useSubagentsStore.getState(), "tc1");
+    expect(found).not.toBeNull();
+    expect(found!.runId).toBe("real-run-1");
   });
 
   it("selectHistory returns empty for unknown runId", () => {

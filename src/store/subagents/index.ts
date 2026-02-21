@@ -2,12 +2,10 @@ export { useSubagentsStore } from "./store";
 export { initSubagentsListener } from "./listener";
 export {
   selectNodes,
-  selectPanelOpen,
-  selectSelectedRunId,
   selectNodeList,
   selectActiveCount,
   selectAllDone,
-  selectSelectedNode,
+  selectNodeByToolCallId,
   selectHistory,
 } from "./selectors";
 export type {

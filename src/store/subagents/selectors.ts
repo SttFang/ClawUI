@@ -1,8 +1,6 @@
 import type { SubagentHistoryMessage, SubagentNode, SubagentsStore } from "./types";
 
 export const selectNodes = (state: SubagentsStore) => state.nodes;
-export const selectPanelOpen = (state: SubagentsStore) => state.panelOpen;
-export const selectSelectedRunId = (state: SubagentsStore) => state.selectedRunId;
 
 const EMPTY_NODE_LIST: SubagentNode[] = [];
 const EMPTY_HISTORY: SubagentHistoryMessage[] = [];
@@ -26,9 +24,14 @@ export function selectAllDone(state: SubagentsStore): boolean {
   );
 }
 
-export function selectSelectedNode(state: SubagentsStore): SubagentNode | null {
-  if (!state.selectedRunId) return null;
-  return state.nodes[state.selectedRunId] ?? null;
+export function selectNodeByToolCallId(
+  state: SubagentsStore,
+  toolCallId: string,
+): SubagentNode | null {
+  for (const node of Object.values(state.nodes)) {
+    if (node.toolCallId === toolCallId) return node;
+  }
+  return null;
 }
 
 export function selectHistory(state: SubagentsStore, runId: string | null) {

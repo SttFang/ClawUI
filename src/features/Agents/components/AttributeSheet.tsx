@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@clawui/ui";
+import { Button, Sheet, SheetContent, SheetHeader, SheetTitle } from "@clawui/ui";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { WorkspaceFileEntry } from "@/lib/ipc";
@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useToolsStore, selectToolsConfig } from "@/store/tools";
 import type { AttributeType } from "./AgentHero";
 
-interface AttributeDialogProps {
+interface AttributeSheetProps {
   type: AttributeType | null;
   onClose: () => void;
 }
@@ -20,29 +20,44 @@ const titleKeys: Record<AttributeType, string> = {
   sandbox: "agents.agentDesktop.hero.sandbox.title",
 };
 
-export function AttributeDialog({ type, onClose }: AttributeDialogProps) {
+const iconMap: Record<AttributeType, string> = {
+  soul: "\u2728",
+  personality: "\uD83E\uDDE0",
+  memory: "\uD83D\uDCD6",
+  goals: "\uD83C\uDFAF",
+  sandbox: "\uD83D\uDEE1\uFE0F",
+};
+
+const fileMap: Record<string, string> = {
+  soul: "SOUL.md",
+  personality: "IDENTITY.md",
+  goals: "TODO.agent.md",
+};
+
+export function AttributeSheet({ type, onClose }: AttributeSheetProps) {
   const { t } = useTranslation("common");
+  const fileName = type ? fileMap[type] : undefined;
 
   return (
-    <Dialog open={type !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent onClose={onClose} className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{type ? t(titleKeys[type]) : ""}</DialogTitle>
-        </DialogHeader>
-        <div className="p-6 pt-4">
+    <Sheet open={type !== null} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent onClose={onClose} className="sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>
+            {type && `${iconMap[type]} ${t(titleKeys[type])}`}
+            {fileName && (
+              <span className="ml-2 text-xs font-normal text-muted-foreground">— {fileName}</span>
+            )}
+          </SheetTitle>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto p-4">
           {type === "soul" && <SoulContent />}
           {type === "personality" && <PersonalityContent />}
           {type === "memory" && <MemoryContent />}
           {type === "goals" && <GoalsContent />}
           {type === "sandbox" && <SandboxContent />}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {t("actions.close")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -78,20 +93,18 @@ function WorkspaceFileView({ relativePath, emptyKey }: { relativePath: string; e
   }
 
   return (
-    <pre className="whitespace-pre-wrap text-sm font-mono bg-muted rounded-md p-3 max-h-80 overflow-auto">
+    <pre className="whitespace-pre-wrap text-sm font-mono bg-muted rounded-md p-3 max-h-[60vh] overflow-auto">
       {content}
     </pre>
   );
 }
 
-// --- Soul: read SOUL.md ---
 function SoulContent() {
   return (
     <WorkspaceFileView relativePath="SOUL.md" emptyKey="agents.agentDesktop.hero.soul.summary" />
   );
 }
 
-// --- Personality: read IDENTITY.md ---
 function PersonalityContent() {
   return (
     <WorkspaceFileView
@@ -101,7 +114,6 @@ function PersonalityContent() {
   );
 }
 
-// --- Goals: read TODO.agent.md ---
 function GoalsContent() {
   return (
     <WorkspaceFileView
@@ -111,7 +123,6 @@ function GoalsContent() {
   );
 }
 
-// --- Memory: list memory/ directory, click to view file ---
 function MemoryContent() {
   const { t } = useTranslation("common");
   const [files, setFiles] = useState<WorkspaceFileEntry[] | null>(null);
@@ -170,7 +181,6 @@ function MemoryContent() {
   );
 }
 
-// --- Sandbox / Capabilities ---
 function SandboxContent() {
   const { t } = useTranslation("common");
   const toolsConfig = useToolsStore(selectToolsConfig);

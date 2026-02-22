@@ -737,6 +737,8 @@ const common = {
         waitingAuth: "Waiting for authorization...",
         loginSuccess: "Login successful!",
         retry: "Retry",
+        externalCliHint:
+          "OAuth credentials for this provider are managed by an external CLI tool. Please log in from your terminal first.",
       },
     },
     modelConfig: {

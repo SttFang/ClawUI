@@ -5,7 +5,7 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
 import { getProviderBrandIcon } from "@/lib/providerBrandIcons";
-import { getProviderLabel } from "@/store/settings/providerRegistry";
+import { getProviderLabel, getProviderOAuthMethod } from "@/store/settings/providerRegistry";
 import { OAuthLoginDialog } from "./OAuthLoginDialog";
 
 function getAuthStatus(authInfo: ProviderAuthInfo, oauthStatus?: OAuthProviderStatus) {
@@ -98,8 +98,10 @@ export function ProviderCard({
 
   const isOAuthAuth = authInfo.effective.kind === "profiles";
   const hasOAuthProfiles = (authInfo.profiles?.oauth ?? 0) > 0;
-  const isPortalProvider = provider.endsWith("-portal");
-  const supportsOAuth = hasOAuthProfiles || isOAuthAuth || isPortalProvider;
+  const oauthMethod = getProviderOAuthMethod(provider);
+  const supportsOAuth = hasOAuthProfiles || isOAuthAuth || oauthMethod !== undefined;
+  const isDeviceCode = oauthMethod === "device-code";
+  const isExternalCli = oauthMethod === "external-cli";
   const canEditApiKey = !isOAuthAuth && canSaveApiKey;
 
   const handleRefresh = useCallback(async () => {
@@ -147,10 +149,16 @@ export function ProviderCard({
           {/* OAuth: login + refresh */}
           {(isOAuthAuth || supportsOAuth) && (
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setOauthDialogOpen(true)}>
-                <LogIn className="mr-1.5 h-3.5 w-3.5" />
-                {t("settings.providerCard.oauth.login")}
-              </Button>
+              {isExternalCli ? (
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.providerCard.oauth.externalCliHint")}
+                </p>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setOauthDialogOpen(true)}>
+                  <LogIn className="mr-1.5 h-3.5 w-3.5" />
+                  {t("settings.providerCard.oauth.login")}
+                </Button>
+              )}
               {isOAuthAuth && (
                 <Button variant="outline" size="sm" disabled={isRefreshing} onClick={handleRefresh}>
                   {isRefreshing ? (
@@ -204,7 +212,7 @@ export function ProviderCard({
         </div>
       )}
 
-      {(isOAuthAuth || supportsOAuth) && (
+      {isDeviceCode && (
         <OAuthLoginDialog
           provider={provider}
           providerLabel={label}

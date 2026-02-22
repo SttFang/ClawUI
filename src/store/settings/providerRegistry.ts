@@ -1,14 +1,22 @@
 import type { ProviderAuthInfo } from "@clawui/types/models";
 
+export type OAuthMethod = "device-code" | "external-cli";
+
 export interface ProviderDefinition {
   id: string;
   label: string;
   envKeys: string[];
   aliases?: string[];
+  oauthMethod?: OAuthMethod;
 }
 
 const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
-  { id: "anthropic", label: "Anthropic", envKeys: ["ANTHROPIC_API_KEY", "ANTHROPIC_OAUTH_TOKEN"] },
+  {
+    id: "anthropic",
+    label: "Anthropic",
+    envKeys: ["ANTHROPIC_API_KEY", "ANTHROPIC_OAUTH_TOKEN"],
+    oauthMethod: "external-cli",
+  },
   { id: "openai", label: "OpenAI", envKeys: ["OPENAI_API_KEY"] },
   { id: "openai-codex", label: "OpenAI Codex", envKeys: [] },
   { id: "openrouter", label: "OpenRouter", envKeys: ["OPENROUTER_API_KEY"] },
@@ -30,8 +38,8 @@ const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   { id: "moonshot", label: "Moonshot", envKeys: ["MOONSHOT_API_KEY"] },
   { id: "kimi-coding", label: "Kimi Coding", envKeys: ["KIMI_API_KEY", "KIMICODE_API_KEY"] },
   { id: "minimax", label: "MiniMax", envKeys: ["MINIMAX_API_KEY"] },
-  { id: "minimax-portal", label: "MiniMax OAuth", envKeys: [] },
-  { id: "qwen-portal", label: "Qwen OAuth", envKeys: [] },
+  { id: "minimax-portal", label: "MiniMax OAuth", envKeys: [], oauthMethod: "external-cli" },
+  { id: "qwen-portal", label: "Qwen OAuth", envKeys: [], oauthMethod: "external-cli" },
   { id: "qianfan", label: "Qianfan", envKeys: ["QIANFAN_API_KEY"] },
   { id: "together", label: "Together AI", envKeys: ["TOGETHER_API_KEY"] },
   { id: "vercel-ai-gateway", label: "Vercel AI Gateway", envKeys: ["AI_GATEWAY_API_KEY"] },
@@ -47,6 +55,7 @@ const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     id: "github-copilot",
     label: "GitHub Copilot",
     envKeys: ["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"],
+    oauthMethod: "device-code",
   },
   { id: "chutes", label: "Chutes", envKeys: ["CHUTES_OAUTH_TOKEN", "CHUTES_API_KEY"] },
   {
@@ -134,6 +143,11 @@ export function getProviderLabel(providerId: string): string {
 export function getProviderEnvKeys(providerId: string): string[] {
   const definition = getProviderDefinition(providerId);
   return definition ? [...definition.envKeys] : [];
+}
+
+export function getProviderOAuthMethod(providerId: string): OAuthMethod | undefined {
+  const definition = getProviderDefinition(providerId);
+  return definition?.oauthMethod;
 }
 
 export function getFallbackProviderIds(): string[] {

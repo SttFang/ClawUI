@@ -8,6 +8,7 @@ export interface ProviderDefinition {
   envKeys: string[];
   aliases?: string[];
   oauthMethod?: OAuthMethod;
+  cliLoginCommand?: string;
 }
 
 const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
@@ -38,8 +39,20 @@ const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   { id: "moonshot", label: "Moonshot", envKeys: ["MOONSHOT_API_KEY"] },
   { id: "kimi-coding", label: "Kimi Coding", envKeys: ["KIMI_API_KEY", "KIMICODE_API_KEY"] },
   { id: "minimax", label: "MiniMax", envKeys: ["MINIMAX_API_KEY"] },
-  { id: "minimax-portal", label: "MiniMax OAuth", envKeys: [], oauthMethod: "external-cli" },
-  { id: "qwen-portal", label: "Qwen OAuth", envKeys: [], oauthMethod: "external-cli" },
+  {
+    id: "minimax-portal",
+    label: "MiniMax OAuth",
+    envKeys: [],
+    oauthMethod: "external-cli",
+    cliLoginCommand: "openclaw onboard --auth-choice minimax-portal",
+  },
+  {
+    id: "qwen-portal",
+    label: "Qwen OAuth",
+    envKeys: [],
+    oauthMethod: "external-cli",
+    cliLoginCommand: "openclaw onboard --auth-choice qwen-portal",
+  },
   { id: "qianfan", label: "Qianfan", envKeys: ["QIANFAN_API_KEY"] },
   { id: "together", label: "Together AI", envKeys: ["TOGETHER_API_KEY"] },
   { id: "vercel-ai-gateway", label: "Vercel AI Gateway", envKeys: ["AI_GATEWAY_API_KEY"] },
@@ -148,6 +161,11 @@ export function getProviderEnvKeys(providerId: string): string[] {
 export function getProviderOAuthMethod(providerId: string): OAuthMethod | undefined {
   const definition = getProviderDefinition(providerId);
   return definition?.oauthMethod;
+}
+
+export function getProviderCliLoginCommand(providerId: string): string | undefined {
+  const definition = getProviderDefinition(providerId);
+  return definition?.cliLoginCommand;
 }
 
 export function getFallbackProviderIds(): string[] {

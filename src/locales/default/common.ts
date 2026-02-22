@@ -777,6 +777,7 @@ const common = {
         loginSuccess: "登录成功！",
         retry: "重试",
         externalCliHint: "该提供商的 OAuth 凭据由外部 CLI 工具管理，请先在终端完成登录。",
+        openTerminal: "在终端登录",
       },
     },
     modelConfig: {

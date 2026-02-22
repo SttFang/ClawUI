@@ -261,6 +261,7 @@ export interface ElectronAPI {
       interval: number,
     ) => Promise<{ profileId: string }>;
     oauthRefresh: (profileId: string) => Promise<boolean>;
+    openCliLogin: (command: string) => Promise<void>;
   };
   security: {
     get: (paths: string[]) => Promise<Record<string, unknown>>;

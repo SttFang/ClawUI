@@ -60,6 +60,11 @@ export const credentials = {
     if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
     return api.credentials.oauthRefresh(profileId);
   },
+  async openCliLogin(command: string) {
+    const api = getElectronAPI();
+    if (!api?.credentials) throw new Error("Credentials API not available — restart the app");
+    await api.credentials.openCliLogin(command);
+  },
 };
 
 export const secrets = {

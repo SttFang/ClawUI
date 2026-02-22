@@ -6,6 +6,7 @@ import type {
   SetToolKeyInput,
 } from "@clawui/types/credentials";
 import type { IpcMain } from "electron";
+import { spawn } from "node:child_process";
 import type { CredentialService } from "../services/credentials";
 import type { OAuthService } from "../services/credentials";
 
@@ -60,5 +61,17 @@ export function registerCredentialHandlers(
   ipcMain.handle("credentials:oauth-refresh", async (_, profileId: string) => {
     if (!oauthService) throw new Error("OAuth service not available");
     return oauthService.refreshIfNeeded(profileId);
+  });
+
+  ipcMain.handle("credentials:open-cli-login", async (_, command: string) => {
+    if (!command || typeof command !== "string") throw new Error("Invalid command");
+    // Sanitize: only allow openclaw commands
+    if (!command.startsWith("openclaw ")) throw new Error("Only openclaw commands are allowed");
+    spawn("osascript", [
+      "-e",
+      `tell application "Terminal" to do script "${command}"`,
+      "-e",
+      `tell application "Terminal" to activate`,
+    ]);
   });
 }

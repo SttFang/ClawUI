@@ -739,6 +739,7 @@ const common = {
         retry: "Retry",
         externalCliHint:
           "OAuth credentials for this provider are managed by an external CLI tool. Please log in from your terminal first.",
+        openTerminal: "Login in Terminal",
       },
     },
     modelConfig: {

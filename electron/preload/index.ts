@@ -132,6 +132,7 @@ contextBridge.exposeInMainWorld("electron", {
     oauthDevicePoll: (provider: string, deviceCode: string, interval: number) =>
       ipcRenderer.invoke("credentials:oauth-device-poll", provider, deviceCode, interval),
     oauthRefresh: (profileId: string) => ipcRenderer.invoke("credentials:oauth-refresh", profileId),
+    openCliLogin: (command: string) => ipcRenderer.invoke("credentials:open-cli-login", command),
   },
   security: {
     get: (paths: string[]) => ipcRenderer.invoke("security:get", paths),

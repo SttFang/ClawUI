@@ -1,11 +1,24 @@
 import type { ProviderAuthInfo, OAuthProviderStatus } from "@clawui/types/models";
 import { Button, Input } from "@clawui/ui";
-import { CheckCircle2, ChevronRight, Eye, EyeOff, Loader2, LogIn, RefreshCw } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Loader2,
+  LogIn,
+  RefreshCw,
+  Terminal,
+} from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
 import { getProviderBrandIcon } from "@/lib/providerBrandIcons";
-import { getProviderLabel, getProviderOAuthMethod } from "@/store/settings/providerRegistry";
+import {
+  getProviderLabel,
+  getProviderOAuthMethod,
+  getProviderCliLoginCommand,
+} from "@/store/settings/providerRegistry";
 import { OAuthLoginDialog } from "./OAuthLoginDialog";
 
 function getAuthStatus(authInfo: ProviderAuthInfo, oauthStatus?: OAuthProviderStatus) {
@@ -102,6 +115,7 @@ export function ProviderCard({
   const supportsOAuth = hasOAuthProfiles || isOAuthAuth || oauthMethod !== undefined;
   const isDeviceCode = oauthMethod === "device-code";
   const isExternalCli = oauthMethod === "external-cli";
+  const cliLoginCommand = getProviderCliLoginCommand(provider);
   const canEditApiKey = !isOAuthAuth && canSaveApiKey;
 
   const handleRefresh = useCallback(async () => {
@@ -150,9 +164,21 @@ export function ProviderCard({
           {(isOAuthAuth || supportsOAuth) && (
             <div className="flex items-center gap-2">
               {isExternalCli ? (
-                <p className="text-xs text-muted-foreground">
-                  {t("settings.providerCard.oauth.externalCliHint")}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    {t("settings.providerCard.oauth.externalCliHint")}
+                  </p>
+                  {cliLoginCommand && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => ipc.credentials.openCliLogin(cliLoginCommand)}
+                    >
+                      <Terminal className="mr-1.5 h-3.5 w-3.5" />
+                      {t("settings.providerCard.oauth.openTerminal")}
+                    </Button>
+                  )}
+                </div>
               ) : (
                 <Button variant="outline" size="sm" onClick={() => setOauthDialogOpen(true)}>
                   <LogIn className="mr-1.5 h-3.5 w-3.5" />

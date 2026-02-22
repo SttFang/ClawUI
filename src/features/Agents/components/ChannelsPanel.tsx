@@ -2,6 +2,7 @@ import { Button } from "@clawui/ui";
 import { Cable } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useChannelsStore, selectChannels } from "@/store/channels";
+import { EmptyState } from "./EmptyState";
 
 export function ChannelsPanel() {
   const { t } = useTranslation("common");
@@ -24,10 +25,15 @@ export function ChannelsPanel() {
       </div>
 
       {configuredChannels.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <Cable className="size-8 mb-2 opacity-40" />
-          <span className="text-sm">{t("agents.inputs.noChannels")}</span>
-        </div>
+        <EmptyState
+          icon={<Cable className="size-10" />}
+          title={t("agents.inputs.noChannels")}
+          description="连接 Telegram、Discord 等平台，让 Agent 在多个渠道响应消息"
+          actionLabel={t("agents.actions.manageChannels")}
+          onAction={() => {
+            window.location.hash = "/settings?tab=messaging";
+          }}
+        />
       ) : (
         <div className="divide-y">
           {configuredChannels.map((c) => (

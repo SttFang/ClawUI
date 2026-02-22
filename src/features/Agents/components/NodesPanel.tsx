@@ -1,7 +1,9 @@
 import { Button, Card, CardContent } from "@clawui/ui";
+import { Monitor } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAgentsStore, agentsSelectors } from "@/store/agents";
+import { EmptyState } from "./EmptyState";
 
 export function NodesPanel() {
   const { t } = useTranslation("common");
@@ -75,9 +77,11 @@ export function NodesPanel() {
       {nodesLoading && nodes.length === 0 ? (
         <div className="text-sm text-muted-foreground px-1">{t("status.loading")}</div>
       ) : nodes.length === 0 ? (
-        <div className="text-sm text-muted-foreground px-1">
-          {t("agents.agentDesktop.nodes.empty")}
-        </div>
+        <EmptyState
+          icon={<Monitor className="size-10" />}
+          title={t("agents.agentDesktop.nodes.empty")}
+          description="配对设备后，Agent 可以在多个终端上运行"
+        />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
           {nodes.map((node) => (

@@ -2,6 +2,7 @@ import type { ProviderAuthInfo } from "@clawui/types/models";
 import { describe, expect, it } from "vitest";
 import {
   extractEnvVarFromSource,
+  getProviderOAuthMethod,
   normalizeProviderId,
   resolveProviderEnvKey,
 } from "../providerRegistry";
@@ -33,5 +34,31 @@ describe("providerRegistry", () => {
     expect(extractEnvVarFromSource("env: AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY")).toBe(
       "AWS_ACCESS_KEY_ID",
     );
+  });
+
+  describe("oauthMethod classification", () => {
+    it("github-copilot → device-code", () => {
+      expect(getProviderOAuthMethod("github-copilot")).toBe("device-code");
+    });
+
+    it("qwen-portal → external-cli", () => {
+      expect(getProviderOAuthMethod("qwen-portal")).toBe("external-cli");
+    });
+
+    it("minimax-portal → external-cli", () => {
+      expect(getProviderOAuthMethod("minimax-portal")).toBe("external-cli");
+    });
+
+    it("anthropic → external-cli", () => {
+      expect(getProviderOAuthMethod("anthropic")).toBe("external-cli");
+    });
+
+    it("openai → undefined", () => {
+      expect(getProviderOAuthMethod("openai")).toBeUndefined();
+    });
+
+    it("unknown provider → undefined", () => {
+      expect(getProviderOAuthMethod("nonexistent-provider")).toBeUndefined();
+    });
   });
 });

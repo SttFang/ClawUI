@@ -253,7 +253,6 @@ const common = {
         sandbox: { title: "沙盒", summary: "{{status}}" },
       },
       tabs: {
-        capabilities: "能力",
         skills: "Skills",
         nodes: "设备",
         cron: "定时任务",
@@ -777,6 +776,7 @@ const common = {
         waitingAuth: "等待授权...",
         loginSuccess: "登录成功！",
         retry: "重试",
+        externalCliHint: "该提供商的 OAuth 凭据由外部 CLI 工具管理，请先在终端完成登录。",
       },
     },
     modelConfig: {

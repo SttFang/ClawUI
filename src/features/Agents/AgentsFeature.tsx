@@ -3,8 +3,6 @@ import { Download, Loader2 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
-import { AgentCapabilities } from "./components/AgentCapabilities";
-import { AgentExtensions } from "./components/AgentExtensions";
 import { AgentHero, type AttributeType } from "./components/AgentHero";
 import { AgentSwitcher } from "./components/AgentSwitcher";
 import { AttributeDialog } from "./components/AttributeDialog";
@@ -59,11 +57,8 @@ export function AgentsFeature() {
           <AgentHero onOpenAttribute={setEditingAttribute} memoryCount={memoryCount} />
 
           {/* Bottom Tabs */}
-          <Tabs defaultValue="capabilities">
+          <Tabs defaultValue="skills">
             <TabsList className="w-full justify-start gap-1 h-auto p-1">
-              <TabsTrigger value="capabilities" className="px-5 py-2.5 text-sm">
-                {t("agents.agentDesktop.tabs.capabilities")}
-              </TabsTrigger>
               <TabsTrigger value="skills" className="px-5 py-2.5 text-sm">
                 {t("agents.agentDesktop.tabs.skills")}
               </TabsTrigger>
@@ -77,11 +72,6 @@ export function AgentsFeature() {
                 {t("agents.agentDesktop.tabs.cron")}
               </TabsTrigger>
             </TabsList>
-
-            <TabsContent value="capabilities" className="mt-4 space-y-4">
-              <AgentCapabilities />
-              <AgentExtensions />
-            </TabsContent>
 
             <TabsContent value="skills" className="mt-4">
               <Suspense

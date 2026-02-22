@@ -25,6 +25,10 @@ export class OpenClawProfilesService {
     });
 
     const configAgentDefaults: OpenClawConfig = createDefaultConfig(19789);
+    // Isolate configAgent workspace from main to avoid identity file conflicts
+    configAgentDefaults.agents = {
+      defaults: { workspace: `~/.openclaw-${CONFIG_AGENT_PROFILE_NAME}/workspace` },
+    };
     // Rescue agent needs fs + runtime + exec to manage the main gateway configuration.
     // Only web tools are denied to limit attack surface.
     configAgentDefaults.tools = {
@@ -84,6 +88,13 @@ export class OpenClawProfilesService {
     if (rescueConfig?.discovery?.mdns?.mode !== "off") {
       patch.discovery = { mdns: { mode: "off" } };
       profilesLog.info("[profiles.sync-discovery]", "mdns=off");
+    }
+
+    // Isolate configAgent workspace from main to avoid identity file conflicts
+    const expectedWorkspace = `~/.openclaw-${CONFIG_AGENT_PROFILE_NAME}/workspace`;
+    if (rescueConfig?.agents?.defaults?.workspace !== expectedWorkspace) {
+      patch.agents = { ...patch.agents, defaults: { ...patch.agents?.defaults, workspace: expectedWorkspace } };
+      profilesLog.info("[profiles.sync-workspace]", expectedWorkspace);
     }
 
     if (Object.keys(patch).length > 0) {

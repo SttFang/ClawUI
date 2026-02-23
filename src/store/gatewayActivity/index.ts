@@ -1,8 +1,9 @@
+import { TRACKED_GATEWAY_EVENTS } from "@clawui/constants";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { TRACKED_GATEWAY_EVENTS } from "@clawui/constants";
 import type { GatewayEventFrame } from "@/lib/ipc";
 import { ipc } from "@/lib/ipc";
+import { createWeakCachedSelector } from "@/store/utils/createWeakCachedSelector";
 
 export interface GatewayActivityEntry {
   id: number;
@@ -123,8 +124,9 @@ export const selectLastTickAt = (s: GatewayActivityStore) => s.lastTickAt;
 export const selectTickIntervalMs = (s: GatewayActivityStore) => s.tickIntervalMs;
 export const selectTickCount = (s: GatewayActivityStore) => s.tickCount;
 export const selectActivityEntries = (s: GatewayActivityStore) => s.entries;
-export const selectCronEntries = (s: GatewayActivityStore) =>
-  s.entries.filter((e) => e.event === "cron");
+export const selectCronEntries = createWeakCachedSelector((s: GatewayActivityStore) =>
+  s.entries.filter((e) => e.event === "cron"),
+);
 
 // Listener initialization
 let listenerInitialized = false;

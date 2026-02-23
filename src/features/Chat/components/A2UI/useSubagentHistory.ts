@@ -37,7 +37,8 @@ function extractToolResultText(content: unknown): string {
     return content
       .map((item) => {
         if (typeof item === "string") return item;
-        if (isRecord(item) && item.type === "text" && typeof item.text === "string") return item.text;
+        if (isRecord(item) && item.type === "text" && typeof item.text === "string")
+          return item.text;
         return JSON.stringify(item);
       })
       .join("\n");

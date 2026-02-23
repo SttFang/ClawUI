@@ -29,8 +29,7 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   /** @deprecated No-op. Use `<a className={buttonVariants(...)}>` for link buttons. */
   asChild?: boolean;
   ref?: React.Ref<HTMLButtonElement>;

@@ -79,10 +79,10 @@ export function deriveSandboxEnabled(root: JsonObject): boolean {
   const agents = asRecord(root.agents);
   const defaults = asRecord(agents?.defaults);
   const sandbox = asRecord(defaults?.sandbox);
-  if (!sandbox) return false;
+  if (!sandbox) return true;
   if (typeof sandbox.enabled === "boolean") return sandbox.enabled;
   const mode = readString(sandbox.mode);
-  return mode ? mode !== "off" : false;
+  return mode ? mode !== "off" : true;
 }
 
 export function applyEnabledToTools(tools: Tool[], config: ToolsConfig): Tool[] {

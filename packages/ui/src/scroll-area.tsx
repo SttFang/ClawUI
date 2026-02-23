@@ -6,7 +6,13 @@ interface ScrollAreaProps extends React.HTMLAttributes<HTMLDivElement> {
   ref?: React.Ref<HTMLDivElement>;
 }
 
-function ScrollArea({ className, children, orientation = "vertical", ref, ...props }: ScrollAreaProps) {
+function ScrollArea({
+  className,
+  children,
+  orientation = "vertical",
+  ref,
+  ...props
+}: ScrollAreaProps) {
   return (
     <div
       ref={ref}

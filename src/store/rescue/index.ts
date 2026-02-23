@@ -109,9 +109,7 @@ export const useRescueStore = create<RescueStore>()(
             const msgs = [...s.messages];
             // Gateway 用 runId 标识一轮对话；assistant 消息用独立 id 避免与 user 消息 key 冲突。
             const assistantId = `${event.messageId}:a`;
-            const lastIdx = msgs.findIndex(
-              (m) => m.role === "assistant" && m.id === assistantId,
-            );
+            const lastIdx = msgs.findIndex((m) => m.role === "assistant" && m.id === assistantId);
 
             if (event.type === "delta") {
               if (lastIdx >= 0) {

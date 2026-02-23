@@ -9,8 +9,8 @@ vi.mock("../../../lib/logger", () => ({
 }));
 
 import { net } from "electron";
-import { configLog } from "../../../lib/logger";
 import type { AuthProfileCredential } from "../auth-profile-adapter";
+import { configLog } from "../../../lib/logger";
 import { OAuthService } from "../oauth-service";
 
 // ---------------------------------------------------------------------------

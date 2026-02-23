@@ -4,10 +4,10 @@ import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
 import { useWorkspaceFilesStore } from "@/store/workspaceFiles";
-import { TextContent } from "./TextContent";
 import { ImageContent, VideoContent, HtmlContent } from "./MediaContent";
 import { OfficeContent } from "./OfficePreview";
 import { PythonRunBar } from "./PythonRunBar";
+import { TextContent } from "./TextContent";
 
 function isPython(name: string): boolean {
   return /\.py$/i.test(name);

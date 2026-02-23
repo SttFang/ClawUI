@@ -158,41 +158,28 @@ export function AiServicesTab() {
         />
       )}
 
-      {/* Provider auth list (default open) */}
-      <Collapsible defaultOpen>
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex w-full items-center justify-between rounded-lg border px-4 py-2.5 text-left hover:bg-muted/50 transition-colors"
-          >
-            <span className="text-sm font-medium">{t("settings.modelConfig.title")}</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="rounded-b-lg border border-t-0">
-            {providerInfos.map((provider) => (
-              <ProviderCard
-                key={provider.provider}
-                provider={provider.provider}
-                authInfo={provider}
-                oauthStatus={
-                  modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined
-                }
-                apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
-                onApiKeyChange={handleApiKeyChange(provider.provider)}
-                onApiKeySave={() => void saveApiKeys(provider.provider)}
-                isSaving={isSaving}
-                saveSuccess={saveSuccess}
-                canSaveApiKey={canSaveApiKeyForProvider({
-                  providerId: provider.provider,
-                  modelsStatus,
-                })}
-              />
-            ))}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+      {/* Provider auth list */}
+      <div className="rounded-lg border">
+        {providerInfos.map((provider) => (
+          <ProviderCard
+            key={provider.provider}
+            provider={provider.provider}
+            authInfo={provider}
+            oauthStatus={
+              modelsStatus ? findOAuthStatus(modelsStatus, provider.provider) : undefined
+            }
+            apiKeyValue={getApiKeyInputValue(apiKeys, provider.provider)}
+            onApiKeyChange={handleApiKeyChange(provider.provider)}
+            onApiKeySave={() => void saveApiKeys(provider.provider)}
+            isSaving={isSaving}
+            saveSuccess={saveSuccess}
+            canSaveApiKey={canSaveApiKeyForProvider({
+              providerId: provider.provider,
+              modelsStatus,
+            })}
+          />
+        ))}
+      </div>
 
       {/* Tool API Keys */}
       <Card>

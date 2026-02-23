@@ -97,9 +97,7 @@ describe("MCPStore", () => {
     });
 
     it("should set error on failure", async () => {
-      (ipc.config.getSnapshot as Mock).mockRejectedValue(
-        new Error("network down"),
-      );
+      (ipc.config.getSnapshot as Mock).mockRejectedValue(new Error("network down"));
 
       await useMCPStore.getState().loadServers();
 
@@ -144,16 +142,12 @@ describe("MCPStore", () => {
         enabled: true,
       });
 
-      expect(useMCPStore.getState().error).toBe(
-        'Server "dup" already exists',
-      );
+      expect(useMCPStore.getState().error).toBe('Server "dup" already exists');
       expect(useMCPStore.getState().servers).toHaveLength(1);
     });
 
     it("should rollback on persist failure", async () => {
-      (ipc.config.getSnapshot as Mock).mockRejectedValue(
-        new Error("write failed"),
-      );
+      (ipc.config.getSnapshot as Mock).mockRejectedValue(new Error("write failed"));
 
       await useMCPStore.getState().addServer({
         name: "new-server",
@@ -196,9 +190,7 @@ describe("MCPStore", () => {
       const existing = makeServer();
       useMCPStore.setState({ servers: [existing] });
 
-      (ipc.config.getSnapshot as Mock).mockRejectedValue(
-        new Error("disk full"),
-      );
+      (ipc.config.getSnapshot as Mock).mockRejectedValue(new Error("disk full"));
 
       await useMCPStore.getState().removeServer("test-server");
 
@@ -258,9 +250,7 @@ describe("MCPStore", () => {
       const existing = makeServer({ command: "node" });
       useMCPStore.setState({ servers: [existing] });
 
-      (ipc.config.getSnapshot as Mock).mockRejectedValue(
-        new Error("persist error"),
-      );
+      (ipc.config.getSnapshot as Mock).mockRejectedValue(new Error("persist error"));
 
       await useMCPStore.getState().updateServer("test-server", {
         command: "bun",

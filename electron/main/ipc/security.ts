@@ -1,7 +1,7 @@
 import type { IpcMain } from "electron";
+import { ALLOWED_CONFIG_PATHS, type AllowedConfigPath } from "@clawui/constants";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { ALLOWED_CONFIG_PATHS, type AllowedConfigPath } from "@clawui/constants";
 import { resolveOpenClawPath } from "../utils/openclaw-cli";
 
 const execFileAsync = promisify(execFile);

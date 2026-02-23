@@ -24,7 +24,11 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
 
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
-      <div className="fixed inset-0 bg-black/50" aria-hidden="true" onClick={() => onOpenChange(false)} />
+      <div
+        className="fixed inset-0 bg-black/50"
+        aria-hidden="true"
+        onClick={() => onOpenChange(false)}
+      />
       {children}
     </div>
   );

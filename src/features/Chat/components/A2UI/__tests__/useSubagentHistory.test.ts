@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { _parseContentParts as parseContentParts, _parseMessages as parseMessages } from "../useSubagentHistory";
+import {
+  _parseContentParts as parseContentParts,
+  _parseMessages as parseMessages,
+} from "../useSubagentHistory";
 
 describe("parseContentParts", () => {
   it("should parse type:toolCall blocks directly (gateway camelCase format)", () => {
@@ -72,9 +75,7 @@ describe("parseContentParts", () => {
 
   it("should fallback to tryParseToolCall for unknown block types", () => {
     // Simulate an unknown type that happens to be a stringified toolCall
-    const content = [
-      { type: "someNewType", data: "foo" },
-    ];
+    const content = [{ type: "someNewType", data: "foo" }];
 
     const parts = parseContentParts(content);
     expect(parts).toHaveLength(1);

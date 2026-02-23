@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { registerGatewayHandlers } from "../gateway";
 import { execInLoginShell } from "../../utils/login-shell";
+import { registerGatewayHandlers } from "../gateway";
 
 const mockedExecInLoginShell = vi.fn(async () => ({ stdout: "", stderr: "" }));
 

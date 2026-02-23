@@ -1,6 +1,6 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { AuthProfileAdapter, AuthProfileCredential } from "../auth-profile-adapter";
 
 const mocks = vi.hoisted(() => ({
@@ -10,7 +10,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();
-  return { ...actual, default: { ...actual, existsSync: mocks.existsSync }, existsSync: mocks.existsSync };
+  return {
+    ...actual,
+    default: { ...actual, existsSync: mocks.existsSync },
+    existsSync: mocks.existsSync,
+  };
 });
 vi.mock("node:fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();
@@ -49,7 +53,12 @@ describe("syncExternalCliCredentials", () => {
     it("syncs valid oauth_creds.json to qwen-portal-cli:default", async () => {
       existsFor(QWEN_PATH);
       mocks.readFile.mockResolvedValue(
-        JSON.stringify({ access_token: "qk-abc", refresh_token: "rt-1", expires_at: 9999999999, email: "u@q.com" }),
+        JSON.stringify({
+          access_token: "qk-abc",
+          refresh_token: "rt-1",
+          expires_at: 9999999999,
+          email: "u@q.com",
+        }),
       );
       const adapter = mockAdapter();
       await syncExternalCliCredentials(adapter);
@@ -67,7 +76,12 @@ describe("syncExternalCliCredentials", () => {
     it("correctly parses all credential fields", async () => {
       existsFor(QWEN_PATH);
       mocks.readFile.mockResolvedValue(
-        JSON.stringify({ access_token: "at", refresh_token: "rt", expires_at: 123, email: "e@e.com" }),
+        JSON.stringify({
+          access_token: "at",
+          refresh_token: "rt",
+          expires_at: 123,
+          email: "e@e.com",
+        }),
       );
       const adapter = mockAdapter();
       await syncExternalCliCredentials(adapter);
@@ -100,7 +114,9 @@ describe("syncExternalCliCredentials", () => {
       const adapter = mockAdapter();
       await syncExternalCliCredentials(adapter);
 
-      const cred = vi.mocked(adapter.setProfile).mock.calls[0]?.[1] as AuthProfileCredential & { expires: number };
+      const cred = vi.mocked(adapter.setProfile).mock.calls[0]?.[1] as AuthProfileCredential & {
+        expires: number;
+      };
       expect(cred.expires).toBeGreaterThanOrEqual(now);
       expect(cred.expires).toBeLessThanOrEqual(now + 3600_000 + 1000);
     });
@@ -109,15 +125,20 @@ describe("syncExternalCliCredentials", () => {
   describe("minimax-portal", () => {
     it("syncs valid oauth_creds.json to minimax-portal-cli:default", async () => {
       existsFor(MINIMAX_PATH);
-      mocks.readFile.mockResolvedValue(JSON.stringify({ access_token: "mm-tok", expires_at: 5000 }));
+      mocks.readFile.mockResolvedValue(
+        JSON.stringify({ access_token: "mm-tok", expires_at: 5000 }),
+      );
       const adapter = mockAdapter();
       await syncExternalCliCredentials(adapter);
 
-      expect(adapter.setProfile).toHaveBeenCalledWith("minimax-portal-cli:default", expect.objectContaining({
-        type: "oauth",
-        provider: "minimax-portal",
-        access: "mm-tok",
-      }));
+      expect(adapter.setProfile).toHaveBeenCalledWith(
+        "minimax-portal-cli:default",
+        expect.objectContaining({
+          type: "oauth",
+          provider: "minimax-portal",
+          access: "mm-tok",
+        }),
+      );
     });
   });
 
@@ -129,12 +150,15 @@ describe("syncExternalCliCredentials", () => {
       const adapter = mockAdapter();
       await syncExternalCliCredentials(adapter);
 
-      expect(adapter.setProfile).toHaveBeenCalledWith("anthropic-cli:default", expect.objectContaining({
-        type: "oauth",
-        provider: "anthropic",
-        access: "sk-ant-xxx",
-        refresh: "",
-      }));
+      expect(adapter.setProfile).toHaveBeenCalledWith(
+        "anthropic-cli:default",
+        expect.objectContaining({
+          type: "oauth",
+          provider: "anthropic",
+          access: "sk-ant-xxx",
+          refresh: "",
+        }),
+      );
     });
 
     it("skips when oauth_token is empty", async () => {
@@ -152,7 +176,13 @@ describe("syncExternalCliCredentials", () => {
       existsFor(QWEN_PATH);
       mocks.readFile.mockResolvedValue(JSON.stringify({ access_token: "new", expires_at: 2000 }));
       const adapter = mockAdapter({
-        getProfile: vi.fn().mockResolvedValue({ type: "oauth", provider: "qwen-portal", access: "old", refresh: "", expires: 1000 }),
+        getProfile: vi.fn().mockResolvedValue({
+          type: "oauth",
+          provider: "qwen-portal",
+          access: "old",
+          refresh: "",
+          expires: 1000,
+        }),
       });
       await syncExternalCliCredentials(adapter);
 
@@ -163,7 +193,13 @@ describe("syncExternalCliCredentials", () => {
       existsFor(QWEN_PATH);
       mocks.readFile.mockResolvedValue(JSON.stringify({ access_token: "new", expires_at: 1000 }));
       const adapter = mockAdapter({
-        getProfile: vi.fn().mockResolvedValue({ type: "oauth", provider: "qwen-portal", access: "old", refresh: "", expires: 2000 }),
+        getProfile: vi.fn().mockResolvedValue({
+          type: "oauth",
+          provider: "qwen-portal",
+          access: "old",
+          refresh: "",
+          expires: 2000,
+        }),
       });
       await syncExternalCliCredentials(adapter);
 
@@ -202,7 +238,10 @@ describe("syncExternalCliCredentials", () => {
       await syncExternalCliCredentials(adapter);
 
       // qwen should still sync despite claude failure
-      expect(adapter.setProfile).toHaveBeenCalledWith("qwen-portal-cli:default", expect.objectContaining({ access: "ok" }));
+      expect(adapter.setProfile).toHaveBeenCalledWith(
+        "qwen-portal-cli:default",
+        expect.objectContaining({ access: "ok" }),
+      );
     });
   });
 });

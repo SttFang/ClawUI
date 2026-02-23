@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  TITLE_BAR_HEIGHT,
-  buildWindowChromeOptions,
-} from "../chrome-config";
+import { TITLE_BAR_HEIGHT, buildWindowChromeOptions } from "../chrome-config";
 
 describe("buildWindowChromeOptions", () => {
   it("should return macOS hiddenInset title bar options", () => {

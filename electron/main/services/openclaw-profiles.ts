@@ -93,7 +93,10 @@ export class OpenClawProfilesService {
     // Isolate configAgent workspace from main to avoid identity file conflicts
     const expectedWorkspace = `~/.openclaw-${CONFIG_AGENT_PROFILE_NAME}/workspace`;
     if (rescueConfig?.agents?.defaults?.workspace !== expectedWorkspace) {
-      patch.agents = { ...patch.agents, defaults: { ...patch.agents?.defaults, workspace: expectedWorkspace } };
+      patch.agents = {
+        ...patch.agents,
+        defaults: { ...patch.agents?.defaults, workspace: expectedWorkspace },
+      };
       profilesLog.info("[profiles.sync-workspace]", expectedWorkspace);
     }
 

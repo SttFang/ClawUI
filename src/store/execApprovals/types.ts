@@ -12,6 +12,7 @@ export type ExecApprovalRequestPayload = {
   traceId?: string | null;
   runId?: string | null;
   toolCallId?: string | null;
+  nodeId?: string | null;
 };
 
 export type ExecApprovalRequest = {

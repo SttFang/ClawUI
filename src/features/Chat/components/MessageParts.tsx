@@ -10,6 +10,7 @@ import {
 import { classifyToolRender } from "@/features/Chat/toolRenderPolicy";
 import { isExecToolName } from "@/lib/exec";
 import { MessageText } from "./MessageText";
+import { ReasoningContent } from "./ReasoningContent";
 
 const AUTO_HIDE_DELAY = 1500;
 const MS_IN_S = 1000;
@@ -34,10 +35,22 @@ type TextPartLike = {
   state?: "streaming";
 };
 
+type ReasoningPartLike = {
+  type: "reasoning";
+  reasoning: string;
+  state?: "streaming";
+};
+
 function isTextPartLike(part: unknown): part is TextPartLike {
   if (!part || typeof part !== "object") return false;
   const record = part as Record<string, unknown>;
   return record.type === "text" && typeof record.text === "string";
+}
+
+function isReasoningPartLike(part: unknown): part is ReasoningPartLike {
+  if (!part || typeof part !== "object") return false;
+  const record = part as Record<string, unknown>;
+  return record.type === "reasoning" && typeof record.reasoning === "string";
 }
 
 function isDynamicToolPartLike(part: unknown): part is DynamicToolUIPart {
@@ -236,6 +249,21 @@ export function MessageParts(props: {
               key={`text:${index}`}
               text={part.text}
               isAnimating={streaming && part.state === "streaming"}
+            />
+          ),
+        };
+        continue;
+      }
+
+      if (isReasoningPartLike(part)) {
+        nextItems[index] = {
+          kind: "text",
+          key: `reasoning:${index}`,
+          node: (
+            <ReasoningContent
+              key={`reasoning:${index}`}
+              text={part.reasoning}
+              isStreaming={streaming && part.state === "streaming"}
             />
           ),
         };

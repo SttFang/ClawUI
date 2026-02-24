@@ -2,6 +2,8 @@ import type { CronSchedule } from "@/routes/agents/cronFormat";
 
 export type Agent = {
   id: string;
+  name?: string;
+  emoji?: string;
   modelPrimary: string | null;
   modelFallbacks: string[];
   workspace: string | null;

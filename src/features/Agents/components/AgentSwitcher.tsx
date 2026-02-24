@@ -20,13 +20,18 @@ export function AgentSwitcher({ onExport }: AgentSwitcherProps) {
   const selectedAgentId = useAgentsStore(agentsSelectors.selectSelectedAgentId);
   const selectAgent = useAgentsStore((s) => s.selectAgent);
 
+  const selectedAgent = agents.find((a) => a.id === selectedAgentId);
+
   return (
     <div className="flex items-center justify-between px-4 py-2">
       {/* Agent dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-1.5 text-sm font-medium hover:text-foreground transition-colors">
-            <span>{selectedAgentId ?? "main"}</span>
+            <span>
+              {selectedAgent?.emoji ? `${selectedAgent.emoji} ` : ""}
+              {selectedAgent?.name ?? selectedAgentId ?? "main"}
+            </span>
             <ChevronDown className="size-3.5 text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
@@ -38,7 +43,8 @@ export function AgentSwitcher({ onExport }: AgentSwitcherProps) {
               className={cn(selectedAgentId === agent.id && "bg-accent")}
             >
               <span className="mr-1.5">{selectedAgentId === agent.id ? "\u25CF" : "\u25CB"}</span>
-              {agent.id}
+              {agent.emoji ? `${agent.emoji} ` : ""}
+              {agent.name ?? agent.id}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />

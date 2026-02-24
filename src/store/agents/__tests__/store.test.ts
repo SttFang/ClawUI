@@ -84,6 +84,38 @@ describe("AgentsStore", () => {
       expect(useAgentsStore.getState().agents).toEqual([]);
     });
 
+    it("listAgents reads agents.list when present", () => {
+      const configWithList = {
+        agents: {
+          defaults: {
+            model: { primary: "gpt-4", fallbacks: [] },
+            workspace: "/tmp/ws",
+          },
+          list: [
+            { id: "main" },
+            {
+              id: "education",
+              name: "education",
+              workspace: "/tmp/edu",
+              identity: { name: "教育智能体", emoji: "📚" },
+            },
+          ],
+        },
+      } as unknown as OpenClawConfig;
+      useAgentsStore.setState({ config: configWithList as never });
+      useAgentsStore.getState().listAgents();
+      const agents = useAgentsStore.getState().agents;
+      expect(agents).toHaveLength(2);
+      expect(agents[0].id).toBe("main");
+      expect(agents[1]).toMatchObject({
+        id: "education",
+        name: "教育智能体",
+        emoji: "📚",
+        workspace: "/tmp/edu",
+        modelPrimary: "gpt-4",
+      });
+    });
+
     it("selectAgent updates selectedAgentId", () => {
       useAgentsStore.getState().selectAgent("custom-agent");
       expect(useAgentsStore.getState().selectedAgentId).toBe("custom-agent");

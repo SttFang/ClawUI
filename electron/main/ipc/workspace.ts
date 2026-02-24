@@ -15,16 +15,26 @@ type WorkspaceFileEntry = {
 };
 
 function resolveWorkspaceDir(
-  config: { agents?: { defaults?: { workspace?: string } } } | null,
+  config: {
+    agents?: {
+      defaults?: { workspace?: string };
+      list?: Array<{ id: string; workspace?: string }>;
+    };
+  } | null,
+  agentId?: string,
 ): string {
-  const raw = config?.agents?.defaults?.workspace ?? "~/.openclaw/workspace";
+  let raw: string | undefined;
+  if (agentId && agentId !== "main") {
+    raw = config?.agents?.list?.find((a) => a.id === agentId)?.workspace;
+  }
+  raw ??= config?.agents?.defaults?.workspace ?? "~/.openclaw/workspace";
   return raw.startsWith("~") ? join(homedir(), raw.slice(1)) : raw;
 }
 
 export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: ConfigService): void {
-  ipcMain.handle("workspace:list", async (_, subpath?: string) => {
+  ipcMain.handle("workspace:list", async (_, subpath?: string, agentId?: string) => {
     const config = await configService.getConfig();
-    const base = resolveWorkspaceDir(config);
+    const base = resolveWorkspaceDir(config, agentId);
     const dir = subpath ? safePath(base, subpath) : base;
 
     const entries = await readdir(dir, { withFileTypes: true });
@@ -44,27 +54,30 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
     return { dir, files };
   });
 
-  ipcMain.handle("workspace:read-file", async (_, relativePath: string) => {
+  ipcMain.handle("workspace:read-file", async (_, relativePath: string, agentId?: string) => {
     const config = await configService.getConfig();
-    const base = resolveWorkspaceDir(config);
+    const base = resolveWorkspaceDir(config, agentId);
     const filePath = safePath(base, relativePath);
 
     const content = await readFile(filePath, "utf-8");
     return { path: filePath, content };
   });
 
-  ipcMain.handle("workspace:read-file-base64", async (_, relativePath: string) => {
-    const config = await configService.getConfig();
-    const base = resolveWorkspaceDir(config);
-    const filePath = safePath(base, relativePath);
+  ipcMain.handle(
+    "workspace:read-file-base64",
+    async (_, relativePath: string, agentId?: string) => {
+      const config = await configService.getConfig();
+      const base = resolveWorkspaceDir(config, agentId);
+      const filePath = safePath(base, relativePath);
 
-    const buf = await readFile(filePath);
-    return { path: filePath, base64: buf.toString("base64") };
-  });
+      const buf = await readFile(filePath);
+      return { path: filePath, base64: buf.toString("base64") };
+    },
+  );
 
-  ipcMain.handle("workspace:run-python", async (_, relativePath: string) => {
+  ipcMain.handle("workspace:run-python", async (_, relativePath: string, agentId?: string) => {
     const config = await configService.getConfig();
-    const base = resolveWorkspaceDir(config);
+    const base = resolveWorkspaceDir(config, agentId);
     const filePath = safePath(base, relativePath);
 
     if (extname(filePath) !== ".py") {
@@ -88,9 +101,9 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
     });
   });
 
-  ipcMain.handle("workspace:open-in-system", async (_, relativePath: string) => {
+  ipcMain.handle("workspace:open-in-system", async (_, relativePath: string, agentId?: string) => {
     const config = await configService.getConfig();
-    const base = resolveWorkspaceDir(config);
+    const base = resolveWorkspaceDir(config, agentId);
     const filePath = safePath(base, relativePath);
     return shell.openPath(filePath);
   });

@@ -143,13 +143,16 @@ contextBridge.exposeInMainWorld("electron", {
     list: () => ipcRenderer.invoke("skills:list"),
   },
   workspace: {
-    list: (subpath?: string) => ipcRenderer.invoke("workspace:list", subpath),
-    readFile: (relativePath: string) => ipcRenderer.invoke("workspace:read-file", relativePath),
-    readFileBase64: (relativePath: string) =>
-      ipcRenderer.invoke("workspace:read-file-base64", relativePath),
-    runPython: (relativePath: string) => ipcRenderer.invoke("workspace:run-python", relativePath),
-    openInSystem: (relativePath: string) =>
-      ipcRenderer.invoke("workspace:open-in-system", relativePath),
+    list: (subpath?: string, agentId?: string) =>
+      ipcRenderer.invoke("workspace:list", subpath, agentId),
+    readFile: (relativePath: string, agentId?: string) =>
+      ipcRenderer.invoke("workspace:read-file", relativePath, agentId),
+    readFileBase64: (relativePath: string, agentId?: string) =>
+      ipcRenderer.invoke("workspace:read-file-base64", relativePath, agentId),
+    runPython: (relativePath: string, agentId?: string) =>
+      ipcRenderer.invoke("workspace:run-python", relativePath, agentId),
+    openInSystem: (relativePath: string, agentId?: string) =>
+      ipcRenderer.invoke("workspace:open-in-system", relativePath, agentId),
   },
   rescue: {
     gateway: {

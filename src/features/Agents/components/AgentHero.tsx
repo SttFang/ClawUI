@@ -15,12 +15,12 @@ interface AgentHeroProps {
 }
 
 /** Read first 2 lines of a workspace file for preview */
-function useFilePreview(relativePath: string) {
+function useFilePreview(relativePath: string, agentId?: string) {
   const [preview, setPreview] = useState<string | undefined>();
 
   const load = useCallback(async () => {
     try {
-      const result = await ipc.workspace.readFile(relativePath);
+      const result = await ipc.workspace.readFile(relativePath, agentId);
       if (result.content) {
         const lines = result.content.split("\n").filter(Boolean);
         setPreview(lines.slice(0, 2).join(" ").slice(0, 80));
@@ -28,7 +28,7 @@ function useFilePreview(relativePath: string) {
     } catch {
       // file doesn't exist yet — no preview
     }
-  }, [relativePath]);
+  }, [relativePath, agentId]);
 
   useEffect(() => {
     void load();
@@ -48,10 +48,12 @@ export function AgentHero({ onOpenAttribute, memoryCount }: AgentHeroProps) {
 
   const agentId = selectedAgent?.id ?? "main";
   const model = selectedAgent?.modelPrimary ?? "\u2014";
+  const displayName = selectedAgent?.name ?? agentId;
+  const emoji = selectedAgent?.emoji;
 
-  const soulPreview = useFilePreview("SOUL.md");
-  const personalityPreview = useFilePreview("IDENTITY.md");
-  const goalsPreview = useFilePreview("TODO.agent.md");
+  const soulPreview = useFilePreview("SOUL.md", agentId);
+  const personalityPreview = useFilePreview("IDENTITY.md", agentId);
+  const goalsPreview = useFilePreview("TODO.agent.md", agentId);
 
   return (
     <div className="flex flex-col gap-4 py-4">
@@ -59,7 +61,10 @@ export function AgentHero({ onOpenAttribute, memoryCount }: AgentHeroProps) {
       <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
         <PixelAvatar agentId={agentId} className="w-12 h-12" />
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-sm">{agentId}</div>
+          <div className="font-semibold text-sm">
+            {emoji && <span className="mr-1">{emoji}</span>}
+            {displayName}
+          </div>
           <div className="text-xs text-muted-foreground">
             {model}
             <span className="mx-1.5">&middot;</span>

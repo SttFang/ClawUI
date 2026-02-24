@@ -3,6 +3,7 @@ import { Loader2, Settings } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
+import { useAgentsStore, agentsSelectors } from "@/store/agents";
 import { AgentHero, type AttributeType } from "./components/AgentHero";
 import { AgentSwitcher } from "./components/AgentSwitcher";
 import { AttributeSheet } from "./components/AttributeSheet";
@@ -21,6 +22,8 @@ export function AgentsFeature() {
   const data = useAgentsData();
   const { handleExport } = useAgentsExport(data);
   const { configError, cronDialogOpen, setCronDialogOpen, handleOpenCronDialog } = data;
+  const selectedAgent = useAgentsStore(agentsSelectors.selectSelectedAgent);
+  const agentId = selectedAgent?.id ?? "main";
 
   const [editingAttribute, setEditingAttribute] = useState<AttributeType | null>(null);
   const [memoryCount, setMemoryCount] = useState(0);
@@ -29,12 +32,12 @@ export function AgentsFeature() {
 
   useEffect(() => {
     ipc.workspace
-      .list("memory")
+      .list("memory", agentId)
       .then((result) => {
         setMemoryCount(result.files.filter((f) => !f.isDirectory && f.name.endsWith(".md")).length);
       })
       .catch(() => setMemoryCount(0));
-  }, []);
+  }, [agentId]);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -119,7 +122,11 @@ export function AgentsFeature() {
       </div>
 
       {/* Sheet (replaces Dialog) */}
-      <AttributeSheet type={editingAttribute} onClose={() => setEditingAttribute(null)} />
+      <AttributeSheet
+        type={editingAttribute}
+        onClose={() => setEditingAttribute(null)}
+        agentId={agentId}
+      />
       <CronDialog open={cronDialogOpen} onOpenChange={setCronDialogOpen} />
       <CronRunsDialog />
     </div>

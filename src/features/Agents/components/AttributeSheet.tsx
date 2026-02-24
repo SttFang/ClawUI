@@ -10,6 +10,7 @@ import type { AttributeType } from "./AgentHero";
 interface AttributeSheetProps {
   type: AttributeType | null;
   onClose: () => void;
+  agentId?: string;
 }
 
 const titleKeys: Record<AttributeType, string> = {
@@ -34,7 +35,7 @@ const fileMap: Record<string, string> = {
   goals: "TODO.agent.md",
 };
 
-export function AttributeSheet({ type, onClose }: AttributeSheetProps) {
+export function AttributeSheet({ type, onClose, agentId }: AttributeSheetProps) {
   const { t } = useTranslation("common");
   const fileName = type ? fileMap[type] : undefined;
 
@@ -50,10 +51,10 @@ export function AttributeSheet({ type, onClose }: AttributeSheetProps) {
           </SheetTitle>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto p-4">
-          {type === "soul" && <SoulContent />}
-          {type === "personality" && <PersonalityContent />}
-          {type === "memory" && <MemoryContent />}
-          {type === "goals" && <GoalsContent />}
+          {type === "soul" && <SoulContent agentId={agentId} />}
+          {type === "personality" && <PersonalityContent agentId={agentId} />}
+          {type === "memory" && <MemoryContent agentId={agentId} />}
+          {type === "goals" && <GoalsContent agentId={agentId} />}
           {type === "sandbox" && <SandboxContent />}
         </div>
       </SheetContent>
@@ -62,18 +63,18 @@ export function AttributeSheet({ type, onClose }: AttributeSheetProps) {
 }
 
 // --- Shared: read a workspace file and display as <pre> ---
-function useWorkspaceFile(relativePath: string) {
+function useWorkspaceFile(relativePath: string, agentId?: string) {
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const result = await ipc.workspace.readFile(relativePath);
+      const result = await ipc.workspace.readFile(relativePath, agentId);
       setContent(result.content ?? "");
     } catch (e) {
       setError(String(e));
     }
-  }, [relativePath]);
+  }, [relativePath, agentId]);
 
   useEffect(() => {
     void load();
@@ -82,9 +83,17 @@ function useWorkspaceFile(relativePath: string) {
   return { content, error };
 }
 
-function WorkspaceFileView({ relativePath, emptyKey }: { relativePath: string; emptyKey: string }) {
+function WorkspaceFileView({
+  relativePath,
+  emptyKey,
+  agentId,
+}: {
+  relativePath: string;
+  emptyKey: string;
+  agentId?: string;
+}) {
   const { t } = useTranslation("common");
-  const { content, error } = useWorkspaceFile(relativePath);
+  const { content, error } = useWorkspaceFile(relativePath, agentId);
 
   if (error) return <div className="text-sm text-destructive">{error}</div>;
   if (content === null) return <div className="text-sm text-muted-foreground">Loading...</div>;
@@ -99,31 +108,37 @@ function WorkspaceFileView({ relativePath, emptyKey }: { relativePath: string; e
   );
 }
 
-function SoulContent() {
+function SoulContent({ agentId }: { agentId?: string }) {
   return (
-    <WorkspaceFileView relativePath="SOUL.md" emptyKey="agents.agentDesktop.hero.soul.summary" />
+    <WorkspaceFileView
+      relativePath="SOUL.md"
+      emptyKey="agents.agentDesktop.hero.soul.summary"
+      agentId={agentId}
+    />
   );
 }
 
-function PersonalityContent() {
+function PersonalityContent({ agentId }: { agentId?: string }) {
   return (
     <WorkspaceFileView
       relativePath="IDENTITY.md"
       emptyKey="agents.agentDesktop.hero.personality.empty"
+      agentId={agentId}
     />
   );
 }
 
-function GoalsContent() {
+function GoalsContent({ agentId }: { agentId?: string }) {
   return (
     <WorkspaceFileView
       relativePath="TODO.agent.md"
       emptyKey="agents.agentDesktop.hero.goals.empty"
+      agentId={agentId}
     />
   );
 }
 
-function MemoryContent() {
+function MemoryContent({ agentId }: { agentId?: string }) {
   const { t } = useTranslation("common");
   const [files, setFiles] = useState<WorkspaceFileEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -131,7 +146,7 @@ function MemoryContent() {
 
   useEffect(() => {
     ipc.workspace
-      .list("memory")
+      .list("memory", agentId)
       .then((result) => {
         const mdFiles = result.files
           .filter((f) => !f.isDirectory && f.name.endsWith(".md"))
@@ -139,7 +154,7 @@ function MemoryContent() {
         setFiles(mdFiles);
       })
       .catch((e) => setError(String(e)));
-  }, []);
+  }, [agentId]);
 
   if (error) return <div className="text-sm text-destructive">{error}</div>;
   if (files === null) return <div className="text-sm text-muted-foreground">Loading...</div>;
@@ -175,6 +190,7 @@ function MemoryContent() {
         <WorkspaceFileView
           relativePath={`memory/${selectedFile}`}
           emptyKey="agents.agentDesktop.hero.memory.empty"
+          agentId={agentId}
         />
       )}
     </div>

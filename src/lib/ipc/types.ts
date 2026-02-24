@@ -271,11 +271,14 @@ export interface ElectronAPI {
     list: () => Promise<SkillsListResult>;
   };
   workspace?: {
-    list: (subpath?: string) => Promise<WorkspaceListResult>;
-    readFile: (relativePath: string) => Promise<WorkspaceReadFileResult>;
-    readFileBase64: (relativePath: string) => Promise<WorkspaceReadFileBase64Result>;
-    runPython: (relativePath: string) => Promise<PythonRunResult>;
-    openInSystem: (relativePath: string) => Promise<string>;
+    list: (subpath?: string, agentId?: string) => Promise<WorkspaceListResult>;
+    readFile: (relativePath: string, agentId?: string) => Promise<WorkspaceReadFileResult>;
+    readFileBase64: (
+      relativePath: string,
+      agentId?: string,
+    ) => Promise<WorkspaceReadFileBase64Result>;
+    runPython: (relativePath: string, agentId?: string) => Promise<PythonRunResult>;
+    openInSystem: (relativePath: string, agentId?: string) => Promise<string>;
   };
   rescue?: {
     gateway: {

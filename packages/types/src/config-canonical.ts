@@ -29,6 +29,11 @@ export interface CanonicalOpenClawConfig {
         fallbacks?: string[];
       };
       sandbox?: Record<string, unknown>;
+      subagents?: {
+        runTimeoutSeconds?: number;
+        thinking?: string;
+        announceTimeoutMs?: number;
+      };
     };
     [key: string]: unknown;
   };

@@ -16,7 +16,7 @@ export function initChatStreamListener() {
       // Stream started
     } else if (event.type === "delta") {
       if (event.content) {
-        updateStreamingMessage(event.messageId, event.content);
+        updateStreamingMessage(event.messageId, event.content, event.isReasoning);
       }
     } else if (event.type === "end") {
       setMessageStreaming(event.messageId, false);

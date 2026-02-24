@@ -5,7 +5,7 @@ import { generateMessageId } from "../../helpers";
 export interface MessageAction {
   addMessage: (message: Omit<import("../../initialState").Message, "id" | "timestamp">) => void;
   updateMessage: (id: string, content: string) => void;
-  updateStreamingMessage: (id: string, content: string) => void;
+  updateStreamingMessage: (id: string, content: string, isReasoning?: boolean) => void;
   appendMessageContent: (id: string, content: string) => void;
   setMessageStreaming: (id: string, isStreaming: boolean) => void;
   addLoadingMessage: (id: string) => void;
@@ -63,7 +63,7 @@ export const messageSlice: StateCreator<
       "updateMessage",
     ),
 
-  updateStreamingMessage: (id, content) =>
+  updateStreamingMessage: (id, content, isReasoning) =>
     set(
       (state) => ({
         sessions: state.sessions.map((s) => ({
@@ -71,7 +71,7 @@ export const messageSlice: StateCreator<
           messages: s.messages.map((m) => {
             if (m.id !== id) return m;
             if (!m.content || content.length >= m.content.length) {
-              return { ...m, content };
+              return { ...m, content, isReasoning };
             }
             return m;
           }),

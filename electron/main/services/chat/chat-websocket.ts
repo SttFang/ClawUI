@@ -28,6 +28,7 @@ export interface ChatStreamEvent {
   messageId: string;
   content?: string;
   error?: string;
+  isReasoning?: boolean;
 }
 
 export type GatewayEventFrame = TransportGatewayEventFrame;
@@ -206,14 +207,21 @@ export class ChatWebSocketService extends EventEmitter {
       return typeof text === "string" ? text : null;
     };
 
+    const extractIsReasoning = (msg: unknown): boolean => {
+      if (!msg || typeof msg !== "object") return false;
+      return (msg as { isReasoning?: unknown }).isReasoning === true;
+    };
+
     if (state === "delta") {
       const content = extractText(payload.message);
+      const isReasoning = extractIsReasoning(payload.message);
       if (content) {
         this.emit("stream", {
           type: "delta",
           sessionId: sessionKey,
           messageId: runId,
           content,
+          isReasoning,
         });
       }
       return;
@@ -221,12 +229,14 @@ export class ChatWebSocketService extends EventEmitter {
 
     if (state === "final") {
       const content = extractText(payload.message);
+      const isReasoning = extractIsReasoning(payload.message);
       if (content) {
         this.emit("stream", {
           type: "delta",
           sessionId: sessionKey,
           messageId: runId,
           content,
+          isReasoning,
         });
       }
       this.emit("stream", {

@@ -8,3 +8,8 @@ export function extractOpenClawTextFromMessage(message: unknown): string | null 
   return typeof text === 'string' ? text : null
 }
 
+export function extractIsReasoningFromMessage(message: unknown): boolean {
+  if (!message || typeof message !== 'object') return false
+  return (message as { isReasoning?: unknown }).isReasoning === true
+}
+

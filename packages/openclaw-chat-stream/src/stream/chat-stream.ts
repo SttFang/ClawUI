@@ -1,6 +1,6 @@
 import type { UIMessage, UIMessageChunk } from 'ai'
 
-import { extractOpenClawTextFromMessage } from './extract'
+import { extractOpenClawTextFromMessage, extractIsReasoningFromMessage } from './extract'
 import { resolveToolCallId } from '@clawui/types/tool-call'
 import { extractUserText } from './user'
 import { createApprovalRecovery } from './approval-recovery'
@@ -61,6 +61,11 @@ export function createOpenClawChatStream(params: {
 
       const asm = createMessageAssembler(approval, { enqueue })
 
+      // Reasoning state tracking
+      let reasoningPartId = 'reasoning-1'
+      let reasoningStarted = false
+      let prevReasoningText = ''
+
       const finish = createFinishPolicy({
         hasActiveTextPart: () => asm.hasActiveTextPart,
         activeTextPartId: () => asm.currentTextPartId,
@@ -112,8 +117,35 @@ export function createOpenClawChatStream(params: {
           asm.lockToChatSource()
           finish.onChatDeltaOrFinal()
           const nextText = extractOpenClawTextFromMessage(evt.message) ?? ''
-          asm.updateTextWithSnapshot(nextText)
+          const isReasoning = extractIsReasoningFromMessage(evt.message)
+
+          if (isReasoning) {
+            // Emit reasoning chunks
+            if (!reasoningStarted) {
+              reasoningStarted = true
+              enqueue({ type: 'reasoning-start', id: reasoningPartId })
+            }
+            if (nextText.length > prevReasoningText.length && nextText.startsWith(prevReasoningText)) {
+              const delta = nextText.slice(prevReasoningText.length)
+              if (delta) enqueue({ type: 'reasoning-delta', id: reasoningPartId, delta })
+            } else if (nextText && nextText !== prevReasoningText) {
+              enqueue({ type: 'reasoning-delta', id: reasoningPartId, delta: nextText })
+            }
+            prevReasoningText = nextText
+          } else {
+            // Close reasoning if transitioning
+            if (reasoningStarted) {
+              enqueue({ type: 'reasoning-end', id: reasoningPartId })
+              reasoningStarted = false
+            }
+            asm.updateTextWithSnapshot(nextText)
+          }
+
           if (evt.state === 'final') {
+            if (reasoningStarted) {
+              enqueue({ type: 'reasoning-end', id: reasoningPartId })
+              reasoningStarted = false
+            }
             log.info('[stream.chatFinal]', { runId: evt.runId })
             finish.onChatFinal()
           }

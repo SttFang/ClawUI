@@ -61,4 +61,5 @@ export interface ChatStreamEvent {
   messageId: string;
   content?: string;
   error?: string;
+  isReasoning?: boolean;
 }

@@ -225,7 +225,18 @@ export class ChatTransport extends EventEmitter {
       clearTimeout(this.connectTimer);
       this.connectTimer = null;
     }
-    this.sendConnectFrame();
+    // Don't send connect frame yet — wait for the gateway's connect.challenge
+    // event which provides the nonce required by the ACP device auth schema.
+    // Set a timeout in case the challenge never arrives.
+    const callbacks = this.doConnectCallbacks;
+    this.connectTimer = setTimeout(() => {
+      this.connectTimer = null;
+      if (!this.connected) {
+        const err = new Error("Connect timeout (no challenge received)");
+        callbacks?.reject(err);
+        this.doConnectCallbacks = null;
+      }
+    }, 10_000);
   }
 
   private sendConnectFrame(): void {
@@ -307,6 +318,7 @@ export class ChatTransport extends EventEmitter {
           if (nonce) {
             chatLog.debug("[acp.challenge]", `nonce=${nonce.slice(0, 8)}...`);
             this.connectNonce = nonce;
+            this.connectSent = false;
             this.sendConnectFrame();
           }
           return;

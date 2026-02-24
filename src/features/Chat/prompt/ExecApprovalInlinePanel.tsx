@@ -58,6 +58,11 @@ export function ExecApprovalInlinePanel(props: { sessionKey: string; className?:
         <code className="min-w-0 truncate rounded bg-muted px-1.5 py-0.5 text-xs">
           {cmdPreview}
         </code>
+        {current.request.host === "node" && current.request.nodeId && (
+          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+            @ {current.request.nodeId}
+          </span>
+        )}
       </div>
 
       {/* Decision buttons */}

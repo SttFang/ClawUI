@@ -3,6 +3,7 @@ import { ipc, RuntimeStatus } from "@/lib/ipc";
 import { startupLog } from "@/lib/logger";
 import { useChatStore } from "@/store/chat";
 import { useGatewayStore, selectGatewayStatus } from "@/store/gateway";
+import { useOnboardingStore } from "@/store/onboarding";
 import { useUIStore } from "@/store/ui";
 
 export interface StartupState {
@@ -50,6 +51,9 @@ export function useAppBootstrapOnce(): StartupState {
           });
           return;
         }
+
+        // Sync to onboarding store so settings page can read runtimeStatus
+        useOnboardingStore.getState().setRuntimeStatus(status);
 
         const needsOnboarding = !status.openclawInstalled || status.openclawNeedsUpgrade;
 

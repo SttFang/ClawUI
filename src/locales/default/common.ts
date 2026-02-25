@@ -692,6 +692,7 @@ const common = {
           installService: "安装服务",
           restartService: "重启服务",
           uninstallService: "卸载服务",
+          upgradeOpenClaw: "升级到 {{version}}",
         },
         messages: {
           serviceInstalled: "已安装 Gateway 服务",
@@ -966,7 +967,7 @@ const common = {
       title: "需要升级 OpenClaw",
       description: "当前安装的 OpenClaw 版本过低，需要升级才能继续使用。",
       currentVersion: "当前版本：{{version}}",
-      requiredVersion: "最低要求：2026.2.9",
+      requiredVersion: "最低要求：{{version}}",
       actions: {
         upgrade: "一键升级",
       },
@@ -1004,6 +1005,9 @@ const common = {
       detectionFailed: "环境检测失败",
       installFailed: "安装失败",
       unexpected: "发生了未知错误",
+      nodeMissing: "未检测到 Node.js，请先安装 Node.js v22 或更高版本",
+      npmMissing: "未检测到 npm，请确保 Node.js 安装完整",
+      nodeVersionTooLow: "Node.js 版本过低（需要 v22+，当前 {{version}}）",
     },
   },
   execApproval: {

@@ -19,6 +19,7 @@ import {
   selectGatewayError,
   selectIsGatewayRunning,
 } from "@/store/gateway";
+import { useOnboardingStore, selectRuntimeStatus } from "@/store/onboarding";
 import { useSettingsStore, selectAutoStartGateway, selectAutoCheckUpdates } from "@/store/settings";
 import { useUIStore, selectTheme, type Theme } from "@/store/ui";
 
@@ -43,6 +44,9 @@ export function GeneralTab() {
   const stopGateway = useGatewayStore((s) => s.stop);
   const [serviceBusy, setServiceBusy] = useState(false);
   const [serviceMessage, setServiceMessage] = useState<string | null>(null);
+
+  // OpenClaw version info
+  const runtimeStatus = useOnboardingStore(selectRuntimeStatus);
 
   // About
   const [version, setVersion] = useState("0.0.0");
@@ -163,6 +167,31 @@ export function GeneralTab() {
                   ? t("settings.page.gateway.actions.stopGateway")
                   : t("settings.page.gateway.actions.startGateway")}
               </Button>
+            </div>
+
+            {/* OpenClaw version + update prompt */}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                OpenClaw {runtimeStatus?.openclawVersion ?? "—"}
+              </span>
+              {runtimeStatus?.openclawUpdateAvailable && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={serviceBusy}
+                  onClick={() =>
+                    serviceAction(
+                      () => ipc.onboarding.install(),
+                      "settings.page.gateway.messages.serviceInstalled",
+                      "settings.page.gateway.messages.installFailed",
+                    )
+                  }
+                >
+                  {t("settings.page.gateway.actions.upgradeOpenClaw", {
+                    version: runtimeStatus.openclawLatestVersion,
+                  })}
+                </Button>
+              )}
             </div>
 
             <Collapsible>

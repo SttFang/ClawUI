@@ -652,6 +652,7 @@ const common = {
           installService: "Install service",
           restartService: "Restart service",
           uninstallService: "Uninstall service",
+          upgradeOpenClaw: "Upgrade to {{version}}",
         },
         messages: {
           serviceInstalled: "Gateway service installed",
@@ -930,7 +931,7 @@ const common = {
       description:
         "Your installed OpenClaw version is too old. An upgrade is required to continue.",
       currentVersion: "Current version: {{version}}",
-      requiredVersion: "Minimum required: 2026.2.9",
+      requiredVersion: "Minimum required: {{version}}",
       actions: {
         upgrade: "One-click upgrade",
       },
@@ -968,6 +969,9 @@ const common = {
       detectionFailed: "Detection failed",
       installFailed: "Installation failed",
       unexpected: "An unexpected error occurred",
+      nodeMissing: "Node.js not found. Please install Node.js v22 or later",
+      npmMissing: "npm not found. Please ensure Node.js is installed correctly",
+      nodeVersionTooLow: "Node.js version too low (v22+ required, found {{version}})",
     },
   },
   execApproval: {

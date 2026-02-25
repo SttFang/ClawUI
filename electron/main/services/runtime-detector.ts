@@ -5,7 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { detectorLog } from "../lib/logger";
 import { execInLoginShell, resolveCommandPath } from "../utils/login-shell";
-import { safeExecFile } from "../utils/safe-exec";
+import { scanAllOpenClawInstalls } from "../utils/openclaw-cli";
 import { compareOpenClawVersions, MIN_OPENCLAW_VERSION } from "../utils/version";
 import { ConfigService, ConfigRepository } from "./config";
 
@@ -31,6 +31,9 @@ export interface RuntimeStatus {
   configValid: boolean;
   configSchemaVersion: string | null;
   configPath: string;
+  minRequiredVersion: string;
+  openclawLatestVersion: string | null;
+  openclawUpdateAvailable: boolean;
 }
 
 export class RuntimeDetectorService {
@@ -41,22 +44,33 @@ export class RuntimeDetectorService {
   async detect(): Promise<RuntimeStatus> {
     const t0 = Date.now();
     detectorLog.info("[detect.start]");
-    const [nodeResult, openclawResult, configResult] = await Promise.all([
+    const [nodeResult, openclawResult, configResult, latestVersion] = await Promise.all([
       this.detectNode(),
       this.detectOpenClaw(),
       this.detectConfig(),
+      this.fetchLatestOpenClawVersion(),
     ]);
+
+    const openclawUpdateAvailable =
+      latestVersion && openclawResult.openclawVersion
+        ? compareOpenClawVersions(openclawResult.openclawVersion, latestVersion) < 0
+        : false;
 
     const result = {
       ...nodeResult,
       ...openclawResult,
       ...configResult,
       configPath: this.configPath,
+      minRequiredVersion: MIN_OPENCLAW_VERSION,
+      openclawLatestVersion: latestVersion,
+      openclawUpdateAvailable,
     };
     detectorLog.info(
       "[detect.complete]",
       `node=${result.nodeVersion ?? "n/a"}`,
       `openclaw=${result.openclawVersion ?? "n/a"}`,
+      `latest=${latestVersion ?? "n/a"}`,
+      `updateAvailable=${openclawUpdateAvailable}`,
       `installs=${result.openclawInstalls.length}`,
       `conflict=${result.openclawConflict}`,
       `config=${result.configExists ? (result.configValid ? "valid" : "invalid") : "missing"}`,
@@ -131,8 +145,7 @@ export class RuntimeDetectorService {
   }
 
   /**
-   * Scan all openclaw installations in PATH via `which -a` (macOS/Linux)
-   * or `where` (Windows), then pick the best (newest) one.
+   * Scan all openclaw installations in PATH, then pick the best (newest) one.
    */
   private async detectOpenClaw(): Promise<{
     openclawInstalled: boolean;
@@ -154,28 +167,9 @@ export class RuntimeDetectorService {
     };
 
     try {
-      const allPaths = await this.findAllOpenClawPaths();
-      if (allPaths.length === 0) {
-        detectorLog.info("[detect.openclaw]", "not installed");
-        return notInstalled;
-      }
-
-      // Get version for each path
-      const installs: OpenClawInstall[] = [];
-      for (const p of allPaths) {
-        try {
-          const { stdout } = await safeExecFile(p, ["--version"], { timeoutMs: 5_000 });
-          const version = stdout.trim();
-          if (version) {
-            installs.push({ path: p, version });
-          }
-        } catch {
-          detectorLog.warn("[detect.openclaw.versionFailed]", `path=${p}`);
-        }
-      }
-
+      const installs = await scanAllOpenClawInstalls();
       if (installs.length === 0) {
-        detectorLog.info("[detect.openclaw]", "binaries found but none returned a version");
+        detectorLog.info("[detect.openclaw]", "not installed");
         return notInstalled;
       }
 
@@ -221,22 +215,13 @@ export class RuntimeDetectorService {
     }
   }
 
-  /**
-   * Find all openclaw binaries in PATH.
-   * Uses `which -a` on macOS/Linux, `where` on Windows.
-   */
-  private async findAllOpenClawPaths(): Promise<string[]> {
+  private async fetchLatestOpenClawVersion(): Promise<string | null> {
     try {
-      const cmd = process.platform === "win32" ? "where openclaw" : "which -a openclaw";
-      const { stdout } = await execInLoginShell(cmd, { timeoutMs: 5_000 });
-      return stdout
-        .trim()
-        .split(/\r?\n/)
-        .filter((line) => line && existsSync(line));
+      const { stdout } = await execInLoginShell("npm view openclaw version", { timeoutMs: 10_000 });
+      return stdout.trim() || null;
     } catch {
-      // Fallback: try resolveCommandPath for at least the first one
-      const single = await resolveCommandPath("openclaw");
-      return single && existsSync(single) ? [single] : [];
+      detectorLog.debug("[detect.openclaw.latest.failed]");
+      return null;
     }
   }
 

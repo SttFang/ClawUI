@@ -78,6 +78,9 @@ export function Onboarding() {
 
   const errorText = (() => {
     if (!error) return t("onboarding.errors.unexpected");
+    if (error === "onboarding.errors.nodeVersionTooLow") {
+      return t(error, { version: runtimeStatus?.nodeVersion ?? "unknown" });
+    }
     return error.startsWith("onboarding.") ? t(error) : error;
   })();
 
@@ -154,7 +157,7 @@ export function Onboarding() {
                       </p>
                       <p>
                         {t("onboarding.upgrade.requiredVersion", {
-                          version: runtimeStatus.openclawVersion,
+                          version: runtimeStatus.minRequiredVersion,
                         })}
                       </p>
                     </div>

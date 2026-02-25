@@ -42,6 +42,12 @@ export interface RuntimeStatus {
   openclawInstalls: OpenClawInstall[];
   /** 是否存在多版本冲突（多个安装且版本不一致） */
   openclawConflict: boolean;
+  /** ClawUI 要求的最低 OpenClaw 版本 */
+  minRequiredVersion: string;
+  /** npm registry 上的最新 OpenClaw 版本（检查失败时为 null） */
+  openclawLatestVersion: string | null;
+  /** 是否有可用更新（已安装版本 < 最新版本） */
+  openclawUpdateAvailable: boolean;
 }
 
 /**

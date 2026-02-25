@@ -17,6 +17,9 @@ function getBrowserFallbackRuntimeStatus(): RuntimeStatus {
     configValid: true,
     configSchemaVersion: null,
     configPath: "",
+    minRequiredVersion: "",
+    openclawLatestVersion: null,
+    openclawUpdateAvailable: false,
   };
 }
 

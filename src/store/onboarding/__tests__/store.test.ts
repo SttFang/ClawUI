@@ -28,6 +28,9 @@ function mockStatus(overrides: Partial<RuntimeStatus> = {}): RuntimeStatus {
     configExists: true,
     configValid: true,
     configPath: "~/.openclaw/openclaw.json",
+    minRequiredVersion: "2026.2.9",
+    openclawLatestVersion: null,
+    openclawUpdateAvailable: false,
     ...overrides,
   };
 }

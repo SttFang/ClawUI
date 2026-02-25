@@ -1,7 +1,8 @@
+import type { OpenClawInstall } from "@clawui/types/onboarding";
 import path from "node:path";
-import type { OpenClawInstall } from "./runtime-detector";
 import { installerLog } from "../lib/logger";
-import { execInLoginShell, resolveCommandPath } from "../utils/login-shell";
+import { resolveCommandPath } from "../utils/login-shell";
+import { scanAllOpenClawInstalls } from "../utils/openclaw-cli";
 import { safeExecFile } from "../utils/safe-exec";
 import { compareOpenClawVersions, MIN_OPENCLAW_VERSION } from "../utils/version";
 
@@ -32,7 +33,7 @@ export class InstallerService {
       await this.verifyNodeAndNpm();
 
       // Scan all openclaw installations
-      const installs = await this.scanAllInstalls();
+      const installs = await scanAllOpenClawInstalls();
       const best = this.pickBest(installs);
 
       if (best && compareOpenClawVersions(best.version, MIN_OPENCLAW_VERSION) >= 0) {
@@ -94,41 +95,6 @@ export class InstallerService {
     }
   }
 
-  /**
-   * Scan all openclaw binaries in PATH.
-   */
-  private async scanAllInstalls(): Promise<OpenClawInstall[]> {
-    const installs: OpenClawInstall[] = [];
-    try {
-      const cmd = process.platform === "win32" ? "where openclaw" : "which -a openclaw";
-      const { stdout } = await execInLoginShell(cmd, { timeoutMs: 5_000 });
-      const paths = stdout.trim().split(/\r?\n/).filter(Boolean);
-
-      for (const p of paths) {
-        try {
-          const { stdout: ver } = await safeExecFile(p, ["--version"], { timeoutMs: 5_000 });
-          const version = ver.trim();
-          if (version) installs.push({ path: p, version });
-        } catch {
-          // skip broken binaries
-        }
-      }
-    } catch {
-      // which -a failed, try single
-      const single = await resolveCommandPath("openclaw");
-      if (single) {
-        try {
-          const { stdout } = await safeExecFile(single, ["--version"], { timeoutMs: 5_000 });
-          const version = stdout.trim();
-          if (version) installs.push({ path: single, version });
-        } catch {
-          // skip
-        }
-      }
-    }
-    return installs;
-  }
-
   /** Pick the newest install. */
   private pickBest(installs: OpenClawInstall[]): OpenClawInstall | null {
     if (installs.length === 0) return null;
@@ -161,18 +127,18 @@ export class InstallerService {
     const t0 = Date.now();
     installerLog.info("[install.check.node]");
     const nodePath = await resolveCommandPath("node");
-    if (!nodePath) throw new Error("node not found in PATH");
+    if (!nodePath) throw new Error("onboarding.errors.nodeMissing");
     const { stdout: nodeVersionOutput } = await safeExecFile(nodePath, ["--version"], {
       timeoutMs: 10_000,
     });
     const nodeVersion = nodeVersionOutput.trim();
     const major = parseInt(nodeVersion.replace(/^v/, "").split(".")[0] || "0", 10);
     if (!Number.isFinite(major) || major < 22) {
-      throw new Error(`Node.js v22+ required (found ${nodeVersion || "unknown"})`);
+      throw new Error("onboarding.errors.nodeVersionTooLow");
     }
 
     const npmPath = await resolveCommandPath("npm");
-    if (!npmPath) throw new Error("npm not found in PATH");
+    if (!npmPath) throw new Error("onboarding.errors.npmMissing");
     await safeExecFile(npmPath, ["--version"], { timeoutMs: 10_000 });
     installerLog.info(
       "[install.check.node.ok]",

@@ -62,7 +62,10 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
     const base = resolveWorkspaceDir(config, agentId);
     const filePath = safePath(base, relativePath);
 
-    const content = await readFile(filePath, "utf-8");
+    const content = await readFile(filePath, "utf-8").catch((err) => {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw err;
+    });
     return { path: filePath, content };
   });
 
@@ -73,8 +76,11 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
       const base = resolveWorkspaceDir(config, agentId);
       const filePath = safePath(base, relativePath);
 
-      const buf = await readFile(filePath);
-      return { path: filePath, base64: buf.toString("base64") };
+      const buf = await readFile(filePath).catch((err) => {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+        throw err;
+      });
+      return { path: filePath, base64: buf?.toString("base64") ?? null };
     },
   );
 

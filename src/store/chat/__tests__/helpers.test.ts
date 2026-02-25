@@ -34,4 +34,42 @@ describe("parseSessionsListPayload", () => {
     expect(parseSessionsListPayload({})).toEqual([]);
     expect(parseSessionsListPayload({ sessions: "not-array" })).toEqual([]);
   });
+
+  it("strips inbound-meta sentinels and JSON body from derivedTitle", () => {
+    const payload = {
+      sessions: [
+        {
+          key: "agent:main:discord:123",
+          derivedTitle:
+            'Conversation info (untrusted metadata):\n```json\n{"sender":"user","message_id":"abc"}',
+          updatedAt: 1000,
+        },
+      ],
+    };
+    const result = parseSessionsListPayload(payload);
+    // Entire metadata block stripped → falls back to key
+    expect(result[0].name).toBe("agent:main:discord:123");
+  });
+
+  it("strips various inbound-meta sentinel prefixes", () => {
+    const cases: [string, string][] = [
+      ["Sender (untrusted metadata): hello", "hello"],
+      ["Thread starter (untrusted, for context): hello", "hello"],
+      ["Replied message (untrusted, for context): hello", "hello"],
+      ["Chat history since last reply (untrusted, for context): hello", "hello"],
+    ];
+    for (const [title, expected] of cases) {
+      const result = parseSessionsListPayload({
+        sessions: [{ key: "s1", derivedTitle: title, updatedAt: 1 }],
+      });
+      expect(result[0].name).toBe(expected);
+    }
+  });
+
+  it("preserves normal titles unchanged", () => {
+    const result = parseSessionsListPayload({
+      sessions: [{ key: "s1", derivedTitle: "My Chat", updatedAt: 1 }],
+    });
+    expect(result[0].name).toBe("My Chat");
+  });
 });

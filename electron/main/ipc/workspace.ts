@@ -37,7 +37,10 @@ export function registerWorkspaceHandlers(ipcMain: IpcMain, configService: Confi
     const base = resolveWorkspaceDir(config, agentId);
     const dir = subpath ? safePath(base, subpath) : base;
 
-    const entries = await readdir(dir, { withFileTypes: true });
+    const entries = await readdir(dir, { withFileTypes: true }).catch((err) => {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw err;
+    });
     const files: WorkspaceFileEntry[] = [];
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { PythonRunResult, WorkspaceFileEntry } from "@/lib/ipc";
 import { ipc } from "@/lib/ipc";
+import { useAgentsStore } from "@/store/agents";
 import type { FileContentKind, OpenTab } from "./types";
 
 export type { WorkspaceFileEntry, OpenTab, FileContentKind, PythonRunResult };
@@ -127,6 +128,8 @@ const initialState: WorkspaceFilesState = {
   pythonRunning: false,
 };
 
+const getAgentId = () => useAgentsStore.getState().selectedAgentId ?? "main";
+
 export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
   devtools(
     (set, get) => ({
@@ -135,7 +138,7 @@ export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
       loadFiles: async (subpath?: string) => {
         set({ loading: true, error: null }, false, "loadFiles/start");
         try {
-          const res = await ipc.workspace.list(subpath);
+          const res = await ipc.workspace.list(subpath, getAgentId());
           set(
             { files: res.files, currentPath: subpath ?? "", loading: false },
             false,
@@ -178,10 +181,10 @@ export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
         try {
           let content: string;
           if (kind === "image" || kind === "office" || kind === "video") {
-            const res = await ipc.workspace.readFileBase64(relativePath);
+            const res = await ipc.workspace.readFileBase64(relativePath, getAgentId());
             content = `data:${guessMimeType(name)};base64,${res.base64}`;
           } else {
-            const res = await ipc.workspace.readFile(relativePath);
+            const res = await ipc.workspace.readFile(relativePath, getAgentId());
             content = res.content;
           }
           set(
@@ -232,7 +235,7 @@ export const useWorkspaceFilesStore = create<WorkspaceFilesStore>()(
       runPython: async (relativePath: string) => {
         set({ pythonRunning: true, pythonResult: null }, false, "runPython/start");
         try {
-          const result = await ipc.workspace.runPython(relativePath);
+          const result = await ipc.workspace.runPython(relativePath, getAgentId());
           set({ pythonResult: result, pythonRunning: false }, false, "runPython/done");
         } catch (err) {
           set(

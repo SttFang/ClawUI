@@ -2,6 +2,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger, ScrollArea } from 
 import { ChevronRight, Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useAgentsStore, agentsSelectors } from "@/store/agents";
 import { useWorkspaceFilesStore } from "@/store/workspaceFiles";
 import { useChatFeature } from "../useChatFeature";
 import { AgentTabs } from "./AgentTabs";
@@ -16,10 +17,11 @@ export function SessionSidebar() {
 
   const { t } = useTranslation("chat");
   const loadFiles = useWorkspaceFilesStore((s) => s.loadFiles);
+  const selectedAgentId = useAgentsStore(agentsSelectors.selectSelectedAgentId);
 
   useEffect(() => {
     void loadFiles();
-  }, [loadFiles]);
+  }, [loadFiles, selectedAgentId]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col border-r bg-card">

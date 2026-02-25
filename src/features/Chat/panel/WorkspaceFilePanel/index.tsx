@@ -3,6 +3,7 @@ import { ExternalLink, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
+import { useAgentsStore } from "@/store/agents";
 import { useWorkspaceFilesStore } from "@/store/workspaceFiles";
 import { ImageContent, VideoContent, HtmlContent } from "./MediaContent";
 import { OfficeContent } from "./OfficePreview";
@@ -59,7 +60,10 @@ function TabBar() {
         <button
           type="button"
           className="shrink-0 px-2 py-1.5 text-muted-foreground hover:text-foreground"
-          onClick={() => void ipc.workspace.openInSystem(activeTabPath)}
+          onClick={() => {
+            const agentId = useAgentsStore.getState().selectedAgentId ?? "main";
+            void ipc.workspace.openInSystem(activeTabPath, agentId);
+          }}
           aria-label={t("workspaceFiles.openInSystem")}
           title={t("workspaceFiles.openInSystem")}
         >

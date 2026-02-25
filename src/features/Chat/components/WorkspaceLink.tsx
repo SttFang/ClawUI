@@ -3,6 +3,7 @@ import { FileIcon, FolderOpenIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ipc } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
+import { useAgentsStore } from "@/store/agents";
 import { classifyFile, guessMimeType, useWorkspaceFilesStore } from "@/store/workspaceFiles";
 
 export const WORKSPACE_HASH_PREFIX = "#workspace-file=";
@@ -49,7 +50,7 @@ function WorkspaceImageLink(props: { relativePath: string; filename: string }) {
   useEffect(() => {
     let cancelled = false;
     ipc.workspace
-      .readFileBase64(relativePath)
+      .readFileBase64(relativePath, useAgentsStore.getState().selectedAgentId ?? "main")
       .then((res) => {
         if (cancelled) return;
         setSrc(`data:${guessMimeType(filename)};base64,${res.base64}`);

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceFilesStore } from "@/store/workspaceFiles";
 import { useChatFeature } from "../useChatFeature";
+import { AgentTabs } from "./AgentTabs";
 import { CronResultList } from "./CronResultList";
 import { SessionList } from "./SessionList";
 import { WorkspaceFileList } from "./WorkspaceFileList";
@@ -23,6 +24,7 @@ export function SessionSidebar() {
   return (
     <div className="flex min-h-0 flex-1 flex-col border-r bg-card">
       <ScrollArea className="min-h-0 flex-1">
+        <AgentTabs />
         <Collapsible defaultOpen>
           <div className="flex w-full items-center gap-1 px-4 py-2 text-xs font-medium text-muted-foreground">
             <CollapsibleTrigger className="flex flex-1 items-center gap-1 hover:text-foreground">

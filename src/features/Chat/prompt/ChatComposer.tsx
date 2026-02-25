@@ -13,7 +13,6 @@ import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { SessionControlStrip } from "../components/SessionControlStrip";
-import { AgentDropdown } from "./AgentDropdown";
 import { ExecApprovalInlinePanel, useHasPendingExecApproval } from "./ExecApprovalInlinePanel";
 import { useImageAttachments } from "./useImageAttachments";
 
@@ -144,8 +143,6 @@ export function ChatComposer(props: {
               >
                 <Paperclip className="h-3.5 w-3.5" />
               </PromptInputAction>
-
-              <AgentDropdown disabled={composerDisabled} />
 
               {showSessionControls ? (
                 <SessionControlStrip

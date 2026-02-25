@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { ipc } from "@/lib/ipc";
 import { ensureChatConnected } from "@/services/chat/connection";
+import { useAgentsStore, agentsSelectors } from "@/store/agents";
 import { useChatStore, selectCurrentSession, selectSessions } from "@/store/chat";
 import { isMainSessionKey, MAIN_SESSION_KEY } from "@/store/chat/helpers";
 import { useGatewayStore, selectIsGatewayRunning } from "@/store/gateway";
@@ -10,6 +11,7 @@ import { ChatContext, type ChatContextValue } from "./ChatContext";
 import { useConfigValidation } from "./hooks/useConfigValidation";
 import { useSessionMetadata } from "./hooks/useSessionMetadata";
 import { classifySession } from "./utils/sessionKey";
+import { extractAgentId } from "./utils/sessionKey";
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -33,14 +35,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [refreshSessions],
   );
 
+  const selectedAgentId = useAgentsStore(agentsSelectors.selectSelectedAgentId);
+
   const visibleSessions: SessionListItem[] = useMemo(() => {
     return sessions
       .filter((s) => {
         const { hidden } = classifySession({ sessionKey: s.id, surface: s.surface });
-        return !hidden;
+        if (hidden) return false;
+        return extractAgentId(s.id) === selectedAgentId;
       })
       .map((s) => ({ id: s.id, name: s.name, updatedAt: s.updatedAt, surface: s.surface }));
-  }, [sessions]);
+  }, [sessions, selectedAgentId]);
 
   useEffect(() => {
     const currentId = currentSession?.id;
@@ -61,16 +66,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const createGatewayUiSession = useCallback(async (): Promise<string> => {
     const sessions = useChatStore.getState().sessions;
+    const agentId = useAgentsStore.getState().selectedAgentId ?? "main";
     const hasMain = sessions.some((s) => isMainSessionKey(s.id));
     let key: string;
-    if (!hasMain) {
+    if (!hasMain && agentId === "main") {
       key = MAIN_SESSION_KEY;
     } else {
       const cryptoObj = (globalThis as unknown as { crypto?: Crypto }).crypto;
       const uuid = cryptoObj?.randomUUID
         ? cryptoObj.randomUUID()
         : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      key = `agent:main:ui:${uuid}`;
+      key = `agent:${agentId}:ui:${uuid}`;
     }
 
     await ensureChatConnected();

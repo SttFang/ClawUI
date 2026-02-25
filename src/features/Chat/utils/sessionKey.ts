@@ -1,5 +1,12 @@
 import type { SessionSource } from "../types";
 
+/** Extract agentId from a session key. "agent:<id>:..." → id; otherwise "main". */
+export function extractAgentId(sessionKey: string): string {
+  const parts = sessionKey.split(":");
+  if (parts[0] === "agent" && parts.length >= 3) return parts[1];
+  return "main";
+}
+
 export function classifySessionKey(sessionKey: string): { source: SessionSource; hidden: boolean } {
   const raw = sessionKey.trim();
   if (!raw) return { source: "unknown", hidden: false };

@@ -33,6 +33,25 @@ export const generateChatRunId = (): string => {
   return `00000000-0000-4000-8000-${t.slice(-12)}${c.slice(-12)}`.slice(0, 36);
 };
 
+/**
+ * Strip OpenClaw inbound-meta sentinels that sometimes leak into derived titles.
+ * Matches the sentinel list in openclaw/src/auto-reply/reply/strip-inbound-meta.ts.
+ */
+const INBOUND_META_RE =
+  /^(?:Conversation info|Sender|Thread starter|Replied message|Forwarded message context|Chat history since last reply)\s*\(untrusted(?:,? for context)?(?: metadata)?\):\s*/;
+
+function stripInboundMeta(text: string): string {
+  let cleaned = text
+    .replace(INBOUND_META_RE, "")
+    .replace(/^```json\s*/, "")
+    .trim();
+  // Also strip trailing ``` fence if present
+  cleaned = cleaned.replace(/```\s*$/, "").trim();
+  // If what remains looks like a raw JSON object/array, it's still metadata — discard it.
+  if (cleaned.startsWith("{") || cleaned.startsWith("[")) return "";
+  return cleaned;
+}
+
 export function parseSessionsListPayload(
   payload: unknown,
 ): Array<Pick<Session, "id" | "name" | "createdAt" | "updatedAt" | "surface">> {
@@ -54,7 +73,10 @@ export function parseSessionsListPayload(
 
     out.push({
       id: key,
-      name: typeof derivedTitle === "string" && derivedTitle.trim() ? derivedTitle : key,
+      name:
+        typeof derivedTitle === "string" && derivedTitle.trim()
+          ? stripInboundMeta(derivedTitle) || key
+          : key,
       createdAt: typeof updatedAt === "number" ? updatedAt : Date.now(),
       updatedAt: typeof updatedAt === "number" ? updatedAt : Date.now(),
       surface: typeof surface === "string" ? surface : null,

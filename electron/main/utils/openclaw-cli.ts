@@ -1,6 +1,8 @@
+import type { OpenClawInstall } from "@clawui/types/onboarding";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { resolveCommandPath } from "./login-shell";
+import { resolveCommandPath, execInLoginShell } from "./login-shell";
+import { safeExecFile } from "./safe-exec";
 
 const execFileAsync = promisify(execFile);
 
@@ -83,4 +85,35 @@ export async function runOpenClawJson<T>(
 ): Promise<T> {
   const { stdout } = await runOpenClaw(openclawPath, args, options);
   return parseJson<T>(stdout, context);
+}
+
+/**
+ * Scan all openclaw binaries in PATH and return their paths + versions.
+ * Shared by InstallerService and RuntimeDetectorService.
+ */
+export async function scanAllOpenClawInstalls(): Promise<OpenClawInstall[]> {
+  const installs: OpenClawInstall[] = [];
+
+  let paths: string[] = [];
+  try {
+    const cmd = process.platform === "win32" ? "where openclaw" : "which -a openclaw";
+    const { stdout } = await execInLoginShell(cmd, { timeoutMs: 5_000 });
+    paths = stdout.trim().split(/\r?\n/).filter(Boolean);
+  } catch {
+    // which -a failed, try single resolve
+    const single = await resolveCommandPath("openclaw");
+    if (single) paths = [single];
+  }
+
+  for (const p of paths) {
+    try {
+      const { stdout: ver } = await safeExecFile(p, ["--version"], { timeoutMs: 5_000 });
+      const version = ver.trim();
+      if (version) installs.push({ path: p, version });
+    } catch {
+      // skip broken binaries
+    }
+  }
+
+  return installs;
 }

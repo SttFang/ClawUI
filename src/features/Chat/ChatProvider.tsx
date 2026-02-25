@@ -66,11 +66,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Fallback: if current session not in visible list, pick first
+    // Fallback: if current session not in visible list, pick first or clear
     const currentId = currentSession?.id;
     if (!currentId || !visibleSessions.some((s) => s.id === currentId)) {
-      const fallback = visibleSessions[0]?.id;
-      if (fallback) selectSession(fallback);
+      const fallback = visibleSessions[0]?.id ?? null;
+      selectSession(fallback);
     }
   }, [currentSession?.id, visibleSessions, selectSession, selectedAgentId]);
 

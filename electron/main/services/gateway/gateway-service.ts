@@ -185,8 +185,13 @@ export class GatewayService extends EventEmitter {
       }
 
       // If polling exhausted without reaching a terminal state, mark as error.
-      if (this.getStatus() === "starting") {
+      const finalStatus = this.getStatus();
+      if (finalStatus === "starting") {
         gatewayLog.warn("[gateway.start.timeout]", `port=${this.port}`, `waited=${waited}ms`);
+        this.setStatus("error");
+      } else if (finalStatus === "stopped" && waited < maxWait) {
+        // Process exited during polling (e.g. corrupt binary, port conflict)
+        gatewayLog.warn("[gateway.start.exited]", `port=${this.port}`, `waited=${waited}ms`);
         this.setStatus("error");
       }
     } catch (error) {

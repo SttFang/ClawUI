@@ -31,6 +31,9 @@ const chat = {
     confirmDelete:
       "Delete this session? (Will only remove the session entry; transcript is kept by default.)",
   },
+  agentDropdown: {
+    label: "Agent",
+  },
   sessionStrip: {
     label: "Label",
     optional: "(optional)",

@@ -30,6 +30,9 @@ const chat = {
     delete: "删除会话…",
     confirmDelete: "确定要删除这个会话吗？（默认只删除会话条目，不删除 transcript）",
   },
+  agentDropdown: {
+    label: "Agent",
+  },
   sessionStrip: {
     label: "标签",
     optional: "(可选)",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { ipc } from "@/lib/ipc";
 import { ensureChatConnected } from "@/services/chat/connection";
@@ -36,6 +36,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const selectedAgentId = useAgentsStore(agentsSelectors.selectSelectedAgentId);
+  const prevAgentIdRef = useRef(selectedAgentId);
+  const lastSessionByAgent = useRef(new Map<string, string>());
 
   const visibleSessions: SessionListItem[] = useMemo(() => {
     return sessions
@@ -47,13 +49,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       .map((s) => ({ id: s.id, name: s.name, updatedAt: s.updatedAt, surface: s.surface }));
   }, [sessions, selectedAgentId]);
 
+  // Save/restore active session per agent tab
   useEffect(() => {
+    const prev = prevAgentIdRef.current;
+    if (prev !== selectedAgentId) {
+      // Save current session for the agent we're leaving
+      const currentId = currentSession?.id;
+      if (currentId) lastSessionByAgent.current.set(prev, currentId);
+      prevAgentIdRef.current = selectedAgentId;
+
+      // Restore saved session for the agent we're entering
+      const saved = lastSessionByAgent.current.get(selectedAgentId);
+      if (saved && visibleSessions.some((s) => s.id === saved)) {
+        selectSession(saved);
+        return;
+      }
+    }
+
+    // Fallback: if current session not in visible list, pick first
     const currentId = currentSession?.id;
-    if (!currentId) return;
-    if (visibleSessions.some((s) => s.id === currentId)) return;
-    const fallback = visibleSessions[0]?.id;
-    if (fallback) selectSession(fallback);
-  }, [currentSession?.id, visibleSessions, selectSession]);
+    if (!currentId || !visibleSessions.some((s) => s.id === currentId)) {
+      const fallback = visibleSessions[0]?.id;
+      if (fallback) selectSession(fallback);
+    }
+  }, [currentSession?.id, visibleSessions, selectSession, selectedAgentId]);
 
   useEffect(() => {
     void refreshSessions();
@@ -95,7 +114,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     void createGatewayUiSession().catch(() => {});
   }, [createGatewayUiSession]);
 
-  const onSelectSession = useCallback((id: string) => selectSession(id), [selectSession]);
+  const onSelectSession = useCallback(
+    (id: string) => {
+      lastSessionByAgent.current.set(selectedAgentId, id);
+      selectSession(id);
+    },
+    [selectSession, selectedAgentId],
+  );
 
   const onRenameSession = useCallback(
     (id: string, label: string) => void renameSession(id, label).catch(() => {}),

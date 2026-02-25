@@ -3,7 +3,6 @@ import type { Session } from "./initialState";
 let messageIdCounter = 0;
 export const generateMessageId = () => `msg_${Date.now()}_${messageIdCounter++}`;
 
-const DEFAULT_UI_SESSION_PREFIX = "agent:main:ui";
 /** Gateway normalizes "main" → "agent:main:main", matching heartbeat's session. */
 export const MAIN_SESSION_KEY = "main";
 const MAIN_SESSION_KEY_NORMALIZED = "agent:main:main";
@@ -11,7 +10,8 @@ export const isMainSessionKey = (id: string): boolean =>
   id === MAIN_SESSION_KEY || id === MAIN_SESSION_KEY_NORMALIZED;
 /** Subagent sessions (e.g. "agent:main:subagent:xxx") should not appear in the sidebar. */
 export const isSubagentSessionKey = (id: string): boolean => id.includes(":subagent:");
-export const generateUiSessionKey = () => `${DEFAULT_UI_SESSION_PREFIX}:${generateChatRunId()}`;
+export const generateUiSessionKey = (agentId = "main") =>
+  `agent:${agentId}:ui:${generateChatRunId()}`;
 
 let chatRunIdCounter = 0;
 export const generateChatRunId = (): string => {

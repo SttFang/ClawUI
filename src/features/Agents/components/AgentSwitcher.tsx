@@ -2,10 +2,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@clawui/ui";
-import { ChevronDown, Download, MoreHorizontal, Plus } from "lucide-react";
+import { Download, MoreHorizontal, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useAgentsStore, agentsSelectors } from "@/store/agents";
@@ -20,40 +19,28 @@ export function AgentSwitcher({ onExport }: AgentSwitcherProps) {
   const selectedAgentId = useAgentsStore(agentsSelectors.selectSelectedAgentId);
   const selectAgent = useAgentsStore((s) => s.selectAgent);
 
-  const selectedAgent = agents.find((a) => a.id === selectedAgentId);
-
   return (
     <div className="flex items-center justify-between px-4 py-2">
-      {/* Agent dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1.5 text-sm font-medium hover:text-foreground transition-colors">
-            <span>
-              {selectedAgent?.emoji ? `${selectedAgent.emoji} ` : ""}
-              {selectedAgent?.name ?? selectedAgentId ?? "main"}
-            </span>
-            <ChevronDown className="size-3.5 text-muted-foreground" />
+      <div className="flex items-center gap-1">
+        {agents.map((agent) => (
+          <button
+            key={agent.id}
+            onClick={() => selectAgent(agent.id)}
+            className={cn(
+              "rounded-full px-3 py-1 text-sm font-medium transition-colors",
+              selectedAgentId === agent.id
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {agent.emoji ? `${agent.emoji} ` : ""}
+            {agent.name ?? agent.id}
           </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {agents.map((agent) => (
-            <DropdownMenuItem
-              key={agent.id}
-              onClick={() => selectAgent(agent.id)}
-              className={cn(selectedAgentId === agent.id && "bg-accent")}
-            >
-              <span className="mr-1.5">{selectedAgentId === agent.id ? "\u25CF" : "\u25CB"}</span>
-              {agent.emoji ? `${agent.emoji} ` : ""}
-              {agent.name ?? agent.id}
-            </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>
-            <Plus className="mr-2 size-3.5" />
-            {t("agents.agentDesktop.switcher.create")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        ))}
+        <button className="rounded-full p-1.5 text-muted-foreground hover:bg-muted transition-colors">
+          <Plus className="size-3.5" />
+        </button>
+      </div>
 
       {/* More actions */}
       <DropdownMenu>

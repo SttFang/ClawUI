@@ -1,5 +1,5 @@
-appId: com.catchclaw.app
-productName: CatchClaw
+appId: com.clawui.app
+productName: ClawUI
 directories:
   buildResources: resources
   output: dist
@@ -9,7 +9,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: CatchClaw
+  executableName: ClawUI
   target:
     - nsis
     - portable
@@ -35,11 +35,11 @@ linux:
   target:
     - AppImage
     - deb
-  maintainer: CatchClaw Team
+  maintainer: ClawUI Team
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
 publish:
   provider: github
-  owner: your-username
-  repo: CatchClaw
+  owner: SttFang
+  repo: ClawUI

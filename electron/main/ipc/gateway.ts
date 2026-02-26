@@ -3,7 +3,7 @@ import type { ConfigService } from "../services/config";
 import { DEFAULT_GATEWAY_PORT } from "../constants";
 import { GatewayService } from "../services/gateway";
 import { resolveCommandPath } from "../utils/login-shell";
-import { safeExecFile } from "../utils/safe-exec";
+import { enrichedEnv, safeExecFile } from "../utils/safe-exec";
 import { broadcastToWindows } from "./forward";
 
 export function registerGatewayHandlers(
@@ -50,18 +50,24 @@ export function registerGatewayHandlers(
     const args = ["gateway", "install", "--force", "--port", String(port)];
     const token = cfg?.gateway?.auth?.token;
     if (token) args.push("--token", token);
-    await safeExecFile(openclawPath, args, { timeoutMs: 120_000 });
+    await safeExecFile(openclawPath, args, { timeoutMs: 120_000, env: enrichedEnv() });
   });
 
   ipcMain.handle("gateway:restart-service", async () => {
     const openclawPath = await resolveCommandPath("openclaw");
     if (!openclawPath) throw new Error("openclaw not found in PATH");
-    await safeExecFile(openclawPath, ["gateway", "restart"], { timeoutMs: 60_000 });
+    await safeExecFile(openclawPath, ["gateway", "restart"], {
+      timeoutMs: 60_000,
+      env: enrichedEnv(),
+    });
   });
 
   ipcMain.handle("gateway:uninstall-service", async () => {
     const openclawPath = await resolveCommandPath("openclaw");
     if (!openclawPath) throw new Error("openclaw not found in PATH");
-    await safeExecFile(openclawPath, ["gateway", "uninstall"], { timeoutMs: 60_000 });
+    await safeExecFile(openclawPath, ["gateway", "uninstall"], {
+      timeoutMs: 60_000,
+      env: enrichedEnv(),
+    });
   });
 }

@@ -1,5 +1,7 @@
 import type { OpenClawInstall } from "@clawui/types/onboarding";
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { promisify } from "node:util";
 import { resolveCommandPath, execInLoginShell } from "./login-shell";
 import { safeExecFile } from "./safe-exec";
@@ -88,6 +90,22 @@ export async function runOpenClawJson<T>(
 }
 
 /**
+ * Well-known directories where openclaw may be installed.
+ * Used as fallback when login-shell PATH resolution fails
+ * (common in packaged .app launched from Finder).
+ */
+const WELL_KNOWN_DIRS: readonly string[] =
+  process.platform === "win32"
+    ? []
+    : [
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        path.join(process.env.HOME ?? "", ".npm-global", "bin"),
+        path.join(process.env.HOME ?? "", ".npm", "bin"),
+        "/usr/bin",
+      ];
+
+/**
  * Scan all openclaw binaries in PATH and return their paths + versions.
  * Shared by InstallerService and RuntimeDetectorService.
  */
@@ -105,7 +123,19 @@ export async function scanAllOpenClawInstalls(): Promise<OpenClawInstall[]> {
     if (single) paths = [single];
   }
 
+  // Fallback: probe well-known directories when login-shell scan finds nothing.
+  if (paths.length === 0) {
+    const binary = process.platform === "win32" ? "openclaw.exe" : "openclaw";
+    for (const dir of WELL_KNOWN_DIRS) {
+      const candidate = path.join(dir, binary);
+      if (existsSync(candidate)) paths.push(candidate);
+    }
+  }
+
+  const seen = new Set<string>();
   for (const p of paths) {
+    if (seen.has(p)) continue;
+    seen.add(p);
     try {
       const { stdout: ver } = await safeExecFile(p, ["--version"], { timeoutMs: 5_000 });
       const version = ver.trim();

@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@clawui/ui";
 import { OpenClaw } from "@lobehub/icons";
-import { MessageSquare, MoreHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { MessageSquare, MoreHorizontal, Sparkles, Terminal, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FaDiscord, FaSlack, FaTelegramPlane, FaWhatsapp } from "react-icons/fa";
@@ -45,6 +45,7 @@ function SourceIcon(props: { source: string }) {
   if (source === "slack") return <FaSlack className="h-3.5 w-3.5 text-[#4A154B]" />;
   if (source === "telegram") return <FaTelegramPlane className="h-3.5 w-3.5 text-[#229ED9]" />;
   if (source === "whatsapp") return <FaWhatsapp className="h-3.5 w-3.5 text-[#25D366]" />;
+  if (source === "acp") return <Terminal className="h-3.5 w-3.5 text-emerald-500" />;
   return <MessageSquare className="h-4 w-4 text-muted-foreground" />;
 }
 

@@ -11,4 +11,4 @@ export const CONFIG_AGENT_PROFILE_NAME = "clawui-config-agent";
  * ClawUI 要求的最低 OpenClaw 版本。
  * Installer 和 RuntimeDetector 共享此常量。
  */
-export const MIN_OPENCLAW_VERSION = "2026.2.9";
+export const MIN_OPENCLAW_VERSION = "2026.2.26";

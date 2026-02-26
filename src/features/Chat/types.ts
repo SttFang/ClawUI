@@ -11,6 +11,7 @@ export type SessionSource =
   | "irc"
   | "googlechat"
   | "imessage"
+  | "acp"
   | "cron"
   | "unknown";
 

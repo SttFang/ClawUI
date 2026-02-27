@@ -1,8 +1,20 @@
 import type { ModelCatalogEntry } from "@clawui/types/models";
-import { Button, Input } from "@clawui/ui";
-import { Plus, X } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import {
+  Button,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@clawui/ui";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 interface ModelConfigProps {
   defaultModel: string;
@@ -12,6 +24,80 @@ interface ModelConfigProps {
   onSetDefault: (model: string) => void;
   onAddFallback: (model: string) => void;
   onRemoveFallback: (model: string) => void;
+}
+
+/** Group catalog entries by provider prefix (before the first "/"). */
+function groupByProvider(models: ModelCatalogEntry[]): Map<string, ModelCatalogEntry[]> {
+  const groups = new Map<string, ModelCatalogEntry[]>();
+  for (const m of models) {
+    const slash = m.key.indexOf("/");
+    const provider = slash > 0 ? m.key.slice(0, slash) : "other";
+    const list = groups.get(provider);
+    if (list) list.push(m);
+    else groups.set(provider, [m]);
+  }
+  return groups;
+}
+
+function ModelCombobox({
+  value,
+  models,
+  placeholder,
+  disabled,
+  onSelect,
+}: {
+  value: string;
+  models: ModelCatalogEntry[];
+  placeholder: string;
+  disabled: boolean;
+  onSelect: (model: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const grouped = useMemo(() => groupByProvider(models), [models]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className="flex-1 justify-between font-mono text-sm min-w-0"
+        >
+          <span className="truncate">{value || placeholder}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput placeholder={placeholder} />
+          <CommandList>
+            <CommandEmpty>无匹配模型</CommandEmpty>
+            {[...grouped.entries()].map(([provider, items]) => (
+              <CommandGroup key={provider} heading={provider}>
+                {items.map((m) => (
+                  <CommandItem
+                    key={m.key}
+                    value={m.key}
+                    onSelect={(v) => {
+                      onSelect(v);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn("mr-2 h-4 w-4", value === m.key ? "opacity-100" : "opacity-0")}
+                    />
+                    <span className="font-mono truncate">{m.key}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export function ModelConfig({
@@ -24,10 +110,6 @@ export function ModelConfig({
   onRemoveFallback,
 }: ModelConfigProps) {
   const { t } = useTranslation("common");
-  const [defaultInput, setDefaultInput] = useState(defaultModel);
-  const [fallbackInput, setFallbackInput] = useState("");
-  const defaultListId = useId();
-  const fallbackListId = useId();
 
   const usedModels = useMemo(
     () => new Set([defaultModel, ...fallbacks]),
@@ -39,20 +121,6 @@ export function ModelConfig({
     [catalog, usedModels],
   );
 
-  const handleSetDefault = () => {
-    const value = defaultInput.trim();
-    if (value && value !== defaultModel) {
-      onSetDefault(value);
-    }
-  };
-
-  const handleAddFallback = () => {
-    const value = fallbackInput.trim();
-    if (!value || usedModels.has(value)) return;
-    onAddFallback(value);
-    setFallbackInput("");
-  };
-
   return (
     <div className="rounded-lg border p-3 space-y-3">
       {/* Default model */}
@@ -60,21 +128,13 @@ export function ModelConfig({
         <span className="text-sm text-muted-foreground shrink-0 w-20">
           {t("settings.modelConfig.defaultModel")}
         </span>
-        <Input
-          list={defaultListId}
-          value={defaultInput}
-          onChange={(e) => setDefaultInput(e.target.value)}
-          onBlur={handleSetDefault}
-          onKeyDown={(e) => e.key === "Enter" && handleSetDefault()}
+        <ModelCombobox
+          value={defaultModel}
+          models={catalog}
           placeholder={t("settings.modelConfig.fallbackPlaceholder")}
           disabled={isLoading}
-          className="flex-1 font-mono text-sm"
+          onSelect={onSetDefault}
         />
-        <datalist id={defaultListId}>
-          {catalog.map((model) => (
-            <option key={model.key} value={model.key} />
-          ))}
-        </datalist>
       </div>
 
       {/* Fallback models */}
@@ -83,29 +143,13 @@ export function ModelConfig({
           <span className="text-sm text-muted-foreground shrink-0 w-20">
             {t("settings.modelConfig.fallbacks")}
           </span>
-          <Input
-            list={fallbackListId}
-            value={fallbackInput}
-            onChange={(e) => setFallbackInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAddFallback()}
+          <ModelCombobox
+            value=""
+            models={availableFallbacks}
             placeholder={t("settings.modelConfig.fallbackPlaceholder")}
             disabled={isLoading}
-            className="flex-1 font-mono text-sm"
+            onSelect={onAddFallback}
           />
-          <datalist id={fallbackListId}>
-            {availableFallbacks.map((model) => (
-              <option key={model.key} value={model.key} />
-            ))}
-          </datalist>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleAddFallback}
-            disabled={isLoading || !fallbackInput.trim()}
-            className="shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
         </div>
         {fallbacks.length > 0 && (
           <div className="ml-[calc(5rem+0.75rem)] space-y-1">

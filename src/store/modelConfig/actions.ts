@@ -74,11 +74,8 @@ export const createModelConfigActions: StateCreator<
     set({ isCatalogLoading: true }, false, "modelConfig/loadCatalog");
     try {
       const result = await ipc.models.list();
-      set(
-        { catalog: result.models ?? [], isCatalogLoading: false },
-        false,
-        "modelConfig/loadCatalog/success",
-      );
+      const models = result.models ?? [];
+      set({ catalog: models, isCatalogLoading: false }, false, "modelConfig/loadCatalog/success");
     } catch (error) {
       get().internal_setError(
         error instanceof Error ? error.message : "Failed to load model catalog",

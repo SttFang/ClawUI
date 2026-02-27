@@ -152,8 +152,10 @@ export const useSettingsStore = create<SettingsStore>()(
 
           // Refresh provider auth status so the card reflects the new key,
           // and reload the model catalog so newly-available models appear.
+          // Restart the gateway so the running process picks up the new env.
           void get().loadModelsStatus();
           void useModelConfigStore.getState().loadCatalog();
+          void ipc.gateway.restartService().catch(() => {});
 
           setTimeout(() => {
             set({ saveSuccess: false }, false, "saveApiKeys/clearSuccess");

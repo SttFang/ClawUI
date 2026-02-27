@@ -166,8 +166,8 @@ export function AiServicesTab() {
       {/* Model Config: default + fallbacks */}
       {modelsStatus && (
         <ModelConfig
-          defaultModel={modelsStatus.defaultModel}
-          fallbacks={modelsStatus.fallbacks}
+          defaultModel={config.defaultModel}
+          fallbacks={config.fallbacks}
           catalog={config.catalog}
           isLoading={config.isLoading}
           onSetDefault={(model) => void config.setDefaultModel(model)}

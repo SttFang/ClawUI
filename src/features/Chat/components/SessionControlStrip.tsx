@@ -196,6 +196,8 @@ export function SessionControlStrip(props: {
       setSaving(true);
       try {
         await ipc.chat.request("sessions.patch", { key: sessionKey, ...partial });
+        // Optimistic update so the UI reflects the change immediately.
+        setRow((prev) => (prev ? { ...prev, ...partial } as GatewaySessionRow : prev));
         await refreshSessions();
         await load();
       } finally {

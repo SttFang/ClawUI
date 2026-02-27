@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { ipc } from "@/lib/ipc";
 import { configCoreManager } from "@/store/configDraft/manager";
+import { useModelConfigStore } from "@/store/modelConfig";
 import {
   buildProviderEnvPatch,
   hydrateApiKeysFromModelsStatus,
@@ -148,6 +149,11 @@ export const useSettingsStore = create<SettingsStore>()(
             await configCoreManager.applyEnvPatch(patch);
           }
           set({ isSaving: false, saveSuccess: true }, false, "saveApiKeys/success");
+
+          // Refresh provider auth status so the card reflects the new key,
+          // and reload the model catalog so newly-available models appear.
+          void get().loadModelsStatus();
+          void useModelConfigStore.getState().loadCatalog();
 
           setTimeout(() => {
             set({ saveSuccess: false }, false, "saveApiKeys/clearSuccess");

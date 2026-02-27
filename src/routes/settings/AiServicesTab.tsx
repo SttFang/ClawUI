@@ -99,7 +99,11 @@ export function AiServicesTab() {
     [setApiKey],
   );
 
-  // Merge real providers + fallback list (full coverage)
+  // Merge real providers + fallback list (full coverage).
+  // Fallback entries default to effective.kind="none", but if the user has
+  // already saved an API key (present in apiKeys store) the CLI may not yet
+  // report the provider (e.g. minimax is not in the CLI's envProbeProviders
+  // list).  Patch those entries so the card shows "configured" immediately.
   const providerInfos = useMemo(() => {
     const merged: ProviderAuthInfo[] = [];
     const seen = new Set<string>();
@@ -114,12 +118,26 @@ export function AiServicesTab() {
     for (const provider of fallbackProviderInfos) {
       const providerId = normalizeProviderId(provider.provider);
       if (!providerId || seen.has(providerId)) continue;
-      merged.push({ ...provider, provider: providerId });
+
+      // If we have a saved key for this provider, override the "none" status.
+      const savedKey = getApiKeyInputValue(apiKeys, providerId);
+      if (savedKey && provider.effective.kind === "none") {
+        merged.push({
+          ...provider,
+          provider: providerId,
+          effective: {
+            kind: "env",
+            detail: savedKey.length > 4 ? `***${savedKey.slice(-4)}` : "***",
+          },
+        });
+      } else {
+        merged.push({ ...provider, provider: providerId });
+      }
       seen.add(providerId);
     }
 
     return merged;
-  }, [modelsStatus]);
+  }, [modelsStatus, apiKeys]);
 
   if (modelsLoading) {
     return (

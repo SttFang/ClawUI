@@ -96,7 +96,7 @@ app.whenReady().then(async () => {
   registerAppHandlers(ipcMain, updaterService);
   registerOnboardingHandlers();
   registerStateHandlers(ipcMain, clawUIStateService);
-  registerModelsHandlers(ipcMain);
+  registerModelsHandlers(ipcMain, configService);
   registerProfilesHandlers(ipcMain, profilesService);
   registerMetadataHandlers(ipcMain, {
     stateService: clawUIStateService,

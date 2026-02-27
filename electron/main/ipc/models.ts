@@ -6,6 +6,7 @@ import type {
   ModelsStatusProbeOptions,
 } from "@clawui/types";
 import type { IpcMain } from "electron";
+import type { ConfigService } from "../services/config/config-store";
 import { mainLog } from "../lib/logger";
 import {
   assertProvider,
@@ -74,14 +75,27 @@ function toProfileList(input: unknown): string[] {
   return input.map((item) => trimArg(item)).filter((item): item is string => Boolean(item));
 }
 
-export function registerModelsHandlers(ipcMain: IpcMain): void {
+export function registerModelsHandlers(ipcMain: IpcMain, configService: ConfigService): void {
+  /** Read string env vars from openclaw.json to inject into CLI subprocesses. */
+  async function getConfigEnv(): Promise<Record<string, string>> {
+    const cfg = await configService.getConfig();
+    const raw = cfg?.env ?? {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof v === "string") out[k] = v;
+    }
+    return out;
+  }
+
   ipcMain.handle(
     "models:status",
     async (_, options?: ModelsStatusProbeOptions): Promise<ModelsStatus | null> => {
       const openclawPath = await resolveOpenClawPath();
       const args = buildModelsStatusArgs(options);
       try {
-        const result = await runOpenClawJson<ModelsStatus>(openclawPath, args, "models status");
+        const result = await runOpenClawJson<ModelsStatus>(openclawPath, args, "models status", {
+          env: await getConfigEnv(),
+        });
         mainLog.info("[models.status] loaded", {
           defaultModel: result.defaultModel,
           providers: result.auth.providers.length,
@@ -97,11 +111,16 @@ export function registerModelsHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle("models:list", async (): Promise<ModelsCatalogResult> => {
     const openclawPath = await resolveOpenClawPath();
-    return runOpenClawJson<ModelsCatalogResult>(
+    const configEnv = await getConfigEnv();
+    const result = await runOpenClawJson<ModelsCatalogResult>(
       openclawPath,
-      ["models", "list", "--json"],
+      ["models", "list", "--json", "--all"],
       "models list",
+      { env: configEnv },
     );
+    // Only surface models the user can actually use.
+    const available = result.models.filter((m) => m.available);
+    return { count: available.length, models: available };
   });
 
   ipcMain.handle("models:set-default", async (_, model: string): Promise<void> => {

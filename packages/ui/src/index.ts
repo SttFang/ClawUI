@@ -5,6 +5,15 @@ export { cn } from "./utils";
 export { Alert, AlertTitle, AlertDescription } from "./alert";
 export { Button, buttonVariants, type ButtonProps } from "./button";
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from "./card";
+export {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandSeparator,
+} from "./command";
 export { Input, type InputProps } from "./input";
 export { Label, type LabelProps } from "./label";
 export { Progress } from "./progress";

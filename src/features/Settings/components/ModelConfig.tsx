@@ -80,8 +80,8 @@ function ModelCombobox({
                   <CommandItem
                     key={m.key}
                     value={m.key}
-                    onSelect={(v) => {
-                      onSelect(v);
+                    onSelect={() => {
+                      onSelect(m.key);
                       setOpen(false);
                     }}
                   >

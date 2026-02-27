@@ -1,4 +1,6 @@
 import type { OpenClawInstall } from "@clawui/types/onboarding";
+import { spawn } from "node:child_process";
+import { readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { installerLog } from "../lib/logger";
 import { resolveCommandPath } from "../utils/login-shell";
@@ -174,17 +176,74 @@ export class InstallerService {
     if (existingNpmPrefix) {
       args.push("--prefix", existingNpmPrefix);
       installerLog.info("[install.npm]", `spec=${spec}`, `prefix=${existingNpmPrefix}`);
+      await this.cleanStaleTempDirs(path.join(existingNpmPrefix, "lib", "node_modules"));
     } else {
       installerLog.info("[install.npm]", `spec=${spec}`, "prefix=default");
     }
 
-    await safeExecFile(npmPath, args, { timeoutMs: 10 * 60_000, env: enrichedEnv() });
+    await this.spawnNpmInstall(npmPath, args, onProgress);
 
     installerLog.info("[install.npm.ok]", `spec=${spec}`, `durationMs=${Date.now() - t0}`);
     onProgress({
       stage: "installing-openclaw",
       progress: 80,
       message: "OpenClaw installed successfully",
+    });
+  }
+
+  /**
+   * Remove stale `.openclaw-*` temp dirs left by failed npm upgrades (ENOTEMPTY fix).
+   * Best-effort — failures are logged but don't block the install.
+   */
+  private async cleanStaleTempDirs(nodeModulesDir: string): Promise<void> {
+    try {
+      const entries = await readdir(nodeModulesDir);
+      const stale = entries.filter((e) => e.startsWith(".openclaw-"));
+      for (const dir of stale) {
+        const full = path.join(nodeModulesDir, dir);
+        installerLog.info("[install.cleanup.stale]", `path=${full}`);
+        await rm(full, { recursive: true, force: true });
+      }
+    } catch {
+      // Directory may not exist yet (fresh install) — that's fine.
+    }
+  }
+
+  private spawnNpmInstall(
+    npmPath: string,
+    args: string[],
+    onProgress: ProgressCallback,
+  ): Promise<{ stdout: string; stderr: string }> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(npmPath, args, {
+        env: enrichedEnv(),
+        timeout: 10 * 60_000,
+      });
+
+      let stdout = "";
+      let stderr = "";
+      let lineCount = 0;
+
+      child.stdout?.on("data", (chunk: Buffer) => {
+        stdout += chunk;
+      });
+      child.stderr?.on("data", (chunk: Buffer) => {
+        stderr += chunk;
+        const newLines = String(chunk).split("\n").filter(Boolean).length;
+        lineCount += newLines;
+        const progress = Math.min(40 + lineCount * 2, 78);
+        onProgress({
+          stage: "installing-openclaw",
+          progress,
+          message: String(chunk).trim().slice(-80) || "Installing...",
+        });
+      });
+
+      child.on("error", reject);
+      child.on("close", (code) => {
+        if (code === 0) resolve({ stdout, stderr });
+        else reject(new Error(`npm exited with code ${code}\n${stderr}`));
+      });
     });
   }
 

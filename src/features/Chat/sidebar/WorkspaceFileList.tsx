@@ -62,7 +62,7 @@ export function WorkspaceFileList() {
       </div>
 
       <CollapsibleContent>
-        <ScrollArea className="max-h-40">
+        <ScrollArea className="max-h-80">
           <div className="px-2 pb-2 space-y-0.5">
             {error && (
               <p className="px-2 text-xs text-destructive">{t("workspaceFiles.loadError")}</p>

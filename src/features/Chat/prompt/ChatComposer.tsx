@@ -9,11 +9,12 @@ import {
   PromptInputSubmit,
 } from "@clawui/ui";
 import { ArrowUp, Paperclip } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { SessionControlStrip } from "../components/SessionControlStrip";
 import { ExecApprovalInlinePanel, useHasPendingExecApproval } from "./ExecApprovalInlinePanel";
+import { SkillSelector } from "./SkillSelector";
 import { useImageAttachments } from "./useImageAttachments";
 
 export type { ComposerImageAttachment } from "./useImageAttachments";
@@ -45,6 +46,7 @@ export function ChatComposer(props: {
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
+  const [selectedSkill, setSelectedSkill] = useState("");
   const hasPendingApproval = useHasPendingExecApproval(sessionKey);
   const composerDisabled = disabled || hasPendingApproval;
 
@@ -64,7 +66,15 @@ export function ChatComposer(props: {
   const submit = async () => {
     if (composerDisabled) return;
     const images = getImagesAndClear();
-    await onSubmit({ text: value.trim(), images });
+    const text = value.trim();
+
+    let finalText = text;
+    if (selectedSkill) {
+      finalText = `<skill_request>\n请使用技能「${selectedSkill}」来完成下面的任务。\n</skill_request>\n\n${text}`;
+      setSelectedSkill("");
+    }
+
+    await onSubmit({ text: finalText, images });
     inputRef.current?.focus();
   };
 
@@ -145,11 +155,18 @@ export function ChatComposer(props: {
               </PromptInputAction>
 
               {showSessionControls ? (
-                <SessionControlStrip
-                  sessionKey={sessionKey}
-                  disabled={sessionControlsDisabled || hasPendingApproval}
-                  className="mt-0"
-                />
+                <>
+                  <SessionControlStrip
+                    sessionKey={sessionKey}
+                    disabled={sessionControlsDisabled || hasPendingApproval}
+                    className="mt-0"
+                  />
+                  <SkillSelector
+                    value={selectedSkill}
+                    onChange={setSelectedSkill}
+                    disabled={composerDisabled}
+                  />
+                </>
               ) : null}
             </PromptInputTools>
 

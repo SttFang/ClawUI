@@ -204,6 +204,10 @@ const common = {
     },
     cron: {
       openPanel: "Open Cron panel",
+      allJobs: "All Jobs",
+      today: "Today",
+      noJobsOnDate: "No jobs on this date",
+      weekdays: "SuMoTuWeThFrSa",
       loadFailed: "Failed to load cron",
       enabled: "Enabled",
       jobs: "Jobs",

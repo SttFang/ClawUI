@@ -222,6 +222,10 @@ const common = {
     },
     cron: {
       openPanel: "打开 Cron 面板",
+      allJobs: "全部任务",
+      today: "今天",
+      noJobsOnDate: "该日期无任务",
+      weekdays: "日一二三四五六",
       loadFailed: "Cron 加载失败",
       enabled: "启用",
       jobs: "任务数",

@@ -224,6 +224,7 @@ const common = {
       viewRuns: "Runs",
       confirmRemove: "Remove this cron job?",
       remove: "Remove",
+      nMore: "+{{n}} more",
       empty: "No cron jobs.",
       runsTitle: "Runs",
       runsEmpty: "No run history.",

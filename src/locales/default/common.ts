@@ -242,6 +242,7 @@ const common = {
       viewRuns: "运行记录",
       confirmRemove: "确定要删除这个 cron job 吗？",
       remove: "删除",
+      nMore: "还有 {{n}} 个",
       empty: "没有 cron jobs。",
       runsTitle: "运行记录",
       runsEmpty: "没有运行记录。",

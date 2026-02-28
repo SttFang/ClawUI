@@ -14,17 +14,9 @@ import { cn } from "@/lib/utils";
 import { ensureChatConnected } from "@/services/chat/connection";
 import { useChatStore } from "@/store/chat";
 
-type GatewaySessionsDefaults = {
-  // Keep for forward-compat; currently unused in this component.
-  contextTokens?: number | null;
-};
-
 type GatewaySessionRow = {
   key: string;
   model?: string;
-  thinkingLevel?: string;
-  verboseLevel?: string;
-  reasoningLevel?: string;
 };
 
 type GatewayModelChoice = {
@@ -35,17 +27,12 @@ type GatewayModelChoice = {
 };
 
 type SessionsListResult = {
-  defaults?: GatewaySessionsDefaults;
   sessions?: GatewaySessionRow[];
 };
 
 type ModelsListResult = {
   models?: GatewayModelChoice[];
 };
-
-const THINKING_OPTIONS = ["inherit", "off", "minimal", "low", "medium", "high", "xhigh"] as const;
-const VERBOSE_OPTIONS = ["inherit", "off", "on", "full"] as const;
-const REASONING_OPTIONS = ["inherit", "off", "on", "stream"] as const;
 
 function normalizeModelKey(choice: GatewayModelChoice): string {
   if (typeof choice.key === "string" && choice.key.trim()) return choice.key.trim();
@@ -64,32 +51,6 @@ function toPatchValue(value: string): string | null {
   return value === "inherit" ? null : value;
 }
 
-function formatOptionLabel(t: (key: string) => string, v: string): string {
-  if (v === "inherit") return t("sessionStrip.inherit");
-  switch (v) {
-    case "off":
-      return t("sessionStrip.option.off");
-    case "on":
-      return t("sessionStrip.option.on");
-    case "stream":
-      return t("sessionStrip.option.stream");
-    case "full":
-      return t("sessionStrip.option.full");
-    case "minimal":
-      return t("sessionStrip.option.minimal");
-    case "low":
-      return t("sessionStrip.option.low");
-    case "medium":
-      return t("sessionStrip.option.medium");
-    case "high":
-      return t("sessionStrip.option.high");
-    case "xhigh":
-      return t("sessionStrip.option.xhigh");
-    default:
-      return v;
-  }
-}
-
 /* ── Ghost trigger button ────────────────────────────────────── */
 
 const triggerCn = cn(
@@ -99,7 +60,7 @@ const triggerCn = cn(
   "h-7 cursor-default outline-none",
 );
 
-function ControlDropdown(props: {
+export function ControlDropdown(props: {
   label: string;
   triggerText: string;
   value: string;
@@ -196,34 +157,22 @@ export function SessionControlStrip(props: {
       setSaving(true);
       try {
         await ipc.chat.request("sessions.patch", { key: sessionKey, ...partial });
-        // Optimistic update — avoids stale data from a subsequent load().
-        setRow((prev) => (prev ? { ...prev, ...partial } as GatewaySessionRow : prev));
+        setRow((prev) => (prev ? ({ ...prev, ...partial } as GatewaySessionRow) : prev));
         await refreshSessions();
       } finally {
         setSaving(false);
       }
     },
-    [disabled, load, refreshSessions, sessionKey],
+    [disabled, refreshSessions, sessionKey],
   );
 
   const isBusy = disabled || saving;
-  const thinkingValue = toSelectValue(row?.thinkingLevel);
-  const verboseValue = toSelectValue(row?.verboseLevel);
-  const reasoningValue = toSelectValue(row?.reasoningLevel);
   const modelValue = toSelectValue(row?.model);
 
-  // Trigger text helpers
   const modelTrigger =
     modelValue === "inherit"
       ? t("sessionStrip.inherit")
       : (modelChoices.find((m) => m.key === modelValue)?.display ?? modelValue);
-
-  const labeledTrigger = (label: string, value: string) =>
-    value === "inherit" ? label : `${label}\u00b7${formatOptionLabel(t, value)}`;
-
-  // Build option lists
-  const buildOptions = (opts: readonly string[]) =>
-    opts.map((v) => ({ value: v, label: formatOptionLabel(t, v) }));
 
   const modelOptions: Array<{ value: string; label: string }> = [
     { value: "inherit", label: t("sessionStrip.inherit") },
@@ -245,33 +194,6 @@ export function SessionControlStrip(props: {
         options={modelOptions}
         disabled={isBusy}
         onChange={(v) => void patch({ model: toPatchValue(v) })}
-      />
-
-      <ControlDropdown
-        label={t("sessionStrip.thinking")}
-        triggerText={labeledTrigger(t("sessionStrip.thinking"), thinkingValue)}
-        value={thinkingValue}
-        options={buildOptions(THINKING_OPTIONS)}
-        disabled={isBusy}
-        onChange={(v) => void patch({ thinkingLevel: toPatchValue(v) })}
-      />
-
-      <ControlDropdown
-        label={t("sessionStrip.verbose")}
-        triggerText={labeledTrigger(t("sessionStrip.verbose"), verboseValue)}
-        value={verboseValue}
-        options={buildOptions(VERBOSE_OPTIONS)}
-        disabled={isBusy}
-        onChange={(v) => void patch({ verboseLevel: toPatchValue(v) })}
-      />
-
-      <ControlDropdown
-        label={t("sessionStrip.reasoning")}
-        triggerText={labeledTrigger(t("sessionStrip.reasoning"), reasoningValue)}
-        value={reasoningValue}
-        options={buildOptions(REASONING_OPTIONS)}
-        disabled={isBusy}
-        onChange={(v) => void patch({ reasoningLevel: toPatchValue(v) })}
       />
     </div>
   );

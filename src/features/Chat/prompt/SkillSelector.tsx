@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAgentsStore } from "@/store/agents";
 import { agentsSelectors } from "@/store/agents/selectors";
@@ -10,6 +11,15 @@ export function SkillSelector(props: {
 }) {
   const { t } = useTranslation("chat");
   const skills = useAgentsStore(agentsSelectors.selectSkillEntries);
+  const skillsRaw = useAgentsStore(agentsSelectors.selectSkills);
+  const loadSkills = useAgentsStore((s) => s.loadSkills);
+
+  // skills === null means never loaded; [] means loaded but empty
+  useEffect(() => {
+    if (skillsRaw === null) {
+      void loadSkills();
+    }
+  }, [skillsRaw, loadSkills]);
 
   const options = [
     { value: "", label: t("sessionStrip.noSkill") },

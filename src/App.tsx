@@ -9,6 +9,7 @@ import { initGatewayActivityListener } from "@/store/gatewayActivity";
 import { initRunMapListener } from "@/store/runMap";
 import { initSubagentsListener } from "@/store/subagents";
 import { initTheme } from "@/store/ui";
+import { initWorkspaceFilesListener } from "@/store/workspaceFiles/listener";
 
 // Initialize IPC listeners and theme once
 initGatewayIpcListener();
@@ -19,6 +20,7 @@ initExecApprovalsListener();
 initExecLifecycleListener();
 initRunMapListener();
 initSubagentsListener();
+initWorkspaceFilesListener();
 initTheme();
 
 function App() {

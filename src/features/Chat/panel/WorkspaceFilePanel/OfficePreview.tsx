@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { OpenTab } from "@/store/workspaceFiles";
 import { cn } from "@/lib/utils";
 import { classifyOfficePreview } from "../officePreview";
+import { PdfViewer } from "./PdfViewer";
 
 function OfficeUnsupportedContent({ tab }: { tab: OpenTab }) {
   const { t } = useTranslation("chat");
@@ -265,7 +266,7 @@ export function OfficeContent({ tab }: { tab: OpenTab }) {
 
   const kind = classifyOfficePreview(tab.name);
   if (kind === "pdf") {
-    return <iframe src={tab.content} title={tab.name} className="h-full w-full border-0" />;
+    return <PdfViewer dataUrl={tab.content} />;
   }
   if (kind === "docx") {
     return <OfficeDocxContent tab={tab} />;

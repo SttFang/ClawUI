@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useOpenClawHistorySync } from "@/services/chat/useOpenClawHistorySync";
 import { useChatStore, selectSessionsInitialized } from "@/store/chat";
 import { selectIsCompacting, useCompactionStore } from "@/store/compaction";
+import { useQuickActionStore } from "@/store/quickAction";
 import { type ComposerImageAttachment, ChatComposer } from "../prompt/ChatComposer";
 import { createRendererOpenClawAdapter } from "../utils/openclawAdapter";
 import { AssistantMessageItem } from "./AssistantMessageItem";
@@ -117,6 +118,26 @@ export function OpenClawChatPanel(props: {
   });
 
   const isBusy = chat.status === "submitted" || chat.status === "streaming";
+
+  // Consume pending quick action text from workspace selection
+  const pendingInsert = useQuickActionStore((s) => s.pendingInsert);
+  useEffect(() => {
+    if (!pendingInsert) return;
+    const { text, autoSend } = useQuickActionStore.getState().consume();
+    if (!text) return;
+
+    if (autoSend && !isBusy && isGatewayRunning && wsConnected) {
+      if (!hasSession) {
+        pendingMessageRef.current = text;
+        void onStartConversation();
+      } else {
+        void chat.sendMessage({ text });
+      }
+    } else {
+      setInput(text);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingInsert]);
   const activeAssistantMessageId = useMemo(() => {
     if (chat.status !== "streaming") return null;
     for (let i = chat.messages.length - 1; i >= 0; i -= 1) {

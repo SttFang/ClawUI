@@ -31,6 +31,11 @@ export function VideoContent({ tab }: { tab: OpenTab }) {
 export function HtmlContent({ tab }: { tab: OpenTab }) {
   if (!tab.content) return null;
   return (
-    <iframe sandbox="" srcDoc={tab.content} title={tab.name} className="h-full w-full border-0" />
+    <iframe
+      sandbox="allow-same-origin"
+      srcDoc={tab.content}
+      title={tab.name}
+      className="h-full w-full border-0"
+    />
   );
 }

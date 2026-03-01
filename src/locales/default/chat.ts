@@ -73,6 +73,11 @@ const chat = {
     sheetEmpty: "该工作表为空。",
     openInSystem: "用系统程序打开",
     searchPlaceholder: "搜索文件...",
+    selection: {
+      explain: "解释",
+      search: "搜索",
+      send: "发送",
+    },
   },
 } as const;
 

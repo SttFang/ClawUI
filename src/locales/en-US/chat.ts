@@ -71,6 +71,11 @@ const chat = {
     sheetEmpty: "This sheet is empty.",
     openInSystem: "Open with system app",
     searchPlaceholder: "Search files...",
+    selection: {
+      explain: "Explain",
+      search: "Search",
+      send: "Send",
+    },
   },
 } as const;
 

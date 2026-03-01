@@ -8,6 +8,7 @@ import { useWorkspaceFilesStore } from "@/store/workspaceFiles";
 import { ImageContent, VideoContent, HtmlContent } from "./MediaContent";
 import { OfficeContent } from "./OfficePreview";
 import { PythonRunBar } from "./PythonRunBar";
+import { SelectionToolbar } from "./SelectionToolbar";
 import { TextContent } from "./TextContent";
 
 function isPython(name: string): boolean {
@@ -89,7 +90,9 @@ export function WorkspaceFilePanel() {
     <div className="flex h-full flex-col bg-card">
       <TabBar />
 
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
+        <SelectionToolbar />
+
         {activeTab.loading && <p className="p-4 text-sm text-muted-foreground">...</p>}
 
         {activeTab.error && <p className="p-4 text-sm text-destructive">{activeTab.error}</p>}

@@ -39,6 +39,7 @@ const chat = {
     model: "模型",
     skill: "技能",
     noSkill: "无",
+    clearSkills: "清除所有技能",
     actions: "操作",
     inherit: "默认",
     option: {},

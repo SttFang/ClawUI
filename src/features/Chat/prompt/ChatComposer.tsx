@@ -46,7 +46,7 @@ export function ChatComposer(props: {
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
-  const [selectedSkill, setSelectedSkill] = useState("");
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const hasPendingApproval = useHasPendingExecApproval(sessionKey);
   const composerDisabled = disabled || hasPendingApproval;
 
@@ -69,9 +69,10 @@ export function ChatComposer(props: {
     const text = value.trim();
 
     let finalText = text;
-    if (selectedSkill) {
-      finalText = `<skill_request>\n请使用技能「${selectedSkill}」来完成下面的任务。\n</skill_request>\n\n${text}`;
-      setSelectedSkill("");
+    if (selectedSkills.length > 0) {
+      const names = selectedSkills.map((s) => `「${s}」`).join("、");
+      finalText = `<skill_request>\n请使用技能${names}来完成下面的任务。\n</skill_request>\n\n${text}`;
+      setSelectedSkills([]);
     }
 
     await onSubmit({ text: finalText, images });
@@ -162,8 +163,8 @@ export function ChatComposer(props: {
                     className="mt-0"
                   />
                   <SkillSelector
-                    value={selectedSkill}
-                    onChange={setSelectedSkill}
+                    value={selectedSkills}
+                    onChange={setSelectedSkills}
                     disabled={composerDisabled}
                   />
                 </>

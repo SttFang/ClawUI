@@ -40,6 +40,7 @@ const chat = {
     model: "Model",
     skill: "Skill",
     noSkill: "None",
+    clearSkills: "Clear all skills",
     actions: "Actions",
     inherit: "inherit",
     option: {},

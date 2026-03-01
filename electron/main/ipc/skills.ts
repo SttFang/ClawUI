@@ -70,6 +70,7 @@ async function fallbackScan(): Promise<SkillEntry[]> {
 
 export function registerSkillsHandlers(ipcMain: IpcMain): void {
   ipcMain.handle("skills:list", async (): Promise<SkillsListResult> => {
+    let cliSkills: SkillEntry[] = [];
     try {
       const openclawPath = await resolveOpenClawPath();
       const report = await runOpenClawJson<CLIReport>(
@@ -77,20 +78,32 @@ export function registerSkillsHandlers(ipcMain: IpcMain): void {
         ["skills", "list", "--json", "--eligible"],
         "skills list",
       );
-      const skills: SkillEntry[] = (report.skills ?? []).map((s) => ({
+      cliSkills = (report.skills ?? []).map((s) => ({
         name: s.name,
         description: s.description ?? "",
         source: s.source ?? "",
       }));
-      mainLog.info("[skills.list] loaded via CLI", { count: skills.length });
-      return { skills };
+      mainLog.info("[skills.list] loaded via CLI", { count: cliSkills.length });
     } catch (e) {
-      mainLog.warn("[skills.list] CLI failed, falling back to dir scan", {
+      mainLog.warn("[skills.list] CLI failed, will use dir scan", {
         error: e instanceof Error ? e.message : String(e),
       });
-      const skills = await fallbackScan();
-      mainLog.info("[skills.list] loaded via fallback", { count: skills.length });
-      return { skills };
     }
+
+    // CLI returned nothing → supplement with fallback directory scan
+    if (cliSkills.length === 0) {
+      const scanned = await fallbackScan();
+      mainLog.info("[skills.list] fallback scan", { count: scanned.length });
+      // Merge: CLI results first, then scanned (deduplicated)
+      const seen = new Set(cliSkills.map((s) => s.name));
+      for (const entry of scanned) {
+        if (!seen.has(entry.name)) {
+          seen.add(entry.name);
+          cliSkills.push(entry);
+        }
+      }
+    }
+
+    return { skills: cliSkills };
   });
 }

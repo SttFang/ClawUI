@@ -71,6 +71,7 @@ const chat = {
     sheet: "工作表",
     sheetEmpty: "该工作表为空。",
     openInSystem: "用系统程序打开",
+    searchPlaceholder: "搜索文件...",
   },
 } as const;
 

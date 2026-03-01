@@ -69,6 +69,7 @@ const chat = {
     sheet: "Sheet",
     sheetEmpty: "This sheet is empty.",
     openInSystem: "Open with system app",
+    searchPlaceholder: "Search files...",
   },
 } as const;
 

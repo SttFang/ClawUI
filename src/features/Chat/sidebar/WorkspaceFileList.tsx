@@ -1,9 +1,10 @@
-import { Collapsible, CollapsibleContent, CollapsibleTrigger, ScrollArea } from "@clawui/ui";
-import { ChevronRight, FileText, Folder, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, Input, ScrollArea } from "@clawui/ui";
+import { ChevronRight, RefreshCw, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useWorkspaceFilesStore } from "@/store/workspaceFiles";
+import { getFileIcon } from "./fileIcons";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -21,6 +22,8 @@ export function WorkspaceFileList() {
   const openFile = useWorkspaceFilesStore((s) => s.openFile);
   const loadFiles = useWorkspaceFilesStore((s) => s.loadFiles);
   const [open, setOpen] = useState(true);
+  const [query, setQuery] = useState("");
+  const prevPathRef = useRef(currentPath);
 
   useEffect(() => {
     const shouldAutoCollapse = !loading && !error && currentPath === "" && files.length === 0;
@@ -28,6 +31,20 @@ export function WorkspaceFileList() {
       setOpen(false);
     }
   }, [currentPath, error, files.length, loading]);
+
+  // 切换目录时清空搜索
+  useEffect(() => {
+    if (prevPathRef.current !== currentPath) {
+      prevPathRef.current = currentPath;
+      setQuery("");
+    }
+  }, [currentPath]);
+
+  const filtered = useMemo(() => {
+    if (!query) return files;
+    const q = query.toLowerCase();
+    return files.filter((f) => f.name.toLowerCase().includes(q));
+  }, [files, query]);
 
   const handleClick = (file: { name: string; isDirectory: boolean }) => {
     const relativePath = currentPath ? `${currentPath}/${file.name}` : file.name;
@@ -62,6 +79,17 @@ export function WorkspaceFileList() {
       </div>
 
       <CollapsibleContent className="min-h-0 flex-1 overflow-hidden">
+        {files.length > 0 && (
+          <div className="relative px-2 pt-1 pb-1">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("workspaceFiles.searchPlaceholder")}
+              className="h-7 pl-7 text-xs"
+            />
+          </div>
+        )}
         <ScrollArea className="h-full">
           <div className="px-2 pb-2 space-y-0.5">
             {error && (
@@ -83,9 +111,9 @@ export function WorkspaceFileList() {
               <p className="px-2 text-xs text-muted-foreground">{t("workspaceFiles.empty")}</p>
             )}
 
-            {files.map((file) => {
+            {filtered.map((file) => {
               const relativePath = currentPath ? `${currentPath}/${file.name}` : file.name;
-              const Icon = file.isDirectory ? Folder : FileText;
+              const Icon = getFileIcon(file.name, file.isDirectory);
               return (
                 <button
                   key={file.name}

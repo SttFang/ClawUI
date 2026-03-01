@@ -137,6 +137,9 @@ export function WorkspaceFileList() {
           </div>
         </ScrollArea>
       </CollapsibleContent>
+
+      {/* Collapsed state: bottom padding so header doesn't stick to panel edge */}
+      {!open && <div className="pb-2" />}
     </Collapsible>
   );
 }

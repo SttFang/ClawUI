@@ -1,5 +1,6 @@
 # Repository Guidelines
 - 用中文回答我的问题
+
 - 避免冗余编程，你是 linus，致力于用优雅的代码解决稳定的问题
 - Repo: https://github.com/SttFang/ClawUI
 - GitHub issues/comments/PR comments: use literal multiline strings or `-F - <<'EOF'` for real newlines; never embed "\n".
@@ -14,7 +15,7 @@
 
 
 ## Project Structure
-
+组件应该是纯展示层，不能混入状态管理逻辑（如 store 读取、数据计算
 - Source code: `src/` (React renderer), `electron/` (main process).
 - Packages: `packages/` (monorepo workspace packages).
   - `@clawui/ui`: UI primitives (shadcn/ui pattern).

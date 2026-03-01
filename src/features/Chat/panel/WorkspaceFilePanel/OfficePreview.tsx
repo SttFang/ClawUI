@@ -83,44 +83,60 @@ function OfficeDocxContent({ tab }: { tab: OpenTab }) {
   );
 }
 
+/** Extract text from each PPTX slide via JSZip + XML parsing (lightweight, no DOM rendering). */
+async function parsePptxSlides(data: Uint8Array): Promise<string[][]> {
+  const JSZip = (await import("jszip")).default;
+  const zip = await JSZip.loadAsync(data);
+
+  const slideEntries: { num: number; path: string }[] = [];
+  zip.forEach((path) => {
+    const m = path.match(/^ppt\/slides\/slide(\d+)\.xml$/);
+    if (m) slideEntries.push({ num: Number(m[1]), path });
+  });
+  slideEntries.sort((a, b) => a.num - b.num);
+
+  const slides: string[][] = [];
+  for (const entry of slideEntries) {
+    const xml = await zip.file(entry.path)!.async("text");
+    const texts: string[] = [];
+    const re = /<a:t[^>]*>([\s\S]*?)<\/a:t>/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(xml)) !== null) {
+      const text = m[1].trim();
+      if (text) texts.push(text);
+    }
+    slides.push(texts);
+  }
+  return slides;
+}
+
 function OfficePptxContent({ tab }: { tab: OpenTab }) {
   const { t } = useTranslation("chat");
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [slides, setSlides] = useState<string[][] | null>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!tab.content || !containerRef.current) return;
+    if (!tab.content) return;
 
     let cancelled = false;
-    const host = containerRef.current;
-    host.textContent = "";
+    setSlides(null);
+    setActiveSlide(0);
     setError(null);
 
     void (async () => {
       try {
-        const [pptxPreview, { dataUrlToUint8Array }] = await Promise.all([
-          import("pptx-preview"),
-          import("../officePreview"),
-        ]);
-        if (cancelled) return;
+        const { dataUrlToUint8Array } = await import("../officePreview");
         const bytes = dataUrlToUint8Array(tab.content!);
-        // pptx-preview may export as default or named - check actual export
-        const render =
-          typeof pptxPreview.default === "function" ? pptxPreview.default : pptxPreview;
-        await (render as any)(bytes, {
-          container: host,
-          slideMode: "scroll",
-        });
+        const parsed = await parsePptxSlides(bytes);
+        if (!cancelled) setSlides(parsed);
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
-        }
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       }
     })();
 
     return () => {
       cancelled = true;
-      host.textContent = "";
     };
   }, [tab.content]);
 
@@ -132,12 +148,50 @@ function OfficePptxContent({ tab }: { tab: OpenTab }) {
     );
   }
 
+  if (slides == null) {
+    return <p className="p-4 text-sm text-muted-foreground">{t("workspaceFiles.officeLoading")}</p>;
+  }
+
+  const current = slides[activeSlide];
+
   return (
-    <ScrollArea className="h-full">
-      <div className="p-4">
-        <div ref={containerRef} />
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-2 border-b px-4 py-1.5">
+        <button
+          type="button"
+          disabled={activeSlide === 0}
+          className="rounded px-1.5 py-0.5 text-xs hover:bg-muted disabled:opacity-30"
+          onClick={() => setActiveSlide((i) => i - 1)}
+        >
+          ‹
+        </button>
+        <span className="text-xs text-muted-foreground">
+          {t("workspaceFiles.slide")} {activeSlide + 1} / {slides.length}
+        </span>
+        <button
+          type="button"
+          disabled={activeSlide >= slides.length - 1}
+          className="rounded px-1.5 py-0.5 text-xs hover:bg-muted disabled:opacity-30"
+          onClick={() => setActiveSlide((i) => i + 1)}
+        >
+          ›
+        </button>
       </div>
-    </ScrollArea>
+
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="p-4 space-y-2">
+          {current && current.length > 0 ? (
+            current.map((text, i) => (
+              <p key={i} className="text-sm leading-relaxed">
+                {text}
+              </p>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("workspaceFiles.noSlideText")}</p>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
 

@@ -46,7 +46,7 @@ export function WorkspaceFileList() {
   };
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="border-t">
+    <Collapsible open={open} onOpenChange={setOpen} className="flex min-h-0 flex-1 flex-col">
       <div className="flex w-full items-center gap-1 px-4 py-2 text-xs font-medium text-muted-foreground">
         <CollapsibleTrigger className="flex flex-1 items-center gap-1 hover:text-foreground">
           <ChevronRight className="h-3 w-3 transition-transform [[data-state=open]>&]:rotate-90" />
@@ -61,8 +61,8 @@ export function WorkspaceFileList() {
         </button>
       </div>
 
-      <CollapsibleContent>
-        <ScrollArea className="max-h-80">
+      <CollapsibleContent className="min-h-0 flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
           <div className="px-2 pb-2 space-y-0.5">
             {error && (
               <p className="px-2 text-xs text-destructive">{t("workspaceFiles.loadError")}</p>

@@ -53,7 +53,7 @@ function toPatchValue(value: string): string | null {
 
 /* ── Ghost trigger button ────────────────────────────────────── */
 
-const triggerCn = cn(
+export const triggerCn = cn(
   "inline-flex items-center gap-0.5 rounded-md px-1.5 py-1 text-xs",
   "text-muted-foreground hover:bg-accent hover:text-foreground",
   "disabled:pointer-events-none disabled:opacity-50",

@@ -76,6 +76,7 @@ app.whenReady().then(async () => {
     `img-src 'self' data:`,
     `media-src 'self' data: blob:`,
     `font-src 'self' data:`,
+    `worker-src blob: 'self'`,
     `frame-src blob: 'self'`,
     `object-src 'none'`,
     `base-uri 'self'`,

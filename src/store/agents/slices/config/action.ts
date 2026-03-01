@@ -35,7 +35,7 @@ export const configSlice: StateCreator<
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       agentsLog.warn("[skills.load] failed:", message);
-      set({ skillsError: message }, false, "loadSkills/error");
+      set({ skills: { skills: [] }, skillsError: message }, false, "loadSkills/error");
     }
   },
 

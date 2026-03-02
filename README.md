@@ -33,73 +33,85 @@
 
 ## 核心功能
 
-### 🚀 简易安装
+<br/>
 
-开箱即用的引导式安装流程。ClawUI 自动检测 OpenClaw 是否已安装、自动启动 Gateway、检测 Runtime 版本，全程无需手动配置。首次启动即进入 Onboarding 向导，几步完成从零到可用。
+<!-- <p align="center"><img src="docs/assets/onboarding.png" width="800" /></p> -->
 
-<!-- <img src="docs/assets/onboarding.png" width="800" /> -->
+### `01` 打开就能用
 
-### 💬 智能对话
+你不需要读文档，不需要改 JSON，不需要在终端里敲命令。
 
-流式消息渲染，内置 Shiki 语法高亮、LaTeX 数学公式、Mermaid 流程图。会话管理（创建、归档、切换），工作区文件侧边栏支持 PDF / DOCX / XLSX / 代码 / 图片预览。
+ClawUI 首次启动会自动进入引导流程：检测 OpenClaw 是否安装、确认 Runtime 版本、拉起 Gateway、建立连接。你只需要点几下「下一步」，就从零到一个完整可用的 AI 助手。如果 Gateway 意外退出，ClawUI 会自动帮你重启。
 
-<!-- <img src="docs/assets/chat.png" width="800" /> -->
+<br/>
 
-### 🛡️ 执行审批与 DAG 可视化
+<!-- <p align="center"><img src="docs/assets/chat.png" width="800" /></p> -->
 
-每一次 Agent 工具调用都需要用户明确授权 — 三种决策模式（允许 / 拒绝 / 修改）。执行完成后，完整调用链以交互式 DAG 图呈现，支持 Sub-Agent 多级工作流追踪。
+### `02` 不只是聊天框
 
-<!-- <img src="docs/assets/execution.png" width="800" /> -->
+对话界面基于 Streamdown 引擎逐字流式输出，针对中日韩排版做了专门优化。代码块由 Shiki 渲染，支持 150+ 语言的语法高亮；数学公式走 KaTeX 实时排版；Mermaid 流程图直接在消息气泡里展开 — 不需要复制到别的工具里看。
 
-### 🤖 Agent 管理
+侧边栏可以直接预览工作区里的 PDF、Word、Excel、代码文件和图片，不用离开对话窗口。每个 Agent 独立维护自己的会话历史，支持创建、归档、切换和上下文压缩。
 
-一站式 Agent 控制面板，四个核心 Tab：
+<br/>
 
-| Tab | 说明 |
-|-----|------|
-| Skills | 技能网络图，可视化 Agent 能力拓扑 |
-| Channels | 消息渠道绑定与路由配置 |
-| Nodes | 设备节点管理，多端协同 |
-| Cron | 定时任务日历视图 |
+<!-- <p align="center"><img src="docs/assets/execution.png" width="800" /></p> -->
 
-支持多 Agent 切换，每个 Agent 独立维护会话历史与能力配置。
+### `03` AI 做什么，你说了算
 
-<!-- <img src="docs/assets/agents.png" width="800" /> -->
+Agent 每一次工具调用都不会静默执行 — ClawUI 会弹出审批卡片，你可以选择放行、拒绝、或者修改参数后再执行。这不是事后通知，是事前审批。
 
-### 📡 多渠道路由
+执行结束后，整条调用链会渲染成一张交互式 DAG 图。如果 Agent 调用了 Sub-Agent，多级工作流也会完整展开。点击任意节点可以查看输入输出、耗时和 Token 消耗。你能清楚地看到 AI 做了什么、为什么做、花了多少。
 
-在界面中配置 Telegram、Discord、WhatsApp、Slack、Signal 等消息渠道。同一个 AI 助手同时响应桌面与所有已接入平台，共享上下文与能力。
+<br/>
 
-<!-- <img src="docs/assets/channels.png" width="800" /> -->
+<!-- <p align="center"><img src="docs/assets/agents.png" width="800" /></p> -->
 
-### 📊 用量分析
+### `04` 一个面板管理整个 Agent
 
-内置 Token 用量与成本追踪：
+Agent 的所有配置集中在一个控制台里，分成四个 Tab：
 
-- 每日趋势图 — 直观掌握消耗走势
-- 成本拆分 — 按会话、按模型、按 Provider 多维度分析
-- 会话时间线 — 定位异常消费
+- **Skills** — 技能网络图，用拓扑图展示 Agent 的能力结构和技能依赖关系
+- **Channels** — 把 Agent 接入 Telegram / Discord / WhatsApp / Slack / Signal，一键绑定
+- **Nodes** — 查看已连接的设备节点，管理多端协同
+- **Cron** — 日历视图 + Cron 表达式，让 Agent 在指定时间自动执行任务
 
-API 支出一目了然，不再需要自己算账。
+多个 Agent 之间可以自由切换，每个 Agent 独立维护会话、能力和渠道配置。
 
-<!-- <img src="docs/assets/usage.png" width="800" /> -->
+<br/>
 
-### ⏰ 定时任务
+<!-- <p align="center"><img src="docs/assets/channels.png" width="800" /></p> -->
 
-Cron 表达式驱动的定时任务调度，配合日历视图管理。Agent 可在指定时间自动执行任务，结果直接呈现在对话中。
+### `05` 一个 AI，所有平台
 
-### 🚑 Rescue Agent
+在 ClawUI 里配好渠道信息，你的 AI 助手就会同时出现在 Telegram、Discord、WhatsApp、Slack 和 Signal 上。不需要为每个平台单独部署 Bot — 同一个 Agent 共享上下文和全部能力，桌面端和消息平台的对话完全互通。
 
-内置排障专用会话，采用双 Gateway 架构隔离 — 即使主 Gateway 出现问题，Rescue Agent 仍可独立运行，诊断连接、配置错误与认证问题，辅助快速恢复。
+配置方式很简单：填入 Bot Token 或 Webhook URL，选择路由策略，设好群组白名单就行。
 
-### ⚙️ 设置中心
+<br/>
+
+<!-- <p align="center"><img src="docs/assets/usage.png" width="800" /></p> -->
+
+### `06` API 账单不再是黑箱
+
+每个会话用了多少 Token、花了多少钱，ClawUI 帮你按模型、按 Provider、按天拆得清清楚楚。每日趋势图让你一眼看到消耗走势，异常消费直接定位到具体会话。不用再自己去各家 Provider 后台对账了。
+
+<br/>
+
+### `07` 主 Gateway 挂了也能自救
+
+Rescue Agent 运行在一个独立的 Gateway 实例上，和主 Gateway 完全隔离。当主 Gateway 出现连接问题、配置错误或认证失败时，切到 Rescue Agent 就能在 App 内诊断问题 — 检查进程状态、读日志、验证配置、测试连接，不需要打开终端。
+
+<br/>
+
+### `08` 设置中心
 
 | 模块 | 说明 |
 |------|------|
-| 通用 | 语言（中文 / English）、主题（深色 / 浅色）、自动更新 |
-| AI 服务 | Provider 认证（Anthropic OAuth Device Flow、OpenAI、自定义 API Key）、默认模型 |
-| 消息渠道 | Bot Token、Webhook、路由策略、群组白名单 |
-| 能力 | 工具、插件、技能、MCP Server 管理 |
+| **通用** | 语言切换（中文 / English）、深色 / 浅色主题、自动更新 |
+| **AI 服务** | Provider 认证（Anthropic OAuth、OpenAI、Google、自定义 API Key）、默认模型、参数调优 |
+| **消息渠道** | Bot Token、Webhook、路由策略、群组白名单、消息过滤 |
+| **能力** | 工具权限、插件管理、技能安装与卸载、MCP Server 配置 |
 
 ---
 
